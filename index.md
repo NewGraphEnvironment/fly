@@ -18,11 +18,11 @@ just centroids), and picks the smallest set that meets your target.
 Best-resolution photos first, coarser scales fill the gaps.
 
 ![Priority selection: 1:12000 (blue) and 1:31680 (orange) footprints
-with centroids covering a floodplain AOI near Houston,
+covering a floodplain AOI near Houston,
 BC](reference/figures/readme-priority.png)
 
-*Neexdzii Kwa (Morice River) floodplain near Houston, BC — 1968 photos
-at 1:12,000 (blue) and 1:31,680 (orange).*
+*Upper Bulkley River floodplain near Houston, BC — 1968 photos at
+1:12,000 (blue) and 1:31,680 (orange).*
 
 ## Installation
 

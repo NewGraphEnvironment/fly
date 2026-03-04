@@ -1,9 +1,8 @@
 # Airphoto Selection Pipeline
 
 This vignette demonstrates the full `fly` pipeline using bundled test
-data from the Neexdzii Kwa (Morice River) floodplain near Houston, BC.
-The data includes 1968 airphoto centroids at two scales (1:12,000 and
-1:31,680).
+data from the Upper Bulkley River floodplain near Houston, BC. The data
+includes 1968 airphoto centroids at two scales (1:12,000 and 1:31,680).
 
 ``` r
 library(fly)
