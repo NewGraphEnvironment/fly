@@ -1,0 +1,36 @@
+Package: fly
+Title: Airphoto Footprint Estimation and Coverage Selection
+Version: 0.0.0.9000
+Authors@R: c(
+    person("Allan", "Irvine", , "al@newgraphenvironment.com", role = c("aut", "cre"),
+           comment = c(ORCID = "0000-0002-3495-2128")),
+    person("New Graph Environment", role = "cph")
+    )
+Description: Estimate ground footprints from airphoto centroids and scale,
+    compute coverage of areas of interest, and select minimum photo sets
+    using greedy set-cover. Includes optional helpers for querying fish
+    habitat streams from bcfishpass.
+License: MIT + file LICENSE
+URL: https://github.com/NewGraphEnvironment/fly,
+    https://newgraphenvironment.github.io/fly/
+BugReports: https://github.com/NewGraphEnvironment/fly/issues
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.3
+Depends:
+    R (>= 4.1)
+Imports:
+    sf,
+    dplyr,
+    glue,
+    purrr,
+    rlang,
+    stringr
+Suggests:
+    DBI,
+    RPostgres,
+    testthat (>= 3.0.0),
+    knitr,
+    rmarkdown
+Config/testthat/edition: 3
+VignetteBuilder: knitr
