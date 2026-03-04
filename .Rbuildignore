@@ -8,3 +8,5 @@
 ^dev$
 ^data-raw$
 ^\.lintr$
+^doc$
+^Meta$
