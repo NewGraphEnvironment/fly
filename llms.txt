@@ -1,0 +1,86 @@
+# fly
+
+Select the minimum set of historic airphotos needed to cover your study
+area.
+
+## Why
+
+Historic airphotos are essential for documenting landscape change, but
+ordering them is tedious — you’re choosing from thousands of overlapping
+frames across multiple scales and decades. Photo centroids are available
+from the [BC Data
+Catalogue](https://catalogue.data.gov.bc.ca/dataset/0af7544c-f2ad-4553-bb37-889c94d4c571)
+but knowing which frames actually cover your area of interest requires
+estimating ground footprints from scale and film format.
+
+fly estimates those footprints, filters by actual ground coverage (not
+just centroids), and picks the smallest set that meets your target.
+Best-resolution photos first, coarser scales fill the gaps.
+
+![Priority selection: 1:12000 (blue) and 1:31680 (orange) footprints
+with centroids covering a floodplain AOI near Houston,
+BC](reference/figures/readme-priority.png)
+
+*Neexdzii Kwa (Morice River) floodplain near Houston, BC — 1968 photos
+at 1:12,000 (blue) and 1:31,680 (orange).*
+
+## Installation
+
+``` r
+pak::pak("NewGraphEnvironment/fly")
+```
+
+## Example
+
+``` r
+library(fly)
+library(sf)
+
+# Estimate footprint rectangles from centroids
+footprints <- fly_footprint(centroids)
+
+# Filter photos whose footprint overlaps the AOI
+filtered <- fly_filter(centroids, aoi, method = "footprint")
+
+# Select minimum set for 95% coverage
+selected <- fly_select(filtered, aoi, target_coverage = 0.95)
+```
+
+## Related packages
+
+[flooded](https://github.com/NewGraphEnvironment/flooded) delineates
+floodplain extents from DEMs and stream networks — use it to generate
+the AOI polygons that fly selects photos for.
+
+## Documentation
+
+Full walkthrough with priority selection at the [airphoto selection
+vignette](https://newgraphenvironment.github.io/fly/articles/airphoto-selection.html).
+
+# Package index
+
+## All functions
+
+- [`fly_coverage()`](https://newgraphenvironment.github.io/fly/reference/fly_coverage.md)
+  : Check photo coverage of an AOI by group
+- [`fly_filter()`](https://newgraphenvironment.github.io/fly/reference/fly_filter.md)
+  : Filter photos by spatial relationship with an AOI
+- [`fly_footprint()`](https://newgraphenvironment.github.io/fly/reference/fly_footprint.md)
+  : Estimate photo footprint polygons from centroids and scale
+- [`fly_query_habitat()`](https://newgraphenvironment.github.io/fly/reference/fly_query_habitat.md)
+  : Query bcfishpass for habitat streams
+- [`fly_query_lakes()`](https://newgraphenvironment.github.io/fly/reference/fly_query_lakes.md)
+  : Query FWA lake polygons that intersect habitat streams
+- [`fly_select()`](https://newgraphenvironment.github.io/fly/reference/fly_select.md)
+  : Select minimum photo set to cover an AOI (greedy set cover)
+- [`fly_summary()`](https://newgraphenvironment.github.io/fly/reference/fly_summary.md)
+  : Summarize photo footprint sizes and date ranges by scale
+- [`fly_trim_habitat()`](https://newgraphenvironment.github.io/fly/reference/fly_trim_habitat.md)
+  : Trim floodplain to areas alongside target streams
+
+# Articles
+
+### All vignettes
+
+- [Airphoto Selection
+  Pipeline](https://newgraphenvironment.github.io/fly/articles/airphoto-selection.md):
