@@ -85,7 +85,77 @@ selected[, c("airp_id", "scale", "selection_order", "cumulative_coverage_pct")]
 ```{r plot-selected}
 sel_fp <- fly_footprint(selected)
 plot(st_geometry(aoi), col = "lightyellow", border = "grey40",
-     main = paste(nrow(selected), "photos selected"))
+     main = paste(nrow(selected), "photos selected (greedy)"))
 plot(st_geometry(sel_fp), border = "steelblue", col = adjustcolor("steelblue", 0.15), add = TRUE)
 plot(st_geometry(selected), pch = 20, col = "red", add = TRUE)
+```
+
+## Priority selection: best resolution first
+
+In practice you often want **all** photos at the best available resolution,
+then backfill uncovered area with coarser scales. This combines `fly_select()`
+with a priority loop over scales.
+
+```{r priority}
+sf_use_s2(FALSE)
+scales_priority <- c("1:12000", "1:31680")
+target_coverage <- 0.80
+
+aoi_albers <- st_transform(aoi, 3005) |> st_union() |> st_make_valid()
+aoi_area <- as.numeric(st_area(aoi_albers))
+selected_all <- NULL
+remaining_aoi <- aoi_albers
+
+for (i in seq_along(scales_priority)) {
+  sc <- scales_priority[i]
+  photos_sc <- centroids[centroids$scale == sc, ]
+  if (nrow(photos_sc) == 0) next
+
+  if (i == 1) {
+    # Best resolution: take ALL photos
+    cat(sc, ": taking all", nrow(photos_sc), "photos\n")
+    sel <- photos_sc
+    sel$selection_order <- seq_len(nrow(sel))
+    sel$cumulative_coverage_pct <- NA_real_
+  } else {
+    # Coarser scales: greedy select on remaining uncovered area
+    remaining_sf <- st_sf(geometry = st_geometry(remaining_aoi)) |>
+      st_transform(4326) |> st_make_valid()
+    sel <- fly_select(photos_sc, remaining_sf, target_coverage = target_coverage)
+  }
+
+  if (nrow(sel) > 0) {
+    fp <- fly_footprint(sel) |> st_transform(3005)
+    fp_union <- st_union(fp) |> st_make_valid()
+    remaining_aoi <- tryCatch(
+      st_difference(remaining_aoi, fp_union) |> st_make_valid(),
+      error = function(e) remaining_aoi
+    )
+    covered_pct <- 1 - as.numeric(st_area(remaining_aoi)) / aoi_area
+    cat("  -> ", nrow(sel), " photos at ", sc,
+        " (cumulative: ", round(covered_pct * 100, 1), "%)\n")
+    sel$priority_scale <- sc
+    selected_all <- rbind(selected_all, sel)
+  }
+}
+
+cat("\nTotal:", nrow(selected_all), "photos\n")
+as.data.frame(table(selected_all$priority_scale))
+```
+
+```{r plot-priority}
+sel_fp <- fly_footprint(selected_all)
+plot(st_geometry(aoi), col = "lightyellow", border = "grey40",
+     main = paste(nrow(selected_all), "photos (priority selection)"))
+# Color by scale
+cols <- ifelse(selected_all$priority_scale == "1:12000", "steelblue", "darkorange")
+border_cols <- cols
+fill_cols <- adjustcolor(cols, 0.15)
+for (j in seq_len(nrow(sel_fp))) {
+  plot(st_geometry(sel_fp[j, ]), border = border_cols[j],
+       col = fill_cols[j], add = TRUE)
+}
+legend("topright", legend = scales_priority,
+       fill = adjustcolor(c("steelblue", "darkorange"), 0.3),
+       border = c("steelblue", "darkorange"), bty = "n")
 ```
