@@ -3,7 +3,7 @@
 #'   st_make_valid st_area st_geometry st_set_crs st_sfc st_polygon st_sf
 #'   st_drop_geometry st_read st_zm st_as_sf st_coordinates st_intersects
 #'   sf_use_s2
-#' @importFrom rlang .data !!
+#' @importFrom rlang .data !! :=
 "_PACKAGE"
 
 ## usethis namespace: start
