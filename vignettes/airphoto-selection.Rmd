@@ -1,0 +1,91 @@
+---
+title: "Airphoto Selection Pipeline"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Airphoto Selection Pipeline}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 7,
+  fig.height = 5
+)
+```
+
+This vignette demonstrates the full `fly` pipeline using bundled test data
+from the Neexdzii Kwa (Morice River) floodplain near Houston, BC. The data
+includes 1968 airphoto centroids at two scales (1:12,000 and 1:31,680).
+
+```{r load}
+library(fly)
+library(sf)
+
+centroids <- st_read(system.file("testdata/photo_centroids.gpkg", package = "fly"), quiet = TRUE)
+aoi <- st_read(system.file("testdata/aoi.gpkg", package = "fly"), quiet = TRUE)
+```
+
+## Footprint estimation
+
+`fly_footprint()` converts point centroids into rectangular polygons
+representing estimated ground coverage. The standard 9" x 9" negative
+produces a footprint width of `9 * scale * 0.0254` metres.
+
+```{r footprint}
+footprints <- fly_footprint(centroids)
+plot(st_geometry(aoi), col = "lightyellow", border = "grey40", main = "Photo footprints")
+plot(st_geometry(footprints), border = "steelblue", add = TRUE)
+plot(st_geometry(centroids), pch = 20, cex = 0.5, col = "red", add = TRUE)
+```
+
+## Spatial filtering
+
+`fly_filter()` with `method = "footprint"` catches photos whose centroid
+falls outside the AOI but whose footprint overlaps it — a common situation
+with large-scale photos at the edge of the study area.
+
+```{r filter}
+fp_result <- fly_filter(centroids, aoi, method = "footprint")
+ct_result <- fly_filter(centroids, aoi, method = "centroid")
+cat("Footprint method:", nrow(fp_result), "photos\n")
+cat("Centroid method: ", nrow(ct_result), "photos\n")
+```
+
+## Summary statistics
+
+`fly_summary()` reports footprint dimensions and date ranges by scale.
+
+```{r summary}
+fly_summary(centroids)
+```
+
+## Coverage analysis
+
+`fly_coverage()` computes what percentage of the AOI is covered by photo
+footprints, grouped by any column.
+
+```{r coverage}
+fly_coverage(centroids, aoi, by = "scale")
+```
+
+## Greedy photo selection
+
+`fly_select()` picks the minimum set of photos needed to reach a target
+coverage, using a greedy set-cover algorithm that iteratively selects the
+photo covering the most uncovered area.
+
+```{r select}
+selected <- fly_select(centroids, aoi, target_coverage = 0.80)
+selected[, c("airp_id", "scale", "selection_order", "cumulative_coverage_pct")]
+```
+
+```{r plot-selected}
+sel_fp <- fly_footprint(selected)
+plot(st_geometry(aoi), col = "lightyellow", border = "grey40",
+     main = paste(nrow(selected), "photos selected"))
+plot(st_geometry(sel_fp), border = "steelblue", col = adjustcolor("steelblue", 0.15), add = TRUE)
+plot(st_geometry(selected), pch = 20, col = "red", add = TRUE)
+```
