@@ -11,9 +11,9 @@ Historic airphotos are essential for documenting landscape change, but ordering 
 
 fly estimates those footprints, filters by actual ground coverage (not just centroids), and picks the smallest set that meets your target. Best-resolution photos first, coarser scales fill the gaps.
 
-<img src="man/figures/readme-priority.png" width="100%" alt="Priority selection: 1:12000 (blue) and 1:31680 (orange) footprints with centroids covering a floodplain AOI near Houston, BC" />
+<img src="man/figures/readme-priority.png" width="100%" alt="Priority selection: 1:12000 (blue) and 1:31680 (orange) footprints covering a floodplain AOI near Houston, BC" />
 
-*Neexdzii Kwa (Morice River) floodplain near Houston, BC — 1968 photos at 1:12,000 (blue) and 1:31,680 (orange).*
+*Upper Bulkley River floodplain near Houston, BC — 1968 photos at 1:12,000 (blue) and 1:31,680 (orange).*
 
 ## Installation
 

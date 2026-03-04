@@ -2,8 +2,8 @@
 #
 # make_testdata.R
 #
-# Generate bundled test data from Neexdzii Kwa (Morice River) floodplain.
-# Crop near Houston, upstream of the Neexdzii Kwah / Wedzin Kwa confluence.
+# Generate bundled test data from Upper Bulkley River floodplain.
+# Crop near Houston, BC.
 # Dual-scale coverage: 1:12000 and 1:31680 (1968).
 #
 # Source: airbc cached data (BC Data Catalogue + flooded VCA output)
