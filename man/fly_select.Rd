@@ -2,9 +2,9 @@
 % Please edit documentation in R/fly_select.R
 \name{fly_select}
 \alias{fly_select}
-\title{Select minimum photo set to cover an AOI (greedy set cover)}
+\title{Select photos covering an AOI}
 \usage{
-fly_select(photos_sf, aoi_sf, target_coverage = 0.95)
+fly_select(photos_sf, aoi_sf, mode = "minimal", target_coverage = 0.95)
 }
 \arguments{
 \item{photos_sf}{An sf point object with a \code{scale} column
@@ -12,20 +12,29 @@ fly_select(photos_sf, aoi_sf, target_coverage = 0.95)
 
 \item{aoi_sf}{An sf polygon to cover.}
 
-\item{target_coverage}{Stop when this fraction is reached (default 0.95).}
+\item{mode}{Either \code{"minimal"} (fewest photos to reach target) or \code{"all"}
+(every photo touching the AOI).}
+
+\item{target_coverage}{Stop when this fraction is reached (default 0.95).
+Only used when \code{mode = "minimal"}.}
 }
 \value{
-An sf object (subset of \code{photos_sf}) with added columns
-\code{selection_order} and \code{cumulative_coverage_pct}.
+An sf object (subset of \code{photos_sf}). For \code{mode = "minimal"},
+includes \code{selection_order} and \code{cumulative_coverage_pct} columns.
 }
 \description{
-Iteratively picks the photo whose footprint covers the most uncovered
-area until the target coverage is reached.
+Two modes: \code{"minimal"} picks the fewest photos to reach target coverage
+(greedy set-cover); \code{"all"} returns every photo whose footprint intersects
+the AOI.
 }
 \examples{
 centroids <- sf::st_read(system.file("testdata/photo_centroids.gpkg", package = "fly"))
 aoi <- sf::st_read(system.file("testdata/aoi.gpkg", package = "fly"))
-selected <- fly_select(centroids, aoi, target_coverage = 0.80)
-selected[, c("airp_id", "scale", "selection_order", "cumulative_coverage_pct")]
+
+# Fewest photos to reach 80\% coverage
+fly_select(centroids, aoi, mode = "minimal", target_coverage = 0.80)
+
+# All photos touching the AOI
+fly_select(centroids, aoi, mode = "all")
 
 }
