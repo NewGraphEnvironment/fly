@@ -3,6 +3,7 @@
 export(fly_coverage)
 export(fly_filter)
 export(fly_footprint)
+export(fly_overlap)
 export(fly_query_habitat)
 export(fly_query_lakes)
 export(fly_select)

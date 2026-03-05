@@ -22,6 +22,24 @@ of each airphoto, based on film negative dimensions and the reported scale.
 Ground coverage is computed as \code{negative_size * scale_number * 0.0254} metres
 per side. Rectangles are constructed in BC Albers (EPSG:3005) for accurate
 metric distances, then transformed back to the input CRS.
+
+The scale denominator is parsed from the \code{scale} column string (e.g.
+\code{"1:12000"} becomes \code{12000}).
+
+\strong{9x9 assumption:} the default \code{negative_size = 9} (inches) reflects the
+standard 228 mm format used by BC aerial survey cameras (e.g. Wild RC-10,
+Zeiss RMK). The BC Air Photo Database records camera focal length per roll
+(Type 02 field 3.2.2) but this is not available in the simplified centroid
+data from the catalogue. If working with non-standard format photography,
+override \code{negative_size} accordingly.
+
+\strong{Flat-terrain assumption:} footprints are estimated assuming flat ground
+beneath the aircraft. In reality terrain slope changes the actual ground
+coverage — downhill slopes increase the true footprint (ground falls away
+from the camera), while uphill slopes reduce it. In steep terrain typical
+of BC valleys, true footprints may differ meaningfully from these estimates.
+Coverage and overlap calculations downstream (e.g. \code{\link[=fly_coverage]{fly_coverage()}},
+\code{\link[=fly_overlap]{fly_overlap()}}) inherit this limitation.
 }
 \examples{
 centroids <- sf::st_read(system.file("testdata/photo_centroids.gpkg", package = "fly"))

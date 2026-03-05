@@ -31,8 +31,18 @@ aoi <- st_read(system.file("testdata/aoi.gpkg", package = "fly"), quiet = TRUE)
 ## Footprint estimation
 
 `fly_footprint()` converts point centroids into rectangular polygons
-representing estimated ground coverage. The standard 9" x 9" negative
-produces a footprint width of `9 * scale * 0.0254` metres.
+representing estimated ground coverage. The standard 9" x 9" (228 mm) negative
+used by BC aerial survey cameras produces a footprint width of
+`9 * scale * 0.0254` metres. The 9x9 format is the default (`negative_size = 9`)
+and is correct for standard BC catalogue photography. The full BC Air Photo
+Database records camera focal length per roll, but this field is not available
+in the simplified centroid data — override `negative_size` if working with
+non-standard format photography.
+
+Note that footprints assume flat terrain beneath the aircraft. On slopes the
+true ground coverage differs — downhill slopes produce a larger actual
+footprint, uphill slopes a smaller one. All coverage and overlap numbers
+downstream inherit this approximation.
 
 ```{r footprint}
 footprints <- fly_footprint(centroids)
@@ -71,91 +81,126 @@ footprints, grouped by any column.
 fly_coverage(centroids, aoi, by = "scale")
 ```
 
-## Greedy photo selection
+## Photo selection
 
-`fly_select()` picks the minimum set of photos needed to reach a target
-coverage, using a greedy set-cover algorithm that iteratively selects the
-photo covering the most uncovered area.
+`fly_select()` has two modes:
 
-```{r select}
-selected <- fly_select(centroids, aoi, target_coverage = 0.80)
+- `mode = "minimal"` — fewest photos to reach target coverage
+- `mode = "all"` — every photo whose footprint touches the AOI
+
+### Minimal selection
+
+```{r select-minimal}
+selected <- fly_select(centroids, aoi, mode = "minimal", target_coverage = 0.80)
 selected[, c("airp_id", "scale", "selection_order", "cumulative_coverage_pct")]
 ```
 
-```{r plot-selected}
+```{r plot-minimal}
 sel_fp <- fly_footprint(selected)
 plot(st_geometry(aoi), col = "lightyellow", border = "grey40",
-     main = paste(nrow(selected), "photos selected (greedy)"))
+     main = paste(nrow(selected), "photos (minimal selection)"))
 plot(st_geometry(sel_fp), border = "steelblue", col = adjustcolor("steelblue", 0.15), add = TRUE)
 plot(st_geometry(selected), pch = 20, col = "red", add = TRUE)
 ```
 
-## Priority selection: best resolution first
+### All photos touching AOI
 
-In practice you often want **all** photos at the best available resolution,
-then backfill uncovered area with coarser scales. This combines `fly_select()`
-with a priority loop over scales.
+```{r select-all}
+all_in_aoi <- fly_select(centroids, aoi, mode = "all")
+cat(nrow(all_in_aoi), "photos intersect the AOI\n")
+```
 
-```{r priority}
+## Overlap analysis
+
+`fly_overlap()` reports pairwise overlap between photo footprints.
+Run it on same-scale subsets to understand coverage quality.
+
+```{r overlap}
+photos_12k <- centroids[centroids$scale == "1:12000", ]
+overlap_12k <- fly_overlap(photos_12k)
+overlap_12k
+```
+
+```{r overlap-summary}
+if (nrow(overlap_12k) > 0) {
+  cat("1:12000 overlap range:",
+      round(min(overlap_12k$pct_of_a), 1), "% -",
+      round(max(overlap_12k$pct_of_a), 1), "%\n")
+}
+
+photos_31k <- centroids[centroids$scale == "1:31680", ]
+overlap_31k <- fly_overlap(photos_31k)
+if (nrow(overlap_31k) > 0) {
+  cat("1:31680 overlap range:",
+      round(min(overlap_31k$pct_of_a), 1), "% -",
+      round(max(overlap_31k$pct_of_a), 1), "%\n")
+}
+```
+
+## Multi-scale workflow: best resolution first
+
+In practice you want the finest-scale photos first, then fill gaps with
+coarser scales. Sort scales finest-first by parsing the numeric denominator:
+
+```{r multi-scale}
 sf_use_s2(FALSE)
-scales_priority <- c("1:12000", "1:31680")
-target_coverage <- 0.80
 
+# Sort scales finest-first
+scales <- sort(unique(as.numeric(gsub("1:", "", centroids$scale))))
+cat("Scales (finest first):", paste0("1:", scales), "\n")
+
+target_coverage <- 0.80
 aoi_albers <- st_transform(aoi, 3005) |> st_union() |> st_make_valid()
 aoi_area <- as.numeric(st_area(aoi_albers))
 selected_all <- NULL
 remaining_aoi <- aoi_albers
 
-for (i in seq_along(scales_priority)) {
-  sc <- scales_priority[i]
+for (sc_num in scales) {
+  sc <- paste0("1:", sc_num)
   photos_sc <- centroids[centroids$scale == sc, ]
   if (nrow(photos_sc) == 0) next
 
-  if (i == 1) {
-    # Best resolution: take ALL photos
-    cat(sc, ": taking all", nrow(photos_sc), "photos\n")
-    sel <- photos_sc
-    sel$selection_order <- seq_len(nrow(sel))
-    sel$cumulative_coverage_pct <- NA_real_
-  } else {
-    # Coarser scales: greedy select on remaining uncovered area
-    remaining_sf <- st_sf(geometry = st_geometry(remaining_aoi)) |>
-      st_transform(4326) |> st_make_valid()
-    sel <- fly_select(photos_sc, remaining_sf, target_coverage = target_coverage)
-  }
+  # Take all photos at this scale that touch the (remaining) AOI
+  remaining_sf <- st_sf(geometry = st_geometry(remaining_aoi)) |>
+    st_transform(4326) |> st_make_valid()
+  sel <- fly_select(photos_sc, remaining_sf, mode = "all")
+  if (nrow(sel) == 0) next
 
-  if (nrow(sel) > 0) {
-    fp <- fly_footprint(sel) |> st_transform(3005)
-    fp_union <- st_union(fp) |> st_make_valid()
-    remaining_aoi <- tryCatch(
-      st_difference(remaining_aoi, fp_union) |> st_make_valid(),
-      error = function(e) remaining_aoi
-    )
-    covered_pct <- 1 - as.numeric(st_area(remaining_aoi)) / aoi_area
-    cat("  -> ", nrow(sel), " photos at ", sc,
-        " (cumulative: ", round(covered_pct * 100, 1), "%)\n")
-    sel$priority_scale <- sc
-    selected_all <- rbind(selected_all, sel)
-  }
+  # Update remaining uncovered area
+  fp <- fly_footprint(sel) |> st_transform(3005)
+  fp_union <- st_union(fp) |> st_make_valid()
+  remaining_aoi <- tryCatch(
+    st_difference(remaining_aoi, fp_union) |> st_make_valid(),
+    error = function(e) remaining_aoi
+  )
+  remaining_area <- as.numeric(st_area(remaining_aoi))
+  covered_pct <- 1 - sum(remaining_area) / aoi_area
+
+  cat(sc, ":", nrow(sel), "photos (cumulative coverage:",
+      round(covered_pct * 100, 1), "%)\n")
+
+  sel$priority_scale <- sc
+  selected_all <- rbind(selected_all, sel)
+
+  if (covered_pct >= target_coverage) break
 }
 
 cat("\nTotal:", nrow(selected_all), "photos\n")
 as.data.frame(table(selected_all$priority_scale))
 ```
 
-```{r plot-priority}
+```{r plot-multi-scale}
 sel_fp <- fly_footprint(selected_all)
 plot(st_geometry(aoi), col = "lightyellow", border = "grey40",
-     main = paste(nrow(selected_all), "photos (priority selection)"))
-# Color by scale
-cols <- ifelse(selected_all$priority_scale == "1:12000", "steelblue", "darkorange")
-border_cols <- cols
-fill_cols <- adjustcolor(cols, 0.15)
+     main = paste(nrow(selected_all), "photos (best resolution first)"))
+scale_labels <- sort(unique(selected_all$priority_scale))
+palette <- c("steelblue", "darkorange", "forestgreen", "firebrick")
+cols <- palette[match(selected_all$priority_scale, scale_labels)]
 for (j in seq_len(nrow(sel_fp))) {
-  plot(st_geometry(sel_fp[j, ]), border = border_cols[j],
-       col = fill_cols[j], add = TRUE)
+  plot(st_geometry(sel_fp[j, ]), border = cols[j],
+       col = adjustcolor(cols[j], 0.15), add = TRUE)
 }
-legend("topright", legend = scales_priority,
-       fill = adjustcolor(c("steelblue", "darkorange"), 0.3),
-       border = c("steelblue", "darkorange"), bty = "n")
+legend("topright", legend = scale_labels,
+       fill = adjustcolor(palette[seq_along(scale_labels)], 0.3),
+       border = palette[seq_along(scale_labels)], bty = "n")
 ```

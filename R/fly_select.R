@@ -1,23 +1,60 @@
-#' Select minimum photo set to cover an AOI (greedy set cover)
+#' Select photos covering an AOI
 #'
-#' Iteratively picks the photo whose footprint covers the most uncovered
-#' area until the target coverage is reached.
+#' Two modes: `"minimal"` picks the fewest photos to reach target coverage
+#' (greedy set-cover); `"all"` returns every photo whose footprint intersects
+#' the AOI.
 #'
 #' @param photos_sf An sf point object with a `scale` column
 #'   (pre-filtered to target year/scale).
 #' @param aoi_sf An sf polygon to cover.
+#' @param mode Either `"minimal"` (fewest photos to reach target) or `"all"`
+#'   (every photo touching the AOI).
 #' @param target_coverage Stop when this fraction is reached (default 0.95).
-#' @return An sf object (subset of `photos_sf`) with added columns
-#'   `selection_order` and `cumulative_coverage_pct`.
+#'   Only used when `mode = "minimal"`.
+#' @return An sf object (subset of `photos_sf`). For `mode = "minimal"`,
+#'   includes `selection_order` and `cumulative_coverage_pct` columns.
 #'
 #' @examples
 #' centroids <- sf::st_read(system.file("testdata/photo_centroids.gpkg", package = "fly"))
 #' aoi <- sf::st_read(system.file("testdata/aoi.gpkg", package = "fly"))
-#' selected <- fly_select(centroids, aoi, target_coverage = 0.80)
-#' selected[, c("airp_id", "scale", "selection_order", "cumulative_coverage_pct")]
+#'
+#' # Fewest photos to reach 80% coverage
+#' fly_select(centroids, aoi, mode = "minimal", target_coverage = 0.80)
+#'
+#' # All photos touching the AOI
+#' fly_select(centroids, aoi, mode = "all")
 #'
 #' @export
-fly_select <- function(photos_sf, aoi_sf, target_coverage = 0.95) {
+fly_select <- function(photos_sf, aoi_sf, mode = "minimal",
+                       target_coverage = 0.95) {
+  mode <- match.arg(mode, c("minimal", "all"))
+
+  if (mode == "all") {
+    return(fly_select_all(photos_sf, aoi_sf))
+  }
+
+  fly_select_minimal(photos_sf, aoi_sf, target_coverage)
+}
+
+#' @noRd
+fly_select_all <- function(photos_sf, aoi_sf) {
+  sf::sf_use_s2(FALSE)
+  on.exit(sf::sf_use_s2(TRUE))
+
+  footprints <- fly_footprint(photos_sf)
+  aoi_union <- sf::st_transform(aoi_sf, sf::st_crs(footprints)) |>
+    sf::st_union() |>
+    sf::st_make_valid()
+
+  touches <- sf::st_intersects(footprints, aoi_union, sparse = FALSE)[, 1]
+  result <- photos_sf[touches, ]
+  message("Selected ", nrow(result), " of ", nrow(photos_sf),
+          " photos intersecting the AOI")
+  result
+}
+
+#' @noRd
+fly_select_minimal <- function(photos_sf, aoi_sf, target_coverage) {
   sf::sf_use_s2(FALSE)
   on.exit(sf::sf_use_s2(TRUE))
 
@@ -66,7 +103,7 @@ fly_select <- function(photos_sf, aoi_sf, target_coverage = 0.95) {
       error = function(e) aoi_albers
     )
 
-    pct <- as.numeric(sf::st_area(covered_in_aoi)) / aoi_area
+    pct <- sum(as.numeric(sf::st_area(covered_in_aoi))) / aoi_area
     coverage_pcts <- c(coverage_pcts, pct)
 
     if (length(selected_idx) %% 10 == 0 || pct >= target_coverage) {
