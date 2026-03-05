@@ -69,6 +69,21 @@ of each airphoto, based on film negative dimensions and the reported scale.</p>
     <p>Ground coverage is computed as <code>negative_size * scale_number * 0.0254</code> metres
 per side. Rectangles are constructed in BC Albers (EPSG:3005) for accurate
 metric distances, then transformed back to the input CRS.</p>
+<p>The scale denominator is parsed from the <code>scale</code> column string (e.g.
+<code>"1:12000"</code> becomes <code>12000</code>).</p>
+<p><strong>9x9 assumption:</strong> the default <code>negative_size = 9</code> (inches) reflects the
+standard 228 mm format used by BC aerial survey cameras (e.g. Wild RC-10,
+Zeiss RMK). The BC Air Photo Database records camera focal length per roll
+(Type 02 field 3.2.2) but this is not available in the simplified centroid
+data from the catalogue. If working with non-standard format photography,
+override <code>negative_size</code> accordingly.</p>
+<p><strong>Flat-terrain assumption:</strong> footprints are estimated assuming flat ground
+beneath the aircraft. In reality terrain slope changes the actual ground
+coverage — downhill slopes increase the true footprint (ground falls away
+from the camera), while uphill slopes reduce it. In steep terrain typical
+of BC valleys, true footprints may differ meaningfully from these estimates.
+Coverage and overlap calculations downstream (e.g. <code><a href="fly_coverage.html">fly_coverage()</a></code>,
+<code><a href="fly_overlap.html">fly_overlap()</a></code>) inherit this limitation.</p>
     </div>
 
     <div class="section level2">

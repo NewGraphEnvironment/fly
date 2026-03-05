@@ -80,8 +80,18 @@ and 1:31,680).</p>
 </h2>
 <p><code><a href="../reference/fly_footprint.html">fly_footprint()</a></code> converts point centroids into
 rectangular polygons representing estimated ground coverage. The
-standard 9” x 9” negative produces a footprint width of
-<code>9 * scale * 0.0254</code> metres.</p>
+standard 9” x 9” (228 mm) negative used by BC aerial survey cameras
+produces a footprint width of <code>9 * scale * 0.0254</code> metres.
+The 9x9 format is the default (<code>negative_size = 9</code>) and is
+correct for standard BC catalogue photography. The full BC Air Photo
+Database records camera focal length per roll, but this field is not
+available in the simplified centroid data — override
+<code>negative_size</code> if working with non-standard format
+photography.</p>
+<p>Note that footprints assume flat terrain beneath the aircraft. On
+slopes the true ground coverage differs — downhill slopes produce a
+larger actual footprint, uphill slopes a smaller one. All coverage and
+overlap numbers downstream inherit this approximation.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">footprints</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fly_footprint.html">fly_footprint</a></span><span class="op">(</span><span class="va">centroids</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="fu"><a href="https://r-spatial.github.io/sf/reference/st_geometry.html" class="external-link">st_geometry</a></span><span class="op">(</span><span class="va">aoi</span><span class="op">)</span>, col <span class="op">=</span> <span class="st">"lightyellow"</span>, border <span class="op">=</span> <span class="st">"grey40"</span>, main <span class="op">=</span> <span class="st">"Photo footprints"</span><span class="op">)</span></span>
@@ -133,13 +143,22 @@ covered by photo footprints, grouped by any column.</p>
 <span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span> 1:31680       10        24.8        100</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="greedy-photo-selection">Greedy photo selection<a class="anchor" aria-label="anchor" href="#greedy-photo-selection"></a>
+<h2 id="photo-selection">Photo selection<a class="anchor" aria-label="anchor" href="#photo-selection"></a>
 </h2>
-<p><code><a href="../reference/fly_select.html">fly_select()</a></code> picks the minimum set of photos needed to
-reach a target coverage, using a greedy set-cover algorithm that
-iteratively selects the photo covering the most uncovered area.</p>
+<p><code><a href="../reference/fly_select.html">fly_select()</a></code> has two modes:</p>
+<ul>
+<li>
+<code>mode = "minimal"</code> — fewest photos to reach target
+coverage</li>
+<li>
+<code>mode = "all"</code> — every photo whose footprint touches the
+AOI</li>
+</ul>
+<div class="section level3">
+<h3 id="minimal-selection">Minimal selection<a class="anchor" aria-label="anchor" href="#minimal-selection"></a>
+</h3>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">selected</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fly_select.html">fly_select</a></span><span class="op">(</span><span class="va">centroids</span>, <span class="va">aoi</span>, target_coverage <span class="op">=</span> <span class="fl">0.80</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">selected</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fly_select.html">fly_select</a></span><span class="op">(</span><span class="va">centroids</span>, <span class="va">aoi</span>, mode <span class="op">=</span> <span class="st">"minimal"</span>, target_coverage <span class="op">=</span> <span class="fl">0.80</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Spherical geometry (s2) switched off</span></span>
 <span><span class="co">#&gt; Selecting photos (target: 80% coverage)...</span></span>
 <span><span class="co">#&gt;   3 photos -&gt; 81.6% coverage</span></span>
@@ -162,92 +181,156 @@ iteratively selects the photo covering the most uncovered area.</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">sel_fp</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fly_footprint.html">fly_footprint</a></span><span class="op">(</span><span class="va">selected</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="fu"><a href="https://r-spatial.github.io/sf/reference/st_geometry.html" class="external-link">st_geometry</a></span><span class="op">(</span><span class="va">aoi</span><span class="op">)</span>, col <span class="op">=</span> <span class="st">"lightyellow"</span>, border <span class="op">=</span> <span class="st">"grey40"</span>,</span>
-<span>     main <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">selected</span><span class="op">)</span>, <span class="st">"photos selected (greedy)"</span><span class="op">)</span><span class="op">)</span></span>
+<span>     main <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">selected</span><span class="op">)</span>, <span class="st">"photos (minimal selection)"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="fu"><a href="https://r-spatial.github.io/sf/reference/st_geometry.html" class="external-link">st_geometry</a></span><span class="op">(</span><span class="va">sel_fp</span><span class="op">)</span>, border <span class="op">=</span> <span class="st">"steelblue"</span>, col <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/grDevices/adjustcolor.html" class="external-link">adjustcolor</a></span><span class="op">(</span><span class="st">"steelblue"</span>, <span class="fl">0.15</span><span class="op">)</span>, add <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="fu"><a href="https://r-spatial.github.io/sf/reference/st_geometry.html" class="external-link">st_geometry</a></span><span class="op">(</span><span class="va">selected</span><span class="op">)</span>, pch <span class="op">=</span> <span class="fl">20</span>, col <span class="op">=</span> <span class="st">"red"</span>, add <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
-<p><img src="airphoto-selection_files/figure-html/plot-selected-1.png" class="r-plt" alt="" width="672"></p>
+<p><img src="airphoto-selection_files/figure-html/plot-minimal-1.png" class="r-plt" alt="" width="672"></p>
+</div>
+<div class="section level3">
+<h3 id="all-photos-touching-aoi">All photos touching AOI<a class="anchor" aria-label="anchor" href="#all-photos-touching-aoi"></a>
+</h3>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">all_in_aoi</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fly_select.html">fly_select</a></span><span class="op">(</span><span class="va">centroids</span>, <span class="va">aoi</span>, mode <span class="op">=</span> <span class="st">"all"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Spherical geometry (s2) switched off</span></span>
+<span><span class="co">#&gt; although coordinates are longitude/latitude, st_union assumes that they are</span></span>
+<span><span class="co">#&gt; planar</span></span>
+<span><span class="co">#&gt; although coordinates are longitude/latitude, st_intersects assumes that they</span></span>
+<span><span class="co">#&gt; are planar</span></span>
+<span><span class="co">#&gt; Selected 20 of 20 photos intersecting the AOI</span></span>
+<span><span class="co">#&gt; Spherical geometry (s2) switched on</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">all_in_aoi</span><span class="op">)</span>, <span class="st">"photos intersect the AOI\n"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; 20 photos intersect the AOI</span></span></code></pre></div>
+</div>
 </div>
 <div class="section level2">
-<h2 id="priority-selection-best-resolution-first">Priority selection: best resolution first<a class="anchor" aria-label="anchor" href="#priority-selection-best-resolution-first"></a>
+<h2 id="overlap-analysis">Overlap analysis<a class="anchor" aria-label="anchor" href="#overlap-analysis"></a>
 </h2>
-<p>In practice you often want <strong>all</strong> photos at the best
-available resolution, then backfill uncovered area with coarser scales.
-This combines <code><a href="../reference/fly_select.html">fly_select()</a></code> with a priority loop over
-scales.</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<p><code><a href="../reference/fly_overlap.html">fly_overlap()</a></code> reports pairwise overlap between photo
+footprints. Run it on same-scale subsets to understand coverage
+quality.</p>
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">photos_12k</span> <span class="op">&lt;-</span> <span class="va">centroids</span><span class="op">[</span><span class="va">centroids</span><span class="op">$</span><span class="va">scale</span> <span class="op">==</span> <span class="st">"1:12000"</span>, <span class="op">]</span></span>
+<span><span class="va">overlap_12k</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fly_overlap.html">fly_overlap</a></span><span class="op">(</span><span class="va">photos_12k</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Spherical geometry (s2) switched off</span></span>
+<span><span class="co">#&gt; Spherical geometry (s2) switched on</span></span>
+<span><span class="va">overlap_12k</span></span>
+<span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 7 × 5</span></span></span>
+<span><span class="co">#&gt;   photo_a photo_b overlap_km2 pct_of_a pct_of_b</span></span>
+<span><span class="co">#&gt;     <span style="color: #949494; font-style: italic;">&lt;int&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;int&gt;</span>       <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span>  <span style="text-decoration: underline;">699</span>370  <span style="text-decoration: underline;">699</span>365       2.05      27.2     27.2</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span>  <span style="text-decoration: underline;">699</span>370  <span style="text-decoration: underline;">699</span>373       0.134      1.8      1.8</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">3</span>  <span style="text-decoration: underline;">699</span>426  <span style="text-decoration: underline;">699</span>425       3.92      52.1     52.1</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">4</span>  <span style="text-decoration: underline;">699</span>396  <span style="text-decoration: underline;">699</span>393       0.246      3.3      3.3</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">5</span>  <span style="text-decoration: underline;">699</span>396  <span style="text-decoration: underline;">699</span>421       1.5       19.9     19.9</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">6</span>  <span style="text-decoration: underline;">699</span>419  <span style="text-decoration: underline;">699</span>421       1.46      19.4     19.4</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">7</span>  <span style="text-decoration: underline;">699</span>425  <span style="text-decoration: underline;">699</span>393       0.676      9        9</span></span></code></pre></div>
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">overlap_12k</span><span class="op">)</span> <span class="op">&gt;</span> <span class="fl">0</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"1:12000 overlap range:"</span>,</span>
+<span>      <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">min</a></span><span class="op">(</span><span class="va">overlap_12k</span><span class="op">$</span><span class="va">pct_of_a</span><span class="op">)</span>, <span class="fl">1</span><span class="op">)</span>, <span class="st">"% -"</span>,</span>
+<span>      <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="va">overlap_12k</span><span class="op">$</span><span class="va">pct_of_a</span><span class="op">)</span>, <span class="fl">1</span><span class="op">)</span>, <span class="st">"%\n"</span><span class="op">)</span></span>
+<span><span class="op">}</span></span>
+<span><span class="co">#&gt; 1:12000 overlap range: 1.8 % - 52.1 %</span></span>
+<span></span>
+<span><span class="va">photos_31k</span> <span class="op">&lt;-</span> <span class="va">centroids</span><span class="op">[</span><span class="va">centroids</span><span class="op">$</span><span class="va">scale</span> <span class="op">==</span> <span class="st">"1:31680"</span>, <span class="op">]</span></span>
+<span><span class="va">overlap_31k</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fly_overlap.html">fly_overlap</a></span><span class="op">(</span><span class="va">photos_31k</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Spherical geometry (s2) switched off</span></span>
+<span><span class="co">#&gt; Spherical geometry (s2) switched on</span></span>
+<span><span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">overlap_31k</span><span class="op">)</span> <span class="op">&gt;</span> <span class="fl">0</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"1:31680 overlap range:"</span>,</span>
+<span>      <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">min</a></span><span class="op">(</span><span class="va">overlap_31k</span><span class="op">$</span><span class="va">pct_of_a</span><span class="op">)</span>, <span class="fl">1</span><span class="op">)</span>, <span class="st">"% -"</span>,</span>
+<span>      <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="va">overlap_31k</span><span class="op">$</span><span class="va">pct_of_a</span><span class="op">)</span>, <span class="fl">1</span><span class="op">)</span>, <span class="st">"%\n"</span><span class="op">)</span></span>
+<span><span class="op">}</span></span>
+<span><span class="co">#&gt; 1:31680 overlap range: 1.9 % - 61.7 %</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="multi-scale-workflow-best-resolution-first">Multi-scale workflow: best resolution first<a class="anchor" aria-label="anchor" href="#multi-scale-workflow-best-resolution-first"></a>
+</h2>
+<p>In practice you want the finest-scale photos first, then fill gaps
+with coarser scales. Sort scales finest-first by parsing the numeric
+denominator:</p>
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://r-spatial.github.io/sf/reference/s2.html" class="external-link">sf_use_s2</a></span><span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Spherical geometry (s2) switched off</span></span>
-<span><span class="va">scales_priority</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"1:12000"</span>, <span class="st">"1:31680"</span><span class="op">)</span></span>
-<span><span class="va">target_coverage</span> <span class="op">&lt;-</span> <span class="fl">0.80</span></span>
 <span></span>
+<span><span class="co"># Sort scales finest-first</span></span>
+<span><span class="va">scales</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/sort.html" class="external-link">sort</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/unique.html" class="external-link">unique</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/grep.html" class="external-link">gsub</a></span><span class="op">(</span><span class="st">"1:"</span>, <span class="st">""</span>, <span class="va">centroids</span><span class="op">$</span><span class="va">scale</span><span class="op">)</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Scales (finest first):"</span>, <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"1:"</span>, <span class="va">scales</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Scales (finest first): 1:12000 1:31680</span></span>
+<span></span>
+<span><span class="va">target_coverage</span> <span class="op">&lt;-</span> <span class="fl">0.80</span></span>
 <span><span class="va">aoi_albers</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://r-spatial.github.io/sf/reference/st_transform.html" class="external-link">st_transform</a></span><span class="op">(</span><span class="va">aoi</span>, <span class="fl">3005</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="https://r-spatial.github.io/sf/reference/geos_combine.html" class="external-link">st_union</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="https://r-spatial.github.io/sf/reference/valid.html" class="external-link">st_make_valid</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="va">aoi_area</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="fu"><a href="https://r-spatial.github.io/sf/reference/geos_measures.html" class="external-link">st_area</a></span><span class="op">(</span><span class="va">aoi_albers</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">selected_all</span> <span class="op">&lt;-</span> <span class="cn">NULL</span></span>
 <span><span class="va">remaining_aoi</span> <span class="op">&lt;-</span> <span class="va">aoi_albers</span></span>
 <span></span>
-<span><span class="kw">for</span> <span class="op">(</span><span class="va">i</span> <span class="kw">in</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_along</a></span><span class="op">(</span><span class="va">scales_priority</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="va">sc</span> <span class="op">&lt;-</span> <span class="va">scales_priority</span><span class="op">[</span><span class="va">i</span><span class="op">]</span></span>
+<span><span class="kw">for</span> <span class="op">(</span><span class="va">sc_num</span> <span class="kw">in</span> <span class="va">scales</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="va">sc</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"1:"</span>, <span class="va">sc_num</span><span class="op">)</span></span>
 <span>  <span class="va">photos_sc</span> <span class="op">&lt;-</span> <span class="va">centroids</span><span class="op">[</span><span class="va">centroids</span><span class="op">$</span><span class="va">scale</span> <span class="op">==</span> <span class="va">sc</span>, <span class="op">]</span></span>
 <span>  <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">photos_sc</span><span class="op">)</span> <span class="op">==</span> <span class="fl">0</span><span class="op">)</span> <span class="kw">next</span></span>
 <span></span>
-<span>  <span class="kw">if</span> <span class="op">(</span><span class="va">i</span> <span class="op">==</span> <span class="fl">1</span><span class="op">)</span> <span class="op">{</span></span>
-<span>    <span class="co"># Best resolution: take ALL photos</span></span>
-<span>    <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="va">sc</span>, <span class="st">": taking all"</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">photos_sc</span><span class="op">)</span>, <span class="st">"photos\n"</span><span class="op">)</span></span>
-<span>    <span class="va">sel</span> <span class="op">&lt;-</span> <span class="va">photos_sc</span></span>
-<span>    <span class="va">sel</span><span class="op">$</span><span class="va">selection_order</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">sel</span><span class="op">)</span><span class="op">)</span></span>
-<span>    <span class="va">sel</span><span class="op">$</span><span class="va">cumulative_coverage_pct</span> <span class="op">&lt;-</span> <span class="cn">NA_real_</span></span>
-<span>  <span class="op">}</span> <span class="kw">else</span> <span class="op">{</span></span>
-<span>    <span class="co"># Coarser scales: greedy select on remaining uncovered area</span></span>
-<span>    <span class="va">remaining_sf</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://r-spatial.github.io/sf/reference/sf.html" class="external-link">st_sf</a></span><span class="op">(</span>geometry <span class="op">=</span> <span class="fu"><a href="https://r-spatial.github.io/sf/reference/st_geometry.html" class="external-link">st_geometry</a></span><span class="op">(</span><span class="va">remaining_aoi</span><span class="op">)</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>      <span class="fu"><a href="https://r-spatial.github.io/sf/reference/st_transform.html" class="external-link">st_transform</a></span><span class="op">(</span><span class="fl">4326</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="https://r-spatial.github.io/sf/reference/valid.html" class="external-link">st_make_valid</a></span><span class="op">(</span><span class="op">)</span></span>
-<span>    <span class="va">sel</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fly_select.html">fly_select</a></span><span class="op">(</span><span class="va">photos_sc</span>, <span class="va">remaining_sf</span>, target_coverage <span class="op">=</span> <span class="va">target_coverage</span><span class="op">)</span></span>
-<span>  <span class="op">}</span></span>
+<span>  <span class="co"># Take all photos at this scale that touch the (remaining) AOI</span></span>
+<span>  <span class="va">remaining_sf</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://r-spatial.github.io/sf/reference/sf.html" class="external-link">st_sf</a></span><span class="op">(</span>geometry <span class="op">=</span> <span class="fu"><a href="https://r-spatial.github.io/sf/reference/st_geometry.html" class="external-link">st_geometry</a></span><span class="op">(</span><span class="va">remaining_aoi</span><span class="op">)</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>    <span class="fu"><a href="https://r-spatial.github.io/sf/reference/st_transform.html" class="external-link">st_transform</a></span><span class="op">(</span><span class="fl">4326</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="https://r-spatial.github.io/sf/reference/valid.html" class="external-link">st_make_valid</a></span><span class="op">(</span><span class="op">)</span></span>
+<span>  <span class="va">sel</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fly_select.html">fly_select</a></span><span class="op">(</span><span class="va">photos_sc</span>, <span class="va">remaining_sf</span>, mode <span class="op">=</span> <span class="st">"all"</span><span class="op">)</span></span>
+<span>  <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">sel</span><span class="op">)</span> <span class="op">==</span> <span class="fl">0</span><span class="op">)</span> <span class="kw">next</span></span>
 <span></span>
-<span>  <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">sel</span><span class="op">)</span> <span class="op">&gt;</span> <span class="fl">0</span><span class="op">)</span> <span class="op">{</span></span>
-<span>    <span class="va">fp</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fly_footprint.html">fly_footprint</a></span><span class="op">(</span><span class="va">sel</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="https://r-spatial.github.io/sf/reference/st_transform.html" class="external-link">st_transform</a></span><span class="op">(</span><span class="fl">3005</span><span class="op">)</span></span>
-<span>    <span class="va">fp_union</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://r-spatial.github.io/sf/reference/geos_combine.html" class="external-link">st_union</a></span><span class="op">(</span><span class="va">fp</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="https://r-spatial.github.io/sf/reference/valid.html" class="external-link">st_make_valid</a></span><span class="op">(</span><span class="op">)</span></span>
-<span>    <span class="va">remaining_aoi</span> <span class="op">&lt;-</span> <span class="kw"><a href="https://rdrr.io/r/base/conditions.html" class="external-link">tryCatch</a></span><span class="op">(</span></span>
-<span>      <span class="fu"><a href="https://r-spatial.github.io/sf/reference/geos_binary_ops.html" class="external-link">st_difference</a></span><span class="op">(</span><span class="va">remaining_aoi</span>, <span class="va">fp_union</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="https://r-spatial.github.io/sf/reference/valid.html" class="external-link">st_make_valid</a></span><span class="op">(</span><span class="op">)</span>,</span>
-<span>      error <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">e</span><span class="op">)</span> <span class="va">remaining_aoi</span></span>
-<span>    <span class="op">)</span></span>
-<span>    <span class="va">covered_pct</span> <span class="op">&lt;-</span> <span class="fl">1</span> <span class="op">-</span> <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="fu"><a href="https://r-spatial.github.io/sf/reference/geos_measures.html" class="external-link">st_area</a></span><span class="op">(</span><span class="va">remaining_aoi</span><span class="op">)</span><span class="op">)</span> <span class="op">/</span> <span class="va">aoi_area</span></span>
-<span>    <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"  -&gt; "</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">sel</span><span class="op">)</span>, <span class="st">" photos at "</span>, <span class="va">sc</span>,</span>
-<span>        <span class="st">" (cumulative: "</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">covered_pct</span> <span class="op">*</span> <span class="fl">100</span>, <span class="fl">1</span><span class="op">)</span>, <span class="st">"%)\n"</span><span class="op">)</span></span>
-<span>    <span class="va">sel</span><span class="op">$</span><span class="va">priority_scale</span> <span class="op">&lt;-</span> <span class="va">sc</span></span>
-<span>    <span class="va">selected_all</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span><span class="va">selected_all</span>, <span class="va">sel</span><span class="op">)</span></span>
-<span>  <span class="op">}</span></span>
+<span>  <span class="co"># Update remaining uncovered area</span></span>
+<span>  <span class="va">fp</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fly_footprint.html">fly_footprint</a></span><span class="op">(</span><span class="va">sel</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="https://r-spatial.github.io/sf/reference/st_transform.html" class="external-link">st_transform</a></span><span class="op">(</span><span class="fl">3005</span><span class="op">)</span></span>
+<span>  <span class="va">fp_union</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://r-spatial.github.io/sf/reference/geos_combine.html" class="external-link">st_union</a></span><span class="op">(</span><span class="va">fp</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="https://r-spatial.github.io/sf/reference/valid.html" class="external-link">st_make_valid</a></span><span class="op">(</span><span class="op">)</span></span>
+<span>  <span class="va">remaining_aoi</span> <span class="op">&lt;-</span> <span class="kw"><a href="https://rdrr.io/r/base/conditions.html" class="external-link">tryCatch</a></span><span class="op">(</span></span>
+<span>    <span class="fu"><a href="https://r-spatial.github.io/sf/reference/geos_binary_ops.html" class="external-link">st_difference</a></span><span class="op">(</span><span class="va">remaining_aoi</span>, <span class="va">fp_union</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="https://r-spatial.github.io/sf/reference/valid.html" class="external-link">st_make_valid</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>    error <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">e</span><span class="op">)</span> <span class="va">remaining_aoi</span></span>
+<span>  <span class="op">)</span></span>
+<span>  <span class="va">remaining_area</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="fu"><a href="https://r-spatial.github.io/sf/reference/geos_measures.html" class="external-link">st_area</a></span><span class="op">(</span><span class="va">remaining_aoi</span><span class="op">)</span><span class="op">)</span></span>
+<span>  <span class="va">covered_pct</span> <span class="op">&lt;-</span> <span class="fl">1</span> <span class="op">-</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">remaining_area</span><span class="op">)</span> <span class="op">/</span> <span class="va">aoi_area</span></span>
+<span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="va">sc</span>, <span class="st">":"</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">sel</span><span class="op">)</span>, <span class="st">"photos (cumulative coverage:"</span>,</span>
+<span>      <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">covered_pct</span> <span class="op">*</span> <span class="fl">100</span>, <span class="fl">1</span><span class="op">)</span>, <span class="st">"%)\n"</span><span class="op">)</span></span>
+<span></span>
+<span>  <span class="va">sel</span><span class="op">$</span><span class="va">priority_scale</span> <span class="op">&lt;-</span> <span class="va">sc</span></span>
+<span>  <span class="va">selected_all</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span><span class="va">selected_all</span>, <span class="va">sel</span><span class="op">)</span></span>
+<span></span>
+<span>  <span class="kw">if</span> <span class="op">(</span><span class="va">covered_pct</span> <span class="op">&gt;=</span> <span class="va">target_coverage</span><span class="op">)</span> <span class="kw">break</span></span>
 <span><span class="op">}</span></span>
-<span><span class="co">#&gt; 1:12000 : taking all 10 photos</span></span>
-<span><span class="co">#&gt;   -&gt;  10  photos at  1:12000  (cumulative:  60.7 %)</span></span>
-<span><span class="co">#&gt; Selecting photos (target: 80% coverage)...</span></span>
-<span><span class="co">#&gt;   5 photos -&gt; 87.7% coverage</span></span>
-<span><span class="co">#&gt; Selected 5 of 10 photos for 87.7% coverage</span></span>
+<span><span class="co">#&gt; although coordinates are longitude/latitude, st_union assumes that they are</span></span>
+<span><span class="co">#&gt; planar</span></span>
+<span><span class="co">#&gt; although coordinates are longitude/latitude, st_intersects assumes that they</span></span>
+<span><span class="co">#&gt; are planar</span></span>
+<span><span class="co">#&gt; Selected 10 of 10 photos intersecting the AOI</span></span>
 <span><span class="co">#&gt; Spherical geometry (s2) switched on</span></span>
-<span><span class="co">#&gt;   -&gt;  5  photos at  1:31680  (cumulative:  95.2 %)</span></span>
+<span><span class="co">#&gt; 1:12000 : 10 photos (cumulative coverage: 60.7 %)</span></span>
+<span><span class="co">#&gt; Spherical geometry (s2) switched off</span></span>
+<span><span class="co">#&gt; although coordinates are longitude/latitude, st_union assumes that they are</span></span>
+<span><span class="co">#&gt; planar</span></span>
+<span><span class="co">#&gt; although coordinates are longitude/latitude, st_intersects assumes that they</span></span>
+<span><span class="co">#&gt; are planar</span></span>
+<span><span class="co">#&gt; Selected 10 of 10 photos intersecting the AOI</span></span>
+<span><span class="co">#&gt; Spherical geometry (s2) switched on</span></span>
+<span><span class="co">#&gt; 1:31680 : 10 photos (cumulative coverage: 100 %)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"\nTotal:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">selected_all</span><span class="op">)</span>, <span class="st">"photos\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Total: 15 photos</span></span>
+<span><span class="co">#&gt; Total: 20 photos</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/as.data.frame.html" class="external-link">as.data.frame</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/table.html" class="external-link">table</a></span><span class="op">(</span><span class="va">selected_all</span><span class="op">$</span><span class="va">priority_scale</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;      Var1 Freq</span></span>
 <span><span class="co">#&gt; 1 1:12000   10</span></span>
-<span><span class="co">#&gt; 2 1:31680    5</span></span></code></pre></div>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<span><span class="co">#&gt; 2 1:31680   10</span></span></code></pre></div>
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">sel_fp</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fly_footprint.html">fly_footprint</a></span><span class="op">(</span><span class="va">selected_all</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="fu"><a href="https://r-spatial.github.io/sf/reference/st_geometry.html" class="external-link">st_geometry</a></span><span class="op">(</span><span class="va">aoi</span><span class="op">)</span>, col <span class="op">=</span> <span class="st">"lightyellow"</span>, border <span class="op">=</span> <span class="st">"grey40"</span>,</span>
-<span>     main <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">selected_all</span><span class="op">)</span>, <span class="st">"photos (priority selection)"</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co"># Color by scale</span></span>
-<span><span class="va">cols</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/ifelse.html" class="external-link">ifelse</a></span><span class="op">(</span><span class="va">selected_all</span><span class="op">$</span><span class="va">priority_scale</span> <span class="op">==</span> <span class="st">"1:12000"</span>, <span class="st">"steelblue"</span>, <span class="st">"darkorange"</span><span class="op">)</span></span>
-<span><span class="va">border_cols</span> <span class="op">&lt;-</span> <span class="va">cols</span></span>
-<span><span class="va">fill_cols</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/grDevices/adjustcolor.html" class="external-link">adjustcolor</a></span><span class="op">(</span><span class="va">cols</span>, <span class="fl">0.15</span><span class="op">)</span></span>
+<span>     main <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">selected_all</span><span class="op">)</span>, <span class="st">"photos (best resolution first)"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">scale_labels</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/sort.html" class="external-link">sort</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/unique.html" class="external-link">unique</a></span><span class="op">(</span><span class="va">selected_all</span><span class="op">$</span><span class="va">priority_scale</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">palette</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"steelblue"</span>, <span class="st">"darkorange"</span>, <span class="st">"forestgreen"</span>, <span class="st">"firebrick"</span><span class="op">)</span></span>
+<span><span class="va">cols</span> <span class="op">&lt;-</span> <span class="va">palette</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/match.html" class="external-link">match</a></span><span class="op">(</span><span class="va">selected_all</span><span class="op">$</span><span class="va">priority_scale</span>, <span class="va">scale_labels</span><span class="op">)</span><span class="op">]</span></span>
 <span><span class="kw">for</span> <span class="op">(</span><span class="va">j</span> <span class="kw">in</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">sel_fp</span><span class="op">)</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="fu"><a href="https://r-spatial.github.io/sf/reference/st_geometry.html" class="external-link">st_geometry</a></span><span class="op">(</span><span class="va">sel_fp</span><span class="op">[</span><span class="va">j</span>, <span class="op">]</span><span class="op">)</span>, border <span class="op">=</span> <span class="va">border_cols</span><span class="op">[</span><span class="va">j</span><span class="op">]</span>,</span>
-<span>       col <span class="op">=</span> <span class="va">fill_cols</span><span class="op">[</span><span class="va">j</span><span class="op">]</span>, add <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="fu"><a href="https://r-spatial.github.io/sf/reference/st_geometry.html" class="external-link">st_geometry</a></span><span class="op">(</span><span class="va">sel_fp</span><span class="op">[</span><span class="va">j</span>, <span class="op">]</span><span class="op">)</span>, border <span class="op">=</span> <span class="va">cols</span><span class="op">[</span><span class="va">j</span><span class="op">]</span>,</span>
+<span>       col <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/grDevices/adjustcolor.html" class="external-link">adjustcolor</a></span><span class="op">(</span><span class="va">cols</span><span class="op">[</span><span class="va">j</span><span class="op">]</span>, <span class="fl">0.15</span><span class="op">)</span>, add <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span><span class="op">}</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/graphics/legend.html" class="external-link">legend</a></span><span class="op">(</span><span class="st">"topright"</span>, legend <span class="op">=</span> <span class="va">scales_priority</span>,</span>
-<span>       fill <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/grDevices/adjustcolor.html" class="external-link">adjustcolor</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"steelblue"</span>, <span class="st">"darkorange"</span><span class="op">)</span>, <span class="fl">0.3</span><span class="op">)</span>,</span>
-<span>       border <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"steelblue"</span>, <span class="st">"darkorange"</span><span class="op">)</span>, bty <span class="op">=</span> <span class="st">"n"</span><span class="op">)</span></span></code></pre></div>
-<p><img src="airphoto-selection_files/figure-html/plot-priority-1.png" class="r-plt" alt="" width="672"></p>
+<span><span class="fu"><a href="https://rdrr.io/r/graphics/legend.html" class="external-link">legend</a></span><span class="op">(</span><span class="st">"topright"</span>, legend <span class="op">=</span> <span class="va">scale_labels</span>,</span>
+<span>       fill <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/grDevices/adjustcolor.html" class="external-link">adjustcolor</a></span><span class="op">(</span><span class="va">palette</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_along</a></span><span class="op">(</span><span class="va">scale_labels</span><span class="op">)</span><span class="op">]</span>, <span class="fl">0.3</span><span class="op">)</span>,</span>
+<span>       border <span class="op">=</span> <span class="va">palette</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_along</a></span><span class="op">(</span><span class="va">scale_labels</span><span class="op">)</span><span class="op">]</span>, bty <span class="op">=</span> <span class="st">"n"</span><span class="op">)</span></span></code></pre></div>
+<p><img src="airphoto-selection_files/figure-html/plot-multi-scale-1.png" class="r-plt" alt="" width="672"></p>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>
