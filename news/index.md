@@ -4,7 +4,7 @@
 
 ### 0.1.1 (2026-03-07)
 
-- Add `ensure_components` parameter to
+- Add `component_ensure` parameter to
   [`fly_select()`](https://newgraphenvironment.github.io/fly/reference/fly_select.md)
   for multi-polygon AOIs — guarantees at least one photo per
   disconnected component before greedy selection

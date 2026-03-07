@@ -12,7 +12,7 @@ fly_select(
   aoi_sf,
   mode = "minimal",
   target_coverage = 0.95,
-  ensure_components = FALSE
+  component_ensure = FALSE
 )
 ```
 
@@ -37,7 +37,7 @@ fly_select(
   Stop when this fraction is reached (default 0.95). Only used when
   `mode = "minimal"`.
 
-- ensure_components:
+- component_ensure:
 
   If `TRUE` (default `FALSE`), guarantee that every polygon component of
   `aoi_sf` is covered by at least one photo before running the greedy
@@ -98,7 +98,7 @@ fly_select(centroids, aoi, mode = "minimal", target_coverage = 0.80)
 
 # Ensure every AOI component gets at least one photo
 fly_select(centroids, aoi, mode = "minimal", target_coverage = 0.80,
-           ensure_components = TRUE)
+           component_ensure = TRUE)
 #> Spherical geometry (s2) switched off
 #> Seeding 9 photos for component coverage...
 #>   9 seed photos -> 78% coverage

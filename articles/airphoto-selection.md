@@ -150,7 +150,7 @@ Minimal greedy selection — fewest photos to reach 80% AOI coverage.
 
 When the AOI has multiple disconnected polygons (e.g. patchy floodplain
 fragments), minimal selection optimizes total area and can leave entire
-components uncovered. Use `ensure_components = TRUE` to guarantee at
+components uncovered. Use `component_ensure = TRUE` to guarantee at
 least one photo per component before running greedy selection:
 
 ``` r
@@ -160,7 +160,7 @@ cat("AOI has", n_components, "polygon components\n")
 #> AOI has 34 polygon components
 
 selected_ec <- fly_select(centroids, aoi, mode = "minimal",
-                          target_coverage = 0.80, ensure_components = TRUE)
+                          target_coverage = 0.80, component_ensure = TRUE)
 #> Spherical geometry (s2) switched off
 #> Seeding 9 photos for component coverage...
 #>   9 seed photos -> 78% coverage
@@ -168,10 +168,10 @@ selected_ec <- fly_select(centroids, aoi, mode = "minimal",
 #>   10 photos -> 90.1% coverage
 #> Selected 10 of 20 photos for 90.1% coverage
 #> Spherical geometry (s2) switched on
-cat("Without ensure_components:", nrow(selected), "photos\n")
-#> Without ensure_components: 3 photos
-cat("With ensure_components:   ", nrow(selected_ec), "photos\n")
-#> With ensure_components:    10 photos
+cat("Without component_ensure:", nrow(selected), "photos\n")
+#> Without component_ensure: 3 photos
+cat("With component_ensure:   ", nrow(selected_ec), "photos\n")
+#> With component_ensure:    10 photos
 ```
 
 Compare Figure @ref(fig:fig-minimal) with Figure

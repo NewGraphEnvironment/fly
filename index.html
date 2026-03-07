@@ -93,7 +93,7 @@
 <span></span>
 <span><span class="co"># Ensure every disconnected AOI polygon gets at least one photo</span></span>
 <span><span class="va">selected</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fly_select.html">fly_select</a></span><span class="op">(</span><span class="va">filtered</span>, <span class="va">aoi</span>, mode <span class="op">=</span> <span class="st">"minimal"</span>,</span>
-<span>                       target_coverage <span class="op">=</span> <span class="fl">0.95</span>, ensure_components <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span>                       target_coverage <span class="op">=</span> <span class="fl">0.95</span>, component_ensure <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Or grab every photo touching the AOI</span></span>
 <span><span class="va">all_photos</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fly_select.html">fly_select</a></span><span class="op">(</span><span class="va">filtered</span>, <span class="va">aoi</span>, mode <span class="op">=</span> <span class="st">"all"</span><span class="op">)</span></span></code></pre></div>
