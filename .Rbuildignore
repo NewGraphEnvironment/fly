@@ -10,3 +10,5 @@
 ^\.lintr$
 ^doc$
 ^Meta$
+^CLAUDE\.md$
+^\.claude$
