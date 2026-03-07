@@ -11,7 +11,7 @@ the AOI.'><meta property="og:image" content="https://newgraphenvironment.github.
 
     <a class="navbar-brand me-2" href="../index.html">fly</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -48,7 +48,13 @@ the AOI.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">fly_select</span><span class="op">(</span><span class="va">photos_sf</span>, <span class="va">aoi_sf</span>, mode <span class="op">=</span> <span class="st">"minimal"</span>, target_coverage <span class="op">=</span> <span class="fl">0.95</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">fly_select</span><span class="op">(</span></span>
+<span>  <span class="va">photos_sf</span>,</span>
+<span>  <span class="va">aoi_sf</span>,</span>
+<span>  mode <span class="op">=</span> <span class="st">"minimal"</span>,</span>
+<span>  target_coverage <span class="op">=</span> <span class="fl">0.95</span>,</span>
+<span>  ensure_components <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -72,6 +78,14 @@ the AOI.</p>
 <dt id="arg-target-coverage">target_coverage<a class="anchor" aria-label="anchor" href="#arg-target-coverage"></a></dt>
 <dd><p>Stop when this fraction is reached (default 0.95).
 Only used when <code>mode = "minimal"</code>.</p></dd>
+
+
+<dt id="arg-ensure-components">ensure_components<a class="anchor" aria-label="anchor" href="#arg-ensure-components"></a></dt>
+<dd><p>If <code>TRUE</code> (default <code>FALSE</code>), guarantee that every
+polygon component of <code>aoi_sf</code> is covered by at least one photo before
+running the greedy selection. Useful for multi-polygon AOIs (e.g. patchy
+floodplain fragments) where small components might otherwise get zero
+coverage. Only used when <code>mode = "minimal"</code>.</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -124,6 +138,55 @@ includes <code>selection_order</code> and <code>cumulative_coverage_pct</code> c
 <span class="r-out co"><span class="r-pr">#&gt;</span> 11                    41.0</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 20                    66.5</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 12                    81.6</span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Ensure every AOI component gets at least one photo</span></span></span>
+<span class="r-in"><span><span class="fu">fly_select</span><span class="op">(</span><span class="va">centroids</span>, <span class="va">aoi</span>, mode <span class="op">=</span> <span class="st">"minimal"</span>, target_coverage <span class="op">=</span> <span class="fl">0.80</span>,</span></span>
+<span class="r-in"><span>           ensure_components <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> Spherical geometry (s2) switched off</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> Seeding 9 photos for component coverage...</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span>   9 seed photos -&gt; 78% coverage</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> Selecting photos (target: 80% coverage)...</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span>   10 photos -&gt; 90.1% coverage</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> Selected 10 of 20 photos for 90.1% coverage</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> Spherical geometry (s2) switched on</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Simple feature collection with 10 features and 11 fields</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Geometry type: POINT</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Dimension:     XY</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Bounding box:  xmin: -126.6796 ymin: 54.34512 xmax: -126.449 ymax: 54.46049</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Geodetic CRS:  WGS 84</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    airp_id photo_year photo_date   scale film_roll frame_number     media</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 18  697326       1968 1968-07-31 1:31680    bc5306           57 Film - BW</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 11  697358       1968 1968-07-31 1:31680    bc5306           89 Film - BW</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 13  697293       1968 1968-07-31 1:31680    bc5306           24 Film - BW</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 10  699421       1968 1968-05-10 1:12000    bc5282          227 Film - BW</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 4   699396       1968 1968-05-10 1:12000    bc5282          202 Film - BW</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 17  697295       1968 1968-07-31 1:31680    bc5306           26 Film - BW</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 15  696206       1968 1968-07-31 1:31680    bc5300          236 Film - BW</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 12  697292       1968 1968-07-31 1:31680    bc5306           23 Film - BW</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 6   699419       1968 1968-05-10 1:12000    bc5282          225 Film - BW</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 20  697329       1968 1968-07-31 1:31680    bc5306           60 Film - BW</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     photo_tag nts_tile                       geom selection_order</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 18 bc5306_057   093L07 POINT (-126.6025 54.34512)               1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 11 bc5306_089   093L07 POINT (-126.6796 54.41035)               2</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 13 bc5306_024   093L07 POINT (-126.5269 54.43578)               3</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 10 bc5282_227   093L07 POINT (-126.5655 54.43945)               4</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 4  bc5282_202   093L07 POINT (-126.5869 54.45413)               5</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 17 bc5306_026   093L07 POINT (-126.5262 54.38554)               6</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 15 bc5300_236   093L08  POINT (-126.449 54.41519)               7</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 12 bc5306_023   093L07 POINT (-126.5269 54.46049)               8</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 6  bc5282_225   093L07   POINT (-126.54 54.45206)               9</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 20 bc5306_060   093L07 POINT (-126.6039 54.42617)              10</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    cumulative_coverage_pct</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 18                     3.6</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 11                    44.6</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 13                    68.9</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 10                    70.3</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 4                     72.2</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 17                    74.8</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 15                    76.6</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 12                    78.0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 6                     78.0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 20                    90.1</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># All photos touching the AOI</span></span></span>
 <span class="r-in"><span><span class="fu">fly_select</span><span class="op">(</span><span class="va">centroids</span>, <span class="va">aoi</span>, mode <span class="op">=</span> <span class="st">"all"</span><span class="op">)</span></span></span>

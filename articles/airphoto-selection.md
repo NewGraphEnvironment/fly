@@ -29,32 +29,44 @@ photography.
 Note that footprints assume flat terrain beneath the aircraft. On slopes
 the true ground coverage differs — downhill slopes produce a larger
 actual footprint, uphill slopes a smaller one. All coverage and overlap
-numbers downstream inherit this approximation.
+numbers downstream inherit this approximation. Figure
+@ref(fig:fig-footprint) shows the estimated footprints for all 20
+photos. Notice that some centroids fall outside the AOI while their
+footprints still overlap it —
+[`fly_filter()`](https://newgraphenvironment.github.io/fly/reference/fly_filter.md)
+with `method = "footprint"` catches these edge cases that a simple
+centroid-in-polygon filter would miss.
 
 ``` r
 footprints <- fly_footprint(centroids)
-plot(st_geometry(aoi), col = "lightyellow", border = "grey40", main = "Photo footprints")
+plot(st_geometry(aoi), col = "lightyellow", border = "grey40")
 plot(st_geometry(footprints), border = "steelblue", add = TRUE)
 plot(st_geometry(centroids), pch = 20, cex = 0.5, col = "red", add = TRUE)
 ```
 
-![](airphoto-selection_files/figure-html/footprint-1.png)
+![Estimated photo footprints (blue rectangles) and centroids (red dots)
+overlaid on the Upper Bulkley River floodplain
+AOI.](airphoto-selection_files/figure-html/fig-footprint-1.png)
 
-## Spatial filtering
-
-[`fly_filter()`](https://newgraphenvironment.github.io/fly/reference/fly_filter.md)
-with `method = "footprint"` catches photos whose centroid falls outside
-the AOI but whose footprint overlaps it — a common situation with
-large-scale photos at the edge of the study area.
+Estimated photo footprints (blue rectangles) and centroids (red dots)
+overlaid on the Upper Bulkley River floodplain AOI.
 
 ``` r
 fp_result <- fly_filter(centroids, aoi, method = "footprint")
 ct_result <- fly_filter(centroids, aoi, method = "centroid")
-cat("Footprint method:", nrow(fp_result), "photos\n")
-#> Footprint method: 20 photos
-cat("Centroid method: ", nrow(ct_result), "photos\n")
-#> Centroid method:  7 photos
+knitr::kable(data.frame(
+  Method = c("footprint", "centroid"),
+  Photos = c(nrow(fp_result), nrow(ct_result)),
+  Description = c("Footprint overlaps AOI", "Centroid inside AOI")
+), caption = "Comparison of spatial filtering methods.")
 ```
+
+| Method    | Photos | Description            |
+|:----------|-------:|:-----------------------|
+| footprint |     20 | Footprint overlaps AOI |
+| centroid  |      7 | Centroid inside AOI    |
+
+Comparison of spatial filtering methods.
 
 ## Summary statistics
 
@@ -120,15 +132,67 @@ selected[, c("airp_id", "scale", "selection_order", "cumulative_coverage_pct")]
 #> 12 POINT (-126.5269 54.46049)
 ```
 
+Figure @ref(fig:fig-minimal) shows the greedy minimal selection result.
+
 ``` r
 sel_fp <- fly_footprint(selected)
-plot(st_geometry(aoi), col = "lightyellow", border = "grey40",
-     main = paste(nrow(selected), "photos (minimal selection)"))
+plot(st_geometry(aoi), col = "lightyellow", border = "grey40")
 plot(st_geometry(sel_fp), border = "steelblue", col = adjustcolor("steelblue", 0.15), add = TRUE)
 plot(st_geometry(selected), pch = 20, col = "red", add = TRUE)
 ```
 
-![](airphoto-selection_files/figure-html/plot-minimal-1.png)
+![Minimal greedy selection — fewest photos to reach 80% AOI
+coverage.](airphoto-selection_files/figure-html/fig-minimal-1.png)
+
+Minimal greedy selection — fewest photos to reach 80% AOI coverage.
+
+### Ensuring component coverage
+
+When the AOI has multiple disconnected polygons (e.g. patchy floodplain
+fragments), minimal selection optimizes total area and can leave entire
+components uncovered. Use `ensure_components = TRUE` to guarantee at
+least one photo per component before running greedy selection:
+
+``` r
+# How many polygon components in our AOI?
+n_components <- length(sf::st_cast(st_union(aoi), "POLYGON"))
+cat("AOI has", n_components, "polygon components\n")
+#> AOI has 34 polygon components
+
+selected_ec <- fly_select(centroids, aoi, mode = "minimal",
+                          target_coverage = 0.80, ensure_components = TRUE)
+#> Spherical geometry (s2) switched off
+#> Seeding 9 photos for component coverage...
+#>   9 seed photos -> 78% coverage
+#> Selecting photos (target: 80% coverage)...
+#>   10 photos -> 90.1% coverage
+#> Selected 10 of 20 photos for 90.1% coverage
+#> Spherical geometry (s2) switched on
+cat("Without ensure_components:", nrow(selected), "photos\n")
+#> Without ensure_components: 3 photos
+cat("With ensure_components:   ", nrow(selected_ec), "photos\n")
+#> With ensure_components:    10 photos
+```
+
+Compare Figure @ref(fig:fig-minimal) with Figure
+@ref(fig:fig-components) — the component-ensured selection covers more
+of the disconnected floodplain fragments at the cost of a few extra
+photos.
+
+``` r
+sel_fp_ec <- fly_footprint(selected_ec)
+plot(st_geometry(aoi), col = "lightyellow", border = "grey40")
+plot(st_geometry(sel_fp_ec), border = "steelblue",
+     col = adjustcolor("steelblue", 0.15), add = TRUE)
+plot(st_geometry(selected_ec), pch = 20, col = "red", add = TRUE)
+```
+
+![Component-ensured selection — every disconnected AOI polygon gets at
+least one photo before greedy
+backfill.](airphoto-selection_files/figure-html/fig-components-1.png)
+
+Component-ensured selection — every disconnected AOI polygon gets at
+least one photo before greedy backfill.
 
 ### All photos touching AOI
 
@@ -264,10 +328,13 @@ as.data.frame(table(selected_all$priority_scale))
 #> 2 1:31680   10
 ```
 
+Figure @ref(fig:fig-multi-scale) shows the result — finest-scale photos
+(blue) provide the primary coverage, with coarser-scale photos (orange)
+filling remaining gaps.
+
 ``` r
 sel_fp <- fly_footprint(selected_all)
-plot(st_geometry(aoi), col = "lightyellow", border = "grey40",
-     main = paste(nrow(selected_all), "photos (best resolution first)"))
+plot(st_geometry(aoi), col = "lightyellow", border = "grey40")
 scale_labels <- sort(unique(selected_all$priority_scale))
 palette <- c("steelblue", "darkorange", "forestgreen", "firebrick")
 cols <- palette[match(selected_all$priority_scale, scale_labels)]
@@ -280,4 +347,9 @@ legend("topright", legend = scale_labels,
        border = palette[seq_along(scale_labels)], bty = "n")
 ```
 
-![](airphoto-selection_files/figure-html/plot-multi-scale-1.png)
+![Multi-scale priority selection — finest-scale photos first (blue),
+coarser scales backfill gaps
+(orange).](airphoto-selection_files/figure-html/fig-multi-scale-1.png)
+
+Multi-scale priority selection — finest-scale photos first (blue),
+coarser scales backfill gaps (orange).
