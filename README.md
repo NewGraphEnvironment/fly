@@ -1,5 +1,7 @@
 # fly <img src="man/figures/logo.png" align="right" height="139" alt="fly logo" />
 
+**F**ootprints from **L**egacy aerial photograph**Y**
+
 <!-- badges: start -->
 <!-- badges: end -->
 
