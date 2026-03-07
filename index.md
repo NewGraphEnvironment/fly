@@ -1,5 +1,7 @@
 # fly
 
+**F**ootprints from **L**egacy aerial photograph**Y**
+
 Select the minimum set of historic airphotos needed to cover your study
 area.
 
