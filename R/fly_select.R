@@ -11,7 +11,7 @@
 #'   (every photo touching the AOI).
 #' @param target_coverage Stop when this fraction is reached (default 0.95).
 #'   Only used when `mode = "minimal"`.
-#' @param ensure_components If `TRUE` (default `FALSE`), guarantee that every
+#' @param component_ensure If `TRUE` (default `FALSE`), guarantee that every
 #'   polygon component of `aoi_sf` is covered by at least one photo before
 #'   running the greedy selection. Useful for multi-polygon AOIs (e.g. patchy
 #'   floodplain fragments) where small components might otherwise get zero
@@ -28,7 +28,7 @@
 #'
 #' # Ensure every AOI component gets at least one photo
 #' fly_select(centroids, aoi, mode = "minimal", target_coverage = 0.80,
-#'            ensure_components = TRUE)
+#'            component_ensure = TRUE)
 #'
 #' # All photos touching the AOI
 #' fly_select(centroids, aoi, mode = "all")
@@ -36,14 +36,14 @@
 #' @export
 fly_select <- function(photos_sf, aoi_sf, mode = "minimal",
                        target_coverage = 0.95,
-                       ensure_components = FALSE) {
+                       component_ensure = FALSE) {
   mode <- match.arg(mode, c("minimal", "all"))
 
   if (mode == "all") {
     return(fly_select_all(photos_sf, aoi_sf))
   }
 
-  fly_select_minimal(photos_sf, aoi_sf, target_coverage, ensure_components)
+  fly_select_minimal(photos_sf, aoi_sf, target_coverage, component_ensure)
 }
 
 #' @noRd
@@ -99,7 +99,7 @@ ensure_component_coverage <- function(footprints, aoi_albers) {
 
 #' @noRd
 fly_select_minimal <- function(photos_sf, aoi_sf, target_coverage,
-                               ensure_components) {
+                               component_ensure) {
   sf::sf_use_s2(FALSE)
   on.exit(sf::sf_use_s2(TRUE))
 
@@ -117,7 +117,7 @@ fly_select_minimal <- function(photos_sf, aoi_sf, target_coverage,
   covered_so_far <- sf::st_sfc(sf::st_polygon(), crs = 3005)
 
   # Seed with must-keep photos for component coverage
-  if (ensure_components) {
+  if (component_ensure) {
     seed_idx <- ensure_component_coverage(footprints, aoi_albers)
     if (length(seed_idx) > 0) {
       message("Seeding ", length(seed_idx),

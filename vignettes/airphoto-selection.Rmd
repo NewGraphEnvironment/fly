@@ -112,7 +112,7 @@ plot(st_geometry(selected), pch = 20, col = "red", add = TRUE)
 
 When the AOI has multiple disconnected polygons (e.g. patchy floodplain
 fragments), minimal selection optimizes total area and can leave entire
-components uncovered. Use `ensure_components = TRUE` to guarantee at least
+components uncovered. Use `component_ensure = TRUE` to guarantee at least
 one photo per component before running greedy selection:
 
 ```{r select-components}
@@ -121,9 +121,9 @@ n_components <- length(sf::st_cast(st_union(aoi), "POLYGON"))
 cat("AOI has", n_components, "polygon components\n")
 
 selected_ec <- fly_select(centroids, aoi, mode = "minimal",
-                          target_coverage = 0.80, ensure_components = TRUE)
-cat("Without ensure_components:", nrow(selected), "photos\n")
-cat("With ensure_components:   ", nrow(selected_ec), "photos\n")
+                          target_coverage = 0.80, component_ensure = TRUE)
+cat("Without component_ensure:", nrow(selected), "photos\n")
+cat("With component_ensure:   ", nrow(selected_ec), "photos\n")
 ```
 
 Compare Figure \@ref(fig:fig-minimal) with Figure \@ref(fig:fig-components) —

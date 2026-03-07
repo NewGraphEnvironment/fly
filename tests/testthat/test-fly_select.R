@@ -89,19 +89,19 @@ test_that("fly_select minimal handles full coverage without error", {
   expect_length(result$cumulative_coverage_pct, nrow(result))
 })
 
-# --- ensure_components tests ---
+# --- component_ensure tests ---
 
-test_that("ensure_components selects at least as many photos as without", {
+test_that("component_ensure selects at least as many photos as without", {
   centroids <- sf::st_read(testdata_path("photo_centroids.gpkg"), quiet = TRUE)
   aoi <- sf::st_read(testdata_path("aoi.gpkg"), quiet = TRUE)
   result_plain <- fly_select(centroids, aoi, mode = "minimal",
                              target_coverage = 0.80)
   result_ec <- fly_select(centroids, aoi, mode = "minimal",
-                          target_coverage = 0.80, ensure_components = TRUE)
+                          target_coverage = 0.80, component_ensure = TRUE)
   expect_gte(nrow(result_ec), nrow(result_plain))
 })
 
-test_that("ensure_components covers more AOI components", {
+test_that("component_ensure covers more AOI components", {
   centroids <- sf::st_read(testdata_path("photo_centroids.gpkg"), quiet = TRUE)
   aoi <- sf::st_read(testdata_path("aoi.gpkg"), quiet = TRUE)
 
@@ -122,7 +122,7 @@ test_that("ensure_components covers more AOI components", {
   result_plain <- fly_select(centroids, aoi, mode = "minimal",
                              target_coverage = 0.80)
   result_ec <- fly_select(centroids, aoi, mode = "minimal",
-                          target_coverage = 0.80, ensure_components = TRUE)
+                          target_coverage = 0.80, component_ensure = TRUE)
 
   covered_plain <- count_covered(result_plain)
   covered_ec <- count_covered(result_ec)
@@ -130,11 +130,11 @@ test_that("ensure_components covers more AOI components", {
   expect_gte(covered_ec, covered_plain)
 })
 
-test_that("ensure_components returns valid selection columns", {
+test_that("component_ensure returns valid selection columns", {
   centroids <- sf::st_read(testdata_path("photo_centroids.gpkg"), quiet = TRUE)
   aoi <- sf::st_read(testdata_path("aoi.gpkg"), quiet = TRUE)
   result <- fly_select(centroids, aoi, mode = "minimal",
-                       target_coverage = 0.80, ensure_components = TRUE)
+                       target_coverage = 0.80, component_ensure = TRUE)
   expect_s3_class(result, "sf")
   expect_true("selection_order" %in% names(result))
   expect_true("cumulative_coverage_pct" %in% names(result))
@@ -147,34 +147,34 @@ test_that("ensure_components returns valid selection columns", {
   }
 })
 
-test_that("ensure_components FALSE is the default", {
+test_that("component_ensure FALSE is the default", {
   centroids <- sf::st_read(testdata_path("photo_centroids.gpkg"), quiet = TRUE)
   aoi <- sf::st_read(testdata_path("aoi.gpkg"), quiet = TRUE)
   result_default <- fly_select(centroids, aoi, mode = "minimal",
                                target_coverage = 0.80)
   result_false <- fly_select(centroids, aoi, mode = "minimal",
                              target_coverage = 0.80,
-                             ensure_components = FALSE)
+                             component_ensure = FALSE)
   expect_equal(nrow(result_default), nrow(result_false))
 })
 
-test_that("ensure_components works on single-polygon AOI", {
+test_that("component_ensure works on single-polygon AOI", {
   centroids <- sf::st_read(testdata_path("photo_centroids.gpkg"), quiet = TRUE)
   aoi <- sf::st_read(testdata_path("aoi.gpkg"), quiet = TRUE)
   # Create single polygon from convex hull of AOI
   single_aoi <- sf::st_convex_hull(sf::st_union(aoi))
   single_aoi <- sf::st_sf(geometry = single_aoi, crs = sf::st_crs(aoi))
   result <- fly_select(centroids, single_aoi, mode = "minimal",
-                       target_coverage = 0.80, ensure_components = TRUE)
+                       target_coverage = 0.80, component_ensure = TRUE)
   expect_s3_class(result, "sf")
   expect_gt(nrow(result), 0)
 })
 
-test_that("ensure_components is ignored in all mode", {
+test_that("component_ensure is ignored in all mode", {
   centroids <- sf::st_read(testdata_path("photo_centroids.gpkg"), quiet = TRUE)
   aoi <- sf::st_read(testdata_path("aoi.gpkg"), quiet = TRUE)
   result_plain <- fly_select(centroids, aoi, mode = "all")
   result_ec <- fly_select(centroids, aoi, mode = "all",
-                          ensure_components = TRUE)
+                          component_ensure = TRUE)
   expect_equal(nrow(result_plain), nrow(result_ec))
 })

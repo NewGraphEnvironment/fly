@@ -9,7 +9,7 @@ fly_select(
   aoi_sf,
   mode = "minimal",
   target_coverage = 0.95,
-  ensure_components = FALSE
+  component_ensure = FALSE
 )
 }
 \arguments{
@@ -24,7 +24,7 @@ fly_select(
 \item{target_coverage}{Stop when this fraction is reached (default 0.95).
 Only used when \code{mode = "minimal"}.}
 
-\item{ensure_components}{If \code{TRUE} (default \code{FALSE}), guarantee that every
+\item{component_ensure}{If \code{TRUE} (default \code{FALSE}), guarantee that every
 polygon component of \code{aoi_sf} is covered by at least one photo before
 running the greedy selection. Useful for multi-polygon AOIs (e.g. patchy
 floodplain fragments) where small components might otherwise get zero
@@ -48,7 +48,7 @@ fly_select(centroids, aoi, mode = "minimal", target_coverage = 0.80)
 
 # Ensure every AOI component gets at least one photo
 fly_select(centroids, aoi, mode = "minimal", target_coverage = 0.80,
-           ensure_components = TRUE)
+           component_ensure = TRUE)
 
 # All photos touching the AOI
 fly_select(centroids, aoi, mode = "all")

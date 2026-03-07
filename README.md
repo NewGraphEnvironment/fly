@@ -38,7 +38,7 @@ selected <- fly_select(filtered, aoi, mode = "minimal", target_coverage = 0.95)
 
 # Ensure every disconnected AOI polygon gets at least one photo
 selected <- fly_select(filtered, aoi, mode = "minimal",
-                       target_coverage = 0.95, ensure_components = TRUE)
+                       target_coverage = 0.95, component_ensure = TRUE)
 
 # Or grab every photo touching the AOI
 all_photos <- fly_select(filtered, aoi, mode = "all")
