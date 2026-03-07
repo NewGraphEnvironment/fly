@@ -30,11 +30,18 @@ library(sf)
 # Estimate footprint rectangles from centroids
 footprints <- fly_footprint(centroids)
 
-# Filter photos whose footprint overlaps the AOI
+# Filter photos whose footprint overlaps the AOI (not just centroids)
 filtered <- fly_filter(centroids, aoi, method = "footprint")
 
-# Select minimum set for 95% coverage
-selected <- fly_select(filtered, aoi, target_coverage = 0.95)
+# Fewest photos to reach 95% coverage
+selected <- fly_select(filtered, aoi, mode = "minimal", target_coverage = 0.95)
+
+# Ensure every disconnected AOI polygon gets at least one photo
+selected <- fly_select(filtered, aoi, mode = "minimal",
+                       target_coverage = 0.95, ensure_components = TRUE)
+
+# Or grab every photo touching the AOI
+all_photos <- fly_select(filtered, aoi, mode = "all")
 ```
 
 ## Related packages
