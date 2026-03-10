@@ -1172,14 +1172,16 @@ Co-Authored-By: Claude Opus 4.6 &lt;noreply@anthropic.com&gt;</code></pre>
 </div>
 <div class="section level3">
 <h3 id="id_2-add-to-zotero">2. Add to Zotero<a class="anchor" aria-label="anchor" href="#id_2-add-to-zotero"></a></h3>
-<p><strong>Preferred order:</strong> 1. DOI magic wand in Zotero UI (fastest, most complete metadata) 2. <code>saveItems</code> via <code>/zotero-api</code> (good for batch creation from structured data) 3. JS console script for group library (when connector can’t target the right collection)</p>
-<p><strong>Collection targeting:</strong> <code>saveItems</code> drops items into whatever collection is selected in Zotero’s UI. Always confirm with the user before calling it.</p>
+<p><strong>Preferred order:</strong> 1. DOI magic wand in Zotero UI (fastest, most complete metadata) 2. Web API POST with <code>collections</code> array (grey literature, local PDFs — targets collection directly, no UI interaction needed) 3. <code>saveItems</code> via <code>/zotero-api</code> (batch creation from structured data — requires UI collection selection) 4. JS console script for group library (when connector can’t target the right collection)</p>
+<p><strong>Collection targeting:</strong> <code>saveItems</code> drops items into whatever collection is selected in Zotero’s UI. Always confirm with the user before calling it. <strong>Web API bypasses this</strong> — include <code>"collections": ["KEY"]</code> in the POST body. Find collection keys with <code>?q=name</code> search on the collections endpoint.</p>
 </div>
 <div class="section level3">
 <h3 id="id_3-attach-pdfs">3. Attach PDFs<a class="anchor" aria-label="anchor" href="#id_3-attach-pdfs"></a></h3>
 <p><code>saveItems</code> attachments silently fail. Don’t use them. Instead:</p>
-<ol style="list-style-type: decimal"><li>Download with <code>curl</code> (see <code>/zotero-api</code> skill for source-specific patterns)</li>
-<li>Attach via <code>item_attach_pdf.js</code> in Zotero JS console</li>
+<ol style="list-style-type: decimal"><li>
+<strong>Web API S3 upload (preferred):</strong> Create attachment item → get upload auth → build S3 body (Python: prefix + file bytes + suffix) → POST to S3 → register with uploadKey. Works without Zotero running. See <code>/zotero-api</code> skill section 4.</li>
+<li>
+<strong>JS console fallback:</strong> Download with <code>curl</code>, attach via <code>item_attach_pdf.js</code> in Zotero JS console.</li>
 <li>Verify attachment exists via MCP: <code>zotero_get_item_children</code>
 </li>
 </ol></div>

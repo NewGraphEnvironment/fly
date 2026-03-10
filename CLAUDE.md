@@ -1392,21 +1392,28 @@ bypass.
 ### 2. Add to Zotero
 
 **Preferred order:** 1. DOI magic wand in Zotero UI (fastest, most
-complete metadata) 2. `saveItems` via `/zotero-api` (good for batch
-creation from structured data) 3. JS console script for group library
-(when connector can’t target the right collection)
+complete metadata) 2. Web API POST with `collections` array (grey
+literature, local PDFs — targets collection directly, no UI interaction
+needed) 3. `saveItems` via `/zotero-api` (batch creation from structured
+data — requires UI collection selection) 4. JS console script for group
+library (when connector can’t target the right collection)
 
 **Collection targeting:** `saveItems` drops items into whatever
 collection is selected in Zotero’s UI. Always confirm with the user
-before calling it.
+before calling it. **Web API bypasses this** — include
+`"collections": ["KEY"]` in the POST body. Find collection keys with
+`?q=name` search on the collections endpoint.
 
 ### 3. Attach PDFs
 
 `saveItems` attachments silently fail. Don’t use them. Instead:
 
-1.  Download with `curl` (see `/zotero-api` skill for source-specific
-    patterns)
-2.  Attach via `item_attach_pdf.js` in Zotero JS console
+1.  **Web API S3 upload (preferred):** Create attachment item → get
+    upload auth → build S3 body (Python: prefix + file bytes + suffix) →
+    POST to S3 → register with uploadKey. Works without Zotero running.
+    See `/zotero-api` skill section 4.
+2.  **JS console fallback:** Download with `curl`, attach via
+    `item_attach_pdf.js` in Zotero JS console.
 3.  Verify attachment exists via MCP: `zotero_get_item_children`
 
 ### 4. Verify
