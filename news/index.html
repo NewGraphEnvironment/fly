@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fly</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,12 @@
 
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="development version" id="fly-development-version">fly (development version)<a class="anchor" aria-label="anchor" href="#fly-development-version"></a></h2>
+<div class="section level3">
+<h3 id="id_020-development-version">0.2.0 (2026-03-11)<a class="anchor" aria-label="anchor" href="#id_020-development-version"></a></h3>
+<ul><li>
+<strong>BREAKING:</strong> Remove <code>fly_query_habitat()</code>, <code>fly_query_lakes()</code>, <code>fly_trim_habitat()</code> — migrate to <a href="https://github.com/NewGraphEnvironment/fresh" class="external-link">fresh</a> (<a href="https://github.com/NewGraphEnvironment/fly/issues/19" class="external-link">#19</a>)</li>
+<li>Remove <code>DBI</code>, <code>RPostgres</code> from Suggests and <code>glue</code> from Imports</li>
+</ul></div>
 <div class="section level3">
 <h3 id="id_013-development-version">0.1.3 (2026-03-10)<a class="anchor" aria-label="anchor" href="#id_013-development-version"></a></h3>
 <ul><li>Add <code><a href="../reference/fly_thumb_georef.html">fly_thumb_georef()</a></code> — warp downloaded thumbnails to estimated ground footprints as georeferenced GeoTIFFs (<a href="https://github.com/NewGraphEnvironment/fly/issues/16" class="external-link">#16</a>)</li>

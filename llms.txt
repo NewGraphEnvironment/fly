@@ -57,9 +57,14 @@ all_photos <- fly_select(filtered, aoi, mode = "all")
 
 ## Related packages
 
-[flooded](https://github.com/NewGraphEnvironment/flooded) delineates
-floodplain extents from DEMs and stream networks — use it to generate
-the AOI polygons that fly selects photos for.
+- [flooded](https://github.com/NewGraphEnvironment/flooded) — delineate
+  floodplain extents from DEMs and stream networks to generate AOI
+  polygons
+- [drift](https://github.com/NewGraphEnvironment/drift) — land cover
+  change detection from satellite imagery; fly adds longer-term historic
+  airphoto context
+- [fresh](https://github.com/NewGraphEnvironment/fresh) — FWA/bcfishpass
+  database queries (DB functions previously in fly moved here in v0.2.0)
 
 ## Documentation
 
