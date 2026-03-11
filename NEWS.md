@@ -1,5 +1,10 @@
 # fly (development version)
 
+## 0.2.0 (2026-03-11)
+
+- **BREAKING:** Remove `fly_query_habitat()`, `fly_query_lakes()`, `fly_trim_habitat()` — migrate to [fresh](https://github.com/NewGraphEnvironment/fresh) ([#19](https://github.com/NewGraphEnvironment/fly/issues/19))
+- Remove `DBI`, `RPostgres` from Suggests and `glue` from Imports
+
 ## 0.1.3 (2026-03-10)
 
 - Add `fly_thumb_georef()` — warp downloaded thumbnails to estimated ground footprints as georeferenced GeoTIFFs ([#16](https://github.com/NewGraphEnvironment/fly/issues/16))
