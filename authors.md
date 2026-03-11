@@ -13,13 +13,13 @@ Source:
 [`DESCRIPTION`](https://github.com/NewGraphEnvironment/fly/blob/main/DESCRIPTION)
 
 Irvine A (2026). *fly: Airphoto Footprint Estimation and Coverage
-Selection*. R package version 0.1.1,
+Selection*. R package version 0.1.2,
 <https://github.com/NewGraphEnvironment/fly>.
 
     @Manual{,
       title = {fly: Airphoto Footprint Estimation and Coverage Selection},
       author = {Allan Irvine},
       year = {2026},
-      note = {R package version 0.1.1},
+      note = {R package version 0.1.2},
       url = {https://github.com/NewGraphEnvironment/fly},
     }

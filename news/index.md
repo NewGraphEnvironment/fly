@@ -2,6 +2,16 @@
 
 ## fly (development version)
 
+### 0.1.2 (2026-03-10)
+
+- Add
+  [`fly_fetch()`](https://newgraphenvironment.github.io/fly/reference/fly_fetch.md)
+  for downloading thumbnails, flight logs, calibration reports, and
+  georef files from BC Data Catalogue URLs
+  ([\#15](https://github.com/NewGraphEnvironment/fly/issues/15))
+- Include URL columns and flight metadata (focal length, flying height,
+  GSD) in bundled test data
+
 ### 0.1.1 (2026-03-07)
 
 - Add `component_ensure` parameter to
