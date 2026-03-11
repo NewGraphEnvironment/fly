@@ -17,16 +17,12 @@ using greedy set-cover.
   `tests/testthat/test-fly_footprint.R`
 - `inst/testdata/` — Upper Bulkley River floodplain near Houston, BC (20
   photos, dual scale)
-- `data-raw/make_testdata.R` — generates test data from airbc cached
+- `data-raw/make_testdata.R` — generates test data from diggs cached
   data
-- DB functions (`fly_query_habitat`, `fly_query_lakes`) require SSH
-  tunnel; tests use `skip_if_no_db()`
 
 ## Key Decisions
 
 - **CRS 3005** (BC Albers) not 32609 (UTM Zone 9) — works province-wide
-- **DBI/RPostgres in Suggests** — non-DB users don’t need database
-  drivers
 - **[`fly_footprint()`](https://newgraphenvironment.github.io/fly/reference/fly_footprint.md)
   uses vectorized `st_coordinates()` +
   [`lapply()`](https://rdrr.io/r/base/lapply.html)** — do NOT use

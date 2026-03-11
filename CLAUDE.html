@@ -50,16 +50,12 @@
 <li>
 <code>inst/testdata/</code> — Upper Bulkley River floodplain near Houston, BC (20 photos, dual scale)</li>
 <li>
-<code>data-raw/make_testdata.R</code> — generates test data from airbc cached data</li>
-<li>DB functions (<code>fly_query_habitat</code>, <code>fly_query_lakes</code>) require SSH tunnel; tests use <code>skip_if_no_db()</code>
-</li>
+<code>data-raw/make_testdata.R</code> — generates test data from diggs cached data</li>
 </ul></div>
 <div class="section level2">
 <h2 id="key-decisions">Key Decisions<a class="anchor" aria-label="anchor" href="#key-decisions"></a></h2>
 <ul><li>
 <strong>CRS 3005</strong> (BC Albers) not 32609 (UTM Zone 9) — works province-wide</li>
-<li>
-<strong>DBI/RPostgres in Suggests</strong> — non-DB users don’t need database drivers</li>
 <li>
 <strong><code><a href="reference/fly_footprint.html">fly_footprint()</a></code> uses vectorized <code>st_coordinates()</code> + <code><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply()</a></code></strong> — do NOT use <code>dplyr::mutate(.data$geometry)</code> because the geometry column may be named <code>geom</code> not <code>geometry</code>
 </li>
