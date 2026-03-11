@@ -6,14 +6,14 @@
 # Crop near Houston, BC.
 # Dual-scale coverage: 1:12000 and 1:31680 (1968).
 #
-# Source: airbc cached data (BC Data Catalogue + flooded VCA output)
-# Run from airbc repo root: Rscript ../fly/data-raw/make_testdata.R
+# Source: diggs cached data (BC Data Catalogue + flooded VCA output)
+# Run from fly repo root: Rscript data-raw/make_testdata.R
 
 library(sf)
 library(dplyr)
 sf_use_s2(FALSE)
 
-airbc_data <- file.path(dirname(getwd()), "airbc", "data")
+airbc_data <- file.path(dirname(getwd()), "diggs", "data")
 outdir <- "inst/testdata"
 dir.create(outdir, recursive = TRUE, showWarnings = FALSE)
 
@@ -57,7 +57,10 @@ test_photos <- bind_rows(sample_12, sample_31)
 # Keep essential columns only
 test_photos <- test_photos |>
   select(airp_id, photo_year, photo_date, scale, film_roll,
-         frame_number, media, photo_tag, nts_tile, geometry)
+         frame_number, media, photo_tag, nts_tile,
+         focal_length, flying_height, ground_sample_distance,
+         thumbnail_image_url, flight_log_url,
+         camera_calibration_url, patb_georef_url, geometry)
 st_write(test_photos, file.path(outdir, "photo_centroids.gpkg"),
          delete_dsn = TRUE, quiet = TRUE)
 message("photo_centroids.gpkg: ", nrow(test_photos), " photos (",
