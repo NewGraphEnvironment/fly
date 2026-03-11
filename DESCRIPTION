@@ -1,6 +1,6 @@
 Package: fly
 Title: Airphoto Footprint Estimation and Coverage Selection
-Version: 0.2.0
+Version: 0.2.1
 Authors@R: c(
     person("Allan", "Irvine", , "al@newgraphenvironment.com", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0002-3495-2128")),
@@ -26,6 +26,8 @@ Imports:
     stringr
 Suggests:
     bookdown,
+    furrr,
+    future,
     testthat (>= 3.0.0),
     knitr,
     rmarkdown

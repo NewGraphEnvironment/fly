@@ -8,7 +8,8 @@ fly_fetch(
   photos_sf,
   type = "thumbnail",
   dest_dir = "photos",
-  overwrite = FALSE
+  overwrite = FALSE,
+  workers = 1
 )
 }
 \arguments{
@@ -24,6 +25,10 @@ not exist.}
 
 \item{overwrite}{If \code{FALSE} (default), skip files that already exist
 in \code{dest_dir}.}
+
+\item{workers}{Number of parallel download workers. \code{1} (default) runs
+sequentially. Values greater than 1 use \code{\link[furrr:future_map]{furrr::future_map_dfr()}} with
+\link[future:multisession]{future::multisession} — requires \code{furrr} and \code{future} packages.}
 }
 \value{
 A tibble with columns \code{airp_id}, \code{url}, \code{dest}, and \code{success}.
@@ -45,6 +50,10 @@ URL column mapping:
 
 Photos with missing (\code{NA} or empty) URLs are skipped and reported as
 \code{success = FALSE} in the output.
+
+When \code{workers > 1}, a \link[future:multisession]{future::multisession} plan is set for the
+duration of the call and restored on exit. Each download is independent
+so parallelism is safe.
 }
 \examples{
 centroids <- sf::st_read(system.file("testdata/photo_centroids.gpkg", package = "fly"))

@@ -58,6 +58,21 @@ test_that("fly_fetch rejects invalid type", {
   expect_error(fly_fetch(centroids, type = "bogus"))
 })
 
+test_that("fly_fetch supports parallel downloads with workers > 1", {
+  skip_if_not_installed("furrr")
+  skip_if_not_installed("future")
+  centroids <- sf::st_read(testdata_path("photo_centroids.gpkg"), quiet = TRUE)
+  dest <- file.path(tempdir(), "fly_test_parallel")
+  unlink(dest, recursive = TRUE)
+
+  result <- fly_fetch(centroids[1:2, ], type = "thumbnail",
+                      dest_dir = dest, workers = 2)
+  expect_s3_class(result, "tbl_df")
+  expect_equal(nrow(result), 2)
+  downloaded <- result[result$success, ]
+  expect_true(all(file.exists(downloaded$dest)))
+})
+
 test_that("fly_fetch maps type to correct URL column", {
   centroids <- sf::st_read(testdata_path("photo_centroids.gpkg"), quiet = TRUE)
   dest <- file.path(tempdir(), "fly_test_flight_log")
