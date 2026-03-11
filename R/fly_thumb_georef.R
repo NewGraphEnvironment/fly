@@ -19,6 +19,11 @@
 #' translates the image with GCPs then warps to the target CRS using
 #' bilinear resampling.
 #'
+#' **Nodata handling:** Band count is read from each file header. RGB
+#' thumbnails (3+ bands) get an alpha band (`-dstalpha`) for clean masking
+#' in mosaics. Grayscale thumbnails (1 band) use nodata=0 — some shadow
+#' detail is lost but black borders are eliminated.
+#'
 #' **Accuracy:** footprints assume flat terrain and nadir camera angle.
 #' The georeferenced thumbnails are approximate — useful for visual context,
 #' not survey-grade positioning. See [fly_footprint()] for details on
@@ -96,13 +101,17 @@ georef_one <- function(src, fp, out_file) {
   # fly_footprint builds: BL, BR, TR, TL, BL (closing)
   coords <- sf::st_coordinates(fp)[1:4, , drop = FALSE]
 
-  # Read image dimensions via GDAL
+  # Read image dimensions and band count via GDAL
   info <- sf::gdal_utils("info", source = src, quiet = TRUE)
   dims <- regmatches(info, regexpr("Size is \\d+, \\d+", info))
   if (length(dims) == 0) return(FALSE)
   px <- as.integer(strsplit(sub("Size is ", "", dims), ", ")[[1]])
   ncol_px <- px[1]
   nrow_px <- px[2]
+
+  # Count bands from "Band N" lines
+  n_bands <- length(gregexpr("Band \\d+", info)[[1]])
+  is_rgb <- n_bands >= 3
 
   # Map pixel corners to footprint corners
   # Pixel: TL=(0,0), TR=(ncol,0), BR=(ncol,nrow), BL=(0,nrow)
@@ -115,7 +124,6 @@ georef_one <- function(src, fp, out_file) {
   )
 
   # Step 1: translate with GCPs
-
   tmp_file <- tempfile(fileext = ".tif")
   on.exit(unlink(tmp_file), add = TRUE)
 
@@ -125,11 +133,20 @@ georef_one <- function(src, fp, out_file) {
     options = c("-a_srs", "EPSG:3005", gcp_args)
   )
 
-  # Step 2: warp to target CRS
+  # Step 2: warp to target CRS with nodata handling
+  # RGB: add alpha band (-dstalpha) for clean masking in mosaics
+  # Grayscale: set nodata=0 (losing some shadow detail is acceptable)
+  warp_opts <- c("-t_srs", "EPSG:3005", "-r", "bilinear")
+  if (is_rgb) {
+    warp_opts <- c(warp_opts, "-dstalpha")
+  } else {
+    warp_opts <- c(warp_opts, "-dstnodata", "0")
+  }
+
   sf::gdal_utils("warp",
     source = tmp_file,
     destination = out_file,
-    options = c("-t_srs", "EPSG:3005", "-r", "bilinear")
+    options = warp_opts
   )
 
   file.exists(out_file) && file.size(out_file) > 0

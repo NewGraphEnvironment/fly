@@ -37,6 +37,11 @@ polygon corners computed by \code{\link[=fly_footprint]{fly_footprint()}} in BC 
 translates the image with GCPs then warps to the target CRS using
 bilinear resampling.
 
+\strong{Nodata handling:} Band count is read from each file header. RGB
+thumbnails (3+ bands) get an alpha band (\code{-dstalpha}) for clean masking
+in mosaics. Grayscale thumbnails (1 band) use nodata=0 — some shadow
+detail is lost but black borders are eliminated.
+
 \strong{Accuracy:} footprints assume flat terrain and nadir camera angle.
 The georeferenced thumbnails are approximate — useful for visual context,
 not survey-grade positioning. See \code{\link[=fly_footprint]{fly_footprint()}} for details on
