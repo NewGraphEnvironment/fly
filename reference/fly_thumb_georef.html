@@ -52,7 +52,8 @@ georeferenced GeoTIFFs in BC Albers (EPSG:3005).</p>
 <span>  <span class="va">fetch_result</span>,</span>
 <span>  <span class="va">photos_sf</span>,</span>
 <span>  dest_dir <span class="op">=</span> <span class="st">"georef"</span>,</span>
-<span>  overwrite <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span>  overwrite <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  srcnodata <span class="op">=</span> <span class="st">"0"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -78,6 +79,15 @@ exist.</p></dd>
 <dt id="arg-overwrite">overwrite<a class="anchor" aria-label="anchor" href="#arg-overwrite"></a></dt>
 <dd><p>If <code>FALSE</code> (default), skip files that already exist.</p></dd>
 
+
+<dt id="arg-srcnodata">srcnodata<a class="anchor" aria-label="anchor" href="#arg-srcnodata"></a></dt>
+<dd><p>Source nodata value passed to GDAL warp. Black pixels
+matching this value are treated as transparent (alpha=0 for RGB,
+nodata for grayscale). Default <code>"0"</code> masks camera frame borders and
+film holder edges at the cost of losing real black pixels — acceptable
+for thumbnails but may need adjustment for full-resolution scans.
+Set to <code>NULL</code> to disable source nodata detection entirely.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
@@ -89,14 +99,18 @@ exist.</p></dd>
 polygon corners computed by <code><a href="fly_footprint.html">fly_footprint()</a></code> in BC Albers. GDAL
 translates the image with GCPs then warps to the target CRS using
 bilinear resampling.</p>
-<p><strong>Nodata handling:</strong> Warping a rectangular thumbnail into a rotated
-footprint creates fill pixels outside the source frame. Band count is
-read from each file header to choose the masking strategy: RGB
-thumbnails (3+ bands) get an alpha band (<code>-dstalpha</code>) so fill areas
-are transparent; grayscale thumbnails (1 band) use nodata=0. This
-only masks GDAL warp fill — black camera frame borders within the
-original image (from film holder edges, fiducial marks, or scanning
-artifacts) are preserved as valid pixels.</p>
+<p><strong>Nodata handling:</strong> Two sources of unwanted black pixels are masked:</p><ol><li><p><strong>Warp fill</strong> — GDAL creates black pixels outside the rotated source
+frame. RGB thumbnails get an alpha band (<code>-dstalpha</code>); grayscale use
+<code>dstnodata=0</code>.</p></li>
+<li><p><strong>Camera frame borders</strong> — film holder edges, fiducial marks, and
+scanning artifacts produce black (value 0) pixels within the source
+image. The <code>srcnodata</code> parameter (default <code>"0"</code>) tells GDAL to treat
+these as transparent before warping.</p></li>
+</ol><p><strong>Tradeoff:</strong> <code>srcnodata = "0"</code> also masks real black pixels (deep
+shadows). At thumbnail resolution (~1250x1250) this is acceptable —
+shadow detail is minimal. For full-resolution scans where shadow
+detail matters, set <code>srcnodata = NULL</code> and handle frame masking
+downstream (e.g., circle detection).</p>
 <p><strong>Accuracy:</strong> footprints assume flat terrain and nadir camera angle.
 The georeferenced thumbnails are approximate — useful for visual context,
 not survey-grade positioning. See <code><a href="fly_footprint.html">fly_footprint()</a></code> for details on
@@ -126,8 +140,8 @@ limitations.</p>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;"># A tibble: 2 × 4</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   airp_id source                               dest                      success</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>     <span style="color: #949494; font-style: italic;">&lt;int&gt;</span> <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>                                <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>                     <span style="color: #949494; font-style: italic;">&lt;lgl&gt;</span>  </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">1</span>  <span style="text-decoration: underline;">699</span>370 /tmp/Rtmp5VKgpe/bc5282_176_thumb.jpg /tmp/Rtmp5VKgpe/bc5282_1… TRUE   </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">2</span>  <span style="text-decoration: underline;">699</span>415 /tmp/Rtmp5VKgpe/bc5282_221_thumb.jpg /tmp/Rtmp5VKgpe/bc5282_2… TRUE   </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">1</span>  <span style="text-decoration: underline;">699</span>370 /tmp/Rtmps9FH5L/bc5282_176_thumb.jpg /tmp/Rtmps9FH5L/bc5282_1… TRUE   </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">2</span>  <span style="text-decoration: underline;">699</span>415 /tmp/Rtmps9FH5L/bc5282_221_thumb.jpg /tmp/Rtmps9FH5L/bc5282_2… TRUE   </span>
 <span class="r-in"><span></span></span>
 </code></pre></div>
     </div>
