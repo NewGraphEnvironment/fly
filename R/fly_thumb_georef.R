@@ -11,6 +11,12 @@
 #' @param dest_dir Directory for output GeoTIFFs. Created if it does not
 #'   exist.
 #' @param overwrite If `FALSE` (default), skip files that already exist.
+#' @param srcnodata Source nodata value passed to GDAL warp. Black pixels
+#'   matching this value are treated as transparent (alpha=0 for RGB,
+#'   nodata for grayscale). Default `"0"` masks camera frame borders and
+#'   film holder edges at the cost of losing real black pixels — acceptable
+#'   for thumbnails but may need adjustment for full-resolution scans.
+#'   Set to `NULL` to disable source nodata detection entirely.
 #' @return A tibble with columns `airp_id`, `source`, `dest`, and `success`.
 #'
 #' @details
@@ -19,14 +25,21 @@
 #' translates the image with GCPs then warps to the target CRS using
 #' bilinear resampling.
 #'
-#' **Nodata handling:** Warping a rectangular thumbnail into a rotated
-#' footprint creates fill pixels outside the source frame. Band count is
-#' read from each file header to choose the masking strategy: RGB
-#' thumbnails (3+ bands) get an alpha band (`-dstalpha`) so fill areas
-#' are transparent; grayscale thumbnails (1 band) use nodata=0. This
-#' only masks GDAL warp fill — black camera frame borders within the
-#' original image (from film holder edges, fiducial marks, or scanning
-#' artifacts) are preserved as valid pixels.
+#' **Nodata handling:** Two sources of unwanted black pixels are masked:
+#'
+#' 1. **Warp fill** — GDAL creates black pixels outside the rotated source
+#'    frame. RGB thumbnails get an alpha band (`-dstalpha`); grayscale use
+#'    `dstnodata=0`.
+#' 2. **Camera frame borders** — film holder edges, fiducial marks, and
+#'    scanning artifacts produce black (value 0) pixels within the source
+#'    image. The `srcnodata` parameter (default `"0"`) tells GDAL to treat
+#'    these as transparent before warping.
+#'
+#' **Tradeoff:** `srcnodata = "0"` also masks real black pixels (deep
+#' shadows). At thumbnail resolution (~1250x1250) this is acceptable —
+#' shadow detail is minimal. For full-resolution scans where shadow
+#' detail matters, set `srcnodata = NULL` and handle frame masking
+#' downstream (e.g., circle detection).
 #'
 #' **Accuracy:** footprints assume flat terrain and nadir camera angle.
 #' The georeferenced thumbnails are approximate — useful for visual context,
@@ -45,7 +58,8 @@
 #'
 #' @export
 fly_thumb_georef <- function(fetch_result, photos_sf,
-                             dest_dir = "georef", overwrite = FALSE) {
+                             dest_dir = "georef", overwrite = FALSE,
+                             srcnodata = "0") {
   if (!all(c("airp_id", "dest", "success") %in% names(fetch_result))) {
     stop("`fetch_result` must be output from `fly_fetch()`.", call. = FALSE)
   }
@@ -85,7 +99,7 @@ fly_thumb_georef <- function(fetch_result, photos_sf,
     fp <- footprints[fp_idx[1], ]
 
     results$success[i] <- tryCatch(
-      georef_one(src, fp, out_file),
+      georef_one(src, fp, out_file, srcnodata = srcnodata),
       error = function(e) {
         message("Failed to georef ", basename(src), ": ", e$message)
         FALSE
@@ -100,7 +114,7 @@ fly_thumb_georef <- function(fetch_result, photos_sf,
 
 #' Georeference a single thumbnail to a footprint polygon
 #' @noRd
-georef_one <- function(src, fp, out_file) {
+georef_one <- function(src, fp, out_file, srcnodata = "0") {
   # Get footprint corner coordinates
   # fly_footprint builds: BL, BR, TR, TL, BL (closing)
   coords <- sf::st_coordinates(fp)[1:4, , drop = FALSE]
@@ -138,9 +152,18 @@ georef_one <- function(src, fp, out_file) {
   )
 
   # Step 2: warp to target CRS with nodata handling
-  # RGB: add alpha band (-dstalpha) for clean masking in mosaics
-  # Grayscale: set nodata=0 (losing some shadow detail is acceptable)
+  # srcnodata: masks black source pixels (camera frame borders)
+  # RGB: alpha band (-dstalpha) for transparent fill in mosaics
+  # Grayscale: dstnodata=0 for nodata metadata
   warp_opts <- c("-t_srs", "EPSG:3005", "-r", "bilinear")
+  if (!is.null(srcnodata)) {
+    src_val <- if (is_rgb) {
+      paste(rep(srcnodata, n_bands), collapse = " ")
+    } else {
+      srcnodata
+    }
+    warp_opts <- c(warp_opts, "-srcnodata", src_val)
+  }
   if (is_rgb) {
     warp_opts <- c(warp_opts, "-dstalpha")
   } else {

@@ -8,7 +8,8 @@ fly_thumb_georef(
   fetch_result,
   photos_sf,
   dest_dir = "georef",
-  overwrite = FALSE
+  overwrite = FALSE,
+  srcnodata = "0"
 )
 }
 \arguments{
@@ -22,6 +23,13 @@ fly_thumb_georef(
 exist.}
 
 \item{overwrite}{If \code{FALSE} (default), skip files that already exist.}
+
+\item{srcnodata}{Source nodata value passed to GDAL warp. Black pixels
+matching this value are treated as transparent (alpha=0 for RGB,
+nodata for grayscale). Default \code{"0"} masks camera frame borders and
+film holder edges at the cost of losing real black pixels — acceptable
+for thumbnails but may need adjustment for full-resolution scans.
+Set to \code{NULL} to disable source nodata detection entirely.}
 }
 \value{
 A tibble with columns \code{airp_id}, \code{source}, \code{dest}, and \code{success}.
@@ -37,14 +45,22 @@ polygon corners computed by \code{\link[=fly_footprint]{fly_footprint()}} in BC 
 translates the image with GCPs then warps to the target CRS using
 bilinear resampling.
 
-\strong{Nodata handling:} Warping a rectangular thumbnail into a rotated
-footprint creates fill pixels outside the source frame. Band count is
-read from each file header to choose the masking strategy: RGB
-thumbnails (3+ bands) get an alpha band (\code{-dstalpha}) so fill areas
-are transparent; grayscale thumbnails (1 band) use nodata=0. This
-only masks GDAL warp fill — black camera frame borders within the
-original image (from film holder edges, fiducial marks, or scanning
-artifacts) are preserved as valid pixels.
+\strong{Nodata handling:} Two sources of unwanted black pixels are masked:
+\enumerate{
+\item \strong{Warp fill} — GDAL creates black pixels outside the rotated source
+frame. RGB thumbnails get an alpha band (\code{-dstalpha}); grayscale use
+\code{dstnodata=0}.
+\item \strong{Camera frame borders} — film holder edges, fiducial marks, and
+scanning artifacts produce black (value 0) pixels within the source
+image. The \code{srcnodata} parameter (default \code{"0"}) tells GDAL to treat
+these as transparent before warping.
+}
+
+\strong{Tradeoff:} \code{srcnodata = "0"} also masks real black pixels (deep
+shadows). At thumbnail resolution (~1250x1250) this is acceptable —
+shadow detail is minimal. For full-resolution scans where shadow
+detail matters, set \code{srcnodata = NULL} and handle frame masking
+downstream (e.g., circle detection).
 
 \strong{Accuracy:} footprints assume flat terrain and nadir camera angle.
 The georeferenced thumbnails are approximate — useful for visual context,
