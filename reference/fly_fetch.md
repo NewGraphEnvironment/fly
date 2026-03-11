@@ -12,7 +12,8 @@ fly_fetch(
   photos_sf,
   type = "thumbnail",
   dest_dir = "photos",
-  overwrite = FALSE
+  overwrite = FALSE,
+  workers = 1
 )
 ```
 
@@ -39,6 +40,15 @@ fly_fetch(
 
   If `FALSE` (default), skip files that already exist in `dest_dir`.
 
+- workers:
+
+  Number of parallel download workers. `1` (default) runs sequentially.
+  Values greater than 1 use
+  [`furrr::future_map_dfr()`](https://furrr.futureverse.org/reference/future_map.html)
+  with
+  [future::multisession](https://future.futureverse.org/reference/multisession.html)
+  — requires `furrr` and `future` packages.
+
 ## Value
 
 A tibble with columns `airp_id`, `url`, `dest`, and `success`.
@@ -57,6 +67,11 @@ URL column mapping:
 
 Photos with missing (`NA` or empty) URLs are skipped and reported as
 `success = FALSE` in the output.
+
+When `workers > 1`, a
+[future::multisession](https://future.futureverse.org/reference/multisession.html)
+plan is set for the duration of the call and restored on exit. Each
+download is independent so parallelism is safe.
 
 ## Examples
 

@@ -2,6 +2,14 @@
 
 ## fly (development version)
 
+### 0.2.1 (2026-03-11)
+
+- Add `workers` parameter to
+  [`fly_fetch()`](https://newgraphenvironment.github.io/fly/reference/fly_fetch.md)
+  for parallel downloads via `furrr`/`future`
+  ([\#21](https://github.com/NewGraphEnvironment/fly/issues/21))
+- Add `furrr` and `future` to Suggests
+
 ### 0.2.0 (2026-03-11)
 
 - **BREAKING:** Remove `fly_query_habitat()`, `fly_query_lakes()`,

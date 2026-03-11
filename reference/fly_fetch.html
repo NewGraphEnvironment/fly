@@ -13,7 +13,7 @@ centroid layer)."><meta property="og:image" content="https://newgraphenvironment
 
     <a class="navbar-brand me-2" href="../index.html">fly</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -55,7 +55,8 @@ centroid layer).</p>
 <span>  <span class="va">photos_sf</span>,</span>
 <span>  type <span class="op">=</span> <span class="st">"thumbnail"</span>,</span>
 <span>  dest_dir <span class="op">=</span> <span class="st">"photos"</span>,</span>
-<span>  overwrite <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span>  overwrite <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  workers <span class="op">=</span> <span class="fl">1</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -83,6 +84,12 @@ not exist.</p></dd>
 <dd><p>If <code>FALSE</code> (default), skip files that already exist
 in <code>dest_dir</code>.</p></dd>
 
+
+<dt id="arg-workers">workers<a class="anchor" aria-label="anchor" href="#arg-workers"></a></dt>
+<dd><p>Number of parallel download workers. <code>1</code> (default) runs
+sequentially. Values greater than 1 use <code><a href="https://furrr.futureverse.org/reference/future_map.html" class="external-link">furrr::future_map_dfr()</a></code> with
+<a href="https://future.futureverse.org/reference/multisession.html" class="external-link">future::multisession</a> — requires <code>furrr</code> and <code>future</code> packages.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
@@ -96,6 +103,9 @@ in <code>dest_dir</code>.</p></dd>
 <li><p><code>"georef"</code> → <code>patb_georef_url</code></p></li>
 </ul><p>Photos with missing (<code>NA</code> or empty) URLs are skipped and reported as
 <code>success = FALSE</code> in the output.</p>
+<p>When <code>workers &gt; 1</code>, a <a href="https://future.futureverse.org/reference/multisession.html" class="external-link">future::multisession</a> plan is set for the
+duration of the call and restored on exit. Each download is independent
+so parallelism is safe.</p>
     </div>
 
     <div class="section level2">
