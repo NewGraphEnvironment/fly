@@ -353,3 +353,35 @@ coarser scales backfill gaps
 
 Multi-scale priority selection — finest-scale photos first (blue),
 coarser scales backfill gaps (orange).
+
+## Thumbnail retrieval and georeferencing
+
+[`fly_fetch()`](https://newgraphenvironment.github.io/fly/reference/fly_fetch.md)
+downloads thumbnail images (or flight logs, calibration reports) from
+the BC Data Catalogue URLs included in the centroid data.
+[`fly_thumb_georef()`](https://newgraphenvironment.github.io/fly/reference/fly_thumb_georef.md)
+warps each thumbnail to its estimated footprint polygon, producing
+georeferenced GeoTIFFs in BC Albers.
+
+``` r
+fetched <- fly_fetch(centroids[1:3, ], type = "thumbnail",
+                     dest_dir = tempdir())
+#> Downloaded 3 of 3 files
+georef <- fly_thumb_georef(fetched, centroids[1:3, ],
+                           dest_dir = tempdir())
+#> Georeferenced 3 of 3 thumbnails
+georef[, c("airp_id", "dest", "success")]
+#> # A tibble: 3 × 3
+#>   airp_id dest                                 success
+#>     <int> <chr>                                <lgl>  
+#> 1  699370 /tmp/RtmpToqrdR/bc5282_176_thumb.tif TRUE   
+#> 2  699415 /tmp/RtmpToqrdR/bc5282_221_thumb.tif TRUE   
+#> 3  699426 /tmp/RtmpToqrdR/bc5282_232_thumb.tif TRUE
+```
+
+The georeferenced TIFFs inherit the flat-terrain and nadir-camera
+assumptions from
+[`fly_footprint()`](https://newgraphenvironment.github.io/fly/reference/fly_footprint.md)
+— they are approximate, useful for visual context rather than
+survey-grade positioning. Metadata from the original centroid data
+(date, scale, focal length) links back via `airp_id`.

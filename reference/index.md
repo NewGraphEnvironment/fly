@@ -20,5 +20,7 @@
   : Select photos covering an AOI
 - [`fly_summary()`](https://newgraphenvironment.github.io/fly/reference/fly_summary.md)
   : Summarize photo footprint sizes and date ranges by scale
+- [`fly_thumb_georef()`](https://newgraphenvironment.github.io/fly/reference/fly_thumb_georef.md)
+  : Georeference downloaded thumbnails to footprint polygons
 - [`fly_trim_habitat()`](https://newgraphenvironment.github.io/fly/reference/fly_trim_habitat.md)
   : Trim floodplain to areas alongside target streams

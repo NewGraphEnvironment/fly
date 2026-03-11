@@ -411,6 +411,34 @@ coarser scales backfill gaps (orange).
 </p>
 </div>
 </div>
+<div class="section level2">
+<h2 id="thumbnail-retrieval-and-georeferencing">Thumbnail retrieval and georeferencing<a class="anchor" aria-label="anchor" href="#thumbnail-retrieval-and-georeferencing"></a>
+</h2>
+<p><code><a href="../reference/fly_fetch.html">fly_fetch()</a></code> downloads thumbnail images (or flight logs,
+calibration reports) from the BC Data Catalogue URLs included in the
+centroid data. <code><a href="../reference/fly_thumb_georef.html">fly_thumb_georef()</a></code> warps each thumbnail to
+its estimated footprint polygon, producing georeferenced GeoTIFFs in BC
+Albers.</p>
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">fetched</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fly_fetch.html">fly_fetch</a></span><span class="op">(</span><span class="va">centroids</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">3</span>, <span class="op">]</span>, type <span class="op">=</span> <span class="st">"thumbnail"</span>,</span>
+<span>                     dest_dir <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Downloaded 3 of 3 files</span></span>
+<span><span class="va">georef</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fly_thumb_georef.html">fly_thumb_georef</a></span><span class="op">(</span><span class="va">fetched</span>, <span class="va">centroids</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">3</span>, <span class="op">]</span>,</span>
+<span>                           dest_dir <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Georeferenced 3 of 3 thumbnails</span></span>
+<span><span class="va">georef</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"airp_id"</span>, <span class="st">"dest"</span>, <span class="st">"success"</span><span class="op">)</span><span class="op">]</span></span>
+<span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 3 × 3</span></span></span>
+<span><span class="co">#&gt;   airp_id dest                                 success</span></span>
+<span><span class="co">#&gt;     <span style="color: #949494; font-style: italic;">&lt;int&gt;</span> <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>                                <span style="color: #949494; font-style: italic;">&lt;lgl&gt;</span>  </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span>  <span style="text-decoration: underline;">699</span>370 /tmp/RtmpToqrdR/bc5282_176_thumb.tif TRUE   </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span>  <span style="text-decoration: underline;">699</span>415 /tmp/RtmpToqrdR/bc5282_221_thumb.tif TRUE   </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">3</span>  <span style="text-decoration: underline;">699</span>426 /tmp/RtmpToqrdR/bc5282_232_thumb.tif TRUE</span></span></code></pre></div>
+<p>The georeferenced TIFFs inherit the flat-terrain and nadir-camera
+assumptions from <code><a href="../reference/fly_footprint.html">fly_footprint()</a></code> — they are approximate,
+useful for visual context rather than survey-grade positioning. Metadata
+from the original centroid data (date, scale, focal length) links back
+via <code>airp_id</code>.</p>
+</div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>
 </div>
