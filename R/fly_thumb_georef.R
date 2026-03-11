@@ -19,10 +19,14 @@
 #' translates the image with GCPs then warps to the target CRS using
 #' bilinear resampling.
 #'
-#' **Nodata handling:** Band count is read from each file header. RGB
-#' thumbnails (3+ bands) get an alpha band (`-dstalpha`) for clean masking
-#' in mosaics. Grayscale thumbnails (1 band) use nodata=0 — some shadow
-#' detail is lost but black borders are eliminated.
+#' **Nodata handling:** Warping a rectangular thumbnail into a rotated
+#' footprint creates fill pixels outside the source frame. Band count is
+#' read from each file header to choose the masking strategy: RGB
+#' thumbnails (3+ bands) get an alpha band (`-dstalpha`) so fill areas
+#' are transparent; grayscale thumbnails (1 band) use nodata=0. This
+#' only masks GDAL warp fill — black camera frame borders within the
+#' original image (from film holder edges, fiducial marks, or scanning
+#' artifacts) are preserved as valid pixels.
 #'
 #' **Accuracy:** footprints assume flat terrain and nadir camera angle.
 #' The georeferenced thumbnails are approximate — useful for visual context,
