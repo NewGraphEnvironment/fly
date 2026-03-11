@@ -1,5 +1,9 @@
 # fly (development version)
 
+## 0.1.3 (2026-03-10)
+
+- Add `fly_thumb_georef()` — warp downloaded thumbnails to estimated ground footprints as georeferenced GeoTIFFs ([#16](https://github.com/NewGraphEnvironment/fly/issues/16))
+
 ## 0.1.2 (2026-03-10)
 
 - Add `fly_fetch()` for downloading thumbnails, flight logs, calibration reports, and georef files from BC Data Catalogue URLs ([#15](https://github.com/NewGraphEnvironment/fly/issues/15))
