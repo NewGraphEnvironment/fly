@@ -2,6 +2,14 @@
 
 ## fly (development version)
 
+### 0.1.3 (2026-03-10)
+
+- Add
+  [`fly_thumb_georef()`](https://newgraphenvironment.github.io/fly/reference/fly_thumb_georef.md)
+  — warp downloaded thumbnails to estimated ground footprints as
+  georeferenced GeoTIFFs
+  ([\#16](https://github.com/NewGraphEnvironment/fly/issues/16))
+
 ### 0.1.2 (2026-03-10)
 
 - Add

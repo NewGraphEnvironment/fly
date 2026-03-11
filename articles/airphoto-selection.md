@@ -374,9 +374,9 @@ georef[, c("airp_id", "dest", "success")]
 #> # A tibble: 3 × 3
 #>   airp_id dest                                 success
 #>     <int> <chr>                                <lgl>  
-#> 1  699370 /tmp/RtmpToqrdR/bc5282_176_thumb.tif TRUE   
-#> 2  699415 /tmp/RtmpToqrdR/bc5282_221_thumb.tif TRUE   
-#> 3  699426 /tmp/RtmpToqrdR/bc5282_232_thumb.tif TRUE
+#> 1  699370 /tmp/RtmpRtmvPS/bc5282_176_thumb.tif TRUE   
+#> 2  699415 /tmp/RtmpRtmvPS/bc5282_221_thumb.tif TRUE   
+#> 3  699426 /tmp/RtmpRtmvPS/bc5282_232_thumb.tif TRUE
 ```
 
 The georeferenced TIFFs inherit the flat-terrain and nadir-camera
