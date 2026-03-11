@@ -4,6 +4,8 @@
 
 - [`fly_coverage()`](https://newgraphenvironment.github.io/fly/reference/fly_coverage.md)
   : Check photo coverage of an AOI by group
+- [`fly_fetch()`](https://newgraphenvironment.github.io/fly/reference/fly_fetch.md)
+  : Download airphoto files from BC Data Catalogue URLs
 - [`fly_filter()`](https://newgraphenvironment.github.io/fly/reference/fly_filter.md)
   : Filter photos by spatial relationship with an AOI
 - [`fly_footprint()`](https://newgraphenvironment.github.io/fly/reference/fly_footprint.md)

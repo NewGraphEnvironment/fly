@@ -100,7 +100,7 @@ includes <code>selection_order</code> and <code>cumulative_coverage_pct</code> c
 <span class="r-out co"><span class="r-pr">#&gt;</span> Reading layer `photo_centroids' from data source </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   `/home/runner/work/_temp/Library/fly/testdata/photo_centroids.gpkg' </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   using driver `GPKG'</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Simple feature collection with 20 features and 9 fields</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Simple feature collection with 20 features and 16 fields</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Geometry type: POINT</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Dimension:     XY</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Bounding box:  xmin: -126.7631 ymin: 54.34512 xmax: -126.449 ymax: 54.47635</span>
@@ -121,7 +121,7 @@ includes <code>selection_order</code> and <code>cumulative_coverage_pct</code> c
 <span class="r-msg co"><span class="r-pr">#&gt;</span>   3 photos -&gt; 81.6% coverage</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> Selected 3 of 20 photos for 81.6% coverage</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> Spherical geometry (s2) switched on</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Simple feature collection with 3 features and 11 fields</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Simple feature collection with 3 features and 18 fields</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Geometry type: POINT</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Dimension:     XY</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Bounding box:  xmin: -126.6796 ymin: 54.41035 xmax: -126.5269 ymax: 54.46049</span>
@@ -130,14 +130,26 @@ includes <code>selection_order</code> and <code>cumulative_coverage_pct</code> c
 <span class="r-out co"><span class="r-pr">#&gt;</span> 11  697358       1968 1968-07-31 1:31680    bc5306           89 Film - BW</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 20  697329       1968 1968-07-31 1:31680    bc5306           60 Film - BW</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 12  697292       1968 1968-07-31 1:31680    bc5306           23 Film - BW</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>     photo_tag nts_tile                       geom selection_order</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 11 bc5306_089   093L07 POINT (-126.6796 54.41035)               1</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 20 bc5306_060   093L07 POINT (-126.6039 54.42617)               2</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 12 bc5306_023   093L07 POINT (-126.5269 54.46049)               3</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>    cumulative_coverage_pct</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 11                    41.0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 20                    66.5</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 12                    81.6</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     photo_tag nts_tile focal_length flying_height ground_sample_distance</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 11 bc5306_089   093L07          153          5944                     NA</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 20 bc5306_060   093L07          153          5944                     NA</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 12 bc5306_023   093L07          153          5944                     NA</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                                                   thumbnail_image_url</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 11 https://openmaps.gov.bc.ca/thumbs/1968/bc5306/bc5306_089_thumb.jpg</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 20 https://openmaps.gov.bc.ca/thumbs/1968/bc5306/bc5306_060_thumb.jpg</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 12 https://openmaps.gov.bc.ca/thumbs/1968/bc5306/bc5306_023_thumb.jpg</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                                                             flight_log_url</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 11 https://openmaps.gov.bc.ca/thumbs/logbooks/1968/roll_pages/bc5306_1.jpg</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 20 https://openmaps.gov.bc.ca/thumbs/logbooks/1968/roll_pages/bc5306_1.jpg</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 12 https://openmaps.gov.bc.ca/thumbs/logbooks/1968/roll_pages/bc5306_1.jpg</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    camera_calibration_url patb_georef_url                       geom</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 11                   &lt;NA&gt;            &lt;NA&gt; POINT (-126.6796 54.41035)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 20                   &lt;NA&gt;            &lt;NA&gt; POINT (-126.6039 54.42617)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 12                   &lt;NA&gt;            &lt;NA&gt; POINT (-126.5269 54.46049)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    selection_order cumulative_coverage_pct</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 11               1                    41.0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 20               2                    66.5</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 12               3                    81.6</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Ensure every AOI component gets at least one photo</span></span></span>
 <span class="r-in"><span><span class="fu">fly_select</span><span class="op">(</span><span class="va">centroids</span>, <span class="va">aoi</span>, mode <span class="op">=</span> <span class="st">"minimal"</span>, target_coverage <span class="op">=</span> <span class="fl">0.80</span>,</span></span>
@@ -149,7 +161,7 @@ includes <code>selection_order</code> and <code>cumulative_coverage_pct</code> c
 <span class="r-msg co"><span class="r-pr">#&gt;</span>   10 photos -&gt; 90.1% coverage</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> Selected 10 of 20 photos for 90.1% coverage</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> Spherical geometry (s2) switched on</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Simple feature collection with 10 features and 11 fields</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Simple feature collection with 10 features and 18 fields</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Geometry type: POINT</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Dimension:     XY</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Bounding box:  xmin: -126.6796 ymin: 54.34512 xmax: -126.449 ymax: 54.46049</span>
@@ -165,28 +177,61 @@ includes <code>selection_order</code> and <code>cumulative_coverage_pct</code> c
 <span class="r-out co"><span class="r-pr">#&gt;</span> 12  697292       1968 1968-07-31 1:31680    bc5306           23 Film - BW</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 6   699419       1968 1968-05-10 1:12000    bc5282          225 Film - BW</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 20  697329       1968 1968-07-31 1:31680    bc5306           60 Film - BW</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>     photo_tag nts_tile                       geom selection_order</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 18 bc5306_057   093L07 POINT (-126.6025 54.34512)               1</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 11 bc5306_089   093L07 POINT (-126.6796 54.41035)               2</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 13 bc5306_024   093L07 POINT (-126.5269 54.43578)               3</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 10 bc5282_227   093L07 POINT (-126.5655 54.43945)               4</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 4  bc5282_202   093L07 POINT (-126.5869 54.45413)               5</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 17 bc5306_026   093L07 POINT (-126.5262 54.38554)               6</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 15 bc5300_236   093L08  POINT (-126.449 54.41519)               7</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 12 bc5306_023   093L07 POINT (-126.5269 54.46049)               8</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 6  bc5282_225   093L07   POINT (-126.54 54.45206)               9</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 20 bc5306_060   093L07 POINT (-126.6039 54.42617)              10</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>    cumulative_coverage_pct</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 18                     3.6</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 11                    44.6</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 13                    68.9</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 10                    70.3</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 4                     72.2</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 17                    74.8</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 15                    76.6</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 12                    78.0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 6                     78.0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 20                    90.1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     photo_tag nts_tile focal_length flying_height ground_sample_distance</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 18 bc5306_057   093L07          153          5944                     NA</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 11 bc5306_089   093L07          153          5944                     NA</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 13 bc5306_024   093L07          153          5944                     NA</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 10 bc5282_227   093L07          153          2591                     NA</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 4  bc5282_202   093L07          153          2591                     NA</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 17 bc5306_026   093L07          153          5944                     NA</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 15 bc5300_236   093L08          153          5944                     NA</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 12 bc5306_023   093L07          153          5944                     NA</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 6  bc5282_225   093L07          153          2591                     NA</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 20 bc5306_060   093L07          153          5944                     NA</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                                                   thumbnail_image_url</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 18 https://openmaps.gov.bc.ca/thumbs/1968/bc5306/bc5306_057_thumb.jpg</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 11 https://openmaps.gov.bc.ca/thumbs/1968/bc5306/bc5306_089_thumb.jpg</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 13 https://openmaps.gov.bc.ca/thumbs/1968/bc5306/bc5306_024_thumb.jpg</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 10 https://openmaps.gov.bc.ca/thumbs/1968/bc5282/bc5282_227_thumb.jpg</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 4  https://openmaps.gov.bc.ca/thumbs/1968/bc5282/bc5282_202_thumb.jpg</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 17 https://openmaps.gov.bc.ca/thumbs/1968/bc5306/bc5306_026_thumb.jpg</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 15 https://openmaps.gov.bc.ca/thumbs/1968/bc5300/bc5300_236_thumb.jpg</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 12 https://openmaps.gov.bc.ca/thumbs/1968/bc5306/bc5306_023_thumb.jpg</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 6  https://openmaps.gov.bc.ca/thumbs/1968/bc5282/bc5282_225_thumb.jpg</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 20 https://openmaps.gov.bc.ca/thumbs/1968/bc5306/bc5306_060_thumb.jpg</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                                                             flight_log_url</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 18 https://openmaps.gov.bc.ca/thumbs/logbooks/1968/roll_pages/bc5306_1.jpg</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 11 https://openmaps.gov.bc.ca/thumbs/logbooks/1968/roll_pages/bc5306_1.jpg</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 13 https://openmaps.gov.bc.ca/thumbs/logbooks/1968/roll_pages/bc5306_1.jpg</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 10 https://openmaps.gov.bc.ca/thumbs/logbooks/1968/roll_pages/bc5282_1.jpg</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 4  https://openmaps.gov.bc.ca/thumbs/logbooks/1968/roll_pages/bc5282_1.jpg</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 17 https://openmaps.gov.bc.ca/thumbs/logbooks/1968/roll_pages/bc5306_1.jpg</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 15 https://openmaps.gov.bc.ca/thumbs/logbooks/1968/roll_pages/bc5300_2.jpg</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 12 https://openmaps.gov.bc.ca/thumbs/logbooks/1968/roll_pages/bc5306_1.jpg</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 6  https://openmaps.gov.bc.ca/thumbs/logbooks/1968/roll_pages/bc5282_1.jpg</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 20 https://openmaps.gov.bc.ca/thumbs/logbooks/1968/roll_pages/bc5306_1.jpg</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    camera_calibration_url patb_georef_url                       geom</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 18                   &lt;NA&gt;            &lt;NA&gt; POINT (-126.6025 54.34512)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 11                   &lt;NA&gt;            &lt;NA&gt; POINT (-126.6796 54.41035)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 13                   &lt;NA&gt;            &lt;NA&gt; POINT (-126.5269 54.43578)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 10                   &lt;NA&gt;            &lt;NA&gt; POINT (-126.5655 54.43945)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 4                    &lt;NA&gt;            &lt;NA&gt; POINT (-126.5869 54.45413)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 17                   &lt;NA&gt;            &lt;NA&gt; POINT (-126.5262 54.38554)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 15                   &lt;NA&gt;            &lt;NA&gt;  POINT (-126.449 54.41519)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 12                   &lt;NA&gt;            &lt;NA&gt; POINT (-126.5269 54.46049)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 6                    &lt;NA&gt;            &lt;NA&gt;   POINT (-126.54 54.45206)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 20                   &lt;NA&gt;            &lt;NA&gt; POINT (-126.6039 54.42617)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    selection_order cumulative_coverage_pct</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 18               1                     3.6</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 11               2                    44.6</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 13               3                    68.9</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 10               4                    70.3</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 4                5                    72.2</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 17               6                    74.8</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 15               7                    76.6</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 12               8                    78.0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 6                9                    78.0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 20              10                    90.1</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># All photos touching the AOI</span></span></span>
 <span class="r-in"><span><span class="fu">fly_select</span><span class="op">(</span><span class="va">centroids</span>, <span class="va">aoi</span>, mode <span class="op">=</span> <span class="st">"all"</span><span class="op">)</span></span></span>
@@ -197,7 +242,7 @@ includes <code>selection_order</code> and <code>cumulative_coverage_pct</code> c
 <span class="r-msg co"><span class="r-pr">#&gt;</span> are planar</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> Selected 20 of 20 photos intersecting the AOI</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> Spherical geometry (s2) switched on</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Simple feature collection with 20 features and 9 fields</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Simple feature collection with 20 features and 16 fields</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Geometry type: POINT</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Dimension:     XY</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Bounding box:  xmin: -126.7631 ymin: 54.34512 xmax: -126.449 ymax: 54.47635</span>
@@ -214,17 +259,50 @@ includes <code>selection_order</code> and <code>cumulative_coverage_pct</code> c
 <span class="r-out co"><span class="r-pr">#&gt;</span> 8   699393       1968 1968-05-10 1:12000    bc5282          199 Film - BW</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 9   699373       1968 1968-05-10 1:12000    bc5282          179 Film - BW</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 10  699421       1968 1968-05-10 1:12000    bc5282          227 Film - BW</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>     photo_tag nts_tile                       geom</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 1  bc5282_176   093L07  POINT (-126.7091 54.3727)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 2  bc5282_221   093L08 POINT (-126.4879 54.47635)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 3  bc5282_232   093L07 POINT (-126.6292 54.40794)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 4  bc5282_202   093L07 POINT (-126.5869 54.45413)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 5  bc5282_171   093L07 POINT (-126.6885 54.38426)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 6  bc5282_225   093L07   POINT (-126.54 54.45206)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 7  bc5282_231   093L07 POINT (-126.6165 54.41424)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 8  bc5282_199   093L07  POINT (-126.624 54.43612)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 9  bc5282_179   093L07 POINT (-126.7438 54.39477)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 10 bc5282_227   093L07 POINT (-126.5655 54.43945)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     photo_tag nts_tile focal_length flying_height ground_sample_distance</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1  bc5282_176   093L07          153          2591                     NA</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 2  bc5282_221   093L08          153          2591                     NA</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 3  bc5282_232   093L07          153          2591                     NA</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 4  bc5282_202   093L07          153          2591                     NA</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 5  bc5282_171   093L07          153          2438                     NA</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 6  bc5282_225   093L07          153          2591                     NA</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 7  bc5282_231   093L07          153          2591                     NA</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 8  bc5282_199   093L07          153          2591                     NA</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 9  bc5282_179   093L07          153          2591                     NA</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 10 bc5282_227   093L07          153          2591                     NA</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                                                   thumbnail_image_url</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1  https://openmaps.gov.bc.ca/thumbs/1968/bc5282/bc5282_176_thumb.jpg</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 2  https://openmaps.gov.bc.ca/thumbs/1968/bc5282/bc5282_221_thumb.jpg</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 3  https://openmaps.gov.bc.ca/thumbs/1968/bc5282/bc5282_232_thumb.jpg</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 4  https://openmaps.gov.bc.ca/thumbs/1968/bc5282/bc5282_202_thumb.jpg</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 5  https://openmaps.gov.bc.ca/thumbs/1968/bc5282/bc5282_171_thumb.jpg</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 6  https://openmaps.gov.bc.ca/thumbs/1968/bc5282/bc5282_225_thumb.jpg</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 7  https://openmaps.gov.bc.ca/thumbs/1968/bc5282/bc5282_231_thumb.jpg</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 8  https://openmaps.gov.bc.ca/thumbs/1968/bc5282/bc5282_199_thumb.jpg</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 9  https://openmaps.gov.bc.ca/thumbs/1968/bc5282/bc5282_179_thumb.jpg</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 10 https://openmaps.gov.bc.ca/thumbs/1968/bc5282/bc5282_227_thumb.jpg</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                                                             flight_log_url</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1  https://openmaps.gov.bc.ca/thumbs/logbooks/1968/roll_pages/bc5282_1.jpg</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 2  https://openmaps.gov.bc.ca/thumbs/logbooks/1968/roll_pages/bc5282_1.jpg</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 3  https://openmaps.gov.bc.ca/thumbs/logbooks/1968/roll_pages/bc5282_1.jpg</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 4  https://openmaps.gov.bc.ca/thumbs/logbooks/1968/roll_pages/bc5282_1.jpg</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 5  https://openmaps.gov.bc.ca/thumbs/logbooks/1968/roll_pages/bc5282_1.jpg</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 6  https://openmaps.gov.bc.ca/thumbs/logbooks/1968/roll_pages/bc5282_1.jpg</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 7  https://openmaps.gov.bc.ca/thumbs/logbooks/1968/roll_pages/bc5282_1.jpg</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 8  https://openmaps.gov.bc.ca/thumbs/logbooks/1968/roll_pages/bc5282_1.jpg</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 9  https://openmaps.gov.bc.ca/thumbs/logbooks/1968/roll_pages/bc5282_1.jpg</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 10 https://openmaps.gov.bc.ca/thumbs/logbooks/1968/roll_pages/bc5282_1.jpg</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    camera_calibration_url patb_georef_url                       geom</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1                    &lt;NA&gt;            &lt;NA&gt;  POINT (-126.7091 54.3727)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 2                    &lt;NA&gt;            &lt;NA&gt; POINT (-126.4879 54.47635)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 3                    &lt;NA&gt;            &lt;NA&gt; POINT (-126.6292 54.40794)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 4                    &lt;NA&gt;            &lt;NA&gt; POINT (-126.5869 54.45413)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 5                    &lt;NA&gt;            &lt;NA&gt; POINT (-126.6885 54.38426)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 6                    &lt;NA&gt;            &lt;NA&gt;   POINT (-126.54 54.45206)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 7                    &lt;NA&gt;            &lt;NA&gt; POINT (-126.6165 54.41424)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 8                    &lt;NA&gt;            &lt;NA&gt;  POINT (-126.624 54.43612)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 9                    &lt;NA&gt;            &lt;NA&gt; POINT (-126.7438 54.39477)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 10                   &lt;NA&gt;            &lt;NA&gt; POINT (-126.5655 54.43945)</span>
 <span class="r-in"><span></span></span>
 </code></pre></div>
     </div>

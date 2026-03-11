@@ -58,7 +58,7 @@ centroids <- sf::st_read(system.file("testdata/photo_centroids.gpkg", package = 
 #> Reading layer `photo_centroids' from data source 
 #>   `/home/runner/work/_temp/Library/fly/testdata/photo_centroids.gpkg' 
 #>   using driver `GPKG'
-#> Simple feature collection with 20 features and 9 fields
+#> Simple feature collection with 20 features and 16 fields
 #> Geometry type: POINT
 #> Dimension:     XY
 #> Bounding box:  xmin: -126.7631 ymin: 54.34512 xmax: -126.449 ymax: 54.47635
