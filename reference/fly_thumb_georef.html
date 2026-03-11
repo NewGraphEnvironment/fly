@@ -89,6 +89,10 @@ exist.</p></dd>
 polygon corners computed by <code><a href="fly_footprint.html">fly_footprint()</a></code> in BC Albers. GDAL
 translates the image with GCPs then warps to the target CRS using
 bilinear resampling.</p>
+<p><strong>Nodata handling:</strong> Band count is read from each file header. RGB
+thumbnails (3+ bands) get an alpha band (<code>-dstalpha</code>) for clean masking
+in mosaics. Grayscale thumbnails (1 band) use nodata=0 — some shadow
+detail is lost but black borders are eliminated.</p>
 <p><strong>Accuracy:</strong> footprints assume flat terrain and nadir camera angle.
 The georeferenced thumbnails are approximate — useful for visual context,
 not survey-grade positioning. See <code><a href="fly_footprint.html">fly_footprint()</a></code> for details on
@@ -118,8 +122,8 @@ limitations.</p>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;"># A tibble: 2 × 4</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   airp_id source                               dest                      success</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>     <span style="color: #949494; font-style: italic;">&lt;int&gt;</span> <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>                                <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>                     <span style="color: #949494; font-style: italic;">&lt;lgl&gt;</span>  </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">1</span>  <span style="text-decoration: underline;">699</span>370 /tmp/RtmprKi727/bc5282_176_thumb.jpg /tmp/RtmprKi727/bc5282_1… TRUE   </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">2</span>  <span style="text-decoration: underline;">699</span>415 /tmp/RtmprKi727/bc5282_221_thumb.jpg /tmp/RtmprKi727/bc5282_2… TRUE   </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">1</span>  <span style="text-decoration: underline;">699</span>370 /tmp/RtmpOJQmeN/bc5282_176_thumb.jpg /tmp/RtmpOJQmeN/bc5282_1… TRUE   </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">2</span>  <span style="text-decoration: underline;">699</span>415 /tmp/RtmpOJQmeN/bc5282_221_thumb.jpg /tmp/RtmpOJQmeN/bc5282_2… TRUE   </span>
 <span class="r-in"><span></span></span>
 </code></pre></div>
     </div>

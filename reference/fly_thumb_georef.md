@@ -50,6 +50,11 @@ polygon corners computed by
 in BC Albers. GDAL translates the image with GCPs then warps to the
 target CRS using bilinear resampling.
 
+**Nodata handling:** Band count is read from each file header. RGB
+thumbnails (3+ bands) get an alpha band (`-dstalpha`) for clean masking
+in mosaics. Grayscale thumbnails (1 band) use nodata=0 — some shadow
+detail is lost but black borders are eliminated.
+
 **Accuracy:** footprints assume flat terrain and nadir camera angle. The
 georeferenced thumbnails are approximate — useful for visual context,
 not survey-grade positioning. See
@@ -80,6 +85,6 @@ georef
 #> # A tibble: 2 × 4
 #>   airp_id source                               dest                      success
 #>     <int> <chr>                                <chr>                     <lgl>  
-#> 1  699370 /tmp/RtmprKi727/bc5282_176_thumb.jpg /tmp/RtmprKi727/bc5282_1… TRUE   
-#> 2  699415 /tmp/RtmprKi727/bc5282_221_thumb.jpg /tmp/RtmprKi727/bc5282_2… TRUE   
+#> 1  699370 /tmp/RtmpOJQmeN/bc5282_176_thumb.jpg /tmp/RtmpOJQmeN/bc5282_1… TRUE   
+#> 2  699415 /tmp/RtmpOJQmeN/bc5282_221_thumb.jpg /tmp/RtmpOJQmeN/bc5282_2… TRUE   
 ```
