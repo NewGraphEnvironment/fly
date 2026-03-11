@@ -242,3 +242,24 @@ legend("topright", legend = scale_labels,
        fill = adjustcolor(palette[seq_along(scale_labels)], 0.3),
        border = palette[seq_along(scale_labels)], bty = "n")
 ```
+
+# Thumbnail retrieval and georeferencing
+
+`fly_fetch()` downloads thumbnail images (or flight logs, calibration
+reports) from the BC Data Catalogue URLs included in the centroid data.
+`fly_thumb_georef()` warps each thumbnail to its estimated footprint
+polygon, producing georeferenced GeoTIFFs in BC Albers.
+
+```{r fetch-georef}
+fetched <- fly_fetch(centroids[1:3, ], type = "thumbnail",
+                     dest_dir = tempdir())
+georef <- fly_thumb_georef(fetched, centroids[1:3, ],
+                           dest_dir = tempdir())
+georef[, c("airp_id", "dest", "success")]
+```
+
+The georeferenced TIFFs inherit the flat-terrain and nadir-camera
+assumptions from `fly_footprint()` — they are approximate, useful for
+visual context rather than survey-grade positioning. Metadata from the
+original centroid data (date, scale, focal length) links back via
+`airp_id`.
