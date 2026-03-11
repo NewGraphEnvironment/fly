@@ -8,8 +8,7 @@ Authors@R: c(
     )
 Description: Estimate ground footprints from airphoto centroids and scale,
     compute coverage of areas of interest, and select minimum photo sets
-    using greedy set-cover. Includes optional helpers for querying fish
-    habitat streams from bcfishpass.
+    using greedy set-cover.
 License: MIT + file LICENSE
 URL: https://github.com/NewGraphEnvironment/fly,
     https://newgraphenvironment.github.io/fly/
@@ -22,14 +21,11 @@ Depends:
 Imports:
     sf,
     dplyr,
-    glue,
     purrr,
     rlang,
     stringr
 Suggests:
     bookdown,
-    DBI,
-    RPostgres,
     testthat (>= 3.0.0),
     knitr,
     rmarkdown

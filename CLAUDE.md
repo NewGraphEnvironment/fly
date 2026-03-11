@@ -13,13 +13,11 @@ scale, compute coverage of areas of interest, and select minimum photo sets usin
 
 - One exported function per file: `R/fly_footprint.R` → `tests/testthat/test-fly_footprint.R`
 - `inst/testdata/` — Upper Bulkley River floodplain near Houston, BC (20 photos, dual scale)
-- `data-raw/make_testdata.R` — generates test data from airbc cached data
-- DB functions (`fly_query_habitat`, `fly_query_lakes`) require SSH tunnel; tests use `skip_if_no_db()`
+- `data-raw/make_testdata.R` — generates test data from diggs cached data
 
 ## Key Decisions
 
 - **CRS 3005** (BC Albers) not 32609 (UTM Zone 9) — works province-wide
-- **DBI/RPostgres in Suggests** — non-DB users don't need database drivers
 - **`fly_footprint()` uses vectorized `st_coordinates()` + `lapply()`** — do NOT use `dplyr::mutate(.data$geometry)` because the
 geometry column may be named `geom` not `geometry`
 - **Priority selection pattern:** all best-resolution photos first, then greedy backfill with coarser scales (see vignette)

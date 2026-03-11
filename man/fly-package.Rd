@@ -8,7 +8,7 @@
 \description{
 \if{html}{\figure{logo.png}{options: style='float: right' alt='logo' width='120'}}
 
-Estimate ground footprints from airphoto centroids and scale, compute coverage of areas of interest, and select minimum photo sets using greedy set-cover. Includes optional helpers for querying fish habitat streams from bcfishpass.
+Estimate ground footprints from airphoto centroids and scale, compute coverage of areas of interest, and select minimum photo sets using greedy set-cover.
 }
 \seealso{
 Useful links:
