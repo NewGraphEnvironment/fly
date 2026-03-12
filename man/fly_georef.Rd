@@ -10,7 +10,7 @@ fly_georef(
   dest_dir = "georef",
   overwrite = FALSE,
   srcnodata = "0",
-  rotation = 180
+  rotation = "auto"
 )
 }
 \arguments{
@@ -33,10 +33,12 @@ film holder edges at the cost of losing real black pixels — acceptable
 for thumbnails but may need adjustment for full-resolution scans.
 Set to \code{NULL} to disable source nodata detection entirely.}
 
-\item{rotation}{Default image rotation in degrees clockwise (one of
-\code{0}, \code{90}, \code{180}, \code{270}). Controls which pixel corners map to which
-footprint corners. Default \code{180} is correct for most BC aerial photos.
-Overridden per-photo if \code{photos_sf} contains a \code{rotation} column.}
+\item{rotation}{Image rotation in degrees clockwise. One of \code{"auto"},
+\code{0}, \code{90}, \code{180}, or \code{270}. \code{"auto"} (default) computes flight line
+bearing from consecutive centroids and derives rotation per-photo —
+requires \code{film_roll} and \code{frame_number} columns. Fixed values apply
+the same rotation to all photos. Overridden per-photo if \code{photos_sf}
+contains a \code{rotation} column.}
 }
 \value{
 A tibble with columns \code{airp_id}, \code{source}, \code{dest}, and \code{success}.
@@ -63,13 +65,21 @@ parameter rotates the GCP corner mapping:
 \item \code{270} — top of image maps to west edge
 }
 
-Rotation is consistent within a film roll — all frames from the same
-roll need the same correction. Set per-roll values in a \code{rotation}
-column on \code{photos_sf}:
+When \code{rotation = "auto"}, the bearing-to-rotation formula is:
+\code{floor((bearing + 91) / 90) * 90 \%\% 360}. This was calibrated on
+BC aerial photos spanning 1968–2019 across multiple camera systems
+and scanners. Photos on diagonal flight lines (~45° off cardinal)
+may be imperfect — check visually and override with a \code{rotation}
+column if needed.
+
+Within a film roll, consecutive flight legs alternate direction
+(back-and-forth pattern), so different frames on the same roll may
+need different rotations. This is why \code{"auto"} computes per-photo,
+not per-roll. To override, add a \code{rotation} column to \code{photos_sf}:
 
 \if{html}{\out{<div class="sourceCode">}}\preformatted{photos$rotation <- dplyr::case_when(
-  photos$film_roll == "bc5282" ~ 90,
-  .default = 180
+  photos$film_roll == "bc5282" ~ 270,
+  .default = NA  # fall through to auto
 )
 }\if{html}{\out{</div>}}
 
@@ -98,7 +108,7 @@ limitations.
 \examples{
 centroids <- sf::st_read(system.file("testdata/photo_centroids.gpkg", package = "fly"))
 
-# Fetch and georeference first 2 thumbnails
+# Fetch and georeference with auto rotation (uses bearing from centroids)
 fetched <- fly_fetch(centroids[1:2, ], type = "thumbnail",
                      dest_dir = tempdir())
 georef <- fly_georef(fetched, centroids[1:2, ],

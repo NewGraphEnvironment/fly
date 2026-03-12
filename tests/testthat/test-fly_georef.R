@@ -124,7 +124,23 @@ test_that("fly_georef rejects invalid rotation", {
     dest = tempfile(), success = TRUE
   )
   expect_error(fly_georef(fake_fetch, centroids[1, ], rotation = 45),
-               "one of 0, 90, 180, 270")
+               "one of")
+})
+
+test_that("fly_georef auto rotation uses bearing", {
+  centroids <- sf::st_read(testdata_path("photo_centroids.gpkg"), quiet = TRUE)
+  dest_fetch <- file.path(tempdir(), "fly_georef_auto_fetch")
+  unlink(dest_fetch, recursive = TRUE)
+
+  fetched <- fly_fetch(centroids[1, ], type = "thumbnail",
+                       dest_dir = dest_fetch)
+  dest_georef <- file.path(tempdir(), "fly_georef_auto_out")
+  unlink(dest_georef, recursive = TRUE)
+
+  # Default is "auto" — should work with film_roll + frame_number
+  result <- fly_georef(fetched, centroids[1, ],
+                       dest_dir = dest_georef)
+  expect_true(result$success[1])
 })
 
 test_that("fly_georef reads rotation from column", {

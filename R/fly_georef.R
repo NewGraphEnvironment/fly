@@ -18,10 +18,12 @@
 #'   film holder edges at the cost of losing real black pixels — acceptable
 #'   for thumbnails but may need adjustment for full-resolution scans.
 #'   Set to `NULL` to disable source nodata detection entirely.
-#' @param rotation Default image rotation in degrees clockwise (one of
-#'   `0`, `90`, `180`, `270`). Controls which pixel corners map to which
-#'   footprint corners. Default `180` is correct for most BC aerial photos.
-#'   Overridden per-photo if `photos_sf` contains a `rotation` column.
+#' @param rotation Image rotation in degrees clockwise. One of `"auto"`,
+#'   `0`, `90`, `180`, or `270`. `"auto"` (default) computes flight line
+#'   bearing from consecutive centroids and derives rotation per-photo —
+#'   requires `film_roll` and `frame_number` columns. Fixed values apply
+#'   the same rotation to all photos. Overridden per-photo if `photos_sf`
+#'   contains a `rotation` column.
 #' @return A tibble with columns `airp_id`, `source`, `dest`, and `success`.
 #'
 #' @details
@@ -41,13 +43,21 @@
 #'   \item `270` — top of image maps to west edge
 #' }
 #'
-#' Rotation is consistent within a film roll — all frames from the same
-#' roll need the same correction. Set per-roll values in a `rotation`
-#' column on `photos_sf`:
+#' When `rotation = "auto"`, the bearing-to-rotation formula is:
+#' `floor((bearing + 91) / 90) * 90 %% 360`. This was calibrated on
+#' BC aerial photos spanning 1968–2019 across multiple camera systems
+#' and scanners. Photos on diagonal flight lines (~45° off cardinal)
+#' may be imperfect — check visually and override with a `rotation`
+#' column if needed.
+#'
+#' Within a film roll, consecutive flight legs alternate direction
+#' (back-and-forth pattern), so different frames on the same roll may
+#' need different rotations. This is why `"auto"` computes per-photo,
+#' not per-roll. To override, add a `rotation` column to `photos_sf`:
 #' ```
 #' photos$rotation <- dplyr::case_when(
-#'   photos$film_roll == "bc5282" ~ 90,
-#'   .default = 180
+#'   photos$film_roll == "bc5282" ~ 270,
+#'   .default = NA  # fall through to auto
 #' )
 #' ```
 #'
@@ -75,7 +85,7 @@
 #' @examples
 #' centroids <- sf::st_read(system.file("testdata/photo_centroids.gpkg", package = "fly"))
 #'
-#' # Fetch and georeference first 2 thumbnails
+#' # Fetch and georeference with auto rotation (uses bearing from centroids)
 #' fetched <- fly_fetch(centroids[1:2, ], type = "thumbnail",
 #'                      dest_dir = tempdir())
 #' georef <- fly_georef(fetched, centroids[1:2, ],
@@ -85,13 +95,17 @@
 #' @export
 fly_georef <- function(fetch_result, photos_sf,
                        dest_dir = "georef", overwrite = FALSE,
-                       srcnodata = "0", rotation = 180) {
+                       srcnodata = "0", rotation = "auto") {
   if (!all(c("airp_id", "dest", "success") %in% names(fetch_result))) {
     stop("`fetch_result` must be output from `fly_fetch()`.", call. = FALSE)
   }
-  rotation <- as.integer(rotation)
-  if (!rotation %in% c(0L, 90L, 180L, 270L)) {
-    stop("`rotation` must be one of 0, 90, 180, 270.", call. = FALSE)
+
+  auto_rotation <- identical(rotation, "auto")
+  if (!auto_rotation) {
+    rotation <- as.integer(rotation)
+    if (!rotation %in% c(0L, 90L, 180L, 270L)) {
+      stop("`rotation` must be one of \"auto\", 0, 90, 180, 270.", call. = FALSE)
+    }
   }
 
   dir.create(dest_dir, recursive = TRUE, showWarnings = FALSE)
@@ -102,8 +116,22 @@ fly_georef <- function(fetch_result, photos_sf,
   # Match fetch results to photos by airp_id
   ids <- fetch_result$airp_id
 
-  # Per-photo rotation: column in photos_sf overrides default
+  # Per-photo rotation: column overrides auto/default
+
   has_rotation_col <- "rotation" %in% names(photos_sf)
+
+  # Auto-compute bearing → rotation when needed
+  if (auto_rotation && !has_rotation_col) {
+    if (all(c("film_roll", "frame_number") %in% names(photos_sf))) {
+      photos_sf <- fly_bearing(photos_sf)
+      photos_sf$rotation <- bearing_to_rotation(photos_sf$bearing)
+      has_rotation_col <- TRUE
+    } else {
+      message("No film_roll/frame_number columns for auto rotation, using 180")
+      rotation <- 180L
+      auto_rotation <- FALSE
+    }
+  }
 
   results <- dplyr::tibble(
     airp_id = ids,
@@ -133,7 +161,10 @@ fly_georef <- function(fetch_result, photos_sf,
 
     # Per-photo rotation from column, or default
     rot <- if (has_rotation_col) {
-      as.integer(photos_sf[["rotation"]][fp_idx[1]])
+      val <- as.integer(photos_sf[["rotation"]][fp_idx[1]])
+      if (is.na(val)) {
+        if (auto_rotation) 180L else rotation
+      } else val
     } else {
       rotation
     }
@@ -247,4 +278,17 @@ georef_one <- function(src, fp, out_file, srcnodata = "0", rotation = 180) {
   )
 
   file.exists(out_file) && file.size(out_file) > 0
+}
+
+#' Convert flight bearing to GCP rotation
+#'
+#' Formula calibrated on BC aerial photos (1968–2019).
+#' @param bearing Numeric vector of bearings (degrees, 0–360).
+#' @return Integer vector of rotations (0, 90, 180, or 270). NA bearings
+#'   return 180 (most common default).
+#' @noRd
+bearing_to_rotation <- function(bearing) {
+  rot <- (floor((bearing + 91) / 90) * 90L) %% 360L
+  rot[is.na(rot)] <- 180L
+  as.integer(rot)
 }
