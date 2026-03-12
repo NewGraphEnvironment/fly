@@ -1,5 +1,12 @@
 # fly (development version)
 
+## 0.3.0 (2026-03-12)
+
+- **BREAKING:** Rename `fly_thumb_georef()` → `fly_georef()` — not thumbnail-specific ([#24](https://github.com/NewGraphEnvironment/fly/issues/24))
+- Add `rotation` parameter to `fly_georef()` (default 180°) for correcting image orientation per-roll ([#25](https://github.com/NewGraphEnvironment/fly/issues/25))
+- Add `fly_bearing()` — compute flight line bearing from consecutive centroids per roll
+- Per-photo rotation via `rotation` column on input sf overrides default
+
 ## 0.2.1 (2026-03-11)
 
 - Add `workers` parameter to `fly_fetch()` for parallel downloads via `furrr`/`future` ([#21](https://github.com/NewGraphEnvironment/fly/issues/21))

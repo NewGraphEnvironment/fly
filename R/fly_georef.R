@@ -1,13 +1,14 @@
-#' Georeference downloaded thumbnails to footprint polygons
+#' Georeference airphoto images to footprint polygons
 #'
-#' Warps thumbnail images to their estimated ground footprint using GCPs
-#' (ground control points) derived from [fly_footprint()]. Produces
-#' georeferenced GeoTIFFs in BC Albers (EPSG:3005).
+#' Warps images to their estimated ground footprint using GCPs (ground control
+#' points) derived from [fly_footprint()]. Produces georeferenced GeoTIFFs in
+#' BC Albers (EPSG:3005). Works with thumbnails and full-resolution scans.
 #'
 #' @param fetch_result A tibble returned by [fly_fetch()], with columns
 #'   `airp_id`, `dest`, and `success`.
 #' @param photos_sf The same sf object passed to `fly_fetch()`, with a
-#'   `scale` column for footprint estimation.
+#'   `scale` column for footprint estimation. If a `rotation` column is
+#'   present, per-photo rotation values are used (see **Rotation** below).
 #' @param dest_dir Directory for output GeoTIFFs. Created if it does not
 #'   exist.
 #' @param overwrite If `FALSE` (default), skip files that already exist.
@@ -17,18 +18,43 @@
 #'   film holder edges at the cost of losing real black pixels — acceptable
 #'   for thumbnails but may need adjustment for full-resolution scans.
 #'   Set to `NULL` to disable source nodata detection entirely.
+#' @param rotation Default image rotation in degrees clockwise (one of
+#'   `0`, `90`, `180`, `270`). Controls which pixel corners map to which
+#'   footprint corners. Default `180` is correct for most BC aerial photos.
+#'   Overridden per-photo if `photos_sf` contains a `rotation` column.
 #' @return A tibble with columns `airp_id`, `source`, `dest`, and `success`.
 #'
 #' @details
-#' Each thumbnail's four corners are mapped to the corresponding footprint
+#' Each image's four corners are mapped to the corresponding footprint
 #' polygon corners computed by [fly_footprint()] in BC Albers. GDAL
 #' translates the image with GCPs then warps to the target CRS using
 #' bilinear resampling.
 #'
+#' **Rotation:** Aerial photos may appear rotated in their footprints
+#' because the camera orientation relative to north varies by flight
+#' direction, camera mounting, and scanner orientation. The `rotation`
+#' parameter rotates the GCP corner mapping:
+#' \itemize{
+#'   \item `0` — top of image maps to north edge of footprint (original behavior)
+#'   \item `90` — top of image maps to east edge (90° clockwise)
+#'   \item `180` — top of image maps to south edge (default, correct for most BC photos)
+#'   \item `270` — top of image maps to west edge
+#' }
+#'
+#' Rotation is consistent within a film roll — all frames from the same
+#' roll need the same correction. Set per-roll values in a `rotation`
+#' column on `photos_sf`:
+#' ```
+#' photos$rotation <- dplyr::case_when(
+#'   photos$film_roll == "bc5282" ~ 90,
+#'   .default = 180
+#' )
+#' ```
+#'
 #' **Nodata handling:** Two sources of unwanted black pixels are masked:
 #'
 #' 1. **Warp fill** — GDAL creates black pixels outside the rotated source
-#'    frame. RGB thumbnails get an alpha band (`-dstalpha`); grayscale use
+#'    frame. RGB images get an alpha band (`-dstalpha`); grayscale use
 #'    `dstnodata=0`.
 #' 2. **Camera frame borders** — film holder edges, fiducial marks, and
 #'    scanning artifacts produce black (value 0) pixels within the source
@@ -42,7 +68,7 @@
 #' downstream (e.g., circle detection).
 #'
 #' **Accuracy:** footprints assume flat terrain and nadir camera angle.
-#' The georeferenced thumbnails are approximate — useful for visual context,
+#' The georeferenced images are approximate — useful for visual context,
 #' not survey-grade positioning. See [fly_footprint()] for details on
 #' limitations.
 #'
@@ -52,16 +78,20 @@
 #' # Fetch and georeference first 2 thumbnails
 #' fetched <- fly_fetch(centroids[1:2, ], type = "thumbnail",
 #'                      dest_dir = tempdir())
-#' georef <- fly_thumb_georef(fetched, centroids[1:2, ],
-#'                            dest_dir = tempdir())
+#' georef <- fly_georef(fetched, centroids[1:2, ],
+#'                      dest_dir = tempdir())
 #' georef
 #'
 #' @export
-fly_thumb_georef <- function(fetch_result, photos_sf,
-                             dest_dir = "georef", overwrite = FALSE,
-                             srcnodata = "0") {
+fly_georef <- function(fetch_result, photos_sf,
+                       dest_dir = "georef", overwrite = FALSE,
+                       srcnodata = "0", rotation = 180) {
   if (!all(c("airp_id", "dest", "success") %in% names(fetch_result))) {
     stop("`fetch_result` must be output from `fly_fetch()`.", call. = FALSE)
+  }
+  rotation <- as.integer(rotation)
+  if (!rotation %in% c(0L, 90L, 180L, 270L)) {
+    stop("`rotation` must be one of 0, 90, 180, 270.", call. = FALSE)
   }
 
   dir.create(dest_dir, recursive = TRUE, showWarnings = FALSE)
@@ -71,6 +101,9 @@ fly_thumb_georef <- function(fetch_result, photos_sf,
 
   # Match fetch results to photos by airp_id
   ids <- fetch_result$airp_id
+
+  # Per-photo rotation: column in photos_sf overrides default
+  has_rotation_col <- "rotation" %in% names(photos_sf)
 
   results <- dplyr::tibble(
     airp_id = ids,
@@ -98,8 +131,15 @@ fly_thumb_georef <- function(fetch_result, photos_sf,
     if (length(fp_idx) == 0) next
     fp <- footprints[fp_idx[1], ]
 
+    # Per-photo rotation from column, or default
+    rot <- if (has_rotation_col) {
+      as.integer(photos_sf[["rotation"]][fp_idx[1]])
+    } else {
+      rotation
+    }
+
     results$success[i] <- tryCatch(
-      georef_one(src, fp, out_file, srcnodata = srcnodata),
+      georef_one(src, fp, out_file, srcnodata = srcnodata, rotation = rot),
       error = function(e) {
         message("Failed to georef ", basename(src), ": ", e$message)
         FALSE
@@ -108,16 +148,17 @@ fly_thumb_georef <- function(fetch_result, photos_sf,
   }
 
   n_ok <- sum(results$success)
-  message("Georeferenced ", n_ok, " of ", nrow(results), " thumbnails")
+  message("Georeferenced ", n_ok, " of ", nrow(results), " images")
   results
 }
 
-#' Georeference a single thumbnail to a footprint polygon
+#' Georeference a single image to a footprint polygon
 #' @noRd
-georef_one <- function(src, fp, out_file, srcnodata = "0") {
+georef_one <- function(src, fp, out_file, srcnodata = "0", rotation = 180) {
   # Get footprint corner coordinates
   # fly_footprint builds: BL, BR, TR, TL, BL (closing)
   coords <- sf::st_coordinates(fp)[1:4, , drop = FALSE]
+  # coords: [1]=BL, [2]=BR, [3]=TR, [4]=TL
 
   # Read image dimensions and band count via GDAL
   info <- sf::gdal_utils("info", source = src, quiet = TRUE)
@@ -131,15 +172,44 @@ georef_one <- function(src, fp, out_file, srcnodata = "0") {
   n_bands <- length(gregexpr("Band \\d+", info)[[1]])
   is_rgb <- n_bands >= 3
 
-  # Map pixel corners to footprint corners
-  # Pixel: TL=(0,0), TR=(ncol,0), BR=(ncol,nrow), BL=(0,nrow)
-  # Footprint coords: [1]=BL, [2]=BR, [3]=TR, [4]=TL
-  gcp_args <- c(
-    "-gcp", 0,       0,       coords[4, 1], coords[4, 2],
-    "-gcp", ncol_px, 0,       coords[3, 1], coords[3, 2],
-    "-gcp", ncol_px, nrow_px, coords[2, 1], coords[2, 2],
-    "-gcp", 0,       nrow_px, coords[1, 1], coords[1, 2]
+  # Pixel corners: TL, TR, BR, BL
+  pixel_corners <- list(
+    c(0, 0),              # TL
+    c(ncol_px, 0),        # TR
+    c(ncol_px, nrow_px),  # BR
+    c(0, nrow_px)         # BL
   )
+
+  # Footprint corners in same order: TL, TR, BR, BL
+  fp_corners <- list(
+    coords[4, 1:2],  # TL
+    coords[3, 1:2],  # TR
+    coords[2, 1:2],  # BR
+    coords[1, 1:2]   # BL
+  )
+
+  # Rotation: shift the footprint corner mapping
+
+  # rotation=0:   pixel TL → footprint TL (north-up, original behavior)
+  # rotation=90:  pixel TL → footprint TR (top of image = east)
+  # rotation=180: pixel TL → footprint BR (top of image = south)
+  # rotation=270: pixel TL → footprint BL (top of image = west)
+  n_shifts <- rotation %/% 90
+  if (n_shifts > 0) {
+    fp_corners <- c(
+      fp_corners[(n_shifts + 1):4],
+      fp_corners[1:n_shifts]
+    )
+  }
+
+  # Build GCP args mapping pixel corners to (rotated) footprint corners
+  gcp_args <- character(0)
+  for (j in seq_along(pixel_corners)) {
+    gcp_args <- c(gcp_args,
+      "-gcp", pixel_corners[[j]][1], pixel_corners[[j]][2],
+      fp_corners[[j]][1], fp_corners[[j]][2]
+    )
+  }
 
   # Step 1: translate with GCPs
   tmp_file <- tempfile(fileext = ".tif")
