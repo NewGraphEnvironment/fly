@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fly</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -38,6 +38,14 @@
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="development version" id="fly-development-version">fly (development version)<a class="anchor" aria-label="anchor" href="#fly-development-version"></a></h2>
 <div class="section level3">
+<h3 id="id_030-development-version">0.3.0 (2026-03-12)<a class="anchor" aria-label="anchor" href="#id_030-development-version"></a></h3>
+<ul><li>
+<strong>BREAKING:</strong> Rename <code>fly_thumb_georef()</code> → <code><a href="../reference/fly_georef.html">fly_georef()</a></code> — not thumbnail-specific (<a href="https://github.com/NewGraphEnvironment/fly/issues/24" class="external-link">#24</a>)</li>
+<li>Add <code>rotation</code> parameter to <code><a href="../reference/fly_georef.html">fly_georef()</a></code> (default 180°) for correcting image orientation per-roll (<a href="https://github.com/NewGraphEnvironment/fly/issues/25" class="external-link">#25</a>)</li>
+<li>Add <code><a href="../reference/fly_bearing.html">fly_bearing()</a></code> — compute flight line bearing from consecutive centroids per roll</li>
+<li>Per-photo rotation via <code>rotation</code> column on input sf overrides default</li>
+</ul></div>
+<div class="section level3">
 <h3 id="id_021-development-version">0.2.1 (2026-03-11)<a class="anchor" aria-label="anchor" href="#id_021-development-version"></a></h3>
 <ul><li>Add <code>workers</code> parameter to <code><a href="../reference/fly_fetch.html">fly_fetch()</a></code> for parallel downloads via <code>furrr</code>/<code>future</code> (<a href="https://github.com/NewGraphEnvironment/fly/issues/21" class="external-link">#21</a>)</li>
 <li>Add <code>furrr</code> and <code>future</code> to Suggests</li>
@@ -50,7 +58,7 @@
 </ul></div>
 <div class="section level3">
 <h3 id="id_013-development-version">0.1.3 (2026-03-10)<a class="anchor" aria-label="anchor" href="#id_013-development-version"></a></h3>
-<ul><li>Add <code><a href="../reference/fly_thumb_georef.html">fly_thumb_georef()</a></code> — warp downloaded thumbnails to estimated ground footprints as georeferenced GeoTIFFs (<a href="https://github.com/NewGraphEnvironment/fly/issues/16" class="external-link">#16</a>)</li>
+<ul><li>Add <code>fly_thumb_georef()</code> — warp downloaded thumbnails to estimated ground footprints as georeferenced GeoTIFFs (<a href="https://github.com/NewGraphEnvironment/fly/issues/16" class="external-link">#16</a>)</li>
 </ul></div>
 <div class="section level3">
 <h3 id="id_012-development-version">0.1.2 (2026-03-10)<a class="anchor" aria-label="anchor" href="#id_012-development-version"></a></h3>

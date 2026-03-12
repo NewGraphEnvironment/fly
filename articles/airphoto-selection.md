@@ -359,7 +359,7 @@ coarser scales backfill gaps (orange).
 [`fly_fetch()`](https://newgraphenvironment.github.io/fly/reference/fly_fetch.md)
 downloads thumbnail images (or flight logs, calibration reports) from
 the BC Data Catalogue URLs included in the centroid data.
-[`fly_thumb_georef()`](https://newgraphenvironment.github.io/fly/reference/fly_thumb_georef.md)
+[`fly_georef()`](https://newgraphenvironment.github.io/fly/reference/fly_georef.md)
 warps each thumbnail to its estimated footprint polygon, producing
 georeferenced GeoTIFFs in BC Albers.
 
@@ -367,16 +367,16 @@ georeferenced GeoTIFFs in BC Albers.
 fetched <- fly_fetch(centroids[1:3, ], type = "thumbnail",
                      dest_dir = tempdir())
 #> Downloaded 3 of 3 files
-georef <- fly_thumb_georef(fetched, centroids[1:3, ],
+georef <- fly_georef(fetched, centroids[1:3, ],
                            dest_dir = tempdir())
-#> Georeferenced 3 of 3 thumbnails
+#> Georeferenced 3 of 3 images
 georef[, c("airp_id", "dest", "success")]
 #> # A tibble: 3 × 3
 #>   airp_id dest                                 success
 #>     <int> <chr>                                <lgl>  
-#> 1  699370 /tmp/RtmpZrHWh6/bc5282_176_thumb.tif TRUE   
-#> 2  699415 /tmp/RtmpZrHWh6/bc5282_221_thumb.tif TRUE   
-#> 3  699426 /tmp/RtmpZrHWh6/bc5282_232_thumb.tif TRUE
+#> 1  699370 /tmp/RtmpXDsp63/bc5282_176_thumb.tif TRUE   
+#> 2  699415 /tmp/RtmpXDsp63/bc5282_221_thumb.tif TRUE   
+#> 3  699426 /tmp/RtmpXDsp63/bc5282_232_thumb.tif TRUE
 ```
 
 The georeferenced TIFFs inherit the flat-terrain and nadir-camera

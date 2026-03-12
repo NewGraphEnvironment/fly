@@ -2,6 +2,21 @@
 
 ## fly (development version)
 
+### 0.3.0 (2026-03-12)
+
+- **BREAKING:** Rename `fly_thumb_georef()` →
+  [`fly_georef()`](https://newgraphenvironment.github.io/fly/reference/fly_georef.md)
+  — not thumbnail-specific
+  ([\#24](https://github.com/NewGraphEnvironment/fly/issues/24))
+- Add `rotation` parameter to
+  [`fly_georef()`](https://newgraphenvironment.github.io/fly/reference/fly_georef.md)
+  (default 180°) for correcting image orientation per-roll
+  ([\#25](https://github.com/NewGraphEnvironment/fly/issues/25))
+- Add
+  [`fly_bearing()`](https://newgraphenvironment.github.io/fly/reference/fly_bearing.md)
+  — compute flight line bearing from consecutive centroids per roll
+- Per-photo rotation via `rotation` column on input sf overrides default
+
 ### 0.2.1 (2026-03-11)
 
 - Add `workers` parameter to
@@ -20,10 +35,8 @@
 
 ### 0.1.3 (2026-03-10)
 
-- Add
-  [`fly_thumb_georef()`](https://newgraphenvironment.github.io/fly/reference/fly_thumb_georef.md)
-  — warp downloaded thumbnails to estimated ground footprints as
-  georeferenced GeoTIFFs
+- Add `fly_thumb_georef()` — warp downloaded thumbnails to estimated
+  ground footprints as georeferenced GeoTIFFs
   ([\#16](https://github.com/NewGraphEnvironment/fly/issues/16))
 
 ### 0.1.2 (2026-03-10)
