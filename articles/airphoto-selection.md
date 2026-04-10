@@ -366,17 +366,26 @@ georeferenced GeoTIFFs in BC Albers.
 ``` r
 fetched <- fly_fetch(centroids[1:3, ], type = "thumbnail",
                      dest_dir = tempdir())
-#> Downloaded 3 of 3 files
+#> Warning in utils::download.file(u, dest_file, mode = "wb", quiet = TRUE): URL
+#> 'https://openmaps.gov.bc.ca/thumbs/1968/bc5282/bc5282_176_thumb.jpg': Timeout
+#> of 60 seconds was reached
+#> Warning in utils::download.file(u, dest_file, mode = "wb", quiet = TRUE): URL
+#> 'https://openmaps.gov.bc.ca/thumbs/1968/bc5282/bc5282_221_thumb.jpg': Timeout
+#> of 60 seconds was reached
+#> Warning in utils::download.file(u, dest_file, mode = "wb", quiet = TRUE): URL
+#> 'https://openmaps.gov.bc.ca/thumbs/1968/bc5282/bc5282_232_thumb.jpg': Timeout
+#> of 60 seconds was reached
+#> Downloaded 0 of 3 files
 georef <- fly_georef(fetched, centroids[1:3, ],
                            dest_dir = tempdir())
-#> Georeferenced 3 of 3 images
+#> Georeferenced 0 of 3 images
 georef[, c("airp_id", "dest", "success")]
 #> # A tibble: 3 × 3
-#>   airp_id dest                                 success
-#>     <int> <chr>                                <lgl>  
-#> 1  699370 /tmp/RtmpXDsp63/bc5282_176_thumb.tif TRUE   
-#> 2  699415 /tmp/RtmpXDsp63/bc5282_221_thumb.tif TRUE   
-#> 3  699426 /tmp/RtmpXDsp63/bc5282_232_thumb.tif TRUE
+#>   airp_id dest  success
+#>     <int> <chr> <lgl>  
+#> 1  699370 NA    FALSE  
+#> 2  699415 NA    FALSE  
+#> 3  699426 NA    FALSE
 ```
 
 The georeferenced TIFFs inherit the flat-terrain and nadir-camera

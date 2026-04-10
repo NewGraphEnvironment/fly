@@ -89,11 +89,13 @@ centroids <- sf::st_read(system.file("testdata/photo_centroids.gpkg", package = 
 # Download thumbnails for first 2 photos
 result <- fly_fetch(centroids[1:2, ], type = "thumbnail",
                     dest_dir = tempdir())
-#> Downloaded 2 of 2 files
+#> Warning: URL 'https://openmaps.gov.bc.ca/thumbs/1968/bc5282/bc5282_176_thumb.jpg': Timeout of 60 seconds was reached
+#> Warning: URL 'https://openmaps.gov.bc.ca/thumbs/1968/bc5282/bc5282_221_thumb.jpg': Timeout of 60 seconds was reached
+#> Downloaded 0 of 2 files
 result
 #> # A tibble: 2 × 4
 #>   airp_id url                                                      dest  success
 #>     <int> <chr>                                                    <chr> <lgl>  
-#> 1  699370 https://openmaps.gov.bc.ca/thumbs/1968/bc5282/bc5282_17… /tmp… TRUE   
-#> 2  699415 https://openmaps.gov.bc.ca/thumbs/1968/bc5282/bc5282_22… /tmp… TRUE   
+#> 1  699370 https://openmaps.gov.bc.ca/thumbs/1968/bc5282/bc5282_17… /tmp… FALSE  
+#> 2  699415 https://openmaps.gov.bc.ca/thumbs/1968/bc5282/bc5282_22… /tmp… FALSE  
 ```
