@@ -422,26 +422,17 @@ Albers.</p>
 <div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fetched</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fly_fetch.html">fly_fetch</a></span><span class="op">(</span><span class="va">centroids</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">3</span>, <span class="op">]</span>, type <span class="op">=</span> <span class="st">"thumbnail"</span>,</span>
 <span>                     dest_dir <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Warning in utils::download.file(u, dest_file, mode = "wb", quiet = TRUE): URL</span></span>
-<span><span class="co">#&gt; 'https://openmaps.gov.bc.ca/thumbs/1968/bc5282/bc5282_176_thumb.jpg': Timeout</span></span>
-<span><span class="co">#&gt; of 60 seconds was reached</span></span>
-<span><span class="co">#&gt; Warning in utils::download.file(u, dest_file, mode = "wb", quiet = TRUE): URL</span></span>
-<span><span class="co">#&gt; 'https://openmaps.gov.bc.ca/thumbs/1968/bc5282/bc5282_221_thumb.jpg': Timeout</span></span>
-<span><span class="co">#&gt; of 60 seconds was reached</span></span>
-<span><span class="co">#&gt; Warning in utils::download.file(u, dest_file, mode = "wb", quiet = TRUE): URL</span></span>
-<span><span class="co">#&gt; 'https://openmaps.gov.bc.ca/thumbs/1968/bc5282/bc5282_232_thumb.jpg': Timeout</span></span>
-<span><span class="co">#&gt; of 60 seconds was reached</span></span>
-<span><span class="co">#&gt; Downloaded 0 of 3 files</span></span>
+<span><span class="co">#&gt; Downloaded 3 of 3 files</span></span>
 <span><span class="va">georef</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fly_georef.html">fly_georef</a></span><span class="op">(</span><span class="va">fetched</span>, <span class="va">centroids</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">3</span>, <span class="op">]</span>,</span>
 <span>                           dest_dir <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Georeferenced 0 of 3 images</span></span>
+<span><span class="co">#&gt; Georeferenced 3 of 3 images</span></span>
 <span><span class="va">georef</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"airp_id"</span>, <span class="st">"dest"</span>, <span class="st">"success"</span><span class="op">)</span><span class="op">]</span></span>
 <span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 3 × 3</span></span></span>
-<span><span class="co">#&gt;   airp_id dest  success</span></span>
-<span><span class="co">#&gt;     <span style="color: #949494; font-style: italic;">&lt;int&gt;</span> <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span> <span style="color: #949494; font-style: italic;">&lt;lgl&gt;</span>  </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span>  <span style="text-decoration: underline;">699</span>370 <span style="color: #BB0000;">NA</span>    FALSE  </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span>  <span style="text-decoration: underline;">699</span>415 <span style="color: #BB0000;">NA</span>    FALSE  </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">3</span>  <span style="text-decoration: underline;">699</span>426 <span style="color: #BB0000;">NA</span>    FALSE</span></span></code></pre></div>
+<span><span class="co">#&gt;   airp_id dest                                 success</span></span>
+<span><span class="co">#&gt;     <span style="color: #949494; font-style: italic;">&lt;int&gt;</span> <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>                                <span style="color: #949494; font-style: italic;">&lt;lgl&gt;</span>  </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span>  <span style="text-decoration: underline;">699</span>370 /tmp/RtmpuUISuE/bc5282_176_thumb.tif TRUE   </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span>  <span style="text-decoration: underline;">699</span>415 /tmp/RtmpuUISuE/bc5282_221_thumb.tif TRUE   </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">3</span>  <span style="text-decoration: underline;">699</span>426 /tmp/RtmpuUISuE/bc5282_232_thumb.tif TRUE</span></span></code></pre></div>
 <p>The georeferenced TIFFs inherit the flat-terrain and nadir-camera
 assumptions from <code><a href="../reference/fly_footprint.html">fly_footprint()</a></code> — they are approximate,
 useful for visual context rather than survey-grade positioning. Metadata
