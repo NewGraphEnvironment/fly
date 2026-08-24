@@ -5,6 +5,7 @@ data from the Upper Bulkley River floodplain near Houston, BC. The data
 includes 1968 airphoto centroids at two scales (1:12,000 and 1:31,680).
 
 ``` r
+
 library(fly)
 library(sf)
 #> Linking to GEOS 3.12.1, GDAL 3.8.4, PROJ 9.4.0; sf_use_s2() is TRUE
@@ -38,6 +39,7 @@ with `method = "footprint"` catches these edge cases that a simple
 centroid-in-polygon filter would miss.
 
 ``` r
+
 footprints <- fly_footprint(centroids)
 plot(st_geometry(aoi), col = "lightyellow", border = "grey40")
 plot(st_geometry(footprints), border = "steelblue", add = TRUE)
@@ -52,6 +54,7 @@ Estimated photo footprints (blue rectangles) and centroids (red dots)
 overlaid on the Upper Bulkley River floodplain AOI.
 
 ``` r
+
 fp_result <- fly_filter(centroids, aoi, method = "footprint")
 ct_result <- fly_filter(centroids, aoi, method = "centroid")
 knitr::kable(data.frame(
@@ -66,7 +69,7 @@ knitr::kable(data.frame(
 | footprint |     20 | Footprint overlaps AOI |
 | centroid  |      7 | Centroid inside AOI    |
 
-Comparison of spatial filtering methods.
+Comparison of spatial filtering methods. {.table}
 
 ## Summary statistics
 
@@ -74,6 +77,7 @@ Comparison of spatial filtering methods.
 reports footprint dimensions and date ranges by scale.
 
 ``` r
+
 fly_summary(centroids)
 #> # A tibble: 2 × 6
 #>   scale   photos footprint_m half_m year_min year_max
@@ -89,6 +93,7 @@ computes what percentage of the AOI is covered by photo footprints,
 grouped by any column.
 
 ``` r
+
 fly_coverage(centroids, aoi, by = "scale")
 #> Spherical geometry (s2) switched off
 #> Spherical geometry (s2) switched on
@@ -110,6 +115,7 @@ has two modes:
 ### Minimal selection
 
 ``` r
+
 selected <- fly_select(centroids, aoi, mode = "minimal", target_coverage = 0.80)
 #> Spherical geometry (s2) switched off
 #> Selecting photos (target: 80% coverage)...
@@ -135,6 +141,7 @@ selected[, c("airp_id", "scale", "selection_order", "cumulative_coverage_pct")]
 Figure @ref(fig:fig-minimal) shows the greedy minimal selection result.
 
 ``` r
+
 sel_fp <- fly_footprint(selected)
 plot(st_geometry(aoi), col = "lightyellow", border = "grey40")
 plot(st_geometry(sel_fp), border = "steelblue", col = adjustcolor("steelblue", 0.15), add = TRUE)
@@ -154,6 +161,7 @@ components uncovered. Use `component_ensure = TRUE` to guarantee at
 least one photo per component before running greedy selection:
 
 ``` r
+
 # How many polygon components in our AOI?
 n_components <- length(sf::st_cast(st_union(aoi), "POLYGON"))
 cat("AOI has", n_components, "polygon components\n")
@@ -180,6 +188,7 @@ of the disconnected floodplain fragments at the cost of a few extra
 photos.
 
 ``` r
+
 sel_fp_ec <- fly_footprint(selected_ec)
 plot(st_geometry(aoi), col = "lightyellow", border = "grey40")
 plot(st_geometry(sel_fp_ec), border = "steelblue",
@@ -197,6 +206,7 @@ least one photo before greedy backfill.
 ### All photos touching AOI
 
 ``` r
+
 all_in_aoi <- fly_select(centroids, aoi, mode = "all")
 #> Spherical geometry (s2) switched off
 #> although coordinates are longitude/latitude, st_union assumes that they are
@@ -216,6 +226,7 @@ reports pairwise overlap between photo footprints. Run it on same-scale
 subsets to understand coverage quality.
 
 ``` r
+
 photos_12k <- centroids[centroids$scale == "1:12000", ]
 overlap_12k <- fly_overlap(photos_12k)
 #> Spherical geometry (s2) switched off
@@ -234,6 +245,7 @@ overlap_12k
 ```
 
 ``` r
+
 if (nrow(overlap_12k) > 0) {
   cat("1:12000 overlap range:",
       round(min(overlap_12k$pct_of_a), 1), "% -",
@@ -260,6 +272,7 @@ coarser scales. Sort scales finest-first by parsing the numeric
 denominator:
 
 ``` r
+
 sf_use_s2(FALSE)
 #> Spherical geometry (s2) switched off
 
@@ -333,6 +346,7 @@ Figure @ref(fig:fig-multi-scale) shows the result — finest-scale photos
 filling remaining gaps.
 
 ``` r
+
 sel_fp <- fly_footprint(selected_all)
 plot(st_geometry(aoi), col = "lightyellow", border = "grey40")
 scale_labels <- sort(unique(selected_all$priority_scale))
@@ -364,19 +378,29 @@ warps each thumbnail to its estimated footprint polygon, producing
 georeferenced GeoTIFFs in BC Albers.
 
 ``` r
+
 fetched <- fly_fetch(centroids[1:3, ], type = "thumbnail",
                      dest_dir = tempdir())
-#> Downloaded 3 of 3 files
+#> Warning in utils::download.file(u, dest_file, mode = "wb", quiet = TRUE): URL
+#> 'https://openmaps.gov.bc.ca/thumbs/1968/bc5282/bc5282_176_thumb.jpg': Timeout
+#> of 60 seconds was reached
+#> Warning in utils::download.file(u, dest_file, mode = "wb", quiet = TRUE): URL
+#> 'https://openmaps.gov.bc.ca/thumbs/1968/bc5282/bc5282_221_thumb.jpg': Timeout
+#> of 60 seconds was reached
+#> Warning in utils::download.file(u, dest_file, mode = "wb", quiet = TRUE): URL
+#> 'https://openmaps.gov.bc.ca/thumbs/1968/bc5282/bc5282_232_thumb.jpg': Timeout
+#> of 60 seconds was reached
+#> Downloaded 0 of 3 files
 georef <- fly_georef(fetched, centroids[1:3, ],
                            dest_dir = tempdir())
-#> Georeferenced 3 of 3 images
+#> Georeferenced 0 of 3 images
 georef[, c("airp_id", "dest", "success")]
 #> # A tibble: 3 × 3
-#>   airp_id dest                                 success
-#>     <int> <chr>                                <lgl>  
-#> 1  699370 /tmp/RtmpGFRrb7/bc5282_176_thumb.tif TRUE   
-#> 2  699415 /tmp/RtmpGFRrb7/bc5282_221_thumb.tif TRUE   
-#> 3  699426 /tmp/RtmpGFRrb7/bc5282_232_thumb.tif TRUE
+#>   airp_id dest  success
+#>     <int> <chr> <lgl>  
+#> 1  699370 NA    FALSE  
+#> 2  699415 NA    FALSE  
+#> 3  699426 NA    FALSE
 ```
 
 The georeferenced TIFFs inherit the flat-terrain and nadir-camera

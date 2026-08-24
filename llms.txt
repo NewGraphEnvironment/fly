@@ -29,12 +29,14 @@ BC](reference/figures/readme-priority.png)
 ## Installation
 
 ``` r
+
 pak::pak("NewGraphEnvironment/fly")
 ```
 
 ## Example
 
 ``` r
+
 library(fly)
 library(sf)
 
