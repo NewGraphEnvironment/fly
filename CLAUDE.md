@@ -195,6 +195,50 @@ that’s the targeted catch. This convention is the backstop for failures
 that landed when no one was watching (merges via web UI, scheduled
 triggers, manually-triggered workflows).
 
+## A green run does not mean the site is current
+
+CI conclusion and published content are two different facts. Check the
+second one directly when it matters — the deploy commit, not the run
+status:
+
+``` bash
+git fetch -q origin gh-pages && git log -1 --format='%s' FETCH_HEAD
+# "Deploying to gh-pages from @ owner/repo@<sha> 🚀"  <- is <sha> your HEAD?
+```
+
+GitHub can create a workflow run minutes after the push that triggered
+it, and out of order with a later push. Observed 2026-08-26 in `fly`:
+`7a7700c` built and deployed at 17:21, then its own *parent* `be77eca`
+had its run created at 17:22:52 — twelve minutes after that push — and
+deployed over it. Both runs green, `gh run list` all success, published
+site one commit stale.
+
+Things that do **not** fix this, so don’t reach for them:
+
+- `cancel-in-progress: true` — cancels an *overlapping* run. Here the
+  runs never overlapped (`created == started` on both, second created
+  after first finished), so there was nothing to cancel.
+- A `concurrency:` group — the r-lib pkgdown template already sets one
+  at the job level
+  (`group: pkgdown-${{ github.event_name != 'pull_request' || github.run_id }}`).
+  Grepping for a top-level `concurrency:` key misses it and invites a
+  redundant “fix”. Serializing runs doesn’t order events that arrive
+  late.
+
+There is no workflow-side fix, because the reordering happens before the
+workflow exists. The remedy is detection: check the deploy provenance,
+and re-dispatch (`gh workflow run <file> --ref main`) if it’s behind.
+Harmless when the stale commit changed nothing the site publishes —
+confirm via `.Rbuildignore` / `_pkgdown.yml` rather than assuming.
+
+## Don’t use `gh run watch` to wait
+
+It polls hard enough to trip GitHub’s *secondary* rate limit, which
+`gh api /rate_limit` does not report — every primary bucket reads full
+while calls return 403. Retrying extends it. Poll sparsely with
+`gh run view <id> --json status,conclusion`, and prefer `git fetch` over
+the REST API for anything git can answer.
+
 # Code Check Conventions
 
 Structured checklist for reviewing diffs before commit. Used by
@@ -230,6 +274,61 @@ compound over time.
   case that should fire and one that should not. The draft above
   returned the same value for both, which reading the code did not
   reveal.
+
+### An empty result set is not a pass — a loop over nothing exits 0
+
+- The same class one level up, and pointed the worse direction.
+  Iterating a result set makes “there was nothing to check” and
+  “everything checked out” produce **identical** output: the body never
+  runs, nothing prints, exit 0. Where a mis-fired guard silently skips
+  an action, this silently makes an affirmative claim of success.
+
+  ``` bash
+  RUN_IDS=$(gh run list ... | jq '... | .databaseId')   # empty when nothing dispatched
+  for RUN_ID in $RUN_IDS; do gh run watch "$RUN_ID" --exit-status; done
+  # -> zero iterations, exit 0, caller reports "all green"
+  ```
+
+- **Poll for the expected results to exist, then branch on empty
+  explicitly.** Absence of evidence has to be reported as absence, not
+  as evidence.
+
+- Caught 2026-08-26 in gq: GitHub never dispatched PR \#56’s workflows —
+  `gh pr checks` said “no checks reported” and the check-runs API
+  returned `total_count: 0`. The watch loop exited 0 having watched
+  nothing. The same workflows had fired correctly for PR \#54 an hour
+  earlier, so this is a GitHub-side dispatch miss that can hit any repo
+  at any time. Fixed in `gh-pr-merge` step 10; verified against both a
+  SHA with runs and a SHA without.
+
+- Generalizes past CI: any “verify N things” loop where the list is
+  *computed* — files matched by a glob, rows returned by a query, hosts
+  resolved from an inventory. If zero is a possible answer, zero needs
+  its own branch.
+
+- **The mirror mistake: a boolean exit status collapses several distinct
+  outcomes into “not success”.** `gh run watch --exit-status` is
+  non-zero for cancelled and skipped as well as failed, so a run GitHub
+  *cancelled* gets reported as a failure and sends someone to read a log
+  that does not exist. This is the safe direction — a false alarm rather
+  than a false pass — but it is still wrong, and crying wolf is how a
+  guard stops being read.
+
+  ``` bash
+  gh run watch "$RUN_ID" --interval 30 >/dev/null 2>&1
+  case "$(gh run view "$RUN_ID" --json conclusion -q .conclusion)" in
+    success)           ;;
+    cancelled|skipped) echo "⊘ superseded, not a failure" ;;
+    ""|null)           echo "⚠ could not read conclusion" ;;   # gh failed
+    *)                 echo "✗ failed" ;;
+  esac
+  ```
+
+  Prefer branching on the **reported outcome** over a pass/fail exit
+  code wherever the tool exposes one. Caught 2026-08-26 immediately
+  after shipping the rule above: `r-lib`’s check workflow sets
+  `cancel-in-progress: true`, so a second push to main minutes after a
+  merge legitimately cancels the first run.
 
 ### git pathspec excludes: use the long form
 
@@ -1368,6 +1467,7 @@ non-allowlisted patterns for hook-trigger tests.
   code-set membership/masking instead of the `%in%` operator. Same trap
   for any operator terra defines via S4 that base also defines as an
   ordinary function. (drift#34)
+
 - **`terra::freq()` errors on an all-NA raster**
   (`replacement has length zero`) rather than returning a 0-row table.
   Any path that can yield an all-NA layer (an impossible filter,
@@ -1375,6 +1475,30 @@ non-allowlisted patterns for hook-trigger tests.
   `f <- tryCatch(terra::freq(r), error = function(e) NULL)`, then treat
   `NULL`/0 rows as “no values”. Don’t assume the empty case gives
   `nrow(freq(r)) == 0`. (drift#34)
+
+- **`terra::minmax()` reports *cached* statistics, not computed ones.**
+  It defaults to `compute = FALSE` and returns `Inf`/`-Inf` for any
+  raster whose min/max have never been calculated — which is every
+  file-backed raster until something touches it. A guard written on top
+  of it therefore fires on real data:
+
+  ``` r
+
+  r <- terra::rast("a_richly_varied_image.png")
+  terra::hasMinMax(r)              # FALSE FALSE FALSE FALSE
+  terra::minmax(r)                 # min Inf ... / max -Inf ...
+  terra::minmax(r, compute = TRUE) # min 0 0 0 0 / max 11 18 18 255
+  ```
+
+- The trap is that it *appears* to work, because plenty of upstream
+  operations compute min/max as a side effect — `terra::crop()` does, so
+  anything arriving via `maptiles::get_tiles(crop = TRUE)` has them.
+  Correct by accident, through an internal that is not a contract. Pass
+  `compute = TRUE`, and test the guard against a **file-backed**
+  fixture: one built by `rast(vals = ...)` is in memory, has statistics
+  cached, and cannot reach this. (gq#57, 2026-08 — a flat-tile detector
+  called every file-backed raster flat, and the whole fixture set shared
+  the one property that hid it.)
 
 ### sf: `st_join(largest = TRUE)` ignores the join predicate
 
@@ -1679,6 +1803,34 @@ non-allowlisted patterns for hook-trigger tests.
   `git branch -f <their-branch> <their-last-sha>` (your commit stays
   reachable via reflog).
 
+- **Recovery when their branch is already pushed, with an open PR:** do
+  **not** rewrite it — `git branch -f` plus a force-push into a PR
+  another session is working in trades your problem for theirs.
+  Cherry-pick forward instead, through a throwaway worktree so their
+  checkout is never disturbed:
+
+  ``` bash
+  git worktree add -q /tmp/repo-main main
+  git -C /tmp/repo-main cherry-pick <your-sha>
+  git -C /tmp/repo-main push origin main
+  git worktree remove /tmp/repo-main
+  ```
+
+  Their PR now carries a commit whose content is already on main. That
+  is harmless — git sees identical changes on both sides and merges
+  cleanly — and verifiable before you rely on it:
+  `git diff origin/main -- <the-file>` on their branch should be empty.
+  The cost is one duplicated commit message in the log, which is cheaper
+  than a contested force-push.
+
+- **The moment to use a worktree is when you are about to touch a second
+  repo**, not after something goes wrong. Observed 2026-08-26 in gq#57:
+  a fix in the primary repo needed a matching change in `soul`, and
+  `soul`’s shared checkout had meanwhile been switched to a parallel
+  session’s feature branch. The commit landed in their open PR silently
+  — `git push` reported success, because it was a perfectly valid push
+  to a branch nobody had said was wrong.
+
 ### Adopting Existing Config
 
 When importing config from one location into a canonical one (legacy
@@ -1719,6 +1871,69 @@ project’s `settings.json` → soul):
   state” operation — Terraform resources, migrations, package installs —
   wants the from-absent path tested, not just the already-converged
   re-run.
+
+### A valid response is not a correct one — services fail in the shape of success
+
+- An external service can answer **HTTP 200 with a structurally perfect
+  payload that is not the thing you asked for**: a placeholder image, an
+  empty-but-well-formed JSON envelope, a “your trial expired” page
+  served as the resource. Every cheap assertion passes — status code,
+  content type, dimensions, CRS, band count, schema — because the shape
+  is right and only the *meaning* is wrong.
+- This defeats the guard you already wrote. A fetch wrapper that returns
+  `NULL` on failure never fires, because nothing failed. So the absence
+  of an error is not evidence, and neither is a green suite: the
+  artifact has to be **looked at**, or compared against something that
+  knows what it should contain.
+- Measured 2026-08 in gq#57: Carto made their basemaps key-only and
+  began serving an “API KEY REQUIRED” watermark image. It rendered
+  through a vignette build, `R CMD check`, and a pkgdown deploy onto the
+  public web, watermark and all. Found by a human asking how good the
+  maps were, which meant opening the PNG.
+- **Do not reach for a content detector without measuring whether one
+  can work.** The obvious fix — score the pixels, sniff the body — is
+  often provably impossible, and shipping it is worse than shipping
+  nothing because it *looks* like a check. Same measurement: the
+  *watermarked* tile had **fewer** dark pixels (0.0068) than the *clean*
+  one (0.0073), because the watermark is a small share of content and
+  ordinary detail swamps it. No threshold separates them.
+- What does work:
+  - **Prefer providers/endpoints that cannot enter the degraded state**
+    (keyless where key-only is the failure; a pinned version where
+    “latest” can drift).
+  - **Detect the degenerate cases that are actually separable**, and
+    only those. A single-colour image, a zero-row response, an empty
+    archive — cheap, and no false negatives on the case you can measure.
+  - **A canary that runs on a human’s machine**, not in CI, asserting
+    the live service still returns something real. CI can only tell you
+    the code still runs.
+- Note which direction each guard fails in, and prefer warning over
+  discarding when a legitimate input is indistinguishable from a broken
+  one — the cost of an unread warning is far below the cost of
+  destroying valid data.
+
+### An inventory is only complete relative to a boundary — name the boundary
+
+- “I enumerated every call site” is a claim about a **search scope**,
+  not about the world. A `grep -rn` over one repo is complete for that
+  repo and says nothing about the copy of the same snippet living in a
+  docs site, a house skill, a template, a wiki page, or another team’s
+  codebase. The enumeration can be flawless and the fix still
+  incomplete.
+- The tell is when the thing being changed is a **pattern people copy**
+  rather than a function people call. Anything that has ever been pasted
+  into documentation has an unbounded number of call sites, and the repo
+  boundary is exactly where the search stops being meaningful.
+- Ask directly: *what do the downstream users actually read?* Often it
+  is not the API docs. If the answer is a skill file, a README, or an
+  onboarding doc, that file is a call site and belongs in the sweep.
+- (gq#57, 2026-08: the provider inventory was complete within gq — 9
+  lines, 6 files, verified twice. The consumer projects read
+  `soul/skills/cartography`, which shipped its own hand-rolled snippet
+  naming the broken provider and never called gq’s function at all.
+  Fixing gq alone would have left every downstream repo pointed at the
+  watermark. Caught by a reviewer asking what consumers read, not by the
+  grep.)
 
 ### A round-trip through your own reader proves nothing about interop
 
@@ -1800,6 +2015,46 @@ project’s `settings.json` → soul):
   through. What actually earned the claim was a transitivity sweep: 0
   violations across 3,537 triples, plus 0 cycles and every group
   reaching an outlet.)
+
+### A negative-case fixture rots when the positive set grows
+
+- A test asserting “X is refused” has to pick a concrete X that nothing
+  supplies. The moment someone adds support for that exact X — a new
+  shipped resource, a new registry row, a new supported format — the
+  assertion breaks, and it breaks in a way that reads as *the feature is
+  wrong* rather than *the fixture is stale*.
+
+- The failure is loud, which is lucky. The dangerous variant is the same
+  change landing where the test would still pass: a refusal test whose
+  chosen X quietly becomes supported and whose assertion is on something
+  looser than the refusal itself now passes for nothing.
+
+- Fix by **asserting the premise beside the assertion**, in the same
+  test:
+
+  ``` r
+
+  unshipped <- "EPSG:32609"
+  expect_false(nzchar(system.file("extdata", "srs",
+    paste0(gsub(":", "_", unshipped), ".xml"), package = "rfp")))   # <- the premise
+  expect_error(add_layer(qgs, crs = unshipped), "cannot be copied") # <- the property
+  ```
+
+  Then a future addition to the shipped set fails on the premise line,
+  naming the real cause, instead of on the behaviour line, blaming the
+  code under test.
+
+- The same shape applies to any “this input is unsupported” test:
+  unsupported file extensions, unregistered layer types, unknown enum
+  values. Ask what would have to become true for the chosen input to
+  stop being unsupported, then assert it is still false.
+
+- (rfp#139, 2026-08: shipping an `EPSG_4326.xml` `<srs>` block so a
+  tracking layer could carry a CRS no template used made that CRS
+  resolvable from a package resolver’s third tier — breaking a raster
+  test that had picked EPSG:4326 precisely because nothing supplied it.
+  The behaviour was correct in both directions; only the fixture’s
+  premise had expired.)
 
 ### Restore the bug and confirm the test fails
 
@@ -2116,6 +2371,34 @@ it needs a measured number or it does not get made.
 The same rule covers process state. `ps` and task-status listings have
 both been observed wrong; check the artifact (an output file’s size, its
 mtime, the service’s own API) rather than the wrapper.
+
+### The same blind spot picks the wrong waiting tool
+
+Not having a clock also makes a **chain of background sleeps** feel like
+waiting when it is not. Observed 2026-08 on the same session as the
+above: roughly a dozen `sleep 570; check` background tasks were spawned
+to wait out a 55-minute test suite and then CI. Two consecutive
+foreground checks printed the *same minute* — no wall time had passed
+between them, because the sleeps run detached and the polling happened
+around them rather than after them. Every one of those tasks was waste,
+and killing them produced a batch of eleven exit-code-144 notifications
+that read like failures.
+
+Pick the instrument by how many answers you need:
+
+| you need | use |
+|----|----|
+| one notification when a condition becomes true | `Bash(run_in_background)` with an `until` loop that exits |
+| one per state change, ending on its own | `Monitor` with a command that emits and then exits |
+| a value you must have before the next step | a **foreground** call, so the blocking is explicit |
+
+A repeated `sleep N; grep` is right in none of them. **Tell: if you are
+about to spawn a second waiter for the same thing, the first one was the
+wrong shape.**
+
+A `Monitor` filter must also match the failure states, not just the
+success one — silence looks identical to “still running”, so a watcher
+that greps only for the happy path stays quiet through a crash.
 
 ## 6. Subagents Are Evidence, Not Dependencies
 
@@ -2671,6 +2954,31 @@ newgraph conventions.
   `character(0)`.** If the input is empty (e.g. no warnings fired), the
   assertion succeeds vacuously and defeats the test. Always pair with
   `expect_gt(length(x), 0)` first when input may be empty.
+
+- **`skip_on_cran()` does not skip on GitHub Actions.** It skips when
+  `NOT_CRAN` is unset — and `devtools`, `usethis`’s check workflow and
+  `r-lib/actions` all set `NOT_CRAN=true`, precisely so your tests *do*
+  run in
+
+  101. So a network test guarded only by `skip_on_cran()` runs on every
+       push, and any upstream hiccup reddens the build for a reason
+       unrelated to the change under review.
+
+  - Use **`skip_on_ci()`** for a test that is meant for a human’s
+    machine — a live canary against a third-party service, something
+    slow, anything whose failure needs a person to interpret it.
+  - `skip_if_offline()` is not a substitute: it tests whether the
+    network is reachable, not whether the *service* is behaving, and it
+    calls `skip_if_not_installed("curl")`, so add `curl` to Suggests or
+    the guard itself is what breaks.
+  - Caught 2026-08 in gq#57 by self-review: a comment claiming “skipped
+    off-CI” sat directly above code that did not skip off-CI. Read the
+    guard, not the comment above it.
+
+- **`local_mocked_bindings(.package = )` needs testthat \>= 3.2.0.** A
+  package pinned at `testthat (>= 3.0.0)` errors rather than skipping on
+  an older install. Bump the pin when you first mock another package’s
+  binding.
 
 ## Examples and Vignettes
 
