@@ -2356,7 +2356,7 @@ next steps.
     Background agents have repeatedly returned late — in one case after
     the entire issue had shipped — so treating the review as a
     precondition stalls the work for as long as the agent takes (see
-    `karpathy.md` §6). Fold findings in whenever they land: pre-baseline
+    `karpathy.md` §5). Fold findings in whenever they land: pre-baseline
     they edit the plan; mid-implementation they become follow-up
     commits. A review that arrives after the code is written is not
     wasted — the reviewer reads real code instead of a plan, which is
