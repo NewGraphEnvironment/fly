@@ -71,8 +71,7 @@
 <li>
 <code>!!by := grp</code> in <code><a href="reference/fly_coverage.html">fly_coverage()</a></code> requires <code>@importFrom rlang :=</code> in <code>fly-package.R</code>
 </li>
-</ul><p>&lt;!– BEGIN SOUL CONVENTIONS — DO NOT EDIT BELOW THIS LINE –&gt;</p>
-</div>
+</ul><!-- BEGIN SOUL CONVENTIONS — DO NOT EDIT BELOW THIS LINE --></div>
 </div>
 <div class="section level1">
 <h1 id="cartography">Cartography<a class="anchor" aria-label="anchor" href="#cartography"></a></h1>
@@ -104,7 +103,7 @@
 <h3 id="custom-styles">Custom styles<a class="anchor" aria-label="anchor" href="#custom-styles"></a></h3>
 <p>For project-specific layers not in the main registry, use a hand-curated CSV and merge:</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">reg</span> <span class="op">&lt;-</span> <span class="fu">gq_reg_merge</span><span class="op">(</span><span class="fu">gq_reg_main</span><span class="op">(</span><span class="op">)</span>, <span class="fu">gq_reg_read_csv</span><span class="op">(</span><span class="st">"path/to/custom.csv"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="va">reg</span> <span class="op">&lt;-</span> <span class="fu">gq_reg_merge</span><span class="op">(</span><span class="fu">gq_reg_main</span><span class="op">(</span><span class="op">)</span>, <span class="fu">gq_reg_custom</span><span class="op">(</span><span class="st">"path/to/custom.csv"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <p>Install: <code>pak::pak("NewGraphEnvironment/gq")</code></p>
 </div>
 </div>
@@ -831,6 +830,37 @@
 <code>as.POSIXct(x, tz = "UTC")</code> on a <code>Date</code> ignores <code>tz</code> and converts in the system local zone — west of UTC this shifts date boundaries by the local offset and silently drops edge data. Force UTC via <code>as.POSIXct(format(x), tz = "UTC")</code> when accepting Date inputs; widen Date upper bounds to <code>&lt; next-day-midnight</code> so the whole calendar day is included. (water-temp-bc#17)</li>
 </ul></div>
 <div class="section level3">
+<h3 id="asposixct-on-character-infers-one-format-for-the-whole-vector">as.POSIXct on character infers ONE format for the whole vector<a class="anchor" aria-label="anchor" href="#asposixct-on-character-infers-one-format-for-the-whole-vector"></a></h3>
+<ul><li>
+<p><code>as.POSIXct(x)</code> on a character vector picks a single format by finding the first candidate that parses <strong>every</strong> element — and <code>strptime</code> <strong>ignores trailing characters</strong>. So one coarse value silently truncates the entire column, and nothing warns:</p>
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/as.POSIXlt.html" class="external-link">as.POSIXct</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"2026-08-15 18:33:46"</span>, <span class="st">"2026-08-15 18:34:20"</span>, <span class="st">"2026-08-16"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt; all three at 00:00:00   &lt;- the times are gone</span></span></code></pre></div>
+<p>One minute-precision value does the same to its neighbours’ seconds. Order-independent, and the values are not <code>NA</code> afterwards, so an <code><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na()</a></code> guard on the result cannot see it.</p>
+</li>
+<li><p>Same family as the <code>Date</code> case above, and worse: that one shifts by a known offset, this one destroys information.</p></li>
+<li><p>Fix: match each value’s <strong>shape</strong> with an anchored regex, then parse it with the format that shape implies — per element, not per vector. Anchoring at both ends is what turns trailing junk into an error instead of a silent truncation.</p></li>
+<li><p><code>tryCatch</code> around the whole call is not a fix either. <code>as.POSIXct.character</code> <strong>throws</strong> on an unrecognised string rather than returning <code>NA</code>, so a catch-all handler that blanks the vector then makes the “which value failed?” report name element one — usually a perfectly good timestamp. Compute the failing set per element inside the error path.</p></li>
+<li><p>Caught 2026-08-24 in crate#9. Three bugs in one parse (this, a dropped <code>+02</code> offset, and the misleading error), all silent, all with the suite green at 171 passing.</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="an-offset-regex-must-be-anchored-to-a-time-or-a-date-looks-like-a-zone">An offset regex must be anchored to a time, or a date looks like a zone<a class="anchor" aria-label="anchor" href="#an-offset-regex-must-be-anchored-to-a-time-or-a-date-looks-like-a-zone"></a></h3>
+<ul><li>Refusing or stripping a trailing UTC offset with something like <code>[+-][0-9]{2}(:?[0-9]{2})?$</code> also matches the end of a plain ISO date: <code>"2026-08-15"</code> ends in <code>-15</code>, which reads as a −15 hour zone. Require the offset to follow <code>HH:MM[:SS[.fff]]</code>.</li>
+<li>The mirror mistake is requiring four offset digits. <code>±hh</code> is valid ISO 8601 and is what Postgres emits for whole-hour zones; a two-digit-offset value then falls through the guard, gets stripped as trailing junk, and the instant moves by hours with nothing reported.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="paste0-treats-a-zero-length-argument-as-">
+<code>paste0()</code> treats a zero-length argument as <code>""</code>
+<a class="anchor" aria-label="anchor" href="#paste0-treats-a-zero-length-argument-as-"></a></h3>
+<ul><li>
+<p><code>paste0(character(0), "x")</code> returns <code>"x"</code> — length <strong>one</strong>, not zero. So a composite key built from an empty data frame yields one phantom row rather than none:</p>
+<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="va">df</span><span class="op">$</span><span class="va">a</span>, <span class="st">"\x1f"</span>, <span class="va">df</span><span class="op">$</span><span class="va">b</span><span class="op">)</span>   <span class="co"># nrow(df) == 0  -&gt;  "\x1f"</span></span></code></pre></div>
+</li>
+<li><p>Downstream that reads as a real record. Caught 2026-08-24 in trap#14: an empty annotation table produced one key, which the join then reported as “an annotation matching no session”. Guard with an explicit <code>if (!nrow(x)) return(character(0))</code>.</p></li>
+<li><p>Same shape for any vectorised builder fed a possibly-empty frame — <code><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf()</a></code>, <code><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path()</a></code>, <code><a href="https://rdrr.io/r/base/interaction.html" class="external-link">interaction()</a></code>.</p></li>
+</ul></div>
+<div class="section level3">
 <h3 id="open_datasetunify_schemas--true-requires-aligned-types">open_dataset(unify_schemas = TRUE) requires aligned types<a class="anchor" aria-label="anchor" href="#open_datasetunify_schemas--true-requires-aligned-types"></a></h3>
 <ul><li>Cross-prefix/file schema unification only merges what types allow: <code>timestamp[us, tz=UTC]</code> will not merge with naked <code>timestamp[us]</code>, <code>Grade: string</code> not with <code>Grade: double</code>. Audit the schemas of every file group BEFORE promising unified reads over a mixed archive; plan a normalization pass otherwise. (water-temp-bc#17)</li>
 </ul></div>
@@ -856,6 +886,30 @@
 <ul><li>A fixture-green suite can hide type bugs that only real data exposes: water-temp-bc#23’s fixtures had <code>Grade</code> as string when production has double, so a <code>coalesce(Grade, '')</code> sentinel inside the dedup ordering passed all 27 tests and broke on first contact with real data.</li>
 <li>When writing fixtures for a pipeline over an existing dataset, print the real schema (<code>arrow::open_dataset(...)$schema</code>) and copy the types verbatim. Any type-sensitive expression (coalesce sentinels, casts, comparisons) is only tested if the fixture types match.</li>
 </ul></div>
+<div class="section level3">
+<h3 id="csv-whitespace-trim_ws-and-stripwhite-do-not-do-what-the-name-suggests">CSV whitespace: <code>trim_ws</code> and <code>strip.white</code> do not do what the name suggests<a class="anchor" aria-label="anchor" href="#csv-whitespace-trim_ws-and-stripwhite-do-not-do-what-the-name-suggests"></a></h3>
+<ul><li>
+<code>readr::read_csv()</code> defaults to <strong><code>trim_ws = TRUE</code></strong> and silently strips leading and trailing whitespace. Where whitespace is <em>meaningful</em> — a QGIS layer name deliberately prefixed with a space so it sorts first — a trimmed value binds to nothing, with no error. Use base <code><a href="https://rdrr.io/r/utils/read.table.html" class="external-link">utils::read.csv()</a></code>, or pass <code>trim_ws = FALSE</code>.</li>
+<li>
+<code>read.csv(strip.white = TRUE)</code> applies <strong>only to unquoted fields</strong>, and <code><a href="https://rdrr.io/r/utils/write.table.html" class="external-link">write.csv()</a></code> quotes every character column. So a round-trip guard that compares <code><a href="https://rdrr.io/r/utils/read.table.html" class="external-link">read.csv()</a></code> against <code>read.csv(strip.white = TRUE)</code> is <em>structurally incapable of failing</em> — both readers return the same thing, and the check passes for nothing.</li>
+<li>The second point is the trap: the guard looks right, runs green, and proves nothing. Probing for the real failure mode is what surfaces the <code>readr</code> one. Caught 2026-08 in rfp#174, where five leading-space layer names were at stake.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="r-cmd-check-rejects-a-filename-containing-a-space">
+<code>R CMD check</code> rejects a filename containing a space<a class="anchor" aria-label="anchor" href="#r-cmd-check-rejects-a-filename-containing-a-space"></a></h3>
+<ul><li>“checking for portable file names” fails on any file in the built package whose name has a space. It is an ERROR, not a NOTE, so CI goes red.</li>
+<li>Bites when shipped files are named after human-readable strings — layer names, form labels, report titles. 40 of 50 in one case, one of which <em>began</em> with a space.</li>
+<li>Fix: derive a slug for the filename and keep the real name in an index CSV beside it. Resolve through the index, never by reconstructing a path from the display string.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="do-not-edit-files-a-long-test-run-is-reading">Do not edit files a long test run is reading<a class="anchor" aria-label="anchor" href="#do-not-edit-files-a-long-test-run-is-reading"></a></h3>
+<ul><li>
+<code>devtools::test()</code> (and most runners) load each test file <strong>when they reach it</strong>, not at launch. A 30-minute run therefore reads whatever is on disk at that moment, so edits made while it runs are half-applied and the result describes a tree that never existed.</li>
+<li>The tell is a <strong>changing pass count</strong> across runs of “the same” tree — 3490, then 3496, then 3500. A moving denominator means the input was moving.</li>
+<li>Cost 2026-08 in rfp#178: two full Docker suites (~1 hour) both reported <code>FAIL 1</code>, and the failure was a test written <em>during</em> the run, executing against source from <em>before</em> the fix that made it pass. It was nearly reported as a regression.</li>
+<li>
+<strong>Commit before a long run.</strong> While it runs, do work that touches nothing it reads — issue bodies, PR text, planning. And when a long run fails, get the <code>file:line</code> before forming any theory: a mid-flight edit and a real regression look identical in a summary line.</li>
+</ul></div>
 </div>
 <div class="section level2">
 <h2 id="general">General<a class="anchor" aria-label="anchor" href="#general"></a></h2>
@@ -867,7 +921,7 @@
 <li><p><strong>Prevention:</strong> one worktree per session — <code>git worktree add ../&lt;repo&gt;-&lt;task&gt; -b &lt;branch&gt;</code>. Each session gets its own directory and its own checked-out branch; no contention.</p></li>
 <li>
 <p><strong>Detection (cheap; do it before any commit, merge, or visibility flip):</strong> assert the branch is what you think it is, not just that the tree is clean.</p>
-<div class="sourceCode" id="cb17"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb17-1"><a href="#cb17-1" tabindex="-1"></a><span class="bu">[</span> <span class="st">"</span><span class="va">$(</span><span class="fu">git</span> branch <span class="at">--show-current</span><span class="va">)</span><span class="st">"</span> <span class="ot">=</span> <span class="st">"</span><span class="va">$EXPECTED_BRANCH</span><span class="st">"</span> <span class="bu">]</span> <span class="kw">||</span> <span class="kw">{</span> <span class="bu">echo</span> <span class="st">"WRONG BRANCH"</span><span class="kw">;</span> <span class="bu">exit</span> 1<span class="kw">;</span> <span class="kw">}</span></span></code></pre></div>
+<div class="sourceCode" id="cb19"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb19-1"><a href="#cb19-1" tabindex="-1"></a><span class="bu">[</span> <span class="st">"</span><span class="va">$(</span><span class="fu">git</span> branch <span class="at">--show-current</span><span class="va">)</span><span class="st">"</span> <span class="ot">=</span> <span class="st">"</span><span class="va">$EXPECTED_BRANCH</span><span class="st">"</span> <span class="bu">]</span> <span class="kw">||</span> <span class="kw">{</span> <span class="bu">echo</span> <span class="st">"WRONG BRANCH"</span><span class="kw">;</span> <span class="bu">exit</span> 1<span class="kw">;</span> <span class="kw">}</span></span></code></pre></div>
 </li>
 <li><p><strong>Recovery:</strong> back up the touched files first (<code>cp</code> to a scratch dir, <code>git diff &gt; x.diff</code>), confirm the other branch’s changes don’t overlap yours (<code>git diff --name-only main..their-branch</code>), then <code>git checkout &lt;your-branch&gt;</code> — uncommitted changes carry across cleanly when there is no overlap. Commit <strong>and push</strong> immediately; an unpushed branch is what gets stranded. If you already committed onto their branch, restore their pointer with <code>git branch -f &lt;their-branch&gt; &lt;their-last-sha&gt;</code> (your commit stays reachable via reflog).</p></li>
 </ul></div>
@@ -913,11 +967,53 @@
 <li>(link#227 / fresh#214, 2026-08: a watershed drainage-closure fix was declared validated on 8 hydrology fixtures. All 8 compared groups with <em>differing</em> stream codes — the bug only manifests between groups sharing one code, so the set could not have caught it. The very next case tried, the Fraser, dropped the group the entire basin drains through. What actually earned the claim was a transitivity sweep: 0 violations across 3,537 triples, plus 0 cycles and every group reaching an outlet.)</li>
 </ul></div>
 <div class="section level3">
+<h3 id="restore-the-bug-and-confirm-the-test-fails">Restore the bug and confirm the test fails<a class="anchor" aria-label="anchor" href="#restore-the-bug-and-confirm-the-test-fails"></a></h3>
+<ul><li><p>The rule above says a fixture that cannot reach the failure mode is worthless. This is the thirty-second check that tells you which kind you just wrote: <strong>put the defect back, run the test, watch it go red.</strong> A test that stays green against the code it was written to reject is decoration, and reading it will not tell you that — every case below looked correct on the page.</p></li>
+<li>
+<p>Cheapest form when the fix is inside a package: patch the namespace rather than editing the source back and forth.</p>
+<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">ns</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/ns-internal.html" class="external-link">asNamespace</a></span><span class="op">(</span><span class="st">"pkg"</span><span class="op">)</span>; <span class="va">orig</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/get.html" class="external-link">get</a></span><span class="op">(</span><span class="st">"f"</span>, <span class="va">ns</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/bindenv.html" class="external-link">unlockBinding</a></span><span class="op">(</span><span class="st">"f"</span>, <span class="va">ns</span><span class="op">)</span>; <span class="fu"><a href="https://rdrr.io/r/base/assign.html" class="external-link">assign</a></span><span class="op">(</span><span class="st">"f"</span>, <span class="va">broken_version</span>, <span class="va">ns</span><span class="op">)</span></span>
+<span><span class="co"># run the assertion -- it must fail here</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/assign.html" class="external-link">assign</a></span><span class="op">(</span><span class="st">"f"</span>, <span class="va">orig</span>, <span class="va">ns</span><span class="op">)</span>; <span class="fu"><a href="https://rdrr.io/r/base/bindenv.html" class="external-link">lockBinding</a></span><span class="op">(</span><span class="st">"f"</span>, <span class="va">ns</span><span class="op">)</span></span></code></pre></div>
+<p>For a data-shaped bug, feed the function the input the fix was about and assert the old answer is gone.</p>
+</li>
+<li>
+<p>Three instances in one PR (gq#52, 2026-08), all written by someone who had just read the fixture rule directly above:</p>
+<ul><li>A scale-bar test asserting the bar stays within <code>share</code> of the frame — threshold hardcoded at <strong>0.75</strong> against a <code>share</code> of <strong>0.35</strong>, so a bar at 2.1x the requested size passed. Every width in the fixture also happened to round <em>down</em>, so none could overrun even at the right threshold.</li>
+<li>A clamp test for a bbox padded past ±90 — the box chosen padded the <strong>x</strong> axis, so the latitude clamp it was named for could never fire.</li>
+<li>An <code>options(str=)</code> independence test routed through real registry data whose values stayed distinct at one decimal. With the buggy key restored it still passed; a synthetic <code>1.32 / 1.34</code> pair made it fire.</li>
+</ul></li>
+<li><p>What they share is the tell: the <strong>assertion</strong> is correct and the <strong>input</strong> cannot reach it. So review the fixture against the bug, not the assertion against the spec — the assertion is the part that reads well and the part that is usually already right.</p></li>
+<li><p>Sibling of the interop rule above, at one remove: a test that inspects a structure its consumer would reject is the same failure. In that same PR, 18 tests read a legend object and none passed it to the renderer, which refused it outright.</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="bare-y-n-on-off-yes-no-are-booleans-in-yaml-11">Bare <code>y</code>, <code>n</code>, <code>on</code>, <code>off</code>, <code>yes</code>, <code>no</code> are booleans in YAML 1.1<a class="anchor" aria-label="anchor" href="#bare-y-n-on-off-yes-no-are-booleans-in-yaml-11"></a></h3>
+<ul><li><p>The YAML 1.1 core schema resolves <code>y</code>, <code>Y</code>, <code>n</code>, <code>N</code>, <code>yes</code>, <code>no</code>, <code>on</code>, <code>off</code>, <code>true</code>, <code>false</code> (and their case variants) to <strong>booleans</strong>. Most parsers in wide use — libyaml, PyYAML, R’s <code>yaml</code> — still do this.</p></li>
+<li>
+<p>So a column, key, or field literally named <code>y</code> stops being a string the moment it is written unquoted:</p>
+<div class="sourceCode" id="cb21"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb21-1"><a href="#cb21-1" tabindex="-1"></a><span class="fu">cols</span><span class="kw">:</span></span>
+<span id="cb21-2"><a href="#cb21-2" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="ch">y</span><span class="co">        # parses as logical TRUE, not "y"</span></span></code></pre></div>
+<p>Nothing errors. The consumer simply never matches that entry again, and whatever it was supposed to do to it silently does not happen.</p>
+</li>
+<li><p>Bites hardest in <strong>schema and config files</strong>, where single-letter names are normal: coordinate columns (<code>x</code>, <code>y</code>, <code>z</code>), flags, short codes. Quote them: <code>- name: "y"</code>.</p></li>
+<li><p>Caught twice in one file 2026-08-24 (crate#9) — once in a canonical column list and once in a variant’s column list. Both found by a guard that asserted every declared name <code><a href="https://rdrr.io/r/base/character.html" class="external-link">is.character()</a></code>; reading the YAML had not found either.</p></li>
+<li><p>Worth an assertion rather than vigilance: after parsing any config that carries user-chosen names, check they are all strings. The failure is invisible otherwise, because the wrong value is a perfectly valid one.</p></li>
+</ul></div>
+<div class="section level3">
 <h3 id="canonicalize-serialized-documents-before-diffing-them">Canonicalize serialized documents before diffing them<a class="anchor" aria-label="anchor" href="#canonicalize-serialized-documents-before-diffing-them"></a></h3>
 <ul><li>XML and JSON emitters are free to vary attribute order, whitespace, and regenerated ids without changing meaning. Comparing two such documents raw reports differences that are not differences — and the noise scales with document size, so it looks like a real signal.</li>
 <li>Normalize first: C14N for XML (<code>ET.canonicalize(strip_text=True)</code> sorts attributes), key-sorted dumps for JSON, and mask any regenerated identifiers (uuids, timestamps, generator version stamps).</li>
 <li>Then narrow the mask deliberately. Every field you normalize away is a field the comparison can no longer catch, so name each one and why — a mask that quietly grows turns a drift guard into decoration.</li>
 <li>(rfp#17, 2026-08: comparing two QGIS templates raw said 5 of 43 shared layers still matched, which read as severe drift and argued for restructuring how styles were stored. Canonicalized — attributes sorted, symbol uuids masked — it was <strong>46 of 47</strong>. The templates had not drifted at all; the difference was attribute order between two QGIS builds. The naive number nearly bought an architecture change nobody needed.)</li>
+</ul></div>
+<div class="section level3">
+<h3 id="a-verification-command-can-be-shadowed-by-a-shell-function-or-alias">A verification command can be shadowed by a shell function or alias<a class="anchor" aria-label="anchor" href="#a-verification-command-can-be-shadowed-by-a-shell-function-or-alias"></a></h3>
+<ul><li>The shell is initialized from the user’s profile, so <code>diff</code>, <code>grep</code>, <code>ls</code>, <code>cat</code> and friends may resolve to a wrapper rather than the binary you assume. Measured 2026-08-24 in gq: <code>diff</code> was a shell <strong>function</strong> delegating to <code>git diff</code>, so <code>diff -q a b</code> — a byte-comparison in an idempotency check — died on <code>unknown switch `q'</code> and the step reported <strong>NOT IDEMPOTENT</strong> for two files that were in fact identical.</li>
+<li>That direction is survivable because it is loud. The dangerous one is a wrapper that exits 0 on a comparison it never performed, which reads as “verified”.</li>
+<li>For anything whose output you are about to treat as evidence, bypass the lookup: <code>command diff</code>, <code>\diff</code>, or a tool with no common wrapper — <code>cmp -s</code> for byte-equality, <code>md5</code> / <code>sha256sum</code> for a value you can print. Printing the digest beats printing a verdict: it stays checkable after the fact.</li>
+<li>
+<code>type &lt;cmd&gt;</code> tells you what you actually have. Worth running the first time a verification step returns something surprising, before believing the surprise.</li>
 </ul></div>
 <div class="section level3">
 <h3 id="documentation-staleness">Documentation Staleness<a class="anchor" aria-label="anchor" href="#documentation-staleness"></a></h3>
@@ -967,6 +1063,25 @@
 <code>/gh-pr-merge</code> — merge with release bookkeeping</li>
 </ul></div>
 <div class="section level2">
+<h2 id="issue-bodies-get-edited-not-appended">Issue bodies get edited, not appended<a class="anchor" aria-label="anchor" href="#issue-bodies-get-edited-not-appended"></a></h2>
+<p>When work changes what an issue should say, <strong>edit the body</strong>. Don’t add a comment that corrects it, and retitle when the scope moves.</p>
+<p><strong>Why:</strong> an issue is read as a spec by whoever picks it up. A body saying one thing with a comment three screens down saying the opposite costs the reader the reconciliation, every time.</p>
+<p><strong>How to apply:</strong> <code>gh issue view N --json body -q .body</code> into a file, revise, <code>gh issue edit N --body-file</code>. Name what changed and why when the correction is load-bearing — the goal is a body that reads correctly top to bottom, not an erasure of history. Comments are for genuine commentary: a merge notice, a cross-repo pointer, a question. Applies to PR bodies too. Commit messages are immutable history and are never rewritten this way.</p>
+<p><strong>The failure mode that keeps recurring: research findings feel like commentary.</strong> They are not — they are the spec. If a finding changes what someone would <em>build</em>, it belongs in the body, with the durable version in <code>research/</code> and the body linking to it.</p>
+<p><strong>Bodies drift at the moment work finishes, not while it is in flight.</strong> Four instances in a single day of rfp work, all of the same shape — the code learned something and the issue did not:</p>
+<table class="table"><colgroup><col width="50%"><col width="50%"></colgroup><thead><tr><th>drift</th>
+<th>what a reader saw</th>
+</tr></thead><tbody><tr><td>premise disproved by measurement</td>
+<td>an issue arguing for a fix that was no longer needed</td>
+</tr><tr><td>a conclusion asserted in the body but never landed in code</td>
+<td>body and tree contradicting each other</td>
+</tr><tr><td>the shape of the work moved during exploration</td>
+<td>a spec describing a design nobody built</td>
+</tr><tr><td>a decision made and shipped, body still listing options A–D</td>
+<td>“decision needed” on a decision a year old</td>
+</tr></tbody></table><p>Vigilance does not catch this, because the drift happens exactly when attention moves to the merge. <code>/gh-pr-merge</code> reconciles at that moment — see its step 3b.</p>
+</div>
+<div class="section level2">
 <h2 id="why-this-exists">Why This Exists<a class="anchor" aria-label="anchor" href="#why-this-exists"></a></h2>
 <p>We’ve hit snags repeatedly when half-doing this — branches that mix concerns, tests bolted on after, code-check skipped (and then a bug ships in the diff), examples that fail in pkgdown. Each step is small; the cumulative reliability gain is real. The convention is here so it becomes the default expectation, not a thing the user has to remind every session about.</p>
 </div>
@@ -1012,7 +1127,15 @@
 <p>Strong success criteria let you loop independently. Weak criteria (“make it work”) require constant clarification.</p>
 </div>
 <div class="section level2">
-<h2 id="id_5-subagents-are-evidence-not-dependencies">5. Subagents Are Evidence, Not Dependencies<a class="anchor" aria-label="anchor" href="#id_5-subagents-are-evidence-not-dependencies"></a></h2>
+<h2 id="id_5-you-have-no-clock-between-tool-calls">5. You Have No Clock Between Tool Calls<a class="anchor" aria-label="anchor" href="#id_5-you-have-no-clock-between-tool-calls"></a></h2>
+<p><strong>Every duration claim comes from <code>date</code>, never from how much waiting felt like it happened.</strong></p>
+<p>Background <code>sleep</code> returns immediately from the agent’s side, and the number of times you have polled is not evidence of elapsed time. Two consecutive tool calls can be 15 seconds apart by the clock while feeling like ten minutes of waiting.</p>
+<p>The failure is stating it out loud before checking. Observed 2026-08: a CI run was reported to the user as “pending for over an hour — unusually long, probably a stuck runner”, after roughly eight background sleeps. One <code>date -u</code> showed the run was <strong>three minutes old</strong> and entirely normal. The whole diagnosis — stuck runner, duplicate triggers, something wrong with the workflow — rested on a duration that had been invented.</p>
+<p><strong>How to apply:</strong> before saying <em>any</em> duration — “still running after N minutes”, “this has been X a while”, “longer than usual” — run <code>date -u</code> and subtract a real start time. <code>gh run list --json createdAt</code> gives it for CI. If a claim about slowness would change what the user does next, it needs a measured number or it does not get made.</p>
+<p>The same rule covers process state. <code>ps</code> and task-status listings have both been observed wrong; check the artifact (an output file’s size, its mtime, the service’s own API) rather than the wrapper.</p>
+</div>
+<div class="section level2">
+<h2 id="id_6-subagents-are-evidence-not-dependencies">6. Subagents Are Evidence, Not Dependencies<a class="anchor" aria-label="anchor" href="#id_6-subagents-are-evidence-not-dependencies"></a></h2>
 <p><strong>Don’t block on one. Don’t trust its status. Verify its claims in both directions.</strong></p>
 <div class="section level3">
 <h3 id="dont-block">Don’t block<a class="anchor" aria-label="anchor" href="#dont-block"></a></h3>
@@ -1062,16 +1185,16 @@
 </tr><tr><td><code>search.json</code></td>
 <td>the full-text index, containing the text</td>
 </tr></tbody></table><p>Deleting <code>docs/CLAUDE.html</code> after the build leaves the other two. It looks like a fix and achieves nothing. Remove the file from the CI checkout <strong>before</strong> <code>build_site()</code> runs:</p>
-<div class="sourceCode" id="cb19"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb19-1"><a href="#cb19-1" tabindex="-1"></a><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> Keep internal notes out of the published site</span></span>
-<span id="cb19-2"><a href="#cb19-2" tabindex="-1"></a><span class="at">  </span><span class="fu">run</span><span class="kw">:</span><span class="at"> rm -f CLAUDE.md</span></span></code></pre></div>
+<div class="sourceCode" id="cb23"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb23-1"><a href="#cb23-1" tabindex="-1"></a><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> Keep internal notes out of the published site</span></span>
+<span id="cb23-2"><a href="#cb23-2" tabindex="-1"></a><span class="at">  </span><span class="fu">run</span><span class="kw">:</span><span class="at"> rm -f CLAUDE.md</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="gate-on-a-declared-allowlist">Gate on a declared allowlist<a class="anchor" aria-label="anchor" href="#gate-on-a-declared-allowlist"></a></h3>
 <p>Each repo states which extra root pages it <em>intends</em> to publish. Anything else fails the build, so a new root markdown file cannot leak silently:</p>
-<div class="sourceCode" id="cb20"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb20-1"><a href="#cb20-1" tabindex="-1"></a><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> Fail if an unexpected page reached the site</span></span>
-<span id="cb20-2"><a href="#cb20-2" tabindex="-1"></a><span class="fu">  run</span><span class="kw">: </span><span class="ch">|</span></span>
-<span id="cb20-3"><a href="#cb20-3" tabindex="-1"></a>    allowed="404 authors index LICENSE LICENSE-text"   # + declared extras</span>
-<span id="cb20-4"><a href="#cb20-4" tabindex="-1"></a>    ...</span></code></pre></div>
+<div class="sourceCode" id="cb24"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb24-1"><a href="#cb24-1" tabindex="-1"></a><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> Fail if an unexpected page reached the site</span></span>
+<span id="cb24-2"><a href="#cb24-2" tabindex="-1"></a><span class="fu">  run</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb24-3"><a href="#cb24-3" tabindex="-1"></a>    allowed="404 authors index LICENSE LICENSE-text"   # + declared extras</span>
+<span id="cb24-4"><a href="#cb24-4" tabindex="-1"></a>    ...</span></code></pre></div>
 <p>Add to <code>allowed</code> only after deciding the page should be public. <code>link</code> publishes <code>NOTICE</code> and <code>RUNBOOK</code> deliberately — it is a public repo and both are genuine documentation. That is the decision the allowlist is meant to record.</p>
 <p>Test the gate against <strong>both</strong> known answers before shipping it: it must exit non-zero on a site that does contain the file, and zero on one that does not. A guard that only ever returns one value is indistinguishable from a broken one.</p>
 </div>
@@ -1094,7 +1217,7 @@
 <li>
 <strong>hand-added assets</strong> not produced by the build. Favicons and web manifests under <code>pkgdown/favicon/</code> <em>are</em> produced by the build and are safe.</li>
 </ul><p>Use <code>clean-exclude</code> for anything that must survive.</p>
-<div class="sourceCode" id="cb21"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb21-1"><a href="#cb21-1" tabindex="-1"></a><span class="ex">gh</span> api <span class="st">"repos/OWNER/REPO/contents?ref=gh-pages"</span> <span class="at">--jq</span> <span class="st">'.[] | "\(.type) \(.name)"'</span></span></code></pre></div>
+<div class="sourceCode" id="cb25"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb25-1"><a href="#cb25-1" tabindex="-1"></a><span class="ex">gh</span> api <span class="st">"repos/OWNER/REPO/contents?ref=gh-pages"</span> <span class="at">--jq</span> <span class="st">'.[] | "\(.type) \(.name)"'</span></span></code></pre></div>
 </div>
 </div>
 <div class="section level2">
@@ -1131,8 +1254,14 @@
 </ul></li>
 <li>
 <p><strong>Plan-review with the Plan agent — concurrently, not as a gate</strong> — Once <code>task_plan.md</code> is scaffolded, spawn the Plan subagent (<code>Agent({subagent_type: "Plan", prompt: "..."}</code>) and ask it to critically review the task_plan against the issue body + actual codebase. Categorize findings as Blocker / Gap / Ordering / Assumption / Scope / Acceptance. The agent reads files fresh — it catches what you miss when you’ve been thinking about the design too long. Real example: caught 21 issues including hardcoded literals across 4 files not listed in the plan, untested DB column mismatches, and a baseline-cache-shadow that would have produced a 6-second no-op run.</p>
-<p><strong>Do not wait for it.</strong> Spawn, then start the lowest-risk phase. Background agents have repeatedly returned late — in one case after the entire issue had shipped — so treating the review as a precondition stalls the work for as long as the agent takes (see <code>karpathy.md</code> §5). Fold findings in whenever they land: pre-baseline they edit the plan; mid-implementation they become follow-up commits. A review that arrives after the code is written is not wasted — the reviewer reads real code instead of a plan, which is how one late review still contributed three fixes that no earlier reading had found. If you genuinely cannot proceed without the result, run it with <code>run_in_background: false</code> so the blocking is explicit.</p>
+<p><strong>Do not wait for it.</strong> Spawn, then start the lowest-risk phase. Background agents have repeatedly returned late — in one case after the entire issue had shipped — so treating the review as a precondition stalls the work for as long as the agent takes (see <code>karpathy.md</code> §6). Fold findings in whenever they land: pre-baseline they edit the plan; mid-implementation they become follow-up commits. A review that arrives after the code is written is not wasted — the reviewer reads real code instead of a plan, which is how one late review still contributed three fixes that no earlier reading had found. If you genuinely cannot proceed without the result, run it with <code>run_in_background: false</code> so the blocking is explicit.</p>
 <p>Verify before acting, in both directions. Findings have been confidently wrong (a “BLOCKER” disproved by a 30-second probe) and confidently right about things nobody suspected. Reproduce the claim first.</p>
+<p><strong>Spawn review agents UNNAMED.</strong> Passing <code>name</code> to the <code>Agent</code> tool changes what you get: a named spawn becomes a persistent <em>teammate</em> that goes <strong>idle</strong> rather than completing, so there is no final report to auto-deliver and its output must be pulled with <code>SendMessage</code>. An unnamed spawn is a fire-and-return subagent whose report arrives on its own in the completion notification. Measured 2026-08-25 on one machine, one session, unchanged settings: the unnamed spawn returned in <strong>6.4s</strong>; three named reviewers returned nothing at all, sending only empty idle pings. Pass <code>name</code> only for a collaborator you intend to keep messaging, and shut it down when done — it pings indefinitely otherwise.</p>
+<p>That mis-spawn is what produced the silent-delivery failures below, so check <code>name</code> before suspecting settings. Teammate mode (<code>CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1</code> + <code>teammateMode</code>, merged globally from <code>soul/settings/defaults.json</code>) shapes what a <em>named</em> spawn becomes; it is not by itself why findings go missing, and an unnamed spawn delivers fine with it enabled.</p>
+<p><strong>Have the agent write findings to a file, and report only the path.</strong> Message delivery has silently failed twice: one review arrived as idle notifications with no content, and one was routed to a different session on the user’s phone — which only surfaced because the user mentioned it. From this side an idle ping is indistinguishable from an agent that had nothing to say, so the loss is invisible. A file (<code>planning/active/review-&lt;N&gt;.md</code>) survives routing, survives the agent exiting, and is greppable later. Put the instruction in the first prompt, not as a follow-up.</p>
+<p><strong>Review the fixes, not just the code.</strong> The second pass is where the value concentrates, because a fix written under a wrong assumption reproduces the same defect. Measured on gq#52: pass 1 found 13 defects, pass 2 found 7 more — including a blocker sitting <em>inside the fix</em> for pass 1’s blocker, the same class twice (<code>lty</code>, then <code>fill_alpha</code>) because completeness was reasoned about rather than computed. Pass 3, scoped narrowly to the file edited most, found no new instances; <strong>convergence is the signal to stop, not a fixed number of rounds.</strong></p>
+<p>Ask for the <strong>mechanism</strong>, not more instances. Pass 3’s best finding was that an invariant was enforced by two lists happening to agree — which is what had produced instances two and three.</p>
+<p>The thing reviewers catch that self-probing does not is <strong>interop</strong>: 18 tests inspected a legend object and none handed it to the renderer, which rejected it outright. Ask the consumer.</p>
 </li>
 <li><p><strong>Lock naming before the baseline</strong> — If naming feedback surfaces during planning (legacy filename, inconsistency with an existing file family), fold the rename into the convention + task_plan BEFORE the baseline commit, not as a follow-up. Pre-baseline it’s free; retrofitting after implementation cascades (soul#52: <code>build_exec_pdf.R</code> → <code>run_pagedown_exec_summary.R</code> locked in pre-baseline meant zero downstream rework).</p></li>
 <li><p><strong>Commit the plan</strong> — After Plan-agent review + fixes. This is the baseline.</p></li>
@@ -1150,33 +1279,33 @@
 <div class="section level3">
 <h3 id="task_planmd">task_plan.md<a class="anchor" aria-label="anchor" href="#task_planmd"></a></h3>
 <p>Phases with checkboxes. This is the core tracking file.</p>
-<div class="sourceCode" id="cb22"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb22-1"><a href="#cb22-1" tabindex="-1"></a><span class="fu"># Task Plan</span></span>
-<span id="cb22-2"><a href="#cb22-2" tabindex="-1"></a></span>
-<span id="cb22-3"><a href="#cb22-3" tabindex="-1"></a><span class="fu">## Phase 1: [Name]</span></span>
-<span id="cb22-4"><a href="#cb22-4" tabindex="-1"></a><span class="ss">- </span><span class="va">[ ]</span> Task description</span>
-<span id="cb22-5"><a href="#cb22-5" tabindex="-1"></a><span class="ss">- </span><span class="va">[ ]</span> Another task</span>
-<span id="cb22-6"><a href="#cb22-6" tabindex="-1"></a></span>
-<span id="cb22-7"><a href="#cb22-7" tabindex="-1"></a><span class="fu">## Phase 2: [Name]</span></span>
-<span id="cb22-8"><a href="#cb22-8" tabindex="-1"></a><span class="ss">- </span><span class="va">[ ]</span> Task description</span></code></pre></div>
+<div class="sourceCode" id="cb26"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb26-1"><a href="#cb26-1" tabindex="-1"></a><span class="fu"># Task Plan</span></span>
+<span id="cb26-2"><a href="#cb26-2" tabindex="-1"></a></span>
+<span id="cb26-3"><a href="#cb26-3" tabindex="-1"></a><span class="fu">## Phase 1: [Name]</span></span>
+<span id="cb26-4"><a href="#cb26-4" tabindex="-1"></a><span class="ss">- </span><span class="va">[ ]</span> Task description</span>
+<span id="cb26-5"><a href="#cb26-5" tabindex="-1"></a><span class="ss">- </span><span class="va">[ ]</span> Another task</span>
+<span id="cb26-6"><a href="#cb26-6" tabindex="-1"></a></span>
+<span id="cb26-7"><a href="#cb26-7" tabindex="-1"></a><span class="fu">## Phase 2: [Name]</span></span>
+<span id="cb26-8"><a href="#cb26-8" tabindex="-1"></a><span class="ss">- </span><span class="va">[ ]</span> Task description</span></code></pre></div>
 <p>Mark tasks done as they’re completed: <code>- [x] Task description</code></p>
 </div>
 <div class="section level3">
 <h3 id="findingsmd">findings.md<a class="anchor" aria-label="anchor" href="#findingsmd"></a></h3>
 <p>Append-only research log. Discoveries, technical analysis, things learned.</p>
-<div class="sourceCode" id="cb23"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb23-1"><a href="#cb23-1" tabindex="-1"></a><span class="fu"># Findings</span></span>
-<span id="cb23-2"><a href="#cb23-2" tabindex="-1"></a></span>
-<span id="cb23-3"><a href="#cb23-3" tabindex="-1"></a><span class="fu">## [Topic]</span></span>
-<span id="cb23-4"><a href="#cb23-4" tabindex="-1"></a><span class="co">[</span><span class="ot">What was found, with source/date</span><span class="co">]</span></span></code></pre></div>
+<div class="sourceCode" id="cb27"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb27-1"><a href="#cb27-1" tabindex="-1"></a><span class="fu"># Findings</span></span>
+<span id="cb27-2"><a href="#cb27-2" tabindex="-1"></a></span>
+<span id="cb27-3"><a href="#cb27-3" tabindex="-1"></a><span class="fu">## [Topic]</span></span>
+<span id="cb27-4"><a href="#cb27-4" tabindex="-1"></a><span class="co">[</span><span class="ot">What was found, with source/date</span><span class="co">]</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="progressmd">progress.md<a class="anchor" aria-label="anchor" href="#progressmd"></a></h3>
 <p>Session entries with commit references.</p>
-<div class="sourceCode" id="cb24"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb24-1"><a href="#cb24-1" tabindex="-1"></a><span class="fu"># Progress</span></span>
-<span id="cb24-2"><a href="#cb24-2" tabindex="-1"></a></span>
-<span id="cb24-3"><a href="#cb24-3" tabindex="-1"></a><span class="fu">## Session YYYY-MM-DD</span></span>
-<span id="cb24-4"><a href="#cb24-4" tabindex="-1"></a><span class="ss">- </span>Completed: <span class="co">[</span><span class="ot">items</span><span class="co">]</span></span>
-<span id="cb24-5"><a href="#cb24-5" tabindex="-1"></a><span class="ss">- </span>Commits: <span class="co">[</span><span class="ot">refs</span><span class="co">]</span></span>
-<span id="cb24-6"><a href="#cb24-6" tabindex="-1"></a><span class="ss">- </span>Next: <span class="co">[</span><span class="ot">items</span><span class="co">]</span></span></code></pre></div>
+<div class="sourceCode" id="cb28"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb28-1"><a href="#cb28-1" tabindex="-1"></a><span class="fu"># Progress</span></span>
+<span id="cb28-2"><a href="#cb28-2" tabindex="-1"></a></span>
+<span id="cb28-3"><a href="#cb28-3" tabindex="-1"></a><span class="fu">## Session YYYY-MM-DD</span></span>
+<span id="cb28-4"><a href="#cb28-4" tabindex="-1"></a><span class="ss">- </span>Completed: <span class="co">[</span><span class="ot">items</span><span class="co">]</span></span>
+<span id="cb28-5"><a href="#cb28-5" tabindex="-1"></a><span class="ss">- </span>Commits: <span class="co">[</span><span class="ot">refs</span><span class="co">]</span></span>
+<span id="cb28-6"><a href="#cb28-6" tabindex="-1"></a><span class="ss">- </span>Next: <span class="co">[</span><span class="ot">items</span><span class="co">]</span></span></code></pre></div>
 </div>
 </div>
 <div class="section level2">
@@ -1186,6 +1315,11 @@
   archive/         &lt;- Completed issues
     YYYY-MM-issue-N-slug/</code></pre>
 <p>If <code>planning/</code> doesn’t exist in the repo, run <code>/planning-init</code> first.</p>
+<p><strong><code>planning/active/</code> must be tracked, not gitignored.</strong> The atomic-commit rule above requires each commit to carry its own checkbox flip in <code>task_plan.md</code>; an ignored <code>active/</code> drops it silently, so <code>git log -- planning/</code> shows archives appearing fully-formed with no history behind them. In-flight PWF also stops surviving a move between machines.</p>
+<p>The failure is quiet in both directions. <code>git add planning/</code> reports nothing and exits 0 on an ignored path, and files tracked <em>before</em> the rule existed keep being tracked — including through a <code>git mv</code> into the ignored directory. So a repo can look like it is working right up until the first genuinely new PWF file, which simply never appears in a commit.</p>
+<p>Check rather than assume:</p>
+<div class="sourceCode" id="cb30"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb30-1"><a href="#cb30-1" tabindex="-1"></a><span class="fu">git</span> check-ignore <span class="at">-v</span> planning/active/task_plan.md   <span class="co"># expect no output</span></span></code></pre></div>
+<p>Found 2026-08-24 in gq, where the rule dated from the scaffold commit and the #17 files had only survived because they predated their move into that directory. gq and roli were the only 2 of 32 repos carrying it; roli still does.</p>
 </div>
 <div class="section level2">
 <h2 id="skills">Skills<a class="anchor" aria-label="anchor" href="#skills"></a></h2>
@@ -1212,7 +1346,7 @@
 <li><p>Prefix column name vectors with <code>cols_</code> for discoverability in the environment pane: <code>cols_all</code>, <code>cols_carry</code>, <code>cols_split</code>, <code>cols_writable</code>. Same principle for other grouped vectors (<code>params_</code>, <code>tbl_</code>, etc.)</p></li>
 <li>
 <p>For SQL DDL+INSERT pairs that share a schema, use a single named vector as the source of truth. Both <code>CREATE TABLE</code> and <code>INSERT (cols) SELECT cols</code> derive their column lists from the same <code>cols_*</code> vector. Avoids drift between table shape and write projection — when columns change, you edit one place. Example:</p>
-<div class="sourceCode" id="cb26"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb31"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">cols_streams</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
 <span>  id_segment           <span class="op">=</span> <span class="st">"integer NOT NULL"</span>,</span>
 <span>  watershed_group_code <span class="op">=</span> <span class="st">"varchar(4) NOT NULL"</span>,</span>
@@ -1260,7 +1394,7 @@
 <li><p>Tests must pass before closing the function’s issue</p></li>
 <li>
 <p>Always grep for errors in the same command as the test run to avoid running twice:</p>
-<div class="sourceCode" id="cb28"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb28-1"><a href="#cb28-1" tabindex="-1"></a><span class="ex">Rscript</span> <span class="at">-e</span> <span class="st">'devtools::test()'</span> <span class="dv">2</span><span class="op">&gt;&amp;</span><span class="dv">1</span> <span class="kw">|</span> <span class="fu">grep</span> <span class="at">-E</span> <span class="st">"(FAIL|ERROR|PASS)"</span> <span class="kw">|</span> <span class="fu">tail</span> <span class="at">-5</span></span></code></pre></div>
+<div class="sourceCode" id="cb33"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb33-1"><a href="#cb33-1" tabindex="-1"></a><span class="ex">Rscript</span> <span class="at">-e</span> <span class="st">'devtools::test()'</span> <span class="dv">2</span><span class="op">&gt;&amp;</span><span class="dv">1</span> <span class="kw">|</span> <span class="fu">grep</span> <span class="at">-E</span> <span class="st">"(FAIL|ERROR|PASS)"</span> <span class="kw">|</span> <span class="fu">tail</span> <span class="at">-5</span></span></code></pre></div>
 <p>For error context: <code>grep -E "(ERROR:|FAIL )" -A 10 | head -25</code></p>
 </li>
 </ul><div class="section level3">
@@ -1304,7 +1438,7 @@
 <p>Run <code>lintr::lint_package()</code> before committing R package code. Fix all warnings — every lint should be worth fixing.</p>
 <div class="section level3">
 <h3 id="recommended-lintr-config">Recommended .lintr config<a class="anchor" aria-label="anchor" href="#recommended-lintr-config"></a></h3>
-<div class="sourceCode" id="cb29"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb34"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">linters</span><span class="op">:</span> <span class="fu">linters_with_defaults</span><span class="op">(</span></span>
 <span>    <span class="fu">line_length_linter</span><span class="op">(</span><span class="fl">120</span><span class="op">)</span>,</span>
 <span>    <span class="fu">object_name_linter</span><span class="op">(</span>styles <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"snake_case"</span>, <span class="st">"dotted.case"</span><span class="op">)</span><span class="op">)</span>,</span>
@@ -1342,18 +1476,18 @@
 <div class="section level3">
 <h3 id="branch-protection">Branch protection<a class="anchor" aria-label="anchor" href="#branch-protection"></a></h3>
 <p>Protect main from deletion and force pushes:</p>
-<div class="sourceCode" id="cb30"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb30-1"><a href="#cb30-1" tabindex="-1"></a><span class="ex">gh</span> api repos/OWNER/REPO/rulesets <span class="at">--method</span> POST <span class="at">--input</span> <span class="at">-</span> <span class="op">&lt;&lt;'EOF'</span></span>
-<span id="cb30-2"><a href="#cb30-2" tabindex="-1"></a><span class="st">{</span></span>
-<span id="cb30-3"><a href="#cb30-3" tabindex="-1"></a><span class="st">  "name": "Protect main",</span></span>
-<span id="cb30-4"><a href="#cb30-4" tabindex="-1"></a><span class="st">  "target": "branch",</span></span>
-<span id="cb30-5"><a href="#cb30-5" tabindex="-1"></a><span class="st">  "enforcement": "active",</span></span>
-<span id="cb30-6"><a href="#cb30-6" tabindex="-1"></a><span class="st">  "bypass_actors": [</span></span>
-<span id="cb30-7"><a href="#cb30-7" tabindex="-1"></a><span class="st">    { "actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "always" }</span></span>
-<span id="cb30-8"><a href="#cb30-8" tabindex="-1"></a><span class="st">  ],</span></span>
-<span id="cb30-9"><a href="#cb30-9" tabindex="-1"></a><span class="st">  "conditions": { "ref_name": { "include": ["refs/heads/main"], "exclude": [] } },</span></span>
-<span id="cb30-10"><a href="#cb30-10" tabindex="-1"></a><span class="st">  "rules": [ { "type": "deletion" }, { "type": "non_fast_forward" } ]</span></span>
-<span id="cb30-11"><a href="#cb30-11" tabindex="-1"></a><span class="st">}</span></span>
-<span id="cb30-12"><a href="#cb30-12" tabindex="-1"></a><span class="op">EOF</span></span></code></pre></div>
+<div class="sourceCode" id="cb35"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb35-1"><a href="#cb35-1" tabindex="-1"></a><span class="ex">gh</span> api repos/OWNER/REPO/rulesets <span class="at">--method</span> POST <span class="at">--input</span> <span class="at">-</span> <span class="op">&lt;&lt;'EOF'</span></span>
+<span id="cb35-2"><a href="#cb35-2" tabindex="-1"></a><span class="st">{</span></span>
+<span id="cb35-3"><a href="#cb35-3" tabindex="-1"></a><span class="st">  "name": "Protect main",</span></span>
+<span id="cb35-4"><a href="#cb35-4" tabindex="-1"></a><span class="st">  "target": "branch",</span></span>
+<span id="cb35-5"><a href="#cb35-5" tabindex="-1"></a><span class="st">  "enforcement": "active",</span></span>
+<span id="cb35-6"><a href="#cb35-6" tabindex="-1"></a><span class="st">  "bypass_actors": [</span></span>
+<span id="cb35-7"><a href="#cb35-7" tabindex="-1"></a><span class="st">    { "actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "always" }</span></span>
+<span id="cb35-8"><a href="#cb35-8" tabindex="-1"></a><span class="st">  ],</span></span>
+<span id="cb35-9"><a href="#cb35-9" tabindex="-1"></a><span class="st">  "conditions": { "ref_name": { "include": ["refs/heads/main"], "exclude": [] } },</span></span>
+<span id="cb35-10"><a href="#cb35-10" tabindex="-1"></a><span class="st">  "rules": [ { "type": "deletion" }, { "type": "non_fast_forward" } ]</span></span>
+<span id="cb35-11"><a href="#cb35-11" tabindex="-1"></a><span class="st">}</span></span>
+<span id="cb35-12"><a href="#cb35-12" tabindex="-1"></a><span class="op">EOF</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="scaffold-checklist">Scaffold checklist<a class="anchor" aria-label="anchor" href="#scaffold-checklist"></a></h3>
@@ -1439,11 +1573,11 @@
 <h2 id="in-reports-bookdown">In Reports (bookdown)<a class="anchor" aria-label="anchor" href="#in-reports-bookdown"></a></h2>
 <div class="section level3">
 <h3 id="bibliography-generation">Bibliography generation<a class="anchor" aria-label="anchor" href="#bibliography-generation"></a></h3>
-<div class="sourceCode" id="cb31"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb31-1"><a href="#cb31-1" tabindex="-1"></a><span class="co"># index.Rmd — dynamic bib from Zotero via Better BibTeX</span></span>
-<span id="cb31-2"><a href="#cb31-2" tabindex="-1"></a><span class="fu">bibliography</span><span class="kw">:</span><span class="at"> </span><span class="st">"`r rbbt::bbt_write_bib('references.bib', overwrite = TRUE)`"</span></span></code></pre></div>
+<div class="sourceCode" id="cb36"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb36-1"><a href="#cb36-1" tabindex="-1"></a><span class="co"># index.Rmd — dynamic bib from Zotero via Better BibTeX</span></span>
+<span id="cb36-2"><a href="#cb36-2" tabindex="-1"></a><span class="fu">bibliography</span><span class="kw">:</span><span class="at"> </span><span class="st">"`r rbbt::bbt_write_bib('references.bib', overwrite = TRUE)`"</span></span></code></pre></div>
 <p><code>rbbt</code> pulls from BBT, which syncs with Zotero. Edit references in Zotero → rebuild report → bibliography updates.</p>
 <p><strong>Library targeting:</strong> rbbt must know which Zotero library to search. This is set globally in <code>~/.Rprofile</code>:</p>
-<div class="sourceCode" id="cb32"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb37"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># default library — NewGraphEnvironment group (libraryID 9, group 4733734)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/options.html" class="external-link">options</a></span><span class="op">(</span>rbbt.default.library_id <span class="op">=</span> <span class="fl">9</span><span class="op">)</span></span></code></pre></div>
 <p>Without this option, rbbt searches only the personal library (libraryID 1) and won’t find group library references. The library IDs map to Zotero’s internal numbering — use <code>/zotero-lookup</code> with <code>SELECT DISTINCT libraryID FROM citationkey</code> against the BBT database to discover available libraries.</p>

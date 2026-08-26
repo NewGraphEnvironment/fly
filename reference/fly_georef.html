@@ -164,18 +164,16 @@ limitations.</p>
 <span class="r-in"><span><span class="co"># Fetch and georeference with auto rotation (uses bearing from centroids)</span></span></span>
 <span class="r-in"><span><span class="va">fetched</span> <span class="op">&lt;-</span> <span class="fu"><a href="fly_fetch.html">fly_fetch</a></span><span class="op">(</span><span class="va">centroids</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">2</span>, <span class="op">]</span>, type <span class="op">=</span> <span class="st">"thumbnail"</span>,</span></span>
 <span class="r-in"><span>                     dest_dir <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></span>
-<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>URL 'https://openmaps.gov.bc.ca/thumbs/1968/bc5282/bc5282_176_thumb.jpg': Timeout of 60 seconds was reached</span>
-<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>URL 'https://openmaps.gov.bc.ca/thumbs/1968/bc5282/bc5282_221_thumb.jpg': Timeout of 60 seconds was reached</span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> Downloaded 0 of 2 files</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> Downloaded 2 of 2 files</span>
 <span class="r-in"><span><span class="va">georef</span> <span class="op">&lt;-</span> <span class="fu">fly_georef</span><span class="op">(</span><span class="va">fetched</span>, <span class="va">centroids</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">2</span>, <span class="op">]</span>,</span></span>
 <span class="r-in"><span>                     dest_dir <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> Georeferenced 0 of 2 images</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> Georeferenced 2 of 2 images</span>
 <span class="r-in"><span><span class="va">georef</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;"># A tibble: 2 × 4</span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   airp_id source                               dest  success</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>     <span style="color: #949494; font-style: italic;">&lt;int&gt;</span> <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>                                <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span> <span style="color: #949494; font-style: italic;">&lt;lgl&gt;</span>  </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">1</span>  <span style="text-decoration: underline;">699</span>370 /tmp/RtmpGRhoHP/bc5282_176_thumb.jpg <span style="color: #BB0000;">NA</span>    FALSE  </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">2</span>  <span style="text-decoration: underline;">699</span>415 /tmp/RtmpGRhoHP/bc5282_221_thumb.jpg <span style="color: #BB0000;">NA</span>    FALSE  </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   airp_id source                               dest                      success</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     <span style="color: #949494; font-style: italic;">&lt;int&gt;</span> <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>                                <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>                     <span style="color: #949494; font-style: italic;">&lt;lgl&gt;</span>  </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">1</span>  <span style="text-decoration: underline;">699</span>370 /tmp/RtmpzROEUP/bc5282_176_thumb.jpg /tmp/RtmpzROEUP/bc5282_1… TRUE   </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">2</span>  <span style="text-decoration: underline;">699</span>415 /tmp/RtmpzROEUP/bc5282_221_thumb.jpg /tmp/RtmpzROEUP/bc5282_2… TRUE   </span>
 <span class="r-in"><span></span></span>
 </code></pre></div>
     </div>

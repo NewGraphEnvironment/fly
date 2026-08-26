@@ -143,16 +143,14 @@ centroids <- sf::st_read(system.file("testdata/photo_centroids.gpkg", package = 
 # Fetch and georeference with auto rotation (uses bearing from centroids)
 fetched <- fly_fetch(centroids[1:2, ], type = "thumbnail",
                      dest_dir = tempdir())
-#> Warning: URL 'https://openmaps.gov.bc.ca/thumbs/1968/bc5282/bc5282_176_thumb.jpg': Timeout of 60 seconds was reached
-#> Warning: URL 'https://openmaps.gov.bc.ca/thumbs/1968/bc5282/bc5282_221_thumb.jpg': Timeout of 60 seconds was reached
-#> Downloaded 0 of 2 files
+#> Downloaded 2 of 2 files
 georef <- fly_georef(fetched, centroids[1:2, ],
                      dest_dir = tempdir())
-#> Georeferenced 0 of 2 images
+#> Georeferenced 2 of 2 images
 georef
 #> # A tibble: 2 × 4
-#>   airp_id source                               dest  success
-#>     <int> <chr>                                <chr> <lgl>  
-#> 1  699370 /tmp/RtmpGRhoHP/bc5282_176_thumb.jpg NA    FALSE  
-#> 2  699415 /tmp/RtmpGRhoHP/bc5282_221_thumb.jpg NA    FALSE  
+#>   airp_id source                               dest                      success
+#>     <int> <chr>                                <chr>                     <lgl>  
+#> 1  699370 /tmp/RtmpzROEUP/bc5282_176_thumb.jpg /tmp/RtmpzROEUP/bc5282_1… TRUE   
+#> 2  699415 /tmp/RtmpzROEUP/bc5282_221_thumb.jpg /tmp/RtmpzROEUP/bc5282_2… TRUE   
 ```

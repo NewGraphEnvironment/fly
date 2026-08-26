@@ -40,8 +40,6 @@ using greedy set-cover.
   [`fly_coverage()`](https://newgraphenvironment.github.io/fly/reference/fly_coverage.md)
   requires `@importFrom rlang :=` in `fly-package.R`
 
-\<!– BEGIN SOUL CONVENTIONS — DO NOT EDIT BELOW THIS LINE –\>
-
 # Cartography
 
 ## Style Registry
@@ -72,7 +70,7 @@ CSV and merge:
 
 ``` r
 
-reg <- gq_reg_merge(gq_reg_main(), gq_reg_read_csv("path/to/custom.csv"))
+reg <- gq_reg_merge(gq_reg_main(), gq_reg_custom("path/to/custom.csv"))
 ```
 
 Install: `pak::pak("NewGraphEnvironment/gq")`
@@ -1450,6 +1448,75 @@ non-allowlisted patterns for hook-trigger tests.
   Date upper bounds to `< next-day-midnight` so the whole calendar day
   is included. (water-temp-bc#17)
 
+### as.POSIXct on character infers ONE format for the whole vector
+
+- `as.POSIXct(x)` on a character vector picks a single format by finding
+  the first candidate that parses **every** element — and `strptime`
+  **ignores trailing characters**. So one coarse value silently
+  truncates the entire column, and nothing warns:
+
+  ``` r
+
+  as.POSIXct(c("2026-08-15 18:33:46", "2026-08-15 18:34:20", "2026-08-16"))
+  #> all three at 00:00:00   <- the times are gone
+  ```
+
+  One minute-precision value does the same to its neighbours’ seconds.
+  Order-independent, and the values are not `NA` afterwards, so an
+  [`is.na()`](https://rdrr.io/r/base/NA.html) guard on the result cannot
+  see it.
+
+- Same family as the `Date` case above, and worse: that one shifts by a
+  known offset, this one destroys information.
+
+- Fix: match each value’s **shape** with an anchored regex, then parse
+  it with the format that shape implies — per element, not per vector.
+  Anchoring at both ends is what turns trailing junk into an error
+  instead of a silent truncation.
+
+- `tryCatch` around the whole call is not a fix either.
+  `as.POSIXct.character` **throws** on an unrecognised string rather
+  than returning `NA`, so a catch-all handler that blanks the vector
+  then makes the “which value failed?” report name element one — usually
+  a perfectly good timestamp. Compute the failing set per element inside
+  the error path.
+
+- Caught 2026-08-24 in crate#9. Three bugs in one parse (this, a dropped
+  `+02` offset, and the misleading error), all silent, all with the
+  suite green at 171 passing.
+
+### An offset regex must be anchored to a time, or a date looks like a zone
+
+- Refusing or stripping a trailing UTC offset with something like
+  `[+-][0-9]{2}(:?[0-9]{2})?$` also matches the end of a plain ISO date:
+  `"2026-08-15"` ends in `-15`, which reads as a −15 hour zone. Require
+  the offset to follow `HH:MM[:SS[.fff]]`.
+- The mirror mistake is requiring four offset digits. `±hh` is valid ISO
+  8601 and is what Postgres emits for whole-hour zones; a
+  two-digit-offset value then falls through the guard, gets stripped as
+  trailing junk, and the instant moves by hours with nothing reported.
+
+### `paste0()` treats a zero-length argument as `""`
+
+- `paste0(character(0), "x")` returns `"x"` — length **one**, not zero.
+  So a composite key built from an empty data frame yields one phantom
+  row rather than none:
+
+  ``` r
+
+  paste0(df$a, "\x1f", df$b)   # nrow(df) == 0  ->  "\x1f"
+  ```
+
+- Downstream that reads as a real record. Caught 2026-08-24 in trap#14:
+  an empty annotation table produced one key, which the join then
+  reported as “an annotation matching no session”. Guard with an
+  explicit `if (!nrow(x)) return(character(0))`.
+
+- Same shape for any vectorised builder fed a possibly-empty frame —
+  [`sprintf()`](https://rdrr.io/r/base/sprintf.html),
+  [`file.path()`](https://rdrr.io/r/base/file.path.html),
+  [`interaction()`](https://rdrr.io/r/base/interaction.html).
+
 ### open_dataset(unify_schemas = TRUE) requires aligned types
 
 - Cross-prefix/file schema unification only merges what types allow:
@@ -1514,6 +1581,56 @@ non-allowlisted patterns for hook-trigger tests.
   the real schema (`arrow::open_dataset(...)$schema`) and copy the types
   verbatim. Any type-sensitive expression (coalesce sentinels, casts,
   comparisons) is only tested if the fixture types match.
+
+### CSV whitespace: `trim_ws` and `strip.white` do not do what the name suggests
+
+- `readr::read_csv()` defaults to **`trim_ws = TRUE`** and silently
+  strips leading and trailing whitespace. Where whitespace is
+  *meaningful* — a QGIS layer name deliberately prefixed with a space so
+  it sorts first — a trimmed value binds to nothing, with no error. Use
+  base [`utils::read.csv()`](https://rdrr.io/r/utils/read.table.html),
+  or pass `trim_ws = FALSE`.
+- `read.csv(strip.white = TRUE)` applies **only to unquoted fields**,
+  and [`write.csv()`](https://rdrr.io/r/utils/write.table.html) quotes
+  every character column. So a round-trip guard that compares
+  [`read.csv()`](https://rdrr.io/r/utils/read.table.html) against
+  `read.csv(strip.white = TRUE)` is *structurally incapable of failing*
+  — both readers return the same thing, and the check passes for
+  nothing.
+- The second point is the trap: the guard looks right, runs green, and
+  proves nothing. Probing for the real failure mode is what surfaces the
+  `readr` one. Caught 2026-08 in rfp#174, where five leading-space layer
+  names were at stake.
+
+### `R CMD check` rejects a filename containing a space
+
+- “checking for portable file names” fails on any file in the built
+  package whose name has a space. It is an ERROR, not a NOTE, so CI goes
+  red.
+- Bites when shipped files are named after human-readable strings —
+  layer names, form labels, report titles. 40 of 50 in one case, one of
+  which *began* with a space.
+- Fix: derive a slug for the filename and keep the real name in an index
+  CSV beside it. Resolve through the index, never by reconstructing a
+  path from the display string.
+
+### Do not edit files a long test run is reading
+
+- `devtools::test()` (and most runners) load each test file **when they
+  reach it**, not at launch. A 30-minute run therefore reads whatever is
+  on disk at that moment, so edits made while it runs are half-applied
+  and the result describes a tree that never existed.
+- The tell is a **changing pass count** across runs of “the same” tree —
+  3490, then 3496, then 3500. A moving denominator means the input was
+  moving.
+- Cost 2026-08 in rfp#178: two full Docker suites (~1 hour) both
+  reported `FAIL 1`, and the failure was a test written *during* the
+  run, executing against source from *before* the fix that made it pass.
+  It was nearly reported as a regression.
+- **Commit before a long run.** While it runs, do work that touches
+  nothing it reads — issue bodies, PR text, planning. And when a long
+  run fails, get the `file:line` before forming any theory: a mid-flight
+  edit and a real regression look identical in a summary line.
 
 ## General
 
@@ -1684,6 +1801,87 @@ project’s `settings.json` → soul):
   violations across 3,537 triples, plus 0 cycles and every group
   reaching an outlet.)
 
+### Restore the bug and confirm the test fails
+
+- The rule above says a fixture that cannot reach the failure mode is
+  worthless. This is the thirty-second check that tells you which kind
+  you just wrote: **put the defect back, run the test, watch it go
+  red.** A test that stays green against the code it was written to
+  reject is decoration, and reading it will not tell you that — every
+  case below looked correct on the page.
+
+- Cheapest form when the fix is inside a package: patch the namespace
+  rather than editing the source back and forth.
+
+  ``` r
+
+  ns <- asNamespace("pkg"); orig <- get("f", ns)
+  unlockBinding("f", ns); assign("f", broken_version, ns)
+  # run the assertion -- it must fail here
+  assign("f", orig, ns); lockBinding("f", ns)
+  ```
+
+  For a data-shaped bug, feed the function the input the fix was about
+  and assert the old answer is gone.
+
+- Three instances in one PR (gq#52, 2026-08), all written by someone who
+  had just read the fixture rule directly above:
+
+  - A scale-bar test asserting the bar stays within `share` of the frame
+    — threshold hardcoded at **0.75** against a `share` of **0.35**, so
+    a bar at 2.1x the requested size passed. Every width in the fixture
+    also happened to round *down*, so none could overrun even at the
+    right threshold.
+  - A clamp test for a bbox padded past ±90 — the box chosen padded the
+    **x** axis, so the latitude clamp it was named for could never fire.
+  - An `options(str=)` independence test routed through real registry
+    data whose values stayed distinct at one decimal. With the buggy key
+    restored it still passed; a synthetic `1.32 / 1.34` pair made it
+    fire.
+
+- What they share is the tell: the **assertion** is correct and the
+  **input** cannot reach it. So review the fixture against the bug, not
+  the assertion against the spec — the assertion is the part that reads
+  well and the part that is usually already right.
+
+- Sibling of the interop rule above, at one remove: a test that inspects
+  a structure its consumer would reject is the same failure. In that
+  same PR, 18 tests read a legend object and none passed it to the
+  renderer, which refused it outright.
+
+### Bare `y`, `n`, `on`, `off`, `yes`, `no` are booleans in YAML 1.1
+
+- The YAML 1.1 core schema resolves `y`, `Y`, `n`, `N`, `yes`, `no`,
+  `on`, `off`, `true`, `false` (and their case variants) to
+  **booleans**. Most parsers in wide use — libyaml, PyYAML, R’s `yaml` —
+  still do this.
+
+- So a column, key, or field literally named `y` stops being a string
+  the moment it is written unquoted:
+
+  ``` yaml
+  cols:
+    - name: y        # parses as logical TRUE, not "y"
+  ```
+
+  Nothing errors. The consumer simply never matches that entry again,
+  and whatever it was supposed to do to it silently does not happen.
+
+- Bites hardest in **schema and config files**, where single-letter
+  names are normal: coordinate columns (`x`, `y`, `z`), flags, short
+  codes. Quote them: `- name: "y"`.
+
+- Caught twice in one file 2026-08-24 (crate#9) — once in a canonical
+  column list and once in a variant’s column list. Both found by a guard
+  that asserted every declared name
+  [`is.character()`](https://rdrr.io/r/base/character.html); reading the
+  YAML had not found either.
+
+- Worth an assertion rather than vigilance: after parsing any config
+  that carries user-chosen names, check they are all strings. The
+  failure is invisible otherwise, because the wrong value is a perfectly
+  valid one.
+
 ### Canonicalize serialized documents before diffing them
 
 - XML and JSON emitters are free to vary attribute order, whitespace,
@@ -1703,6 +1901,27 @@ project’s `settings.json` → soul):
   not drifted at all; the difference was attribute order between two
   QGIS builds. The naive number nearly bought an architecture change
   nobody needed.)
+
+### A verification command can be shadowed by a shell function or alias
+
+- The shell is initialized from the user’s profile, so `diff`, `grep`,
+  `ls`, `cat` and friends may resolve to a wrapper rather than the
+  binary you assume. Measured 2026-08-24 in gq: `diff` was a shell
+  **function** delegating to `git diff`, so `diff -q a b` — a
+  byte-comparison in an idempotency check — died on
+  `` unknown switch `q' `` and the step reported **NOT IDEMPOTENT** for
+  two files that were in fact identical.
+- That direction is survivable because it is loud. The dangerous one is
+  a wrapper that exits 0 on a comparison it never performed, which reads
+  as “verified”.
+- For anything whose output you are about to treat as evidence, bypass
+  the lookup: `command diff`, `\diff`, or a tool with no common wrapper
+  — `cmp -s` for byte-equality, `md5` / `sha256sum` for a value you can
+  print. Printing the digest beats printing a verdict: it stays
+  checkable after the fact.
+- `type <cmd>` tells you what you actually have. Worth running the first
+  time a verification step returns something surprising, before
+  believing the surprise.
 
 ### Documentation Staleness
 
@@ -1759,6 +1978,43 @@ requires scoping** → use the workflow.
 - `/planning-archive` — when issue closes
 - `/gh-pr-push` — open the PR
 - `/gh-pr-merge` — merge with release bookkeeping
+
+## Issue bodies get edited, not appended
+
+When work changes what an issue should say, **edit the body**. Don’t add
+a comment that corrects it, and retitle when the scope moves.
+
+**Why:** an issue is read as a spec by whoever picks it up. A body
+saying one thing with a comment three screens down saying the opposite
+costs the reader the reconciliation, every time.
+
+**How to apply:** `gh issue view N --json body -q .body` into a file,
+revise, `gh issue edit N --body-file`. Name what changed and why when
+the correction is load-bearing — the goal is a body that reads correctly
+top to bottom, not an erasure of history. Comments are for genuine
+commentary: a merge notice, a cross-repo pointer, a question. Applies to
+PR bodies too. Commit messages are immutable history and are never
+rewritten this way.
+
+**The failure mode that keeps recurring: research findings feel like
+commentary.** They are not — they are the spec. If a finding changes
+what someone would *build*, it belongs in the body, with the durable
+version in `research/` and the body linking to it.
+
+**Bodies drift at the moment work finishes, not while it is in flight.**
+Four instances in a single day of rfp work, all of the same shape — the
+code learned something and the issue did not:
+
+| drift | what a reader saw |
+|----|----|
+| premise disproved by measurement | an issue arguing for a fix that was no longer needed |
+| a conclusion asserted in the body but never landed in code | body and tree contradicting each other |
+| the shape of the work moved during exploration | a spec describing a design nobody built |
+| a decision made and shipped, body still listing options A–D | “decision needed” on a decision a year old |
+
+Vigilance does not catch this, because the drift happens exactly when
+attention moves to the merge. `/gh-pr-merge` reconciles at that moment —
+see its step 3b.
 
 ## Why This Exists
 
@@ -1833,7 +2089,35 @@ For multi-step tasks, state a brief plan:
 Strong success criteria let you loop independently. Weak criteria (“make
 it work”) require constant clarification.
 
-## 5. Subagents Are Evidence, Not Dependencies
+## 5. You Have No Clock Between Tool Calls
+
+**Every duration claim comes from `date`, never from how much waiting
+felt like it happened.**
+
+Background `sleep` returns immediately from the agent’s side, and the
+number of times you have polled is not evidence of elapsed time. Two
+consecutive tool calls can be 15 seconds apart by the clock while
+feeling like ten minutes of waiting.
+
+The failure is stating it out loud before checking. Observed 2026-08: a
+CI run was reported to the user as “pending for over an hour — unusually
+long, probably a stuck runner”, after roughly eight background sleeps.
+One `date -u` showed the run was **three minutes old** and entirely
+normal. The whole diagnosis — stuck runner, duplicate triggers,
+something wrong with the workflow — rested on a duration that had been
+invented.
+
+**How to apply:** before saying *any* duration — “still running after N
+minutes”, “this has been X a while”, “longer than usual” — run `date -u`
+and subtract a real start time. `gh run list --json createdAt` gives it
+for CI. If a claim about slowness would change what the user does next,
+it needs a measured number or it does not get made.
+
+The same rule covers process state. `ps` and task-status listings have
+both been observed wrong; check the artifact (an output file’s size, its
+mtime, the service’s own API) rather than the wrapper.
+
+## 6. Subagents Are Evidence, Not Dependencies
 
 **Don’t block on one. Don’t trust its status. Verify its claims in both
 directions.**
@@ -2072,7 +2356,7 @@ next steps.
     Background agents have repeatedly returned late — in one case after
     the entire issue had shipped — so treating the review as a
     precondition stalls the work for as long as the agent takes (see
-    `karpathy.md` §5). Fold findings in whenever they land: pre-baseline
+    `karpathy.md` §6). Fold findings in whenever they land: pre-baseline
     they edit the plan; mid-implementation they become follow-up
     commits. A review that arrives after the code is written is not
     wasted — the reviewer reads real code instead of a plan, which is
@@ -2085,6 +2369,53 @@ next steps.
     confidently wrong (a “BLOCKER” disproved by a 30-second probe) and
     confidently right about things nobody suspected. Reproduce the claim
     first.
+
+    **Spawn review agents UNNAMED.** Passing `name` to the `Agent` tool
+    changes what you get: a named spawn becomes a persistent *teammate*
+    that goes **idle** rather than completing, so there is no final
+    report to auto-deliver and its output must be pulled with
+    `SendMessage`. An unnamed spawn is a fire-and-return subagent whose
+    report arrives on its own in the completion notification. Measured
+    2026-08-25 on one machine, one session, unchanged settings: the
+    unnamed spawn returned in **6.4s**; three named reviewers returned
+    nothing at all, sending only empty idle pings. Pass `name` only for
+    a collaborator you intend to keep messaging, and shut it down when
+    done — it pings indefinitely otherwise.
+
+    That mis-spawn is what produced the silent-delivery failures below,
+    so check `name` before suspecting settings. Teammate mode
+    (`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` + `teammateMode`, merged
+    globally from `soul/settings/defaults.json`) shapes what a *named*
+    spawn becomes; it is not by itself why findings go missing, and an
+    unnamed spawn delivers fine with it enabled.
+
+    **Have the agent write findings to a file, and report only the
+    path.** Message delivery has silently failed twice: one review
+    arrived as idle notifications with no content, and one was routed to
+    a different session on the user’s phone — which only surfaced
+    because the user mentioned it. From this side an idle ping is
+    indistinguishable from an agent that had nothing to say, so the loss
+    is invisible. A file (`planning/active/review-<N>.md`) survives
+    routing, survives the agent exiting, and is greppable later. Put the
+    instruction in the first prompt, not as a follow-up.
+
+    **Review the fixes, not just the code.** The second pass is where
+    the value concentrates, because a fix written under a wrong
+    assumption reproduces the same defect. Measured on gq#52: pass 1
+    found 13 defects, pass 2 found 7 more — including a blocker sitting
+    *inside the fix* for pass 1’s blocker, the same class twice (`lty`,
+    then `fill_alpha`) because completeness was reasoned about rather
+    than computed. Pass 3, scoped narrowly to the file edited most,
+    found no new instances; **convergence is the signal to stop, not a
+    fixed number of rounds.**
+
+    Ask for the **mechanism**, not more instances. Pass 3’s best finding
+    was that an invariant was enforced by two lists happening to agree —
+    which is what had produced instances two and three.
+
+    The thing reviewers catch that self-probing does not is **interop**:
+    18 tests inspected a legend object and none handed it to the
+    renderer, which rejected it outright. Ask the consumer.
 
 4.  **Lock naming before the baseline** — If naming feedback surfaces
     during planning (legacy filename, inconsistency with an existing
@@ -2172,6 +2503,31 @@ Session entries with commit references.
         YYYY-MM-issue-N-slug/
 
 If `planning/` doesn’t exist in the repo, run `/planning-init` first.
+
+**`planning/active/` must be tracked, not gitignored.** The
+atomic-commit rule above requires each commit to carry its own checkbox
+flip in `task_plan.md`; an ignored `active/` drops it silently, so
+`git log -- planning/` shows archives appearing fully-formed with no
+history behind them. In-flight PWF also stops surviving a move between
+machines.
+
+The failure is quiet in both directions. `git add planning/` reports
+nothing and exits 0 on an ignored path, and files tracked *before* the
+rule existed keep being tracked — including through a `git mv` into the
+ignored directory. So a repo can look like it is working right up until
+the first genuinely new PWF file, which simply never appears in a
+commit.
+
+Check rather than assume:
+
+``` bash
+git check-ignore -v planning/active/task_plan.md   # expect no output
+```
+
+Found 2026-08-24 in gq, where the rule dated from the scaffold commit
+and the \#17 files had only survived because they predated their move
+into that directory. gq and roli were the only 2 of 32 repos carrying
+it; roli still does.
 
 ## Skills
 
