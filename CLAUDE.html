@@ -149,7 +149,9 @@
 </ul></div>
 <div class="section level2">
 <h2 id="self-review-after-every-render">Self-Review (after every render)<a class="anchor" aria-label="anchor" href="#self-review-after-every-render"></a></h2>
-<p>Read the PNG and check before showing anyone:</p>
+<p>Read the PNG and check before showing anyone.</p>
+<div class="section level3">
+<h3 id="placement">Placement<a class="anchor" aria-label="anchor" href="#placement"></a></h3>
 <ol style="list-style-type: decimal"><li>Correct polygon/study area shown? (verify source data, not just the bbox)</li>
 <li>Map fills the page? (no white/black bands)</li>
 <li>Keymap inside frame with spacing from edge?</li>
@@ -157,7 +159,27 @@
 <li>Legend over least-important terrain?</li>
 <li>Consistent spacing across all elements?</li>
 <li>Scale bar breaks appropriate for extent?</li>
-</ol><p>See the <code>cartography</code> skill for full reference: basemap blending, BC spatial data queries, label hierarchy, mapgl gotchas, and worked examples.</p>
+</ol></div>
+<div class="section level3">
+<h3 id="does-it-communicate">Does it communicate?<a class="anchor" aria-label="anchor" href="#does-it-communicate"></a></h3>
+<p>Every check above is about <strong>where elements sit</strong>. A map can satisfy all seven and still fail to say what it is about — so these are not optional extras, they are the half of the review that the placement list structurally cannot reach.</p>
+<ol start="8" style="list-style-type: decimal"><li>
+<strong>Is every prominent feature in the legend?</strong> Work the other direction from the usual one: rank what draws the eye <em>in the rendered image</em>, then confirm each of the top few appears in the legend. Building the legend from the layer list instead answers “did I list my layers”, which is a different question and always says yes.</li>
+<li>
+<strong>Is the subject obvious to someone who has never seen this area?</strong> An AOI that renders identically to its surroundings is not delineated by a thin boundary line — the reader has to be told where to look. Containment (a fill, a dimmed exterior, a mask) is what does it.</li>
+<li>
+<strong>Does the symbology have a hierarchy, or is it flat?</strong> If one class holds the great majority of the features, it will dominate regardless of how correct its size is. Ask what the map is <em>for</em> and de-emphasise or filter accordingly — and say in the caption or prose that you did.</li>
+<li>
+<strong>Does the basemap earn its contrast cost?</strong> A basemap that adds no readable terrain is not neutral: it lowers the contrast of everything drawn over it. Blend parameters that mute it into a flat field are worse than no basemap.</li>
+<li>
+<strong>Is the type sized for the width it is published at, not rendered at?</strong> A 7 in figure squeezed into a ~700 px column loses roughly 40% — text set at <code>size = 0.5</code> for the render lands at a few pixels on the page. Check the figure at its delivered width.</li>
+</ol></div>
+<div class="section level3">
+<h3 id="why-this-half-exists">Why this half exists<a class="anchor" aria-label="anchor" href="#why-this-half-exists"></a></h3>
+<p>Added 2026-08-26 after gq’s flagship vignette map was reported as passing all seven placement checks and was, on being looked at, unreadable: 89% of its point symbols were one modelled class, the basemap was a featureless grey field, the AOI was indistinguishable from its surroundings, and the single most prominent feature on the map — a bright red 397-feature habitat network — <strong>was not in the legend at all</strong>, while the prose beneath the figure described its styling in detail (gq#61).</p>
+<p>The seven checks had returned green, accurately. They were simply not asking.</p>
+<p>See the <code>cartography</code> skill for full reference: basemap blending, BC spatial data queries, label hierarchy, mapgl gotchas, and worked examples.</p>
+</div>
 </div>
 <div class="section level2">
 <h2 id="land-cover-change">Land Cover Change<a class="anchor" aria-label="anchor" href="#land-cover-change"></a></h2>
@@ -294,7 +316,17 @@
 <code>"echo '${VAR}'"</code> — if VAR contains <code>'</code>, shell syntax breaks</li>
 <li>Use <code>printf '%s\n' "$VAR" | command</code> to pipe values safely</li>
 <li>Heredocs: unquoted <code>&lt;&lt;EOF</code> expands variables locally, <code>&lt;&lt;'EOF'</code> does not — know which you need</li>
-<li>Unquoted heredocs also run <strong>command substitution</strong>: backticks in prose (markdown code spans!) execute and are replaced by their output, usually empty. Writing markdown through an unquoted heredoc silently deletes every <code>`word`</code> in it — no error, and the damage only shows on re-read. Seen 2026-08-06 writing a memory index line: a markdown code span followed by “gone as a concept” landed as “gone as a concept”, subject removed. Any heredoc carrying prose or markdown wants <code>&lt;&lt;'EOF'</code>.</li>
+<li>Unquoted heredocs also run <strong>command substitution</strong>: backticks in prose (markdown code spans!) execute and are replaced by their output, usually empty. Writing markdown through an unquoted heredoc silently deletes every <code>`word`</code> in it — no error, and the damage only shows on re-read. Seen 2026-08-06 writing a memory index line: a markdown code span followed by “gone as a concept” landed as “gone as a concept”, subject removed. Any heredoc carrying prose or markdown wants <code>&lt;&lt;'EOF'</code>.
+<ul><li><p><strong>The rule collapses the moment you also need interpolation.</strong> <code>&lt;&lt;'EOF'</code> is the fix for prose and <code>&lt;&lt;EOF</code> is the fix for variables, and a heredoc that needs both has no safe form — which is exactly when the trap fires, because the quoting choice now looks forced rather than careless. Seen again 2026-08-26 in rfp#186 writing a findings file that had to carry a generated project name: <code>`normal`</code> in a markdown table ran as a command and its empty output replaced the word, leaving <code>| enabled, , **resolves** |</code>. Escaping the backticks individually is not a fix either — you have to get every one, and the misses are silent.</p></li>
+<li>
+<p>Fix: keep the heredoc quoted and substitute afterwards, or write the file from Python where there is no substitution layer at all:</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a><span class="fu">cat</span> <span class="op">&gt;</span> out.md <span class="op">&lt;&lt;'EOF'</span>      <span class="st"># prose safe, placeholder left literal</span></span>
+<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a><span class="st">Project: __NAME__</span></span>
+<span id="cb9-3"><a href="#cb9-3" tabindex="-1"></a><span class="op">EOF</span></span>
+<span id="cb9-4"><a href="#cb9-4" tabindex="-1"></a><span class="fu">sed</span> <span class="at">-i</span> <span class="st">''</span> <span class="st">"s|__NAME__|</span><span class="va">$NAME</span><span class="st">|"</span> out.md</span></code></pre></div>
+</li>
+<li><p>Detection is cheap and worth doing whenever prose went through an unquoted heredoc: <code>grep -n ', ,\|(( ))\|  |' file</code> finds the empty spans a swallowed code span leaves behind.</p></li>
+</ul></li>
 <li>Pass-through-ssh args: <code>printf '%q'</code> escapes per-arg so workload paths with spaces / quotes / metacharacters survive the local-shell → ssh-argv → remote-shell round-trip. Without it, <code>ssh host 'cmd' "$path"</code> joins args with spaces on remote and re-parses, losing argument boundaries.</li>
 <li>
 <code>git commit -m "$(cat &lt;&lt;'EOF' ... EOF)"</code> chokes on apostrophes in prose bodies in some contexts — the bash parser surfaces an unmatched-quote error even though heredoc bodies should be quote-neutral. Resilient default for multi-line commit messages: write the body to <code>/tmp/msg.txt</code> and use <code>git commit -F /tmp/msg.txt</code>.</li>
@@ -314,7 +346,7 @@
 <li><p><strong>It only shows up on a long line</strong>, which is what makes it a latent trap: the probe worked for a year against a 20-field payload and broke the first time it met a 145-field one. Nothing about the change looks related.</p></li>
 <li>
 <p>Fix: send stderr to a <strong>file</strong>, keep stdout clean, and read the file back only when reporting a failure — so diagnostics are not lost:</p>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">err</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempfile</a></span><span class="op">(</span><span class="op">)</span>; <span class="fu"><a href="https://rdrr.io/r/base/on.exit.html" class="external-link">on.exit</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/unlink.html" class="external-link">unlink</a></span><span class="op">(</span><span class="va">err</span><span class="op">)</span>, add <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span><span class="va">out</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/system2.html" class="external-link">system2</a></span><span class="op">(</span><span class="va">cmd</span>, <span class="va">args</span>, stdout <span class="op">=</span> <span class="cn">TRUE</span>, stderr <span class="op">=</span> <span class="va">err</span><span class="op">)</span></span>
 <span><span class="co"># ... on failure: paste(utils::tail(readLines(err, warn = FALSE), 30), collapse = "\n")</span></span></code></pre></div>
@@ -375,6 +407,41 @@
 <code>grep</code> returning empty silently — downstream commands get empty input</li>
 </ul></div>
 <div class="section level3">
+<h3 id="a-preview-flag-is-only-safe-if-it-previews">A preview flag is only safe if it previews<a class="anchor" aria-label="anchor" href="#a-preview-flag-is-only-safe-if-it-previews"></a></h3>
+<ul><li>
+<code>--dry-run</code>, <code>DRY=1</code>, <code>--plan</code> conventionally mean “show me what would happen”. <strong>Nothing enforces that.</strong> A flag that skips the <em>expensive</em> step while still performing the <em>destructive</em> one is worse than no flag, because it is exactly what people reach for when they are unsure.</li>
+<li>Symptom: you run the preview to check something unrelated, and <code>git status</code> afterwards shows deletions you never asked for.</li>
+<li>Caught 2026-08-27 in floodplains#44: <code>run_region.R</code> prints <code>[DRY] plan + configs written; no pipeline runs</code> — it skips the pipeline, not the config write. A <code>DRY=1</code> run to verify an unrelated one-line change deleted a watershed group’s second-species scenario rows, every literature citation in two <code>flood_scenarios.csv</code> files, and a <code>break_points.csv</code>. 50 deletions from a command documented as “plan only”.</li>
+<li>Before trusting one, read what it actually gates. If you own it, make the flag return <strong>before the first write</strong>, not before the first slow call.</li>
+<li>Cheap audit either way: run <code>git status</code> immediately after a dry run.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="git-add--a-after-a-generator-sweeps-its-side-effects-into-your-commit">
+<code>git add -A</code> after a generator sweeps its side effects into your commit<a class="anchor" aria-label="anchor" href="#git-add--a-after-a-generator-sweeps-its-side-effects-into-your-commit"></a></h3>
+<ul><li>Config regenerators, formatters, codegen, lockfile updaters and “plan” commands all rewrite files you did not edit. Staged wholesale, they ride into a commit whose message describes something else, and the diff stat is the only warning.</li>
+<li>Stage the paths you actually changed (<code>git add &lt;path&gt;</code>), or read <code>git diff --cached --stat</code> before committing and reconcile every file against your intent. <strong>A commit touching six files when you edited one is the signal.</strong>
+</li>
+<li>Caught 2026-08-27 in floodplains, same session as the dry-run entry above and compounding with it: the preview created the unexpected changes and <code>git add -A</code> committed them — a “one-line config change” of 6 files, 28 insertions and <strong>50 deletions</strong>. Reset before it left the branch, but only because the file count looked wrong.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="never-silence-stderr-on-a-mutating-command-and-never-chain-one-with-">Never silence stderr on a mutating command, and never chain one with <code>;</code>
+<a class="anchor" aria-label="anchor" href="#never-silence-stderr-on-a-mutating-command-and-never-chain-one-with-"></a></h3>
+<ul><li><p><code>cmd_that_moves_things 2&gt;/dev/null; next_command</code> combines two mistakes that cover for each other. The redirect hides the diagnostic, and <code>;</code> runs the next command regardless — so a mutation that “succeeded” doing the <strong>wrong thing</strong> leaves no trace, and the only symptom is an unrelated error one command later.</p></li>
+<li>
+<p>Caught 2026-08 archiving a planning directory:</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb12-1"><a href="#cb12-1" tabindex="-1"></a><span class="fu">git</span> mv planning/active <span class="va">$(</span><span class="fu">basename</span> planning/active<span class="va">)</span> <span class="dv">2</span><span class="op">&gt;</span>/dev/null<span class="kw">;</span> <span class="fu">mv</span> planning/active <span class="st">"</span><span class="va">$dest</span><span class="st">"</span></span></code></pre></div>
+<p>The <code>git mv</code> succeeded — it moved <code>planning/active</code> to <code>./active</code> at the repo root, which is not what was meant. Nothing said so. The failure surfaced as <code>mv: cannot stat 'planning/active'</code> from the <em>next</em> command, which reads like the directory was never there.</p>
+</li>
+<li>
+<p>Two rules, and the first is the load-bearing one:</p>
+<ul><li>
+<strong><code>2&gt;/dev/null</code> belongs on reads, not writes.</strong> A probe that may legitimately fail (<code>grep -q</code>, <code>test</code>, a <code>gh</code> call you expect to 404) can be quiet. A command that moves, deletes, or writes must be allowed to speak.</li>
+<li>
+<strong>Chain mutations with <code>&amp;&amp;</code>.</strong> <code>;</code> between two steps of one operation says “these are unrelated”, which is exactly what they are not.</li>
+</ul></li>
+<li><p>Same class as the <code>set -e</code> / pipefail entries above, but it survives them: <code>;</code> defeats <code>set -e</code> for the preceding command by design, so a script with <code>set -euo pipefail</code> at the top is not protected.</p></li>
+</ul></div>
+<div class="section level3">
 <h3 id="cmd--file-truncates-before-cmd-runs--a-failed-command-leaves-a-poisoned-empty-file">
 <code>cmd &gt; file</code> truncates before <code>cmd</code> runs — a failed command leaves a poisoned empty file<a class="anchor" aria-label="anchor" href="#cmd--file-truncates-before-cmd-runs--a-failed-command-leaves-a-poisoned-empty-file"></a></h3>
 <ul><li>The shell creates/truncates the redirect target <strong>before</strong> the command executes. If the command then fails (times out, wrong arg, no network), you’re left with a <strong>zero-byte file</strong> — not the absence of a file. <code>set -euo pipefail</code> does not save you: the truncation already happened before the command’s non-zero exit fires.</li>
@@ -398,9 +465,9 @@
 <li><p>Same shape wherever presence is the test rather than value: Python <code>os.environ</code>, bash <code>[ -v VAR ]</code>, R <code>Sys.getenv(x, unset = NA)</code>.</p></li>
 <li>
 <p>Fix — build the command as an array, add the assignment only when there is a value:</p>
-<div class="sourceCode" id="cb12"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb12-1"><a href="#cb12-1" tabindex="-1"></a><span class="va">cmd</span><span class="op">=</span><span class="va">(</span><span class="st">"</span><span class="va">$TOOL</span><span class="st">"</span><span class="va">)</span></span>
-<span id="cb12-2"><a href="#cb12-2" tabindex="-1"></a><span class="cf">if</span> <span class="bu">[</span> <span class="ot">-n</span> <span class="st">"</span><span class="va">${MY_VAR</span><span class="op">:-</span><span class="va">}</span><span class="st">"</span> <span class="bu">]</span><span class="kw">;</span> <span class="cf">then</span> <span class="va">cmd</span><span class="op">=</span><span class="va">(</span>env <span class="st">"REAL_VAR=</span><span class="va">$MY_VAR</span><span class="st">"</span> <span class="st">"</span><span class="va">${cmd</span><span class="op">[@]</span><span class="va">}</span><span class="st">"</span><span class="va">)</span><span class="kw">;</span> <span class="cf">fi</span></span>
-<span id="cb12-3"><a href="#cb12-3" tabindex="-1"></a><span class="st">"</span><span class="va">${cmd</span><span class="op">[@]</span><span class="va">}</span><span class="st">"</span> ...</span></code></pre></div>
+<div class="sourceCode" id="cb14"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb14-1"><a href="#cb14-1" tabindex="-1"></a><span class="va">cmd</span><span class="op">=</span><span class="va">(</span><span class="st">"</span><span class="va">$TOOL</span><span class="st">"</span><span class="va">)</span></span>
+<span id="cb14-2"><a href="#cb14-2" tabindex="-1"></a><span class="cf">if</span> <span class="bu">[</span> <span class="ot">-n</span> <span class="st">"</span><span class="va">${MY_VAR</span><span class="op">:-</span><span class="va">}</span><span class="st">"</span> <span class="bu">]</span><span class="kw">;</span> <span class="cf">then</span> <span class="va">cmd</span><span class="op">=</span><span class="va">(</span>env <span class="st">"REAL_VAR=</span><span class="va">$MY_VAR</span><span class="st">"</span> <span class="st">"</span><span class="va">${cmd</span><span class="op">[@]</span><span class="va">}</span><span class="st">"</span><span class="va">)</span><span class="kw">;</span> <span class="cf">fi</span></span>
+<span id="cb14-3"><a href="#cb14-3" tabindex="-1"></a><span class="st">"</span><span class="va">${cmd</span><span class="op">[@]</span><span class="va">}</span><span class="st">"</span> ...</span></code></pre></div>
 </li>
 <li><p>Do not write <code>[ -n "$X" ] &amp;&amp; arr=(...)</code> as a bare top-level list: under <code>set -e</code> a false test makes the list return non-zero and aborts the script. Use an explicit <code>if</code>.</p></li>
 </ul></div>
@@ -410,8 +477,8 @@
 <li><p>The trap is latent: small records never trip it, so the pattern looks proven until the first large payload arrives. Caught 2026-07-11 in rtj’s <code>stac_register-pypgstac.sh</code> — 20 parallel <code>curl | jq -c</code> jobs appending STAC items to one NDJSON worked for every prior collection (KB-scale items), then 9 MB floodplain items interleaved and produced an orjson decode error ~864 KB into line 1.</p></li>
 <li>
 <p>Fix pattern: each parallel job writes its own temp file (unique name, e.g. md5 of the input), concatenate after the fan-out completes:</p>
-<div class="sourceCode" id="cb13"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb13-1"><a href="#cb13-1" tabindex="-1"></a><span class="fu">cat</span> urls.txt <span class="kw">|</span> <span class="fu">xargs</span> <span class="at">-P</span> 20 <span class="at">-I</span> {} fetch_one.sh {} <span class="st">"</span><span class="va">$OUT_DIR</span><span class="st">"</span>   <span class="co"># each writes $OUT_DIR/&lt;md5&gt;.json</span></span>
-<span id="cb13-2"><a href="#cb13-2" tabindex="-1"></a><span class="fu">cat</span> <span class="st">"</span><span class="va">$OUT_DIR</span><span class="st">"</span>/<span class="pp">*</span>.json <span class="op">&gt;</span> combined.ndjson</span></code></pre></div>
+<div class="sourceCode" id="cb15"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb15-1"><a href="#cb15-1" tabindex="-1"></a><span class="fu">cat</span> urls.txt <span class="kw">|</span> <span class="fu">xargs</span> <span class="at">-P</span> 20 <span class="at">-I</span> {} fetch_one.sh {} <span class="st">"</span><span class="va">$OUT_DIR</span><span class="st">"</span>   <span class="co"># each writes $OUT_DIR/&lt;md5&gt;.json</span></span>
+<span id="cb15-2"><a href="#cb15-2" tabindex="-1"></a><span class="fu">cat</span> <span class="st">"</span><span class="va">$OUT_DIR</span><span class="st">"</span>/<span class="pp">*</span>.json <span class="op">&gt;</span> combined.ndjson</span></code></pre></div>
 </li>
 <li><p>Pair with a count guard — parallel <code>curl</code> failures under xargs are also silent: <code>[ "$(wc -l &lt; combined.ndjson)" -eq "$EXPECTED" ] || exit 1</code> before any downstream load.</p></li>
 </ul></div>
@@ -428,6 +495,23 @@
 </ul></li>
 </ul></div>
 <div class="section level3">
+<h3 id="cmd-dir-dies-on-arg_max-at-scale--and-only-after-the-expensive-work-succeeded">
+<code>cmd dir/*</code> dies on ARG_MAX at scale — and only after the expensive work succeeded<a class="anchor" aria-label="anchor" href="#cmd-dir-dies-on-arg_max-at-scale--and-only-after-the-expensive-work-succeeded"></a></h3>
+<ul><li><p>A glob expands to argv. 98k filenames is roughly 6 MB against a ~2 MB limit, so <code>cat "$DIR"/*.json</code> fails with <code>argument list too long</code> — <strong>after</strong> whatever produced those files already succeeded. Silent-after-success: the costly stage worked and the cheap one threw it away.</p></li>
+<li><p>Caught 2026-07 in rtj#196: it killed a STAC registration following a completed 80-minute download.</p></li>
+<li>
+<p>Safe form — <code>find</code> batches under the limit itself:</p>
+<div class="sourceCode" id="cb16"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb16-1"><a href="#cb16-1" tabindex="-1"></a><span class="fu">find</span> <span class="st">"</span><span class="va">$DIR</span><span class="st">"</span> <span class="at">-maxdepth</span> 1 <span class="at">-name</span> <span class="st">'*.json'</span> <span class="at">-exec</span> cat {} + <span class="op">&gt;</span> combined.ndjson</span></code></pre></div>
+</li>
+<li><p>The trap is latent, and it rides in on the fix for a different one: per-file fan-out (see “Parallel writers sharing one output file interleave mid-record” above) is correct, and it is exactly what produces the file count that later blows argv. Small sets look proven for as long as you test on them.</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="a-curl-in-a-parallel-fan-out-needs---max-time">A <code>curl</code> in a parallel fan-out needs <code>--max-time</code>
+<a class="anchor" aria-label="anchor" href="#a-curl-in-a-parallel-fan-out-needs---max-time"></a></h3>
+<ul><li>Without it, one hung connection pins a worker slot indefinitely. Since a fan-out usually prints nothing until it finishes, a wedged pool and a slow pool look identical from outside — there is no signal to distinguish “still working” from “will never finish”.</li>
+<li>Set <code>--max-time</code> on every per-URL fetch, and pair any silent multi-minute stage with a periodic progress line (a file count is enough). Same reasoning as <code>statement_timeout</code> on long DB work: the point is to fail loud rather than hang quiet.</li>
+</ul></div>
+<div class="section level3">
 <h3 id="bsd-vs-gnu-sedgrep-portability-macos-hits-this-constantly">BSD vs GNU sed/grep portability (macOS hits this constantly)<a class="anchor" aria-label="anchor" href="#bsd-vs-gnu-sedgrep-portability-macos-hits-this-constantly"></a></h3>
 <ul><li>macOS ships BSD <code>sed</code>/<code>grep</code>. Linux CI/cloud-init hosts ship GNU. Snippets that work on one silently misbehave on the other.</li>
 <li>
@@ -439,10 +523,21 @@
 <strong><code>s|pat|repl|</code> delimiter conflicts with <code>|</code> in alternation/replacement on BSD.</strong> Pick a delimiter that does not appear in pattern or replacement (<code>#</code>, <code>,</code>, <code>:</code> are common choices). Compound <code>s|x|y|; s|^| /||</code> chains where the trailing <code>||</code> looks like an empty delimiter break on BSD sed even when GNU accepts them.</li>
 <li>
 <strong>Don’t parse <code>ls</code>.</strong> BSD <code>ls</code> emits ANSI colour codes when stdout is a TTY <em>or</em> when <code>CLICOLOR_FORCE</code> is set in env (often by shell rc files), and the codes leak through pipes. Downstream <code>grep</code>/<code>sed</code> chokes on the embedded escapes (<code>[01;31m...[0m</code>).
-<ul><li>Use <code>find &lt;dir&gt; -maxdepth 1 -mindepth 1 -type d -exec basename {} \;</code> for directory listings, or <code>printf '%s\n' &lt;dir&gt;/*/</code> for a glob, or <code>for d in &lt;dir&gt;/*/; do basename "$d"; done</code>.</li>
+<ul><li>
+<strong>A third cause, and the one that bites agents: an alias in the invoking shell.</strong> Measured 2026-08-28 — in an agent Bash call <code>ls</code> was aliased to <code>command ls --color</code>, so <code>ls -A dir | grep -v '^\.gitkeep$'</code> returned <code>^[[0m^[[00m.gitkeep^[[0m</code>, the grep failed to filter it, and a directory-empty guard false-failed on a correct tree. The identical command was fine inside a script file, where no alias applies and <code>ls</code> resolved to GNU coreutils — so testing it from a script <em>proves nothing about how it will run inline</em>. <code>CLICOLOR_FORCE</code> was not involved in that instance; check <code>type ls</code> before trusting either.</li>
+<li>Use <code>find &lt;dir&gt; -maxdepth 1 -mindepth 1 -type d -exec basename {} \;</code> for directory listings, or <code>printf '%s\n' &lt;dir&gt;/*/</code> for a glob, or <code>for d in &lt;dir&gt;/*/; do basename "$d"; done</code>.</li>
 </ul></li>
 <li>
 <strong>When writing a snippet you expect to ship in a <code>skills/</code> SKILL.md or any cloud-init runcmd</strong>: it must be POSIX-portable. Default to <code>sed -E</code>, avoid <code>\+</code>/<code>\|</code>, and don’t pipe <code>ls</code>.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="id_-binds-to-the-whole--list-so-assignments-never-reach-the-parent">
+<code>&amp;</code> binds to the whole <code>&amp;&amp;</code> list, so assignments never reach the parent<a class="anchor" aria-label="anchor" href="#id_-binds-to-the-whole--list-so-assignments-never-reach-the-parent"></a></h3>
+<ul><li>
+<code>cmd1 &amp;&amp; VAR=$(...) &amp;&amp; nohup prog &gt; "$VAR.log" &amp; disown</code> backgrounds the <strong>entire list</strong>, not just <code>nohup</code>. <code>VAR</code> is assigned inside the background subshell, so it is empty in the parent — and a following <code>tail -f "$VAR.log"</code> reads the wrong path or errors while the job runs fine, writing somewhere you are not looking.</li>
+<li>The symptom lies about which side failed: the <code>tail</code> says <code>No such file or directory</code>, which reads as “the job never started”. It started.</li>
+<li>Fix: assign <strong>before</strong> the list — <code>VAR=$(...); cmd1 &amp;&amp; nohup ... &amp;</code> — or <code>printf</code> the resolved path from inside the backgrounded shell so the parent can read it from output.</li>
+<li>Hit twice in one floodplains session (2026-08-27) launching detached runs.</li>
 </ul></div>
 <div class="section level3">
 <h3 id="gh-cli">
@@ -450,7 +545,7 @@
 <ul><li>
 <strong><code>gh pr create</code> resolves branch from CWD, not <code>--repo</code></strong>. Specifying <code>--repo NewGraphEnvironment/X</code> does NOT switch branch resolution — the command still reads the current working directory’s checked-out branch. To open a PR in repo X, <code>cd</code> into X’s checkout first, or pass <code>--head &lt;branch&gt;</code> explicitly.</li>
 <li>
-<strong><code>gh issue create</code> with heredoc bodies fails on prose containing special shell characters</strong> (apostrophes, dollar signs, backticks). Use <code>--body-file /tmp/issue.md</code> instead — every project’s <code>newgraph.md</code> convention specifies this; codified here for the underlying class.</li>
+<strong><code>gh issue create</code> / <code>gh pr create</code> with heredoc bodies fail on prose containing special shell characters</strong> (apostrophes, dollar signs, backticks). Use <code>--body-file /tmp/issue.md</code> instead — every project’s <code>newgraph.md</code> convention specifies this; codified here for the underlying class. The two are written interchangeably, so the trap applies to both: <code>gh pr create --body "$(cat &lt;&lt;'EOF' … EOF)"</code> breaks the parser on a prose apostrophe and bash reports <code>unexpected EOF while looking for matching '"'</code>, aborting the whole command before anything runs.</li>
 <li>
 <strong>Before <code>gh pr merge</code>, verify the branch is fully pushed.</strong> <code>gh pr merge</code> merges the REMOTE branch — commits made locally but never pushed are silently excluded, so the PR merges “successfully” while <code>main</code> is missing work you know you committed. Check <code>git status -sb</code> shows no <code>ahead N</code> before merging (or that <code>git rev-list --count @{u}..HEAD</code> is 0). Worse: if you then delete the local branch (<code>--delete-branch</code>, or a follow-up <code>git branch -D</code>), the unpushed commits become <strong>dangling</strong> — recoverable via <code>git reflog</code> / <code>git fsck --lost-found</code> then <code>git cherry-pick</code>, but only if you notice they’re missing. Caught twice 2026-07 in <code>floodplains</code>: PR #6 merged 1 of 3 branch commits (the drift#34 <code>changes_only</code> fix + a CLAUDE.md update were unpushed → stranded as danglers → recovered and re-merged via a follow-up PR); a second branch sat 4-ahead-unpushed at compact time. The same check belongs in the <code>gh-pr-merge</code> skill’s pre-merge step.</li>
 </ul></div>
@@ -459,60 +554,6 @@
 <ul><li>Secrets passed as command-line args are visible in <code>ps aux</code>
 </li>
 <li>Use env files, stdin pipes, or temp files with <code>chmod 600</code> instead</li>
-</ul></div>
-</div>
-<div class="section level2">
-<h2 id="cloud-init-yaml">Cloud-Init (YAML)<a class="anchor" aria-label="anchor" href="#cloud-init-yaml"></a></h2>
-<div class="section level3">
-<h3 id="ascii">ASCII<a class="anchor" aria-label="anchor" href="#ascii"></a></h3>
-<ul><li>Must be pure ASCII — em dashes, curly quotes, arrows cause silent parse failure</li>
-<li>Check with: <code>perl -ne 'print "$.: $_" if /[^\x00-\x7F]/' file.yaml</code>
-</li>
-</ul></div>
-<div class="section level3">
-<h3 id="yaml-flow-mapping-in-runcmd">YAML flow-mapping in runcmd<a class="anchor" aria-label="anchor" href="#yaml-flow-mapping-in-runcmd"></a></h3>
-<ul><li><p>Any runcmd item containing both <code>{</code> and <code>:</code> is at risk of being parsed as a YAML flow-mapping (dict), not a literal string. Cloud-init’s shellify hits a non-string and throws TypeError, <strong>aborting all subsequent runcmd steps silently</strong> while <code>final_message</code> still fires.</p></li>
-<li><p>Don’t write: <code>- test -s /file || { echo "FATAL: ..." }</code> — the <code>:</code> inside braces makes YAML see a dict.</p></li>
-<li>
-<p>Do write: use <code>- |</code> block scalar with explicit <code>if/then/fi</code>:</p>
-<div class="sourceCode" id="cb14"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb14-1"><a href="#cb14-1" tabindex="-1"></a><span class="kw">- </span><span class="ch">|</span></span>
-<span id="cb14-2"><a href="#cb14-2" tabindex="-1"></a>  if [ ! -s /file ]; then</span>
-<span id="cb14-3"><a href="#cb14-3" tabindex="-1"></a>    echo "FATAL: ..." &gt;&amp;2</span>
-<span id="cb14-4"><a href="#cb14-4" tabindex="-1"></a>    exit 1</span>
-<span id="cb14-5"><a href="#cb14-5" tabindex="-1"></a>  fi</span></code></pre></div>
-</li>
-<li><p>Validate post-edit: <code>python3 -c "import yaml; runcmd=yaml.safe_load(open('cloud-init.yaml').read().split(chr(10),1)[1])['runcmd']; print([type(x).__name__ for x in runcmd if not isinstance(x,str)] or 'all strings')"</code>. If the output is anything other than <code>all strings</code>, the runcmd will fail.</p></li>
-</ul></div>
-<div class="section level3">
-<h3 id="state">State<a class="anchor" aria-label="anchor" href="#state"></a></h3>
-<ul><li>
-<code>cloud-init clean</code> causes full re-provisioning on next boot — almost never what you want before snapshot</li>
-<li>Use <code>tailscale logout</code> not <code>tailscale down</code> before snapshot (deregister vs disconnect)</li>
-<li>Wipe <code>/var/lib/tailscale/*</code> before snapshot too — <code>tailscale logout</code> deauthorizes server-side but local node identity blob persists in tailscaled.state. Snapshot restored elsewhere inherits prior key material until <code>tailscale up</code> runs again.</li>
-<li>Wipe <code>/etc/ssh/ssh_host_*</code> before snapshot — otherwise droplets spawned from the same image share host identity.</li>
-</ul></div>
-<div class="section level3">
-<h3 id="template-variables">Template Variables<a class="anchor" aria-label="anchor" href="#template-variables"></a></h3>
-<ul><li>Secrets rendered via <code>templatefile()</code> are readable at <code>169.254.169.254</code> metadata endpoint</li>
-<li>Acceptable for ephemeral machines, document the tradeoff</li>
-<li>Heredocs in runcmd that write secrets: <code>&lt;&lt;'EOF'</code> (quoted) prevents bash from re-expanding <code>$X</code> sequences in already-substituted credential strings. AWS keys rarely contain <code>$</code> but base64-padded secrets might.</li>
-</ul></div>
-<div class="section level3">
-<h3 id="repo--key-install-ordering">Repo + key install ordering<a class="anchor" aria-label="anchor" href="#repo--key-install-ordering"></a></h3>
-<ul><li>
-<code>apt-key adv --keyserver</code> is deprecated on Ubuntu 24.04 noble — silently fails AND APT ignores resulting keyring. Use <code>gpg --dearmor</code> + <code>signed-by=</code> keyring file pattern.</li>
-<li>Repo .list files in <code>write_files:</code> trigger the implicit <code>package_update</code> BEFORE runcmd installs the keyring → first apt-get update fails with NO_PUBKEY. Put the repo line in runcmd alongside the key install, not in write_files.</li>
-</ul></div>
-<div class="section level3">
-<h3 id="cloud-init-users-vs-do-ssh-key-injection">Cloud-init users vs DO SSH key injection<a class="anchor" aria-label="anchor" href="#cloud-init-users-vs-do-ssh-key-injection"></a></h3>
-<ul><li><p>DO injects <code>ssh_key_ids</code> only into <code>/root/.ssh/authorized_keys</code> (cloud-init’s <code>cc_ssh</code> module). Cloud-init <code>users:</code> block with <code>ssh_authorized_keys: []</code> does NOT pick those up.</p></li>
-<li>
-<p>Non-root users that need SSH access must copy from root’s keys in runcmd:</p>
-<div class="sourceCode" id="cb15"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb15-1"><a href="#cb15-1" tabindex="-1"></a><span class="kw">-</span><span class="at"> mkdir -p /home/&lt;user&gt;/.ssh</span></span>
-<span id="cb15-2"><a href="#cb15-2" tabindex="-1"></a><span class="kw">-</span><span class="at"> cp /root/.ssh/authorized_keys /home/&lt;user&gt;/.ssh/authorized_keys</span></span>
-<span id="cb15-3"><a href="#cb15-3" tabindex="-1"></a><span class="kw">-</span><span class="at"> chown -R &lt;user&gt;:&lt;user&gt; /home/&lt;user&gt;/.ssh</span></span></code></pre></div>
-</li>
-<li><p>Guard with <code>test -s /root/.ssh/authorized_keys</code> to fail loudly if <code>cc_ssh</code> hasn’t run before runcmd (rare race).</p></li>
 </ul></div>
 </div>
 <div class="section level2">
@@ -530,162 +571,6 @@
 <li>
 <strong>Prove absence before acting on it.</strong> Re-run the same query against a wider bbox known to contain features; if that returns rows, the empty result is real data. Caught 2026-08-22 establishing that BC’s FTEN trail layers are genuinely empty over an entire island — the wider-box control returned 851 features, which is what turned “the query is broken” into “the province has no trails here.”</li>
 <li>Wrap counts defensively: <code>try: json.load(...)</code> around the parse, and treat the failure as <code>0 features</code> only after the wider-box control passes.</li>
-</ul></div>
-</div>
-<div class="section level2">
-<h2 id="opentofu--terraform">OpenTofu / Terraform<a class="anchor" aria-label="anchor" href="#opentofu--terraform"></a></h2>
-<div class="section level3">
-<h3 id="state-1">State<a class="anchor" aria-label="anchor" href="#state-1"></a></h3>
-<ul><li>Parsing <code>tofu state show</code> text output is fragile — use <code>tofu output</code> instead</li>
-<li>Missing outputs that scripts need — add them to main.tf</li>
-<li>Snapshot/image IDs in tfvars after deleting the snapshot — stale reference</li>
-</ul></div>
-<div class="section level3">
-<h3 id="duplicate-module-blocks-across-envs-double-track-global-resources">Duplicate module blocks across envs double-track global resources<a class="anchor" aria-label="anchor" href="#duplicate-module-blocks-across-envs-double-track-global-resources"></a></h3>
-<ul><li>A module instantiated in two env dirs (e.g. <code>module "iam"</code> in both <code>env/prod</code> and <code>env/dev</code>) means account-global resources (IAM users, roles) can be tracked in BOTH local states. Removing the module block from one env turns its state copies into pending DESTROYS — which would delete the real resource out from under the other env.</li>
-<li>Caught 2026-07-18 (rtj#185): <code>env/dev</code> state secretly held <code>role_terraform_awshak</code> — the role every <code>role-assume.sh</code> apply depends on — and a config cleanup turned it into a planned destroy.</li>
-<li>Fix: <code>tofu state rm '&lt;addresses&gt;'</code> in the env relinquishing ownership (no cloud change; auto-backs-up state), leaving exactly one owning env. Verify the resource survives (<code>aws iam get-role ...</code>).</li>
-<li>Review check: any plan that destroys resources in a shared/global-resource module → first confirm which OTHER env states track the same addresses (<code>grep &lt;name&gt; env/*/terraform.tfstate</code> or check the remote backend keys).</li>
-</ul></div>
-<div class="section level3">
-<h3 id="destructive-operations">Destructive Operations<a class="anchor" aria-label="anchor" href="#destructive-operations"></a></h3>
-<ul><li>Validate resource IDs before destroy: <code>[ -n "$ID" ] || exit 1</code>
-</li>
-<li>
-<code>tofu destroy</code> without <code>-target</code> destroys everything including reserved IPs</li>
-<li>Snapshot ID extraction by name: use <code>awk -v n="$NAME" '$2 == n {print $1}'</code> (exact match on column 2). <code>grep -F "$NAME"</code> is substring-match and can grab a stale snapshot whose name contains the new name as a substring.</li>
-</ul></div>
-<div class="section level3">
-<h3 id="has-been-deleted-in-plan-output-is-not-authoritative--verify-against-the-cloud-api-first">“Has been deleted” in plan output is not authoritative — verify against the cloud API first<a class="anchor" aria-label="anchor" href="#has-been-deleted-in-plan-output-is-not-authoritative--verify-against-the-cloud-api-first"></a></h3>
-<ul><li>The AWS provider (5.x and some 6.x) has a known class of bug where a transient read error (false 404, regional-endpoint hiccup) is interpreted as “resource deleted outside of OpenTofu.” The plan will show the resource and any children scheduled for destroy + recreate (<code>forces replacement</code> cascades through children that interpolate the parent’s id/arn).</li>
-<li>If you didn’t delete the resource and the plan says it’s gone, <strong>verify against the cloud API before applying</strong>: <code>aws s3 head-bucket --bucket X</code>, <code>aws iam get-role --role-name X</code>, etc. A <code>tofu plan -refresh=true</code> re-run a moment later often reports “No changes.”</li>
-<li>Caught 2026-05-14 in rtj env/prod for stac-era5-land: bucket fully intact (60 objects, 307 MB) but plan said deleted with 5 child resources “must be replaced.” Apply would have clobbered the policy + lifecycle configs against the still-existing bucket. Recovery via <code>-target</code> on the unrelated resource being added (rtj#157 then codifies <code>lifecycle { prevent_destroy = true }</code> on the bucket + load-bearing children).</li>
-<li>
-<strong>Belt-and-suspenders defense:</strong> add <code>lifecycle { prevent_destroy = true }</code> to high-value resources (S3 buckets, RDS instances, anything irreplaceable) in their module. Tofu will refuse to plan a destroy until the lifecycle line itself is removed in config — converts the failure mode from “apply silently clobbers” into “plan errors with <code>Instance cannot be destroyed</code>.” Don’t apply it to count-based resources where <code>count: 1 → 0</code> is a legitimate transition.</li>
-</ul></div>
-<div class="section level3">
-<h3 id="check-iac-ownership-before-cli-mutating-cloud-config">Check IaC ownership before CLI-mutating cloud config<a class="anchor" aria-label="anchor" href="#check-iac-ownership-before-cli-mutating-cloud-config"></a></h3>
-<ul><li>Before changing bucket policies, lifecycle rules, IAM policies, etc. with the aws CLI, grep the Terraform modules for the resource. If tofu owns it, a CLI change is not “drift” — it is <strong>reverted on the next apply</strong> (silent rule deletion). <code>put-bucket-lifecycle-configuration</code> additionally REPLACES the whole config, so a CLI “add one rule” can also clobber tofu-owned rules immediately.</li>
-<li>Caught 2026-07-18 (water-temp-bc#23): a NoncurrentVersionExpiration rule was one <code>aws s3api put</code> away from being applied — rtj <code>modules/s3</code> owns <code>aws_s3_bucket_lifecycle_configuration</code>, so it would have first clobbered the IA-transition rule, then been reverted. Correct path was a module variable + <code>tofu apply</code> (rtj#187).</li>
-<li>Corollary: when a pipeline’s write pattern evolves (append-only → rewrite-in-place), <strong>re-audit the IAM verbs its role actually needs</strong>. water-temp-bc’s GHA role lacked <code>s3:DeleteObject</code>; the first compaction run half-applied a <code>sync --delete</code> and left the store with duplicate keys until manually repaired (rtj#147 reopened). Check for an existing module toggle first — <code>allow_delete</code> already existed.</li>
-</ul></div>
-</div>
-<div class="section level2">
-<h2 id="digitalocean">DigitalOcean<a class="anchor" aria-label="anchor" href="#digitalocean"></a></h2>
-<div class="section level3">
-<h3 id="snapshot-disk-size-constraint">Snapshot disk-size constraint<a class="anchor" aria-label="anchor" href="#snapshot-disk-size-constraint"></a></h3>
-<ul><li>DO snapshots include the source droplet’s disk size. New droplets from a snapshot must have disk <strong>&gt;=</strong> snapshot disk. Resize <strong>up</strong> is fine; resize <strong>down</strong> below the snapshot disk is impossible without rebuilding.</li>
-<li>Build the snapshot at the smallest droplet size you’d ever want to spin from it. Sizes vs disks at writing: <code>g-4vcpu-16gb</code> = 50 GB, <code>g-8vcpu-32gb</code> / <code>m-4vcpu-32gb</code> = 100 GB, <code>m-8vcpu-64gb</code> = 200 GB.</li>
-<li>If your workload requires X GB RAM minimum, your snapshot floor is whatever droplet has X GB AND the smallest disk class.</li>
-</ul></div>
-<div class="section level3">
-<h3 id="reserved-ip-detach-behavior">Reserved IP detach behavior<a class="anchor" aria-label="anchor" href="#reserved-ip-detach-behavior"></a></h3>
-<ul><li>Targeted destroy (<code>tofu destroy -target=module.droplet -target=...assignment...</code>) preserves the reserved IP at $4/mo. Full <code>tofu destroy</code> releases it (next apply gets a NEW IP).</li>
-</ul></div>
-<div class="section level3">
-<h3 id="reserved-ip-assignment-race-rtj55-rtj85">Reserved IP assignment race (rtj#55, rtj#85)<a class="anchor" aria-label="anchor" href="#reserved-ip-assignment-race-rtj55-rtj85"></a></h3>
-<ul><li>DO returns 422 “Droplet already has a pending event” when reserved IP assignment fires immediately after droplet+firewall creation. The droplet’s internal event queue takes time to drain.</li>
-<li>
-<strong>Every DO droplet module that uses a reserved IP MUST have:</strong>
-<ol style="list-style-type: decimal"><li>
-<code>time_sleep</code> resource between droplet creation and IP assignment, with <code>create_duration ≥ 60s</code> (10s and 30s have both been observed to race; 60s has more headroom)</li>
-<li>
-<code>depends_on = [time_sleep.&lt;name&gt;]</code> on the <code>digitalocean_reserved_ip_assignment</code> resource</li>
-<li>A retry fallback in the wrapping shell script (<code>up.sh</code> style) that detects the 422 in tofu output and uses <code>doctl compute reserved-ip-action assign &lt;ip&gt; &lt;droplet-id&gt;</code> to recover. Tofu doesn’t retry; it leaves state half-applied (assignment recorded but DO didn’t actually attach).</li>
-</ol></li>
-<li>
-<strong>Snapshot-based spins are MORE prone to the race</strong> than first-boot from blank Ubuntu (more startup events compete for the droplet’s event queue).</li>
-<li>
-<strong>Audit existing modules:</strong> <code>grep -L 'time_sleep' env/do/*/&lt;host&gt;/main.tf</code> finds modules missing the gate. As of 2026-05-02, openclaw and geoserv have no <code>time_sleep</code> — they will race eventually.</li>
-<li>
-<strong><code>depends_on</code> alone does not re-create the gate on a replace.</strong> A <code>time_sleep</code> with <code>depends_on</code> but no <code>triggers</code> stays untouched in state when the droplet is replaced (<code>tofu apply -replace=...</code>), so the settle delay silently doesn’t run and the reassignment races anyway. Verified empirically on OpenTofu 1.12.0. A <em>targeted destroy</em> does sweep dependents, so <code>tofu destroy -target=module.droplet</code> + <code>apply</code> is safe while <code>-replace</code> is not. Add <code>triggers = { droplet_id = module.droplet.id }</code> to close it, and prefer targeted destroy in any documented rebuild recipe.</li>
-</ul></div>
-<div class="section level3">
-<h3 id="ssh-keys-apply-at-droplet-creation-only--guard-the-forcenew-edit">SSH keys apply at droplet creation only — guard the ForceNew edit<a class="anchor" aria-label="anchor" href="#ssh-keys-apply-at-droplet-creation-only--guard-the-forcenew-edit"></a></h3>
-<ul><li>DO injects <code>ssh_key_ids</code> into <code>/root/.ssh/authorized_keys</code> <strong>once, at first boot</strong> (cloud-init’s <code>cc_ssh</code>) and never revisits the list. A key registered after a droplet was built therefore never reaches it, no matter what tfvars says. Symptom: a machine that reaches freshly-built hosts fine is denied by an older one.</li>
-<li>
-<code>ssh_keys</code> is <strong><code>ForceNew: true</code></strong> in the DO provider (a <code>TypeSet</code>, so reordering is safe). “Just add the key to tfvars” therefore plans a <strong>destroy/recreate of the running host</strong> — and doesn’t even grant the new machine access to the host it destroyed. On a production database or tile server that is a catastrophe dressed as a one-line fix.</li>
-<li>
-<strong>Guard the shared droplet module</strong> with <code>lifecycle { ignore_changes = [ssh_keys] }</code>. It is safe precisely because DO cannot apply the change anyway: the only possible effect of that diff is an unwanted replace. <code>ignore_changes</code> governs updates only — creates and replaces recompute from config, so a deliberate rebuild still picks up the current list.</li>
-<li>Document the tradeoff where operators hit it: after the guard, editing <code>ssh_key_ids</code> produces <strong>no plan diff at all</strong>, and a typo’d key ID surfaces at create rather than at plan.</li>
-<li>To authorize a machine on a running droplet, append its pubkey — with <code>printf '\n%s\n'</code>, never <code>printf '%s\n'</code>. If the remote <code>authorized_keys</code> lacks a trailing newline (common once anyone has appended by hand), a bare append concatenates onto the last line and invalidates <strong>both</strong> keys — locking you out via the procedure meant to prevent lockout. <code>ssh-copy-id</code> handles this correctly.</li>
-<li>Check <em>which</em> file. DO’s injection targets root only. A non-root SSH user has keys only if that env’s cloud-init explicitly copied them at first boot — and that copy is one-time, so appending to root’s file later grants the non-root user nothing.</li>
-<li>Caught in rtj#193: one machine had no path to a production STAC host for months because its key was registered after the droplet was built, and the obvious remediation would have destroyed the host.</li>
-</ul></div>
-</div>
-<div class="section level2">
-<h2 id="docker--postgres">Docker / Postgres<a class="anchor" aria-label="anchor" href="#docker--postgres"></a></h2>
-<div class="section level3">
-<h3 id="postgis-init-time">Postgis init time<a class="anchor" aria-label="anchor" href="#postgis-init-time"></a></h3>
-<ul><li>
-<code>imresamu/postgis</code> (and similar postgis images) on first cold start (empty data volume) take <strong>5-12 min</strong> to install all extensions — varies with disk IO and noisy-neighbor lottery on cloud hosts. Health-wait scripts must allow 15 min minimum, ideally with hard-fail + log dump on timeout.</li>
-</ul></div>
-<div class="section level3">
-<h3 id="tuning-vs-host-ram">Tuning vs host RAM<a class="anchor" aria-label="anchor" href="#tuning-vs-host-ram"></a></h3>
-<ul><li>fresh’s <code>docker/docker-compose.yml</code> defaults are tuned for a 128 GB host (<code>shared_buffers=32GB</code>, <code>shm_size=36gb</code>). On smaller hosts, postgres OOMs at startup with “could not map anonymous shared memory”.</li>
-<li>32 GB host floor: use the M1/cypher 32 GB-host preset (<code>scripts/fwapg/compose.override.m1.yml</code>) which sets <code>shared_buffers=8GB, shm_size=12gb</code>.</li>
-<li>Below 32 GB: postgres can technically start with smaller <code>shared_buffers</code> but fwapg work becomes painful. Don’t run fwapg pipelines on &lt;32 GB hosts.</li>
-</ul></div>
-<div class="section level3">
-<h3 id="search_path-is-data-not-config">
-<code>search_path</code> is data, not config<a class="anchor" aria-label="anchor" href="#search_path-is-data-not-config"></a></h3>
-<ul><li>
-<code>ALTER DATABASE &lt;db&gt; SET search_path TO ...</code> is a database-level setting <strong>stored in the postgres data dir</strong>. Wiped with <code>docker compose down -v</code>. Must be re-applied on every restore.</li>
-<li>Codify in your restore script, not in cloud-init or compose env (those don’t apply to db-level settings).</li>
-</ul></div>
-<div class="section level3">
-<h3 id="pkill-rpythonetc-client-does-not-cancel-its-postgres-query">
-<code>pkill &lt;R/Python/etc. client&gt;</code> does NOT cancel its Postgres query<a class="anchor" aria-label="anchor" href="#pkill-rpythonetc-client-does-not-cancel-its-postgres-query"></a></h3>
-<ul><li><p>Killing the client (R, Python, psql) closes its connection. The libpq backend on the server keeps running the in-flight query until it finishes — <strong>server-side orphan</strong>. The orphaned backend holds whatever locks it had (table, view, advisory). Every later <code>DROP VIEW</code> / <code>LOCK TABLE</code> / <code>ALTER</code> on the same object blocks behind it indefinitely — <em>silent hangs</em> indistinguishable from a slow query.</p></li>
-<li><p>Caught 2026-05-25 in link#205: a <code>pkill</code>’d <code>wsg_run_one.R</code> left a <code>frs_network_features</code> SELECT running 1h45m; subsequent recomputes wedged on <code>DROP VIEW barriers_bt_access</code> for 1h08m before someone noticed.</p></li>
-<li>
-<p><strong>Always terminate the server-side backend</strong>, not just the client:</p>
-<div class="sourceCode" id="cb16"><pre class="sourceCode sql"><code class="sourceCode sql"><span id="cb16-1"><a href="#cb16-1" tabindex="-1"></a><span class="kw">SELECT</span> pid, pg_terminate_backend(pid)</span>
-<span id="cb16-2"><a href="#cb16-2" tabindex="-1"></a><span class="kw">FROM</span> pg_stat_activity</span>
-<span id="cb16-3"><a href="#cb16-3" tabindex="-1"></a><span class="kw">WHERE</span> datname<span class="op">=</span><span class="st">'&lt;db&gt;'</span> <span class="kw">AND</span> state<span class="op">=</span><span class="st">'active'</span> <span class="kw">AND</span> now()<span class="op">-</span>query_start <span class="op">&gt;</span> <span class="dt">interval</span> <span class="st">'3 minutes'</span></span>
-<span id="cb16-4"><a href="#cb16-4" tabindex="-1"></a>  <span class="kw">AND</span> pid <span class="op">&lt;&gt;</span> pg_backend_pid();</span></code></pre></div>
-<p>Then kill the client. Order matters when you don’t know which side will block.</p>
-</li>
-</ul></div>
-<div class="section level3">
-<h3 id="set-statement_timeout--lock_timeout-on-long-db-ops">Set <code>statement_timeout</code> + <code>lock_timeout</code> on long DB ops<a class="anchor" aria-label="anchor" href="#set-statement_timeout--lock_timeout-on-long-db-ops"></a></h3>
-<ul><li>Any long-running DB op from an R/Python/etc. client should set both at session start, ideally via env (<code>PGOPTIONS='-c statement_timeout=600000 -c lock_timeout=60000'</code>) or on the connection itself (<code>DBI::dbExecute(conn, "SET statement_timeout = '600000'")</code>). A runaway query then cancels server-side (no orphan); a blocked <code>DROP VIEW</code> gives up rather than wedging behind a zombie lock. Without it, silent hangs become indistinguishable from “still working” and you wait hours.</li>
-<li>Pick a generous-but-bounded timeout (10× expected query time). The point isn’t tight enforcement — it’s “fail loud instead of fail silent.”</li>
-</ul></div>
-<div class="section level3">
-<h3 id="function-as-join-predicate-index-visibility-depends-on-inlineability">Function-as-join-predicate: index visibility depends on inlineability<a class="anchor" aria-label="anchor" href="#function-as-join-predicate-index-visibility-depends-on-inlineability"></a></h3>
-<ul><li>
-<code>JOIN b ON some_function(a.cols, b.cols)</code> — Postgres can only use the underlying indexes if <code>some_function</code> is <code>LANGUAGE sql</code> (inlineable). <code>plpgsql</code> functions are opaque and force per-row evaluation → seq scan / nested loop without indexes. Verify with <code>\df+ &lt;function&gt;</code> (look at <code>Language</code>) and <code>EXPLAIN</code> (look for the function body expanded into Filter / Index Cond).</li>
-<li>Caught in link#205 with <code>whse_basemapping.fwa_downstream</code> — it IS <code>LANGUAGE sql</code> + the planner did inline it; the symptom was elsewhere (see below). But if a function-based join is slow and the function is plpgsql, that’s the first thing to look at.</li>
-</ul></div>
-<div class="section level3">
-<h3 id="joining-on-a-per-tenant-key-eg-id_segment-per-wsg-against-a-multi-tenant-table-is-cartesian">Joining on a per-tenant key (e.g. <code>id_segment</code> per-WSG) against a multi-tenant table is cartesian<a class="anchor" aria-label="anchor" href="#joining-on-a-per-tenant-key-eg-id_segment-per-wsg-against-a-multi-tenant-table-is-cartesian"></a></h3>
-<ul><li>
-<code>id_segment</code> in link’s persist schema is unique <em>within</em> a WSG, not globally (link#203). <code>WHERE id_segment IN (SELECT id_segment FROM streams WHERE wsg=aoi)</code> against persist matches access rows from <em>every</em> WSG sharing those id_segment values → N(WSGs)× duplicates → PK violations downstream and 50× memory.</li>
-<li>Fix: filter by the full tenant key (<code>watershed_group_code = aoi</code>) when the table has it. Pattern: introspect via <code>information_schema.columns</code> at runtime and branch — the same function can serve a working schema (single tenant, no WSG col) and persist (multi-tenant, with WSG col).</li>
-</ul></div>
-<div class="section level3">
-<h3 id="view-vs-real-table-changes-the-planners-join-direction">View vs. real table changes the planner’s join direction<a class="anchor" aria-label="anchor" href="#view-vs-real-table-changes-the-planners-join-direction"></a></h3>
-<ul><li>A <code>CREATE VIEW v AS SELECT * FROM big_table WHERE …</code> carries no row-count statistics. Used as a join input, the planner may pick the other side (big) as the outer driver, blowing nested-loop cost ~1000× — the symptom looks like “the indexes aren’t being used” but it’s actually a wrong-direction nested loop.</li>
-<li>Caught in link#205: AOI-scoping streams via a <code>VIEW</code> left Postgres thinking the 26k FINA segments were as big as the 800k persist barriers; it picked barriers as outer; 71M estimated result rows; &gt;10 min wall.</li>
-<li>Fix when AOI-scoping into a smaller dataset: <strong>materialise as a real <code>CREATE TABLE</code> with indexes + <code>ANALYZE</code></strong>. The planner then sees the small row count and picks it as outer. Drop the table on <code>on.exit</code> if it’s transient.</li>
-</ul></div>
-<div class="section level3">
-<h3 id="two-statement-deleteinsert-into-a-persist-table-is-not-atomic">Two-statement DELETE/INSERT into a persist table is not atomic<a class="anchor" aria-label="anchor" href="#two-statement-deleteinsert-into-a-persist-table-is-not-atomic"></a></h3>
-<ul><li>A “DELETE WHERE wsg=‘X’; INSERT …” pair into a persist table from an orchestration script: if the INSERT fails (e.g. duplicate key from a subtle JOIN bug), the DELETE already ran → <strong>data loss for that WSG</strong>. Wrap in a single transaction (<code>BEGIN; … ; COMMIT</code>) when the persist table is the only source of truth, so a failed INSERT rolls back the DELETE. (link#205 lost FINA’s <code>streams_mapping_code</code> to this; the surrounding cheap-recompute orchestration in <code>wsg_recompute_one.R</code> should wrap both statements in a tx.)</li>
-</ul></div>
-</div>
-<div class="section level2">
-<h2 id="tailscale">Tailscale<a class="anchor" aria-label="anchor" href="#tailscale"></a></h2>
-<div class="section level3">
-<h3 id="acl-users-semantics">ACL “users” semantics<a class="anchor" aria-label="anchor" href="#acl-users-semantics"></a></h3>
-<ul><li>Tailscale SSH ACL <code>"users": ["autogroup:nonroot"]</code> for <code>tag:compute</code> blocks <code>ssh root@&lt;node&gt;</code> over the tailnet. Use <code>ssh &lt;user&gt;@&lt;node&gt;</code> + sudo for root operations.</li>
-<li>For SSH-as-root from off-tailnet (regular OpenSSH on the public IP), the ACL doesn’t apply — but you need the SSH key registered on the node.</li>
-</ul></div>
-<div class="section level3">
-<h3 id="reusable--ephemeral-auth-keys">Reusable + ephemeral auth keys<a class="anchor" aria-label="anchor" href="#reusable--ephemeral-auth-keys"></a></h3>
-<ul><li>Cypher-style ephemeral compute droplets need both flags on the auth key: <strong>Reusable</strong> (same key works across destroy/recreate) + <strong>Ephemeral</strong> (tailnet entries auto-clean when offline &gt;5 min).</li>
-<li>Tag the key (e.g. <code>tag:compute</code>) at creation time. Nodes joining with that key inherit the tag automatically — no <code>--advertise-tags</code> needed at <code>tailscale up</code> time.</li>
 </ul></div>
 </div>
 <div class="section level2">
@@ -723,7 +608,55 @@
 </ul></div>
 </div>
 <div class="section level2">
+<h2 id="spreadsheets">Spreadsheets<a class="anchor" aria-label="anchor" href="#spreadsheets"></a></h2>
+<div class="section level3">
+<h3 id="a-stored-value-is-not-wrong-just-because-the-raw-number-looks-wrong">A stored value is not wrong just because the raw number looks wrong<a class="anchor" aria-label="anchor" href="#a-stored-value-is-not-wrong-just-because-the-raw-number-looks-wrong"></a></h3>
+<p>Before reporting that a spreadsheet value is off by a factor, check the cell’s <strong>number format</strong>. A cell formatted <code>0.0%</code> multiplies by 100 for display: stored <code>0.028</code> renders as <code>2.8%</code>. Reading raw values with <code>readxl</code> and comparing them against what the column header implies will make correct data look 100x wrong.</p>
+<ul><li>
+<code>tidyxl::xlsx_formats(path)$local$numFmt[cell$local_format_id]</code> gives the format.</li>
+<li>The header text is not the signal. A column headed <code>(%)</code> may legitimately store a proportion, because the format supplies the percent.</li>
+</ul><p><strong>Why:</strong> this cost a full wrong turn in the fish data submission work — a formula <code>AVERAGE(...)/100</code> was reported as a provincial template defect, a correction notice to the ministry was drafted, and the “fix” would have shipped <code>280.0%</code> where <code>2.8%</code> was meant. Caught only because a human opened the file and looked at it.</p>
+</div>
+<div class="section level3">
+<h3 id="verify-pdf-links-from-the-annotations-not-the-extracted-text">Verify PDF links from the annotations, not the extracted text<a class="anchor" aria-label="anchor" href="#verify-pdf-links-from-the-annotations-not-the-extracted-text"></a></h3>
+<p><code>pdftotext</code> returns anchor text, not the href. A link whose anchor reads “here” leaves no URL in the text layer, so grepping the text proves nothing either way. Extract the annotation instead:</p>
+<div class="sourceCode" id="cb17"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb17-1"><a href="#cb17-1" tabindex="-1"></a><span class="ex">qpdf</span> <span class="at">--qdf</span> <span class="at">--object-streams</span><span class="op">=</span>disable in.pdf <span class="at">-</span> <span class="kw">|</span> <span class="fu">strings</span> <span class="kw">|</span> <span class="fu">grep</span> <span class="at">-oE</span> <span class="st">'https?://[^ )&gt;]*'</span></span></code></pre></div>
+<p><code>pdftotext</code> also splits ligatures — “fish” comes out as ” sh” — so a grep for any term containing <code>fi</code>, <code>fl</code> or <code>ffi</code> can report a false absence.</p>
+</div>
+</div>
+<div class="section level2">
 <h2 id="r--package-installation">R / Package Installation<a class="anchor" aria-label="anchor" href="#r--package-installation"></a></h2>
+<div class="section level3">
+<h3 id="read-back-shape-must-match-write-back-shape">Read-back shape must match write-back shape<a class="anchor" aria-label="anchor" href="#read-back-shape-must-match-write-back-shape"></a></h3>
+<p>A script that reads a file, transforms it, and writes it <strong>back to the same path</strong> is idempotent only if the reader accepts the shape the writer produces. If it reads with <code>col_names = FALSE</code> expecting raw input but writes a parsed frame with headers, the second run parses its own output as data.</p>
+<p>The damage is worst when the file carries a join key. In the fish data pipeline a pit-tag merge re-derived <code>rowid</code> every run and wrote it back; a second run would have appended the same 53 tags again and renumbered the key joining tags to individual fish, silently shifting five prior years of records. A type error was the only thing that had prevented it.</p>
+<ul><li>Guard the merge on a natural key (<code>anti_join</code> on the id), not on run count.</li>
+<li>Write back only when there is something new.</li>
+<li>Test by running twice and diffing the file — <code>cmp</code> should report no change.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="moving-prose-into-a-code-chunk-hides-it-from-tools-that-scan-the-document">Moving prose into a code chunk hides it from tools that scan the document<a class="anchor" aria-label="anchor" href="#moving-prose-into-a-code-chunk-hides-it-from-tools-that-scan-the-document"></a></h3>
+<ul><li>Tools that scan an R Markdown document for prose — citation detection, cross-references, spell-check, word counts — skip code chunks. Making a section conditional by moving it into a <code>results='asis'</code> chunk therefore removes it from everything that was reading it as prose, with no error.</li>
+<li>Caught 2026-08 in <code>template_permit_fish</code>: the move hid the section’s <code>[@key]</code> citations from <code>rbbt::bbt_detect_citations()</code>, and the next <code>bbt_write_bib()</code> <strong>overwrote <code>references.bib</code> with zero entries</strong> — breaking citations in every document sharing that Rmd, not just the one changed. The symptom is <code>(key?)</code> in the rendered output, far from the edit that caused it.</li>
+<li>Fix for rbbt specifically: pass keys used inside chunks explicitly — <code>bbt_write_bib(path, keys = union(bbt_detect_citations(), "the_key"))</code>.</li>
+<li>General rule: before moving content into a chunk, name what else was reading it as prose.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="fsdir_lsglob---matches-the-full-path-so-a-bare-filename-pattern-matches-nothing">
+<code>fs::dir_ls(glob = )</code> matches the FULL path, so a bare filename pattern matches nothing<a class="anchor" aria-label="anchor" href="#fsdir_lsglob---matches-the-full-path-so-a-bare-filename-pattern-matches-nothing"></a></h3>
+<ul><li>
+<code>fs::dir_ls(dir, glob = "form_*.gpkg")</code> returns <strong>zero</strong> for a directory full of <code>form_*.gpkg</code> files. The glob is tested against the whole path (<code>/Users/.../project/form_pscis.gpkg</code>), which does not start with <code>form_</code>.</li>
+<li>It fails <strong>silently and in the safe-looking direction</strong> — an empty result reads as “this project has none”, not as “the pattern was wrong”. Seen 2026-08-27 in rtj#221: a harvest driver found no forms in a project holding four, and a second glob (<code>"*/form_*.gpkg"</code>) masked it by accidentally matching.</li>
+<li>Use an anchored <code>regexp</code> instead, which is matched the same way but says so: <code>fs::dir_ls(dir, regexp = "/form_[^/]+\\.gpkg$", recurse = FALSE, type = "file")</code>.</li>
+<li>Set <code>recurse</code> deliberately while you are there. A recursive search of a Mergin project picks up <code>.mergin/</code>’s own cache copies and anything under <code>hold/</code> — stale duplicates that then get processed as if they were live.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="do-not-build-an-exact-match-edit-from-a-formatted-display">Do not build an exact-match edit from a formatted display<a class="anchor" aria-label="anchor" href="#do-not-build-an-exact-match-edit-from-a-formatted-display"></a></h3>
+<ul><li>Reading a file through a pretty-printer and then writing a string replacement against what you saw will fail whenever the formatter changed the bytes. <code>sed -n '10,20p' file | sed 's/^/  /'</code> adds two spaces to every line; a subsequent <code>replace(old, new)</code> built from that output silently matches nothing.</li>
+<li>The failure looks like the file changed under you, so the instinct is to re-read it — through the same formatter — and conclude the text is right and the tool is broken. Cost two failed edit rounds in rtj#221 before <code>repr()</code> on the raw lines showed the real indent was <strong>two</strong> spaces where the padded display implied four.</li>
+<li>Print the bytes you intend to match: <code>repr()</code> in Python, <code>cat -A</code>, or <code><a href="https://rdrr.io/r/base/writeLines.html" class="external-link">writeLines()</a></code> — never a column-shifted copy.</li>
+<li>Same family as diagnosing PATH in the shell that actually runs: inspect the thing you are acting on, not a convenience rendering of it.</li>
+</ul></div>
 <div class="section level3">
 <h3 id="glue-trims-common-leading-whitespace">
 <code>glue()</code> trims common leading whitespace<a class="anchor" aria-label="anchor" href="#glue-trims-common-leading-whitespace"></a></h3>
@@ -731,6 +664,21 @@
 <code><a href="https://glue.tidyverse.org/reference/glue.html" class="external-link">glue::glue()</a></code> strips the common indentation of its input, so a template whose output must preserve exact indentation (XML, YAML, Makefiles, Python) comes out subtly wrong — valid-looking, wrongly indented.</li>
 <li>For those blocks use a raw string with a <code><a href="https://rdrr.io/r/base/grep.html" class="external-link">gsub()</a></code> placeholder instead of a glue template. Seen in rfp’s QML form builder, where the photo widget’s XML indentation has to survive verbatim.</li>
 <li>Related, and the opposite mistake: glue does <strong>not</strong> re-parse interpolated values, so literal <code>{...}</code> inside a <em>value</em> is safe. Don’t rewrite a working generator to escape braces that were never a problem — probe it first.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="fgx---v-needs-a-g--not-an-evaluated-gx">
+<code>f(g(x)) &lt;- v</code> needs a <code>g&lt;-</code>, not an evaluated <code>g(x)</code>
+<a class="anchor" aria-label="anchor" href="#fgx---v-needs-a-g--not-an-evaluated-gx"></a></h3>
+<ul><li><p>R parses <strong>any</strong> call on the left of <code>&lt;-</code> as a replacement function, all the way down. <code>xml2::xml_text(node_for(ml)) &lt;- expr</code> does not evaluate <code>node_for(ml)</code> and assign into the result — it looks for <code>`node_for&lt;-`</code> and errors with <code>could not find function "node_for&lt;-"</code>.</p></li>
+<li><p>It reads as correct because the single-call form is idiomatic and works: <code>xml_text(node) &lt;- v</code>, <code>names(x) &lt;- v</code>, <code>levels(f) &lt;- v</code>. Only the <em>nested</em> form breaks, so the habit is what leads you into it.</p></li>
+<li>
+<p>Fix: assign the inner result first.</p>
+<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">target</span> <span class="op">&lt;-</span> <span class="fu">node_for</span><span class="op">(</span><span class="va">ml</span><span class="op">)</span>       <span class="co"># not xml_text(node_for(ml)) &lt;- expr</span></span>
+<span><span class="fu">xml2</span><span class="fu">::</span><span class="fu"><a href="http://xml2.r-lib.org/reference/xml_text.html" class="external-link">xml_text</a></span><span class="op">(</span><span class="va">target</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="va">expr</span></span></code></pre></div>
+</li>
+<li><p>The error names a function nobody wrote, which sends you looking for a missing import or a typo rather than at the line’s shape. Caught 2026-08-27 in rfp#201 with <code>xml2::xml_text(.qgs_preview_node(ml)) &lt;- expr</code>.</p></li>
+<li><p>Applies to every replacement form — <code>attr&lt;-</code>, <code>[[&lt;-</code>, <code>dim&lt;-</code>, <code>st_crs&lt;-</code>. If the left side has two calls, one of them has to move to its own line.</p></li>
 </ul></div>
 <div class="section level3">
 <h3 id="onexit-at-a-scripts-top-level-never-fires">
@@ -756,7 +704,7 @@
 <ul><li><p>The same installed-vs-source trap as the <code>data-raw</code> case above, in a tool where it reads as a code defect rather than a stale dependency. <code>object_usage_linter</code> resolves a package-level object through the installed namespace, so <strong>every internal constant added on the current branch</strong> is reported as <code>no visible binding for global variable</code>.</p></li>
 <li>
 <p>It is convincing because the surrounding constants resolve fine — they are in the installed copy. Confirm before “fixing” anything:</p>
-<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/exists.html" class="external-link">exists</a></span><span class="op">(</span><span class="st">".my_new_constant"</span>, <span class="fu"><a href="https://rdrr.io/r/base/ns-internal.html" class="external-link">asNamespace</a></span><span class="op">(</span><span class="st">"pkg"</span><span class="op">)</span><span class="op">)</span>   <span class="co"># FALSE  -&gt; lint artifact</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/exists.html" class="external-link">exists</a></span><span class="op">(</span><span class="st">".an_old_constant"</span>, <span class="fu"><a href="https://rdrr.io/r/base/ns-internal.html" class="external-link">asNamespace</a></span><span class="op">(</span><span class="st">"pkg"</span><span class="op">)</span><span class="op">)</span>   <span class="co"># TRUE</span></span></code></pre></div>
 <p>If the new one is absent from the installed namespace and the old one is present, the warning clears on reinstall and there is nothing to change.</p>
@@ -800,19 +748,19 @@
 <li><p>This matters most for the three-layer repo split (see <code>newgraph.md</code>): <code>comms/</code> is internal-by-definition, so a public-flipped package that ships it leaks exactly what the flip was meant to purge.</p></li>
 <li>
 <p>Audit every R repo at once:</p>
-<div class="sourceCode" id="cb18"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb18-1"><a href="#cb18-1" tabindex="-1"></a><span class="cf">for</span> d <span class="kw">in</span> ~/Projects/repo/<span class="pp">*</span>/<span class="kw">;</span> <span class="cf">do</span></span>
-<span id="cb18-2"><a href="#cb18-2" tabindex="-1"></a>  <span class="bu">[</span> <span class="ot">-f</span> <span class="st">"</span><span class="va">$d</span><span class="st">/DESCRIPTION"</span> <span class="bu">]</span> <span class="kw">||</span> <span class="cf">continue</span></span>
-<span id="cb18-3"><a href="#cb18-3" tabindex="-1"></a>  <span class="cf">for</span> sub <span class="kw">in</span> comms research planning dev<span class="kw">;</span> <span class="cf">do</span></span>
-<span id="cb18-4"><a href="#cb18-4" tabindex="-1"></a>    <span class="cf">if</span> <span class="bu">[</span> <span class="ot">-d</span> <span class="st">"</span><span class="va">$d</span><span class="st">/</span><span class="va">$sub</span><span class="st">"</span> <span class="bu">]</span> <span class="kw">&amp;&amp;</span> <span class="ot">! </span><span class="fu">grep</span> <span class="at">-qE</span> <span class="st">"^\^</span><span class="va">${sub}</span><span class="dt">\\\$</span><span class="st">"</span> <span class="st">"</span><span class="va">$d</span><span class="st">/.Rbuildignore"</span> <span class="dv">2</span><span class="op">&gt;</span>/dev/null<span class="kw">;</span> <span class="cf">then</span></span>
-<span id="cb18-5"><a href="#cb18-5" tabindex="-1"></a>      <span class="bu">echo</span> <span class="st">"</span><span class="va">$(</span><span class="fu">basename</span> <span class="st">"</span><span class="va">$d</span><span class="st">"</span><span class="va">)</span><span class="st"> ships </span><span class="va">$sub</span><span class="st">/"</span></span>
-<span id="cb18-6"><a href="#cb18-6" tabindex="-1"></a>    <span class="cf">fi</span></span>
-<span id="cb18-7"><a href="#cb18-7" tabindex="-1"></a>  <span class="cf">done</span></span>
-<span id="cb18-8"><a href="#cb18-8" tabindex="-1"></a><span class="cf">done</span></span></code></pre></div>
+<div class="sourceCode" id="cb20"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb20-1"><a href="#cb20-1" tabindex="-1"></a><span class="cf">for</span> d <span class="kw">in</span> ~/Projects/repo/<span class="pp">*</span>/<span class="kw">;</span> <span class="cf">do</span></span>
+<span id="cb20-2"><a href="#cb20-2" tabindex="-1"></a>  <span class="bu">[</span> <span class="ot">-f</span> <span class="st">"</span><span class="va">$d</span><span class="st">/DESCRIPTION"</span> <span class="bu">]</span> <span class="kw">||</span> <span class="cf">continue</span></span>
+<span id="cb20-3"><a href="#cb20-3" tabindex="-1"></a>  <span class="cf">for</span> sub <span class="kw">in</span> comms research planning dev<span class="kw">;</span> <span class="cf">do</span></span>
+<span id="cb20-4"><a href="#cb20-4" tabindex="-1"></a>    <span class="cf">if</span> <span class="bu">[</span> <span class="ot">-d</span> <span class="st">"</span><span class="va">$d</span><span class="st">/</span><span class="va">$sub</span><span class="st">"</span> <span class="bu">]</span> <span class="kw">&amp;&amp;</span> <span class="ot">! </span><span class="fu">grep</span> <span class="at">-qE</span> <span class="st">"^\^</span><span class="va">${sub}</span><span class="dt">\\\$</span><span class="st">"</span> <span class="st">"</span><span class="va">$d</span><span class="st">/.Rbuildignore"</span> <span class="dv">2</span><span class="op">&gt;</span>/dev/null<span class="kw">;</span> <span class="cf">then</span></span>
+<span id="cb20-5"><a href="#cb20-5" tabindex="-1"></a>      <span class="bu">echo</span> <span class="st">"</span><span class="va">$(</span><span class="fu">basename</span> <span class="st">"</span><span class="va">$d</span><span class="st">"</span><span class="va">)</span><span class="st"> ships </span><span class="va">$sub</span><span class="st">/"</span></span>
+<span id="cb20-6"><a href="#cb20-6" tabindex="-1"></a>    <span class="cf">fi</span></span>
+<span id="cb20-7"><a href="#cb20-7" tabindex="-1"></a>  <span class="cf">done</span></span>
+<span id="cb20-8"><a href="#cb20-8" tabindex="-1"></a><span class="cf">done</span></span></code></pre></div>
 <p>Run 2026-07-31: 20 hits across 16 repos. <code>comms/</code> in <code>link</code>, <code>fish_passage_template_reporting</code>, <code>neexdzii_kwa_benthic_2025</code>; <code>research/</code> in <code>link</code>; the rest <code>planning/</code> or <code>dev/</code>.</p>
 </li>
 <li>
 <p>Verify a fix against the tarball, not the config — the <code>.Rbuildignore</code> regex is easy to get subtly wrong:</p>
-<div class="sourceCode" id="cb19"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb19-1"><a href="#cb19-1" tabindex="-1"></a><span class="ex">R</span> CMD build . <span class="op">&gt;</span>/dev/null <span class="kw">&amp;&amp;</span> <span class="fu">tar</span> tzf pkg_<span class="pp">*</span>.tar.gz <span class="kw">|</span> <span class="fu">grep</span> <span class="at">-c</span> <span class="st">'^pkg/comms/'</span>   <span class="co"># expect 0</span></span></code></pre></div>
+<div class="sourceCode" id="cb21"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb21-1"><a href="#cb21-1" tabindex="-1"></a><span class="ex">R</span> CMD build . <span class="op">&gt;</span>/dev/null <span class="kw">&amp;&amp;</span> <span class="fu">tar</span> tzf pkg_<span class="pp">*</span>.tar.gz <span class="kw">|</span> <span class="fu">grep</span> <span class="at">-c</span> <span class="st">'^pkg/comms/'</span>   <span class="co"># expect 0</span></span></code></pre></div>
 </li>
 </ul></div>
 <div class="section level3">
@@ -843,7 +791,7 @@
 <li><p><strong><code>terra::freq()</code> errors on an all-NA raster</strong> (<code>replacement has length zero</code>) rather than returning a 0-row table. Any path that can yield an all-NA layer (an impossible filter, everything masked out) must guard: <code>f &lt;- tryCatch(terra::freq(r), error = function(e) NULL)</code>, then treat <code>NULL</code>/0 rows as “no values”. Don’t assume the empty case gives <code>nrow(freq(r)) == 0</code>. (drift#34)</p></li>
 <li>
 <p><strong><code>terra::minmax()</code> reports <em>cached</em> statistics, not computed ones.</strong> It defaults to <code>compute = FALSE</code> and returns <code>Inf</code>/<code>-Inf</code> for any raster whose min/max have never been calculated — which is every file-backed raster until something touches it. A guard written on top of it therefore fires on real data:</p>
-<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">r</span> <span class="op">&lt;-</span> <span class="fu">terra</span><span class="fu">::</span><span class="fu">rast</span><span class="op">(</span><span class="st">"a_richly_varied_image.png"</span><span class="op">)</span></span>
 <span><span class="fu">terra</span><span class="fu">::</span><span class="fu">hasMinMax</span><span class="op">(</span><span class="va">r</span><span class="op">)</span>              <span class="co"># FALSE FALSE FALSE FALSE</span></span>
 <span><span class="fu">terra</span><span class="fu">::</span><span class="fu">minmax</span><span class="op">(</span><span class="va">r</span><span class="op">)</span>                 <span class="co"># min Inf ... / max -Inf ...</span></span>
@@ -879,7 +827,7 @@
 <h3 id="asposixct-on-character-infers-one-format-for-the-whole-vector">as.POSIXct on character infers ONE format for the whole vector<a class="anchor" aria-label="anchor" href="#asposixct-on-character-infers-one-format-for-the-whole-vector"></a></h3>
 <ul><li>
 <p><code>as.POSIXct(x)</code> on a character vector picks a single format by finding the first candidate that parses <strong>every</strong> element — and <code>strptime</code> <strong>ignores trailing characters</strong>. So one coarse value silently truncates the entire column, and nothing warns:</p>
-<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/as.POSIXlt.html" class="external-link">as.POSIXct</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"2026-08-15 18:33:46"</span>, <span class="st">"2026-08-15 18:34:20"</span>, <span class="st">"2026-08-16"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; all three at 00:00:00   &lt;- the times are gone</span></span></code></pre></div>
 <p>One minute-precision value does the same to its neighbours’ seconds. Order-independent, and the values are not <code>NA</code> afterwards, so an <code><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na()</a></code> guard on the result cannot see it.</p>
@@ -900,7 +848,7 @@
 <a class="anchor" aria-label="anchor" href="#paste0-treats-a-zero-length-argument-as-"></a></h3>
 <ul><li>
 <p><code>paste0(character(0), "x")</code> returns <code>"x"</code> — length <strong>one</strong>, not zero. So a composite key built from an empty data frame yields one phantom row rather than none:</p>
-<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="va">df</span><span class="op">$</span><span class="va">a</span>, <span class="st">"\x1f"</span>, <span class="va">df</span><span class="op">$</span><span class="va">b</span><span class="op">)</span>   <span class="co"># nrow(df) == 0  -&gt;  "\x1f"</span></span></code></pre></div>
 </li>
 <li><p>Downstream that reads as a real record. Caught 2026-08-24 in trap#14: an empty annotation table produced one key, which the join then reported as “an annotation matching no session”. Guard with an explicit <code>if (!nrow(x)) return(character(0))</code>.</p></li>
@@ -967,15 +915,15 @@
 <li><p><strong>Prevention:</strong> one worktree per session — <code>git worktree add ../&lt;repo&gt;-&lt;task&gt; -b &lt;branch&gt;</code>. Each session gets its own directory and its own checked-out branch; no contention.</p></li>
 <li>
 <p><strong>Detection (cheap; do it before any commit, merge, or visibility flip):</strong> assert the branch is what you think it is, not just that the tree is clean.</p>
-<div class="sourceCode" id="cb23"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb23-1"><a href="#cb23-1" tabindex="-1"></a><span class="bu">[</span> <span class="st">"</span><span class="va">$(</span><span class="fu">git</span> branch <span class="at">--show-current</span><span class="va">)</span><span class="st">"</span> <span class="ot">=</span> <span class="st">"</span><span class="va">$EXPECTED_BRANCH</span><span class="st">"</span> <span class="bu">]</span> <span class="kw">||</span> <span class="kw">{</span> <span class="bu">echo</span> <span class="st">"WRONG BRANCH"</span><span class="kw">;</span> <span class="bu">exit</span> 1<span class="kw">;</span> <span class="kw">}</span></span></code></pre></div>
+<div class="sourceCode" id="cb25"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb25-1"><a href="#cb25-1" tabindex="-1"></a><span class="bu">[</span> <span class="st">"</span><span class="va">$(</span><span class="fu">git</span> branch <span class="at">--show-current</span><span class="va">)</span><span class="st">"</span> <span class="ot">=</span> <span class="st">"</span><span class="va">$EXPECTED_BRANCH</span><span class="st">"</span> <span class="bu">]</span> <span class="kw">||</span> <span class="kw">{</span> <span class="bu">echo</span> <span class="st">"WRONG BRANCH"</span><span class="kw">;</span> <span class="bu">exit</span> 1<span class="kw">;</span> <span class="kw">}</span></span></code></pre></div>
 </li>
 <li><p><strong>Recovery:</strong> back up the touched files first (<code>cp</code> to a scratch dir, <code>git diff &gt; x.diff</code>), confirm the other branch’s changes don’t overlap yours (<code>git diff --name-only main..their-branch</code>), then <code>git checkout &lt;your-branch&gt;</code> — uncommitted changes carry across cleanly when there is no overlap. Commit <strong>and push</strong> immediately; an unpushed branch is what gets stranded. If you already committed onto their branch, restore their pointer with <code>git branch -f &lt;their-branch&gt; &lt;their-last-sha&gt;</code> (your commit stays reachable via reflog).</p></li>
 <li>
 <p><strong>Recovery when their branch is already pushed, with an open PR:</strong> do <strong>not</strong> rewrite it — <code>git branch -f</code> plus a force-push into a PR another session is working in trades your problem for theirs. Cherry-pick forward instead, through a throwaway worktree so their checkout is never disturbed:</p>
-<div class="sourceCode" id="cb24"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb24-1"><a href="#cb24-1" tabindex="-1"></a><span class="fu">git</span> worktree add <span class="at">-q</span> /tmp/repo-main main</span>
-<span id="cb24-2"><a href="#cb24-2" tabindex="-1"></a><span class="fu">git</span> <span class="at">-C</span> /tmp/repo-main cherry-pick <span class="op">&lt;</span>your-sha<span class="op">&gt;</span></span>
-<span id="cb24-3"><a href="#cb24-3" tabindex="-1"></a><span class="fu">git</span> <span class="at">-C</span> /tmp/repo-main push origin main</span>
-<span id="cb24-4"><a href="#cb24-4" tabindex="-1"></a><span class="fu">git</span> worktree remove /tmp/repo-main</span></code></pre></div>
+<div class="sourceCode" id="cb26"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb26-1"><a href="#cb26-1" tabindex="-1"></a><span class="fu">git</span> worktree add <span class="at">-q</span> /tmp/repo-main main</span>
+<span id="cb26-2"><a href="#cb26-2" tabindex="-1"></a><span class="fu">git</span> <span class="at">-C</span> /tmp/repo-main cherry-pick <span class="op">&lt;</span>your-sha<span class="op">&gt;</span></span>
+<span id="cb26-3"><a href="#cb26-3" tabindex="-1"></a><span class="fu">git</span> <span class="at">-C</span> /tmp/repo-main push origin main</span>
+<span id="cb26-4"><a href="#cb26-4" tabindex="-1"></a><span class="fu">git</span> worktree remove /tmp/repo-main</span></code></pre></div>
 <p>Their PR now carries a commit whose content is already on main. That is harmless — git sees identical changes on both sides and merges cleanly — and verifiable before you rely on it: <code>git diff origin/main -- &lt;the-file&gt;</code> on their branch should be empty. The cost is one duplicated commit message in the log, which is cheaper than a contested force-push.</p>
 </li>
 <li><p><strong>The moment to use a worktree is when you are about to touch a second repo</strong>, not after something goes wrong. Observed 2026-08-26 in gq#57: a fix in the primary repo needed a matching change in <code>soul</code>, and <code>soul</code>’s shared checkout had meanwhile been switched to a parallel session’s feature branch. The commit landed in their open PR silently — <code>git push</code> reported success, because it was a perfectly valid push to a branch nobody had said was wrong.</p></li>
@@ -1023,6 +971,59 @@
 <li>(gq#57, 2026-08: the provider inventory was complete within gq — 9 lines, 6 files, verified twice. The consumer projects read <code>soul/skills/cartography</code>, which shipped its own hand-rolled snippet naming the broken provider and never called gq’s function at all. Fixing gq alone would have left every downstream repo pointed at the watermark. Caught by a reviewer asking what consumers read, not by the grep.)</li>
 </ul></div>
 <div class="section level3">
+<h3 id="do-not-write-to-an-artifact-a-human-is-testing-on">Do not write to an artifact a human is testing on<a class="anchor" aria-label="anchor" href="#do-not-write-to-an-artifact-a-human-is-testing-on"></a></h3>
+<ul><li>Handing someone a deployed thing to test — a synced project, a staging database, a preview build — and then continuing to push changes into it makes two writers for one artifact. The tester chases versions, and any client-side lock or “another process is running” error that follows is <strong>yours</strong>, not theirs to debug.</li>
+<li>It also corrupts the evidence. When the tester reports a problem, you no longer know which version they were on, so a symptom cannot be tied to a change.</li>
+<li>Caught 2026-08-26 in rfp#186/#196: three pushes into a live Mergin project during a field test, taking it from v1 to v9 while the phone was syncing. The app reported “another process is running” and the tester tried removing and re-adding the project before the cause was identified as the other writer.</li>
+<li>Rule: <strong>hand over one version and stop.</strong> If a fix is needed mid-test, say so and let the tester decide when to take it. Batch changes rather than pushing each one. When you must push, say which version you pushed and what changed, so a later report can be anchored to it.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="a-value-nothing-reads-is-wrong-silently--get-it-from-the-consumer-not-from-reasoning">A value nothing reads is wrong silently — get it from the consumer, not from reasoning<a class="anchor" aria-label="anchor" href="#a-value-nothing-reads-is-wrong-silently--get-it-from-the-consumer-not-from-reasoning"></a></h3>
+<ul><li>Serialized formats carry fields that are <strong>redundant with a lookup that actually happens</strong>: a positional index beside a name, a declared length beside a delimiter, a cached count beside the rows. Because the consumer resolves by the <em>other</em> field, a wrong value here changes nothing observable. It is not benign — it is a defect with no failure mode until something new starts reading it, and then it fails far from the code that wrote it.</li>
+<li>Your own tests cannot catch this class, and neither can a reviewer: every assertion goes through the same name-based lookup the consumer uses, so the index is never read on either side.</li>
+<li>
+<strong>The consumer’s own output is the only oracle.</strong> Find an artifact the real application wrote, compute your value for the same input, and compare across the whole set — not one example, which a plausible off-by-one survives.</li>
+<li>Caught 2026-08-26 in rfp#186: QGIS <code>&lt;alias index=&gt;</code> numbering. The obvious reading is “position in the table”, but the OGR provider excludes <strong>both</strong> the geometry column and the integer primary key, so counting <code>fid</code> put every alias one place out. QGIS resolves an alias by <code>field</code> name, so nothing broke and nothing could have. Settled by computing indices for a QGIS-authored layer and comparing against the aliases QGIS itself wrote — <strong>99/99</strong> — then pinning that comparison as a test.</li>
+<li>Review check: for any field you write that your own code never reads back, name what does read it and where the ground truth came from. “It seemed right” is the whole hazard. ### Measure the output, not the input you handed in</li>
+<li>When you instrument something to find out what it <em>did</em>, check that the probe reads downstream of the transformation. A probe that reads a value back from the same object you populated is not a measurement — it is a round-trip through your own assignment, and it agrees with you perfectly.</li>
+<li>The failure is invisible because the number looks like data. It has units, it varies when you vary the input, it is stable across repeats — everything a real measurement does, except it never consulted the thing that transforms.</li>
+<li>
+<strong>Tells, in order of usefulness:</strong>
+<ul><li>The result is <em>exactly</em> a constant you can derive from the input — no rounding, no jitter. Real ink, real bytes and real timings are messy.</li>
+<li>The probe reads a field of an object you constructed or configured, rather than an artifact the system emitted.</li>
+<li>Varying something you know matters (a shape, an encoding, a locale) does not move the number.</li>
+</ul></li>
+<li>
+<strong>Fix: measure at the furthest downstream point you can reach</strong> — the rendered primitive, the bytes on the wire, the row as the consumer’s own client reads it. Prefer a format that is inspectable and exact: an SVG’s <code>&lt;circle r=&gt;</code> beats a rasterised pixel count, and a captured request body beats a mock’s recorded arguments.</li>
+<li>Caught 2026-08-26 in gq#16, and only by a reviewer. A symbol-size conversion was built on “tmap draws 5.08 mm per size unit”, measured by reading <code>pointsGrob$size</code> back off the grob — the value tmap had been <em>handed</em>. R’s graphics engine then applies a per-<code>pch</code> factor the grob slot never records, so a circle actually draws <strong>3.81 mm</strong>. The fix shipped every symbol 25% undersized <em>while documenting itself as exact</em>, which is worse than the bug it replaced. 5.08 mm is 0.2 inch exactly — the roundness was the tell, and it read as elegance instead.</li>
+<li>Sibling of the interop rule below, one step earlier: that one is about whether the consumer accepts what you wrote, this one about whether your ruler is touching the object at all.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="percent-encode-a-url-at-construction-not-at-consumption">Percent-encode a URL at construction, not at consumption<a class="anchor" aria-label="anchor" href="#percent-encode-a-url-at-construction-not-at-consumption"></a></h3>
+<ul><li>A URL built by string-concatenation from filenames inherits whatever those filenames contain. An unencoded space is accepted by lenient clients — browsers, <code>aws-cli</code> — and rejected by strict ones, so the break is deferred and then arrives all at once.</li>
+<li>Caught 2026-07 in stac_dem_bc#25: hrefs carrying literal spaces worked for months, then every strict <code>curl</code> fetch failed together — 90 items, 0-byte fetches. Nothing changed about the hrefs; the consumer changed.</li>
+<li>Encode where the URL is <strong>built</strong>. Encoding at the point of use means every future consumer has to remember, and the one that forgets is the one you find out about in production.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="a-cache-written-before-the-work-succeeds-strands-its-inputs-permanently">A cache written before the work succeeds strands its inputs permanently<a class="anchor" aria-label="anchor" href="#a-cache-written-before-the-work-succeeds-strands-its-inputs-permanently"></a></h3>
+<ul><li>Change-detection caches (“which inputs have I already seen?”) must be persisted <strong>after</strong> the work they gate succeeds. Rewritten at detection time, any input whose processing then fails is marked seen and never built — invisible to every future run, because the cache is precisely what future runs consult.</li>
+<li>Caught 2026-02 in stac_dem_bc: 2,107 URLs stranded this way, found only by a reconciliation script diffing the cache against actual outputs. Nothing errored on any subsequent run; the work simply never happened.</li>
+<li>In CI, committing state at the end of a successful job gives this atomicity for free. Elsewhere, write the cache last, or write it atomically alongside the output it claims.</li>
+<li>Sibling of “Cache keys must cover every output-affecting input” above: that one is about a cache returning the wrong thing, this one about a cache silently returning nothing ever again.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="a-structure-transcribed-from-an-external-form-or-api-is-a-snapshot-not-a-contract">A structure transcribed from an external form or API is a snapshot, not a contract<a class="anchor" aria-label="anchor" href="#a-structure-transcribed-from-an-external-form-or-api-is-a-snapshot-not-a-contract"></a></h3>
+<ul><li>Recording an external system’s field order — a web form, a report layout, an undocumented API response — captures <strong>one instance on one date</strong>. The system is free to reorder between revisions, and nothing tells you when it does.</li>
+<li>Where the fields are same-typed (all integers, all strings), a reordering is <strong>invisible</strong>: the output stays structurally valid and becomes semantically nonsense. No parser complains, because nothing in the pipeline knows what the values mean.</li>
+<li>Caught 2026-08 in <code>template_permit_fish</code>: a paste-ready answers file built from a submitted 2025 permit application encoded the portal’s columns as <code>UTM Zone | Northing | Easting</code>. The 2026 form revision shipped <code>UTM Zone | Easting | Northing</code>. Pasting in order <strong>transposed easting and northing on four of five sites of a submitted permit application</strong>. The same revision also replaced the eligibility questions.</li>
+<li>Rules:
+<ul><li>Record <strong>which instance and what date</strong> the structure came from, beside the structure itself.</li>
+<li>Re-check against a live instance before each use, not once at authoring time.</li>
+<li>Assert on <strong>magnitude or format, not position</strong>, wherever the types cannot tell the fields apart. In UTM Zone 10 an easting is 6 digits and a northing is 7 digits starting with 6 — an assertion that would have caught this one.</li>
+</ul></li>
+<li>Same diagnostic family as “a wrapper’s exit 0 is not the work completed”: the output is structurally valid and semantically wrong, so every check that looks only at shape passes it.</li>
+</ul></div>
+<div class="section level3">
 <h3 id="a-round-trip-through-your-own-reader-proves-nothing-about-interop">A round-trip through your own reader proves nothing about interop<a class="anchor" aria-label="anchor" href="#a-round-trip-through-your-own-reader-proves-nothing-about-interop"></a></h3>
 <ul><li>When code writes a format some <strong>other</strong> program consumes — a database table, a config file, an export another tool imports — a test that writes then reads it back with your own reader validates only that you are self-consistent. It cannot detect that the real consumer rejects what you wrote.</li>
 <li>Symptom when wrong: every test green, the artifact byte-perfect on inspection, and the feature silently does nothing in production. Failures on the consumer’s side are often <strong>silent by design</strong> — a lookup that matches nothing returns “no result”, not an error.</li>
@@ -1051,7 +1052,7 @@
 <li><p>The failure is loud, which is lucky. The dangerous variant is the same change landing where the test would still pass: a refusal test whose chosen X quietly becomes supported and whose assertion is on something looser than the refusal itself now passes for nothing.</p></li>
 <li>
 <p>Fix by <strong>asserting the premise beside the assertion</strong>, in the same test:</p>
-<div class="sourceCode" id="cb25"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb27"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">unshipped</span> <span class="op">&lt;-</span> <span class="st">"EPSG:32609"</span></span>
 <span><span class="fu">expect_false</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nchar.html" class="external-link">nzchar</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"extdata"</span>, <span class="st">"srs"</span>,</span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/grep.html" class="external-link">gsub</a></span><span class="op">(</span><span class="st">":"</span>, <span class="st">"_"</span>, <span class="va">unshipped</span><span class="op">)</span>, <span class="st">".xml"</span><span class="op">)</span>, package <span class="op">=</span> <span class="st">"rfp"</span><span class="op">)</span><span class="op">)</span><span class="op">)</span>   <span class="co"># &lt;- the premise</span></span>
@@ -1062,23 +1063,61 @@
 <li><p>(rfp#139, 2026-08: shipping an <code>EPSG_4326.xml</code> <code>&lt;srs&gt;</code> block so a tracking layer could carry a CRS no template used made that CRS resolvable from a package resolver’s third tier — breaking a raster test that had picked EPSG:4326 precisely because nothing supplied it. The behaviour was correct in both directions; only the fixture’s premise had expired.)</p></li>
 </ul></div>
 <div class="section level3">
+<h3 id="a-guards-escape-hatches-are-where-it-goes-to-die--read-them-first">A guard’s escape hatches are where it goes to die — read them first<a class="anchor" aria-label="anchor" href="#a-guards-escape-hatches-are-where-it-goes-to-die--read-them-first"></a></h3>
+<ul><li><p>Every guard grows two things that can silently disable it: an <strong>exemption list</strong> (“these are allowed to fail the rule”) and a <strong>lookup</strong> (“find the thing I am checking”). Both fail toward <em>pass</em>, and both read as diligence on the page. When reviewing a guard, read those two before reading the assertion — the assertion is the part that is usually already right.</p></li>
+<li>
+<p><strong>An exemption list that covers every input makes the assertion unreachable.</strong> It is not a weakened guard; it is a guard that cannot go red, and it looks more careful than the correct version because it is longer.</p>
+<div class="sourceCode" id="cb28"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">legend_exempt</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
+<span>  lake    <span class="op">=</span> <span class="st">"drawn and legended"</span>,     <span class="co"># &lt;- every one of these is a REASON</span></span>
+<span>  wetland <span class="op">=</span> <span class="st">"drawn and legended"</span>,     <span class="co">#    to remove the entry, not to keep it</span></span>
+<span>  <span class="va">...</span>                                 <span class="co">#    all 9 drawn layers listed</span></span>
+<span><span class="op">)</span></span>
+<span><span class="va">missing</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/sets.html" class="external-link">setdiff</a></span><span class="op">(</span><span class="va">drawn</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">legended</span>, <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">legend_exempt</span><span class="op">)</span><span class="op">)</span><span class="op">)</span>   <span class="co"># always empty</span></span></code></pre></div>
+<p><strong>Tell:</strong> an exemption whose reason says the rule <em>is</em> satisfied. “Drawn and legended” is not a reason to exempt something from a drawn-must-be-legended check — it is the check passing. An exemption is only ever for an input the rule should genuinely not apply to, and <code>character(0)</code> is a normal and healthy state that deserves a comment saying so.</p>
+</li>
+<li>
+<p><strong>A lookup that matches a container rather than the artifact reports success and then dies — or worse, checks the wrong thing.</strong> Test for the <em>file</em>, never for a directory of the right name:</p>
+<div class="sourceCode" id="cb29"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="kw">for</span> <span class="op">(</span><span class="va">up</span> <span class="kw">in</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">".."</span>, <span class="st">"../.."</span>, <span class="st">"../../.."</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/files2.html" class="external-link">dir.exists</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="va">up</span>, <span class="st">"vignettes"</span><span class="op">)</span><span class="op">)</span><span class="op">)</span> <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="va">...</span><span class="op">)</span>   <span class="co"># matched SOME vignettes/</span></span>
+<span><span class="op">}</span></span></code></pre></div>
+<p>Under <code>R CMD check</code> that walked out of the package into the temp tree, matched an unrelated <code>vignettes/</code>, and blew up in <code><a href="https://rdrr.io/r/base/readLines.html" class="external-link">readLines()</a></code>. Had a same-named file existed there it would have silently checked a stranger’s copy.</p>
+</li>
+<li><p>Both caught 2026-08-26 in gq#61, in the same 100-line test file, written by someone who had just added the “fixture that cannot reach the failure mode” rule below. Neither was visible by reading; the first surfaced by restoring the bug, the second only under <code>R CMD check</code> — <code>devtools::test()</code> passed it because the source tree happens to have the directory where it looked.</p></li>
+<li><p><strong>Corollary on where you verify.</strong> A guard that reads repo layout behaves differently under <code>devtools::test()</code>, <code>R CMD check</code>, and an installed package. Green in the one you run locally says nothing about the one CI runs. Run both before believing it.</p></li>
+</ul></div>
+<div class="section level3">
 <h3 id="restore-the-bug-and-confirm-the-test-fails">Restore the bug and confirm the test fails<a class="anchor" aria-label="anchor" href="#restore-the-bug-and-confirm-the-test-fails"></a></h3>
 <ul><li><p>The rule above says a fixture that cannot reach the failure mode is worthless. This is the thirty-second check that tells you which kind you just wrote: <strong>put the defect back, run the test, watch it go red.</strong> A test that stays green against the code it was written to reject is decoration, and reading it will not tell you that — every case below looked correct on the page.</p></li>
+<li><p>Cheapest form when the fix is inside a package: patch the binding rather than editing the source back and forth. For a data-shaped bug, feed the function the input the fix was about and assert the old answer is gone.</p></li>
 <li>
-<p>Cheapest form when the fix is inside a package: patch the namespace rather than editing the source back and forth.</p>
-<div class="sourceCode" id="cb26"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">ns</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/ns-internal.html" class="external-link">asNamespace</a></span><span class="op">(</span><span class="st">"pkg"</span><span class="op">)</span>; <span class="va">orig</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/get.html" class="external-link">get</a></span><span class="op">(</span><span class="st">"f"</span>, <span class="va">ns</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/bindenv.html" class="external-link">unlockBinding</a></span><span class="op">(</span><span class="st">"f"</span>, <span class="va">ns</span><span class="op">)</span>; <span class="fu"><a href="https://rdrr.io/r/base/assign.html" class="external-link">assign</a></span><span class="op">(</span><span class="st">"f"</span>, <span class="va">broken_version</span>, <span class="va">ns</span><span class="op">)</span></span>
-<span><span class="co"># run the assertion -- it must fail here</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/assign.html" class="external-link">assign</a></span><span class="op">(</span><span class="st">"f"</span>, <span class="va">orig</span>, <span class="va">ns</span><span class="op">)</span>; <span class="fu"><a href="https://rdrr.io/r/base/bindenv.html" class="external-link">lockBinding</a></span><span class="op">(</span><span class="st">"f"</span>, <span class="va">ns</span><span class="op">)</span></span></code></pre></div>
-<p>For a data-shaped bug, feed the function the input the fix was about and assert the old answer is gone.</p>
+<p><strong>In R, patching only <code><a href="https://rdrr.io/r/base/ns-internal.html" class="external-link">asNamespace()</a></code> gives a false green for anything test code calls directly.</strong> <code><a href="https://pkgload.r-lib.org/reference/load_all.html" class="external-link">pkgload::load_all()</a></code> (so <code>devtools::test()</code>, so every local run) creates <strong>two</strong> bindings: the namespace, and an attached <code>package:&lt;pkg&gt;</code> on the search path. Test code resolves through the search path and never consults the namespace, so the obvious recipe leaves the test calling the <em>original</em> function while reporting success. Measured 2026-08-28 in flooded#41, restoring a fully-reverted bug under <code>test_file()</code>:</p>
+<pre><code>unpatched                          FAIL = 0     zeros = 1    (fixed behaviour)
+asNamespace("flooded") patched     FAIL = 0     zeros = 1    &lt;- false green, bug not reached
++ as.environment("package:flooded") FAIL = 3    zeros = 400  &lt;- broken code actually runs</code></pre>
+<p>Which binding you want depends on who calls:</p>
+<table class="table"><colgroup><col width="50%"><col width="50%"></colgroup><thead><tr><th>the call under test</th>
+<th>patch</th>
+</tr></thead><tbody><tr><td>test code -&gt; an exported function</td>
+<td><code>as.environment("package:&lt;pkg&gt;")</code></td>
+</tr><tr><td>one package function -&gt; another (internal call path)</td>
+<td><code>asNamespace("&lt;pkg&gt;")</code></td>
+</tr><tr><td>either, on testthat &gt;= 3.2.0</td>
+<td><code>local_mocked_bindings(f = ..., .package = "&lt;pkg&gt;")</code></td>
+</tr></tbody></table><div class="sourceCode" id="cb31"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="kw">for</span> <span class="op">(</span><span class="va">e</span> <span class="kw">in</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/ns-internal.html" class="external-link">asNamespace</a></span><span class="op">(</span><span class="st">"pkg"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/as.environment.html" class="external-link">as.environment</a></span><span class="op">(</span><span class="st">"package:pkg"</span><span class="op">)</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/bindenv.html" class="external-link">unlockBinding</a></span><span class="op">(</span><span class="st">"f"</span>, <span class="va">e</span><span class="op">)</span>; <span class="fu"><a href="https://rdrr.io/r/base/assign.html" class="external-link">assign</a></span><span class="op">(</span><span class="st">"f"</span>, <span class="va">broken_version</span>, <span class="va">e</span><span class="op">)</span></span>
+<span><span class="op">}</span></span></code></pre></div>
 </li>
+<li><p><strong>Do not reason about which environment — print a value that proves the patch took.</strong> One line, before the assertion, whose output can only come from the broken version. That is what turns “I patched it” into “the broken code ran”, and it is the same check whether the language is R, Python or JS. Assigning into <code><a href="https://rdrr.io/r/base/environment.html" class="external-link">globalenv()</a></code> also appears to work in R, by <em>shadowing</em> the attached copy earlier on the search path — a workaround that happens to produce the right answer for the wrong reason, and silently fails the moment the caller is inside the package.</p></li>
 <li>
 <p>Three instances in one PR (gq#52, 2026-08), all written by someone who had just read the fixture rule directly above:</p>
 <ul><li>A scale-bar test asserting the bar stays within <code>share</code> of the frame — threshold hardcoded at <strong>0.75</strong> against a <code>share</code> of <strong>0.35</strong>, so a bar at 2.1x the requested size passed. Every width in the fixture also happened to round <em>down</em>, so none could overrun even at the right threshold.</li>
 <li>A clamp test for a bbox padded past ±90 — the box chosen padded the <strong>x</strong> axis, so the latitude clamp it was named for could never fire.</li>
 <li>An <code>options(str=)</code> independence test routed through real registry data whose values stayed distinct at one decimal. With the buggy key restored it still passed; a synthetic <code>1.32 / 1.34</code> pair made it fire.</li>
 </ul></li>
+<li><p>A fourth, of a different kind, from the entry above: the restoration <em>harness</em> can be the thing that is broken. A green run proves nothing until you have evidence the defect was actually executing.</p></li>
 <li><p>What they share is the tell: the <strong>assertion</strong> is correct and the <strong>input</strong> cannot reach it. So review the fixture against the bug, not the assertion against the spec — the assertion is the part that reads well and the part that is usually already right.</p></li>
 <li><p>Sibling of the interop rule above, at one remove: a test that inspects a structure its consumer would reject is the same failure. In that same PR, 18 tests read a legend object and none passed it to the renderer, which refused it outright.</p></li>
 </ul></div>
@@ -1087,13 +1126,41 @@
 <ul><li><p>The YAML 1.1 core schema resolves <code>y</code>, <code>Y</code>, <code>n</code>, <code>N</code>, <code>yes</code>, <code>no</code>, <code>on</code>, <code>off</code>, <code>true</code>, <code>false</code> (and their case variants) to <strong>booleans</strong>. Most parsers in wide use — libyaml, PyYAML, R’s <code>yaml</code> — still do this.</p></li>
 <li>
 <p>So a column, key, or field literally named <code>y</code> stops being a string the moment it is written unquoted:</p>
-<div class="sourceCode" id="cb27"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb27-1"><a href="#cb27-1" tabindex="-1"></a><span class="fu">cols</span><span class="kw">:</span></span>
-<span id="cb27-2"><a href="#cb27-2" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="ch">y</span><span class="co">        # parses as logical TRUE, not "y"</span></span></code></pre></div>
+<div class="sourceCode" id="cb32"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb32-1"><a href="#cb32-1" tabindex="-1"></a><span class="fu">cols</span><span class="kw">:</span></span>
+<span id="cb32-2"><a href="#cb32-2" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="ch">y</span><span class="co">        # parses as logical TRUE, not "y"</span></span></code></pre></div>
 <p>Nothing errors. The consumer simply never matches that entry again, and whatever it was supposed to do to it silently does not happen.</p>
 </li>
 <li><p>Bites hardest in <strong>schema and config files</strong>, where single-letter names are normal: coordinate columns (<code>x</code>, <code>y</code>, <code>z</code>), flags, short codes. Quote them: <code>- name: "y"</code>.</p></li>
 <li><p>Caught twice in one file 2026-08-24 (crate#9) — once in a canonical column list and once in a variant’s column list. Both found by a guard that asserted every declared name <code><a href="https://rdrr.io/r/base/character.html" class="external-link">is.character()</a></code>; reading the YAML had not found either.</p></li>
 <li><p>Worth an assertion rather than vigilance: after parsing any config that carries user-chosen names, check they are all strings. The failure is invisible otherwise, because the wrong value is a perfectly valid one.</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="list-the-container-do-not-construct-the-sibling-path">List the container; do not construct the sibling path<a class="anchor" aria-label="anchor" href="#list-the-container-do-not-construct-the-sibling-path"></a></h3>
+<ul><li><p>Probing for a related object by editing a known-good path — swapping a directory, appending a suffix, substituting a product name — assumes the naming convention is uniform across the whole store. It usually is not, and the places it is not are invisible from any single example.</p></li>
+<li><p>The failure is a <strong>404, which reads as “that product does not exist”</strong> rather than “I guessed the name wrong”. So the wrong conclusion arrives looking like evidence, and it is the confident kind: a checked path that returned nothing.</p></li>
+<li>
+<p>Measured 2026-08-27 in the BC LidarBC objectstore. Swapping <code>/dem/</code> for <code>/dsm/</code> in a tile’s URL:</p>
+<pre><code>2022  dem/bc_082f037_xli1m_utm11_2022.tif
+      dsm/bc_082f037_xli1m_utm11_2022.tif        &lt;- same basename, swap works
+2017  dem/bc_082f037_xli1m_utm11_2017.tif
+      dsm/bc_082f037_xli1m_utm11_2017_dsm.tif    &lt;- suffixed, swap 404s</code></pre>
+<p>A probe run against a 2017 tile concluded “there is no surface model and no CHM”, and that became the central constraint of a project plan — ruling out canopy measurement entirely — for weeks. Listing the prefix instead showed <code>dem, dsm, orthophoto, pointcloud</code> immediately, with DSM present in 25 of 38 mapsheet-years.</p>
+</li>
+<li><p><strong>Enumerate the container</strong> (<code>?list-type=2&amp;delimiter=/&amp;prefix=…</code>, <code>ls</code>, the API’s own listing endpoint) and match on the fields that actually identify the thing — tile, date, product — rather than on a name you assembled.</p></li>
+<li><p>When pairing two families this way, <strong>report the unpaired members</strong>. An item with no partner is a real gap, and silently dropping it turns a coverage hole into an apparently complete result.</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="a-verifier-built-on-the-writers-own-library-shares-its-blind-spot">A verifier built on the writer’s own library shares its blind spot<a class="anchor" aria-label="anchor" href="#a-verifier-built-on-the-writers-own-library-shares-its-blind-spot"></a></h3>
+<ul><li>After rewriting a file, the natural check is to parse both versions and compare their structure. That check is worth much less than it looks when the same library does both jobs: <strong>anything the library does not model, it will neither preserve nor miss.</strong> The comparison comes back identical, and the loss is invisible precisely where it matters.</li>
+<li>Live case, 2026-08-27: Python’s <code>ElementTree</code> <strong>silently drops the <code>&lt;!DOCTYPE&gt;</code></strong> when it writes. A <code>.qgs</code> carries one. The structural check — root tag, layer count, theme count, tree nodes — reported IDENTICAL, because <code>ElementTree</code> does not need a DOCTYPE to parse either. R’s <code><a href="http://xml2.r-lib.org/reference/write_xml.html" class="external-link">xml2::write_xml</a></code> preserves it, which is why the same operation through the package’s own writer had never shown the problem.</li>
+<li>The prologue is the usual casualty in XML (DOCTYPE, processing instructions, comments, namespace prefixes, attribute order), but the shape is general: JSON writers drop key order and numeric precision, YAML writers drop anchors and comments, image libraries drop EXIF.</li>
+<li>Two habits that catch it:
+<ul><li>
+<strong>Diff the bytes at the boundaries</strong>, not just the parsed structure — <code>head -2</code> and <code>tail -2</code> on both files costs nothing and is exactly where prologue loss shows.</li>
+<li>
+<strong>Check what the real consumer needs</strong>, then assert that specifically. The generic “did the structure survive” question cannot ask it for you.</li>
+</ul></li>
+<li>Sibling of <em>“A round-trip through your own reader proves nothing about interop”</em> above, one level meaner: there the reader was too generous, here the <strong>verifier</strong> is, so the failure survives a check that was written specifically to catch it.</li>
 </ul></div>
 <div class="section level3">
 <h3 id="canonicalize-serialized-documents-before-diffing-them">Canonicalize serialized documents before diffing them<a class="anchor" aria-label="anchor" href="#canonicalize-serialized-documents-before-diffing-them"></a></h3>
@@ -1109,6 +1176,14 @@
 <li>For anything whose output you are about to treat as evidence, bypass the lookup: <code>command diff</code>, <code>\diff</code>, or a tool with no common wrapper — <code>cmp -s</code> for byte-equality, <code>md5</code> / <code>sha256sum</code> for a value you can print. Printing the digest beats printing a verdict: it stays checkable after the fact.</li>
 <li>
 <code>type &lt;cmd&gt;</code> tells you what you actually have. Worth running the first time a verification step returns something surprising, before believing the surprise.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="a-comparison-test-proves-nothing-if-the-fixture-makes-both-sides-identical">A comparison test proves nothing if the fixture makes both sides identical<a class="anchor" aria-label="anchor" href="#a-comparison-test-proves-nothing-if-the-fixture-makes-both-sides-identical"></a></h3>
+<ul><li>A test of the form “configuration A and configuration B produce the same result” is only a test when A and B <em>can</em> differ in the data it runs on. When the fixture makes them equivalent, the assertion holds for every implementation — correct or broken — and the green tick is indistinguishable from a real pass.</li>
+<li>Measured 2026-08-27 in flooded#40: a test asserted that grouping a floodplain by <code>gnis_name</code> and by <code>blue_line_key</code> produced the same union of ground. In the bundled test data those two columns are a <strong>bijection</strong> — 5 groups each, one-to-one — so the two runs were the same run with different labels. The test could not fail. Replaced with a constructed coarsening (merge the 5 fine groups into 2, assert each coarse group equals the union of its members, cell for cell), which is the property that actually mattered and can be broken.</li>
+<li>The tell is that both sides come from the <em>same</em> fixture column set. Before writing the assertion, compute the cross-tabulation — <code>table(a, b)</code> — and look at it. A diagonal means you have one test, not two.</li>
+<li>Same shape, different dress: comparing two code paths that a small fixture drives down the same branch, or two parameter values that both fall outside a threshold the data never approaches. Check that the fixture reaches the distinction, not just that the code contains it.</li>
+<li>Generally: when a test passes on the first run, ask what edit to the code under test would make it fail. If you cannot name one, the test is documentation, not verification.</li>
 </ul></div>
 <div class="section level3">
 <h3 id="documentation-staleness">Documentation Staleness<a class="anchor" aria-label="anchor" href="#documentation-staleness"></a></h3>
@@ -1128,7 +1203,7 @@
 <li>
 <strong>Write robust tests first</strong> — failing tests that reproduce the issue or document the new behavior. Tests are the contract; they fail until the work makes them pass.</li>
 <li>
-<strong>Name with intent</strong> — functions, parameters, internal helpers carry the naming style of the package they live in. Look at existing exports as the guide; consistency over cleverness. (Per-package naming convention TBD — see soul issue tracking.)</li>
+<strong>Name with intent</strong> — functions, parameters, internal helpers carry the naming style of the package they live in. Look at existing exports as the guide; consistency over cleverness. For files rather than functions — shell scripts and operational R scripts under <code>scripts/</code> or <code>data-raw/</code> — the standard is the <code>noun_verb-detail</code> pattern in <code>newgraph.md</code>, noun first.</li>
 <li>
 <strong>Examples that run</strong> — every exported function gets a runnable <code>@examples</code> block. Pkgdown renders them; CI executes them. An example that doesn’t run is documentation rot.</li>
 <li>
@@ -1245,10 +1320,42 @@
 </tr></tbody></table><p>A repeated <code>sleep N; grep</code> is right in none of them. <strong>Tell: if you are about to spawn a second waiter for the same thing, the first one was the wrong shape.</strong></p>
 <p>A <code>Monitor</code> filter must also match the failure states, not just the success one — silence looks identical to “still running”, so a watcher that greps only for the happy path stays quiet through a crash.</p>
 </div>
+<div class="section level3">
+<h3 id="dont-edit-files-a-long-running-suite-is-still-reading">Don’t edit files a long-running suite is still reading<a class="anchor" aria-label="anchor" href="#dont-edit-files-a-long-running-suite-is-still-reading"></a></h3>
+<p><code>devtools::test()</code> and its equivalents load each test file <strong>when they reach it</strong>, not at launch. A 30-minute run therefore reads whatever is on disk at that moment, so edits made mid-run are half-applied and the result describes a tree that never existed.</p>
+<p>Cost two full Docker suites (~1 hour) on rfp#178, both reporting <code>FAIL 1</code>. The failure was a test written <em>during</em> the run, executing against source from <em>before</em> the fix that made it pass — nearly reported as a regression. <strong>The tell is a moving denominator:</strong> 3490 passes, then 3496, then 3500, on “the same” tree.</p>
+<p>Before a long run, commit. While it runs, do work that touches nothing it reads — issue bodies, PR text, reading, planning. If an edit cannot wait, kill the run rather than let it produce a result that has to be re-litigated. And when a long run fails, get the <code>file:line</code> before forming any theory: a mid-flight edit and a real regression look identical in a summary line.</p>
+</div>
 </div>
 <div class="section level2">
 <h2 id="id_6-subagents-are-evidence-not-dependencies">6. Subagents Are Evidence, Not Dependencies<a class="anchor" aria-label="anchor" href="#id_6-subagents-are-evidence-not-dependencies"></a></h2>
-<p><strong>Don’t block on one. Don’t trust its status. Verify its claims in both directions.</strong></p>
+<p><strong>Spawn on your own judgment. Don’t block on one. Don’t trust its status. Verify its claims in both directions.</strong></p>
+<div class="section level3">
+<h3 id="spawning-is-your-call-not-the-users">Spawning is your call, not the user’s<a class="anchor" aria-label="anchor" href="#spawning-is-your-call-not-the-users"></a></h3>
+<p>Deciding to spawn a subagent is an engineering judgment, the same kind as choosing to write a test or run a grep. <strong>Do not ask permission for it.</strong></p>
+<p>The user is usually not positioned to answer. Knowing whether a fan-out beats a sequential read requires knowing the shape of the work — which you have and they do not, so the question forces them to guess at a technical call. Under <strong>Always Away</strong> it is worse than useless: the work stalls until they wake up, for an answer that was yours to make. <em>“I wouldn’t be in the know enough to know when that is”</em> (airvine, 2026-08-27) is the whole problem in one line.</p>
+<p>This does not soften §1’s asks — <em>“if uncertain, ask”</em> and <em>“if something is unclear, stop and ask”</em>. Those are about <strong>what the user wants</strong>: intent, scope, an ambiguous requirement, a tradeoff only they can weigh. This is about <strong>how you carry it out</strong>. Ask about intent; decide about mechanism. A question starting “should I use…” is almost always the second kind, and almost always yours to answer.</p>
+<p><strong>Spawn without asking when:</strong></p>
+<ul><li>A skill or convention mandates it — <code>/code-check</code>’s review rounds, the Plan review in <code>planning.md</code>. That decision is already made; re-asking it is friction carrying no information.</li>
+<li>You want fresh eyes on your own work. The mechanism and the measurements behind it are in <code>code-check/SKILL.md</code>.</li>
+<li>A sweep over many files will <strong>locate</strong> what matters faster than reading serially. The sweep finds candidates; it does not replace the read — <code>planning.md</code> is explicit that agents sometimes report existing files as absent, so read directly whatever you are going to act on.</li>
+<li>Independent items can run concurrently and nothing downstream needs them ordered.</li>
+</ul><p><strong>Do it yourself when:</strong></p>
+<ul><li>One grep answers it.</li>
+<li>The work depends on conversation context a subagent will not have.</li>
+<li>You would sit idle waiting — spawn and keep working, or do it inline.</li>
+</ul><p><strong>Bounds and defaults you enforce yourself, rather than converting into questions:</strong></p>
+<ul><li>
+<strong>Two or three concurrent is the working default, and about five per task</strong> is where spend stops being incidental. Concurrency and cumulative total are different quantities — <code>/code-check</code>’s three rounds plus a Plan review plus an ad-hoc sweep never exceeds three at once while spending well past a handful. Bound both.</li>
+<li>Past that total, <strong>say so in your next message.</strong> An escape you grant yourself silently is not a bound; it has to land in front of the user, after the fact.</li>
+<li>
+<strong>Do not let a subagent fan out again.</strong> Intent does not enforce this — the child decides what it calls — so use the structure: the <code>Explore</code> and <code>Plan</code> types are defined without the <code>Agent</code> tool and <em>cannot</em> spawn. <code>general-purpose</code> can, so when you use it (as <code>/code-check</code> does), put “do not spawn subagents” in the prompt. The one case on record — a research agent that had spawned 5 children and deadlocked for <strong>~3 hours</strong> while still reporting as running (below) — never had a root cause established, which is exactly why this bound is structural rather than advisory.</li>
+<li>Unnamed, delivering by file — <code>planning.md</code> carries the mechanics.</li>
+<li>
+<strong>Report after, not before.</strong> Say what you spawned, and relay what it found (per <code>code-check/SKILL.md</code> — a subagent’s report never reaches the user on its own). A user can object to a spawn that already happened; they cannot usefully approve one that has not.</li>
+</ul><p><strong>What is genuinely the user’s call is budget, not mechanism.</strong> A workflow or deep-research run fanning out dozens of agents is a spending decision and needs an explicit ask. Two or three reviewers is not — that is just doing the work.</p>
+<p>Worth being concrete about the value, because the cost is the visible half and the benefit is not: on 2026-08-27 two reviewers over one conventions draft returned <strong>20 findings</strong>, caught <strong>six</strong> false factual claims in it, and killed a section that would otherwise have shipped contradicting <code>code-check.md</code>. None of that review happens if the spawn waits on a user who is away.</p>
+</div>
 <div class="section level3">
 <h3 id="dont-block">Don’t block<a class="anchor" aria-label="anchor" href="#dont-block"></a></h3>
 <p>Spawn a background subagent, then keep working on the lowest-risk part of the task — scaffolding, data files, tests. When findings arrive, treat them as a review of landed work rather than a precondition for starting it.</p>
@@ -1271,6 +1378,41 @@
 <li>
 <strong>Dismissing a late review wholesale.</strong> In that same review 2 of 9 findings were real, including a dead link. In a later one, a finding that a <code>path|layername=</code> check would delete KML/GPX layers was correct, and was confirmed against 207 real datasources before the fix landed.</li>
 </ul><p>The rule that separates them: <strong>cheap probe first, then act.</strong> Reproduce the claim before you fix it, and before you dismiss it. A finding you cannot reproduce is a finding you do not yet understand.</p>
+</div>
+</div>
+<div class="section level2">
+<h2 id="id_7-evidence-not-impressions">7. Evidence, Not Impressions<a class="anchor" aria-label="anchor" href="#id_7-evidence-not-impressions"></a></h2>
+<p><strong>Measure before you characterise. Presence is not provenance. “Unknowable” is a claim.</strong></p>
+<p>Six principles that all fail the same way: something <em>feels</em> established — because it is visible, because it is present, because someone said so — and gets offered with the confidence of a measurement.</p>
+<div class="section level3">
+<h3 id="measure-before-you-characterise">Measure before you characterise<a class="anchor" aria-label="anchor" href="#measure-before-you-characterise"></a></h3>
+<p>When a decision turns on <strong>what something contains</strong>, open it and count. Do not describe it from its structure, from an issue’s claim about it, or from a tag list. A heading tells you a thing is <em>present</em>, never that it is <em>populated</em> — an empty <code>&lt;conditionalstyles/&gt;</code> and one with rules look identical in a list of child names.</p>
+<p>Four instances in one rfp session, each corrected by the user’s follow-up question rather than by review: a tradeoff described as three times its real size; an issue’s stale claim repeated as current; an installed version reported as sixteen releases behind when a parallel session had updated it eighteen minutes earlier; and “nothing on main addresses this” from a local <code>main</code> three commits behind — one <code>git fetch</code> away from the truth.</p>
+<p><strong>A measurement carries the time it was taken.</strong> One made earlier in the same session is not a current one, least of all for anything another session can change underneath it. For anything git-backed, <code>git fetch</code> first: reading a local clone and reporting it as the state of the world is the same error with a longer fuse.</p>
+<p><strong>And before hand-rolling a parser for a probe, check whether the code already has one.</strong> A bespoke parser silently narrows the population it can see, and the result looks like a measurement rather than a sample — worse than not measuring, because it carries a number. Measured 10 of 80 with a hand-written matcher; routed through the package’s own resolver it was 14 of 117.</p>
+</div>
+<div class="section level3">
+<h3 id="presence-is-not-provenance">Presence is not provenance<a class="anchor" aria-label="anchor" href="#presence-is-not-provenance"></a></h3>
+<p>When something’s <strong>presence</strong> is offered as evidence for <strong>how it got there</strong>, find the fact that actually discriminates. A QGIS project’s <code>3.30.1</code> stamp was offered as evidence a desktop had opened it — but the template it was copied from carries that stamp, so a never-opened project reads the same. What actually proved it was a tracking key the template does not contain.</p>
+<p>The tell: reaching for the <em>most visible</em> fact rather than the <em>discriminating</em> one, because the visible fact is consistent with the conclusion. <strong>Consistency is not support.</strong> Before offering “X shows Y”, ask what else would produce X. If anything would, X is not evidence.</p>
+<p>When the user pushes back on an inference, re-derive rather than defend. The conclusion often survives; the reasoning that reaches it is usually different.</p>
+</div>
+<div class="section level3">
+<h3 id="it-can-only-be-answered-by-testing-is-a-claim-with-an-author">“It can only be answered by testing” is a claim with an author<a class="anchor" aria-label="anchor" href="#it-can-only-be-answered-by-testing-is-a-claim-with-an-author"></a></h3>
+<p>An issue or a colleague saying a question needs a field season, a device or a deploy is stating a claim, not a property of the problem. Spend the cheap probe first.</p>
+<p>rfp#186 opened with “three questions decide whether this is viable, and none can be answered by reading.” Two fell in about twenty minutes — one to reading a call graph, one to re-reading a file already on disk — turning “run a field season, then decide what to build” into “build it, then confirm one thing.”</p>
+<p>The claim is usually made by someone who knows the domain, at a moment before they looked. Not wrong so much as <strong>unexamined</strong>, which is what lets it survive into the plan. Then <strong>bound what the probe closed</strong>: reading a desktop plugin says nothing about the mobile app. An over-claimed probe is worse than none.</p>
+</div>
+<div class="section level3">
+<h3 id="a-real-bug-is-not-necessarily-the-reported-bug">A real bug is not necessarily the reported bug<a class="anchor" aria-label="anchor" href="#a-real-bug-is-not-necessarily-the-reported-bug"></a></h3>
+<p>A defect found while investigating a symptom is <strong>evidence, not the answer</strong>. Before offering it as the cause, check that it produces <em>exactly</em> the symptom described, including the details that sound incidental.</p>
+<p>Two confident wrong causes in a row on rfp#196 — a layer missing from a map theme (a real bug, fixed) and a sub-pixel geometry (a real measurement). Both true; neither explained the report. The actual cause was draw order, and the user named it himself. The discriminating fact was in his words all along: <em>“as soon as I stop tracking I can’t see the track”</em> rules out both theories in one line.</p>
+<p>Finding a genuine defect feels like finding <em>the</em> defect — the relief of having an explanation is what stops the check. Write the reported symptom out and ask whether the proposed cause produces <strong>all</strong> of it. Say which parts are still unexplained: “this is a real bug and it may not be your bug” is honest and cheap.</p>
+</div>
+<div class="section level3">
+<h3 id="an-enumeration-is-not-a-checklist">An enumeration is not a checklist<a class="anchor" aria-label="anchor" href="#an-enumeration-is-not-a-checklist"></a></h3>
+<p>A probe listing what exists — subkeys present, columns found, files listed — answers “what is here”, never “what do we want”. Scope arriving this way looks evidence-backed, so it survives review.</p>
+<p>On rfp#68, “the two Mergin subkeys that exist” became “the settings to verify”, then an item on a field checklist a human had to walk outdoors to complete. Nothing in the codebase read or wrote <code>PhotoNaming</code>. Before a probe’s output becomes work, grep for each item and ask whether anything consumes it. When it duplicates something already done another way, name the comparison — the existing approach usually wins for a reason worth stating.</p>
 <p><strong>These guidelines are working if:</strong> fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.</p>
 </div>
 </div>
@@ -1297,16 +1439,16 @@
 </tr><tr><td><code>search.json</code></td>
 <td>the full-text index, containing the text</td>
 </tr></tbody></table><p>Deleting <code>docs/CLAUDE.html</code> after the build leaves the other two. It looks like a fix and achieves nothing. Remove the file from the CI checkout <strong>before</strong> <code>build_site()</code> runs:</p>
-<div class="sourceCode" id="cb29"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb29-1"><a href="#cb29-1" tabindex="-1"></a><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> Keep internal notes out of the published site</span></span>
-<span id="cb29-2"><a href="#cb29-2" tabindex="-1"></a><span class="at">  </span><span class="fu">run</span><span class="kw">:</span><span class="at"> rm -f CLAUDE.md</span></span></code></pre></div>
+<div class="sourceCode" id="cb35"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb35-1"><a href="#cb35-1" tabindex="-1"></a><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> Keep internal notes out of the published site</span></span>
+<span id="cb35-2"><a href="#cb35-2" tabindex="-1"></a><span class="at">  </span><span class="fu">run</span><span class="kw">:</span><span class="at"> rm -f CLAUDE.md</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="gate-on-a-declared-allowlist">Gate on a declared allowlist<a class="anchor" aria-label="anchor" href="#gate-on-a-declared-allowlist"></a></h3>
 <p>Each repo states which extra root pages it <em>intends</em> to publish. Anything else fails the build, so a new root markdown file cannot leak silently:</p>
-<div class="sourceCode" id="cb30"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb30-1"><a href="#cb30-1" tabindex="-1"></a><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> Fail if an unexpected page reached the site</span></span>
-<span id="cb30-2"><a href="#cb30-2" tabindex="-1"></a><span class="fu">  run</span><span class="kw">: </span><span class="ch">|</span></span>
-<span id="cb30-3"><a href="#cb30-3" tabindex="-1"></a>    allowed="404 authors index LICENSE LICENSE-text"   # + declared extras</span>
-<span id="cb30-4"><a href="#cb30-4" tabindex="-1"></a>    ...</span></code></pre></div>
+<div class="sourceCode" id="cb36"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb36-1"><a href="#cb36-1" tabindex="-1"></a><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> Fail if an unexpected page reached the site</span></span>
+<span id="cb36-2"><a href="#cb36-2" tabindex="-1"></a><span class="fu">  run</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb36-3"><a href="#cb36-3" tabindex="-1"></a>    allowed="404 authors index LICENSE LICENSE-text"   # + declared extras</span>
+<span id="cb36-4"><a href="#cb36-4" tabindex="-1"></a>    ...</span></code></pre></div>
 <p>Add to <code>allowed</code> only after deciding the page should be public. <code>link</code> publishes <code>NOTICE</code> and <code>RUNBOOK</code> deliberately — it is a public repo and both are genuine documentation. That is the decision the allowlist is meant to record.</p>
 <p>Test the gate against <strong>both</strong> known answers before shipping it: it must exit non-zero on a site that does contain the file, and zero on one that does not. A guard that only ever returns one value is indistinguishable from a broken one.</p>
 </div>
@@ -1329,7 +1471,7 @@
 <li>
 <strong>hand-added assets</strong> not produced by the build. Favicons and web manifests under <code>pkgdown/favicon/</code> <em>are</em> produced by the build and are safe.</li>
 </ul><p>Use <code>clean-exclude</code> for anything that must survive.</p>
-<div class="sourceCode" id="cb31"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb31-1"><a href="#cb31-1" tabindex="-1"></a><span class="ex">gh</span> api <span class="st">"repos/OWNER/REPO/contents?ref=gh-pages"</span> <span class="at">--jq</span> <span class="st">'.[] | "\(.type) \(.name)"'</span></span></code></pre></div>
+<div class="sourceCode" id="cb37"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb37-1"><a href="#cb37-1" tabindex="-1"></a><span class="ex">gh</span> api <span class="st">"repos/OWNER/REPO/contents?ref=gh-pages"</span> <span class="at">--jq</span> <span class="st">'.[] | "\(.type) \(.name)"'</span></span></code></pre></div>
 </div>
 </div>
 <div class="section level2">
@@ -1370,7 +1512,13 @@
 <p>Verify before acting, in both directions. Findings have been confidently wrong (a “BLOCKER” disproved by a 30-second probe) and confidently right about things nobody suspected. Reproduce the claim first.</p>
 <p><strong>Spawn review agents UNNAMED.</strong> Passing <code>name</code> to the <code>Agent</code> tool changes what you get: a named spawn becomes a persistent <em>teammate</em> that goes <strong>idle</strong> rather than completing, so there is no final report to auto-deliver and its output must be pulled with <code>SendMessage</code>. An unnamed spawn is a fire-and-return subagent whose report arrives on its own in the completion notification. Measured 2026-08-25 on one machine, one session, unchanged settings: the unnamed spawn returned in <strong>6.4s</strong>; three named reviewers returned nothing at all, sending only empty idle pings. Pass <code>name</code> only for a collaborator you intend to keep messaging, and shut it down when done — it pings indefinitely otherwise.</p>
 <p>That mis-spawn is what produced the silent-delivery failures below, so check <code>name</code> before suspecting settings. Teammate mode (<code>CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1</code> + <code>teammateMode</code>, merged globally from <code>soul/settings/defaults.json</code>) shapes what a <em>named</em> spawn becomes; it is not by itself why findings go missing, and an unnamed spawn delivers fine with it enabled.</p>
-<p><strong>Have the agent write findings to a file, and report only the path.</strong> Message delivery has silently failed twice: one review arrived as idle notifications with no content, and one was routed to a different session on the user’s phone — which only surfaced because the user mentioned it. From this side an idle ping is indistinguishable from an agent that had nothing to say, so the loss is invisible. A file (<code>planning/active/review-&lt;N&gt;.md</code>) survives routing, survives the agent exiting, and is greppable later. Put the instruction in the first prompt, not as a follow-up.</p>
+<p><strong>Get the findings into a file — but check who is doing the writing.</strong> Message delivery has silently failed twice: one review arrived as idle notifications with no content, and one was routed to a different session on the user’s phone, surfacing only because the user mentioned it. From this side an idle ping is indistinguishable from an agent that had nothing to say, so the loss is invisible. A file (<code>planning/active/review-&lt;N&gt;.md</code>) survives routing, survives the agent exiting, and is greppable later.</p>
+<p><strong>The <code>Plan</code> and <code>Explore</code> agent types have no Write tool, so they cannot write that file.</strong> Both plan reviews on 2026-08-26 (gq#61, gq#40) were instructed to and were structurally unable to; one said so outright — <em>“I have no Write/Edit tools and am explicitly barred from creating files; an agent instruction can’t lift that”</em> — and returned the full review as reply text instead. Both arrived intact, ~26 findings each. So:</p>
+<ul><li>
+<strong>Read-only agent</strong> (<code>Plan</code>, <code>Explore</code>): ask for the findings <strong>in the reply</strong>, then write them to <code>planning/active/review-&lt;N&gt;.md</code> yourself. The file is still the deliverable; you are just the one creating it.</li>
+<li>
+<strong>Agent type that can write</strong>: put the file-path instruction in the first prompt, not as a follow-up.</li>
+</ul><p>Asking for a file the agent cannot produce costs a round-trip, and — worse — sets you up to read an absent file as an absent review. Check the agent type’s tools before writing the instruction.</p>
 <p><strong>Review the fixes, not just the code.</strong> The second pass is where the value concentrates, because a fix written under a wrong assumption reproduces the same defect. Measured on gq#52: pass 1 found 13 defects, pass 2 found 7 more — including a blocker sitting <em>inside the fix</em> for pass 1’s blocker, the same class twice (<code>lty</code>, then <code>fill_alpha</code>) because completeness was reasoned about rather than computed. Pass 3, scoped narrowly to the file edited most, found no new instances; <strong>convergence is the signal to stop, not a fixed number of rounds.</strong></p>
 <p>Ask for the <strong>mechanism</strong>, not more instances. Pass 3’s best finding was that an invariant was enforced by two lists happening to agree — which is what had produced instances two and three.</p>
 <p>The thing reviewers catch that self-probing does not is <strong>interop</strong>: 18 tests inspected a legend object and none handed it to the renderer, which rejected it outright. Ask the consumer.</p>
@@ -1391,34 +1539,67 @@
 <div class="section level3">
 <h3 id="task_planmd">task_plan.md<a class="anchor" aria-label="anchor" href="#task_planmd"></a></h3>
 <p>Phases with checkboxes. This is the core tracking file.</p>
-<div class="sourceCode" id="cb32"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb32-1"><a href="#cb32-1" tabindex="-1"></a><span class="fu"># Task Plan</span></span>
-<span id="cb32-2"><a href="#cb32-2" tabindex="-1"></a></span>
-<span id="cb32-3"><a href="#cb32-3" tabindex="-1"></a><span class="fu">## Phase 1: [Name]</span></span>
-<span id="cb32-4"><a href="#cb32-4" tabindex="-1"></a><span class="ss">- </span><span class="va">[ ]</span> Task description</span>
-<span id="cb32-5"><a href="#cb32-5" tabindex="-1"></a><span class="ss">- </span><span class="va">[ ]</span> Another task</span>
-<span id="cb32-6"><a href="#cb32-6" tabindex="-1"></a></span>
-<span id="cb32-7"><a href="#cb32-7" tabindex="-1"></a><span class="fu">## Phase 2: [Name]</span></span>
-<span id="cb32-8"><a href="#cb32-8" tabindex="-1"></a><span class="ss">- </span><span class="va">[ ]</span> Task description</span></code></pre></div>
+<div class="sourceCode" id="cb38"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb38-1"><a href="#cb38-1" tabindex="-1"></a><span class="fu"># Task: &lt;issue title&gt; (#&lt;N&gt;)</span></span>
+<span id="cb38-2"><a href="#cb38-2" tabindex="-1"></a></span>
+<span id="cb38-3"><a href="#cb38-3" tabindex="-1"></a><span class="dt">&lt;</span><span class="kw">issue</span><span class="ot"> body </span><span class="er">—</span><span class="ot"> Problem section if present</span><span class="er">,</span><span class="ot"> otherwise first paragraph</span><span class="dt">&gt;</span></span>
+<span id="cb38-4"><a href="#cb38-4" tabindex="-1"></a></span>
+<span id="cb38-5"><a href="#cb38-5" tabindex="-1"></a><span class="fu">## Phase 1: [Name]</span></span>
+<span id="cb38-6"><a href="#cb38-6" tabindex="-1"></a><span class="ss">- </span><span class="va">[ ]</span> Task description</span>
+<span id="cb38-7"><a href="#cb38-7" tabindex="-1"></a><span class="ss">- </span><span class="va">[ ]</span> Another task</span>
+<span id="cb38-8"><a href="#cb38-8" tabindex="-1"></a></span>
+<span id="cb38-9"><a href="#cb38-9" tabindex="-1"></a><span class="fu">## Phase 2: [Name]</span></span>
+<span id="cb38-10"><a href="#cb38-10" tabindex="-1"></a><span class="ss">- </span><span class="va">[ ]</span> Task description</span></code></pre></div>
 <p>Mark tasks done as they’re completed: <code>- [x] Task description</code></p>
 </div>
 <div class="section level3">
 <h3 id="findingsmd">findings.md<a class="anchor" aria-label="anchor" href="#findingsmd"></a></h3>
 <p>Append-only research log. Discoveries, technical analysis, things learned.</p>
-<div class="sourceCode" id="cb33"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb33-1"><a href="#cb33-1" tabindex="-1"></a><span class="fu"># Findings</span></span>
-<span id="cb33-2"><a href="#cb33-2" tabindex="-1"></a></span>
-<span id="cb33-3"><a href="#cb33-3" tabindex="-1"></a><span class="fu">## [Topic]</span></span>
-<span id="cb33-4"><a href="#cb33-4" tabindex="-1"></a><span class="co">[</span><span class="ot">What was found, with source/date</span><span class="co">]</span></span></code></pre></div>
+<div class="sourceCode" id="cb39"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb39-1"><a href="#cb39-1" tabindex="-1"></a><span class="fu"># Findings</span></span>
+<span id="cb39-2"><a href="#cb39-2" tabindex="-1"></a></span>
+<span id="cb39-3"><a href="#cb39-3" tabindex="-1"></a><span class="fu">## [Topic]</span></span>
+<span id="cb39-4"><a href="#cb39-4" tabindex="-1"></a><span class="co">[</span><span class="ot">What was found, with source/date</span><span class="co">]</span></span>
+<span id="cb39-5"><a href="#cb39-5" tabindex="-1"></a></span>
+<span id="cb39-6"><a href="#cb39-6" tabindex="-1"></a><span class="fu">## Errors Encountered</span></span>
+<span id="cb39-7"><a href="#cb39-7" tabindex="-1"></a></span>
+<span id="cb39-8"><a href="#cb39-8" tabindex="-1"></a><span class="pp">|</span> Error <span class="pp">|</span> Resolution <span class="pp">|</span></span>
+<span id="cb39-9"><a href="#cb39-9" tabindex="-1"></a><span class="pp">|-------|------------|</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="progressmd">progress.md<a class="anchor" aria-label="anchor" href="#progressmd"></a></h3>
 <p>Session entries with commit references.</p>
-<div class="sourceCode" id="cb34"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb34-1"><a href="#cb34-1" tabindex="-1"></a><span class="fu"># Progress</span></span>
-<span id="cb34-2"><a href="#cb34-2" tabindex="-1"></a></span>
-<span id="cb34-3"><a href="#cb34-3" tabindex="-1"></a><span class="fu">## Session YYYY-MM-DD</span></span>
-<span id="cb34-4"><a href="#cb34-4" tabindex="-1"></a><span class="ss">- </span>Completed: <span class="co">[</span><span class="ot">items</span><span class="co">]</span></span>
-<span id="cb34-5"><a href="#cb34-5" tabindex="-1"></a><span class="ss">- </span>Commits: <span class="co">[</span><span class="ot">refs</span><span class="co">]</span></span>
-<span id="cb34-6"><a href="#cb34-6" tabindex="-1"></a><span class="ss">- </span>Next: <span class="co">[</span><span class="ot">items</span><span class="co">]</span></span></code></pre></div>
+<div class="sourceCode" id="cb40"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb40-1"><a href="#cb40-1" tabindex="-1"></a><span class="fu"># Progress</span></span>
+<span id="cb40-2"><a href="#cb40-2" tabindex="-1"></a></span>
+<span id="cb40-3"><a href="#cb40-3" tabindex="-1"></a><span class="fu">## Session YYYY-MM-DD</span></span>
+<span id="cb40-4"><a href="#cb40-4" tabindex="-1"></a><span class="ss">- </span>Completed: <span class="co">[</span><span class="ot">items</span><span class="co">]</span></span>
+<span id="cb40-5"><a href="#cb40-5" tabindex="-1"></a><span class="ss">- </span>Commits: <span class="co">[</span><span class="ot">refs</span><span class="co">]</span></span>
+<span id="cb40-6"><a href="#cb40-6" tabindex="-1"></a><span class="ss">- </span>Next: <span class="co">[</span><span class="ot">items</span><span class="co">]</span></span></code></pre></div>
+<!-- The Reboot Test and the error ledger below are adapted from -->
+<!-- OthmanAdi/planning-with-files (MIT). Soul does not install or invoke that -->
+<!-- plugin — the useful parts are carried here as text. Adapted 2026-08-26. -->
+<!-- Same precedent as the attribution header in karpathy.md. -->
 </div>
+</div>
+<div class="section level2">
+<h2 id="the-reboot-test">The Reboot Test<a class="anchor" aria-label="anchor" href="#the-reboot-test"></a></h2>
+<p>The planning files exist so the work survives an interruption. Whether they actually do is checkable: at any point mid-task, these five questions must be answerable from the files alone, without the conversation.</p>
+<table class="table"><colgroup><col width="40%"><col width="60%"></colgroup><thead><tr><th>Question</th>
+<th>Answer source</th>
+</tr></thead><tbody><tr><td>Where am I?</td>
+<td>Current phase in <code>task_plan.md</code>
+</td>
+</tr><tr><td>Where am I going?</td>
+<td>Remaining phases in <code>task_plan.md</code>
+</td>
+</tr><tr><td>What’s the goal?</td>
+<td>The <code># Task: &lt;title&gt; (#N)</code> frame and problem statement at the top of <code>task_plan.md</code>
+</td>
+</tr><tr><td>What have I learned?</td>
+<td><code>findings.md</code></td>
+</tr><tr><td>What have I done?</td>
+<td><code>progress.md</code></td>
+</tr></tbody></table><p>If an answer lives only in the session, <strong>write it down and commit it</strong>. Written is not sufficient: an uncommitted <code>findings.md</code> does not move between machines, and a repo whose <code>planning/</code> is gitignored accepts <code>git add planning/</code> with exit 0 while tracking nothing — see Directory Structure below.</p>
+<p>This is the operational check for the rule that every interruption should be a resume point: a session death, sleep, or machine swap should cost a re-run at most, never lost context. That rule states the goal; this tests it.</p>
+<p>Run it before any long wait, before compaction, and before switching machines — the moments that take a session without warning. <code>/compact-prep</code> and <code>/planning-update</code> are where it gets run; this section is what it asks.</p>
 </div>
 <div class="section level2">
 <h2 id="directory-structure">Directory Structure<a class="anchor" aria-label="anchor" href="#directory-structure"></a></h2>
@@ -1430,8 +1611,29 @@
 <p><strong><code>planning/active/</code> must be tracked, not gitignored.</strong> The atomic-commit rule above requires each commit to carry its own checkbox flip in <code>task_plan.md</code>; an ignored <code>active/</code> drops it silently, so <code>git log -- planning/</code> shows archives appearing fully-formed with no history behind them. In-flight PWF also stops surviving a move between machines.</p>
 <p>The failure is quiet in both directions. <code>git add planning/</code> reports nothing and exits 0 on an ignored path, and files tracked <em>before</em> the rule existed keep being tracked — including through a <code>git mv</code> into the ignored directory. So a repo can look like it is working right up until the first genuinely new PWF file, which simply never appears in a commit.</p>
 <p>Check rather than assume:</p>
-<div class="sourceCode" id="cb36"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb36-1"><a href="#cb36-1" tabindex="-1"></a><span class="fu">git</span> check-ignore <span class="at">-v</span> planning/active/task_plan.md   <span class="co"># expect no output</span></span></code></pre></div>
+<div class="sourceCode" id="cb42"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb42-1"><a href="#cb42-1" tabindex="-1"></a><span class="fu">git</span> check-ignore <span class="at">-v</span> planning/active/task_plan.md   <span class="co"># expect no output</span></span></code></pre></div>
 <p>Found 2026-08-24 in gq, where the rule dated from the scaffold commit and the #17 files had only survived because they predated their move into that directory. gq and roli were the only 2 of 32 repos carrying it; roli still does.</p>
+</div>
+<div class="section level2">
+<h2 id="when-something-keeps-failing">When Something Keeps Failing<a class="anchor" aria-label="anchor" href="#when-something-keeps-failing"></a></h2>
+<p>Before a second attempt, name the failure class. A <strong>deterministic</strong> failure returns the same result to the same inputs, so re-running unchanged only spends a turn — change the inputs or change the approach. A <strong>transient</strong> failure (network, a provider read, a rate limit, a resource still settling) is the case where a re-run <em>is</em> the attempt: <code>code-check-infra.md</code> prescribes exactly that for a tofu plan that falsely reports a resource deleted. The rule is not “never retry”; it is never retry unchanged while expecting a different answer.</p>
+<p>Escalate rather than iterate once the approach itself is in question. Report what was tried and the exact error, and hand over the commands to run — the user is assumed to be away, so a question answerable from a phone beats a retry loop they cannot see. Escalating is not stopping: commit the current state, then move to the lowest-risk independent part of the plan while the question is outstanding.</p>
+<p>Two classes escalate immediately rather than after retries, because further attempts make them worse:</p>
+<ul><li>
+<strong>A clamped session.</strong> Once a live credential has been read, later system-mutating commands are refused regardless of route — seven consecutive refusals across unrelated routes is the documented case (<code>newgraph.md</code>, “Reading a secret clamps the rest of the session”). Trying more phrasings is the failure mode, not the remedy, and <code>/permissions</code> does not clear it.</li>
+<li>
+<strong>Rate limits.</strong> Retrying extends the block (<code>ci-monitoring.md</code>).</li>
+</ul><div class="section level3">
+<h3 id="log-the-errors-that-cost-a-retry">Log the errors that cost a retry<a class="anchor" aria-label="anchor" href="#log-the-errors-that-cost-a-retry"></a></h3>
+<p>An error that took more than one attempt to get past goes in <code>findings.md</code>, so one task does not hit the same wall twice:</p>
+<div class="sourceCode" id="cb43"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb43-1"><a href="#cb43-1" tabindex="-1"></a><span class="fu">## Errors Encountered</span></span>
+<span id="cb43-2"><a href="#cb43-2" tabindex="-1"></a></span>
+<span id="cb43-3"><a href="#cb43-3" tabindex="-1"></a><span class="pp">|</span> Error <span class="pp">|</span> Resolution <span class="pp">|</span></span>
+<span id="cb43-4"><a href="#cb43-4" tabindex="-1"></a><span class="pp">|-------|------------|</span></span>
+<span id="cb43-5"><a href="#cb43-5" tabindex="-1"></a><span class="pp">|</span> <span class="in">`fatal: Unimplemented pathspec magic '_'`</span> <span class="pp">|</span> Long-form <span class="in">`:(exclude)path`</span> <span class="pp">|</span></span></code></pre></div>
+<p>That row is also what graduation looks like: it began as one task’s blocker and now lives in <code>code-check.md</code> as a general rule about pathspec magic. Most rows never make that trip and should not — the ledger’s job is to stop one task repeating itself.</p>
+<p>When a failure does generalize, it graduates to the convention that owns its class: <code>code-check.md</code> for a bug class in a diff (or <code>code-check-infra.md</code> when it is specific to provisioning), <code>ci-monitoring.md</code> for CI behaviour, the domain convention otherwise.</p>
+</div>
 </div>
 <div class="section level2">
 <h2 id="skills">Skills<a class="anchor" aria-label="anchor" href="#skills"></a></h2>
@@ -1458,7 +1660,7 @@
 <li><p>Prefix column name vectors with <code>cols_</code> for discoverability in the environment pane: <code>cols_all</code>, <code>cols_carry</code>, <code>cols_split</code>, <code>cols_writable</code>. Same principle for other grouped vectors (<code>params_</code>, <code>tbl_</code>, etc.)</p></li>
 <li>
 <p>For SQL DDL+INSERT pairs that share a schema, use a single named vector as the source of truth. Both <code>CREATE TABLE</code> and <code>INSERT (cols) SELECT cols</code> derive their column lists from the same <code>cols_*</code> vector. Avoids drift between table shape and write projection — when columns change, you edit one place. Example:</p>
-<div class="sourceCode" id="cb37"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb44"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">cols_streams</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
 <span>  id_segment           <span class="op">=</span> <span class="st">"integer NOT NULL"</span>,</span>
 <span>  watershed_group_code <span class="op">=</span> <span class="st">"varchar(4) NOT NULL"</span>,</span>
@@ -1506,7 +1708,7 @@
 <li><p>Tests must pass before closing the function’s issue</p></li>
 <li>
 <p>Always grep for errors in the same command as the test run to avoid running twice:</p>
-<div class="sourceCode" id="cb39"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb39-1"><a href="#cb39-1" tabindex="-1"></a><span class="ex">Rscript</span> <span class="at">-e</span> <span class="st">'devtools::test()'</span> <span class="dv">2</span><span class="op">&gt;&amp;</span><span class="dv">1</span> <span class="kw">|</span> <span class="fu">grep</span> <span class="at">-E</span> <span class="st">"(FAIL|ERROR|PASS)"</span> <span class="kw">|</span> <span class="fu">tail</span> <span class="at">-5</span></span></code></pre></div>
+<div class="sourceCode" id="cb46"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb46-1"><a href="#cb46-1" tabindex="-1"></a><span class="ex">Rscript</span> <span class="at">-e</span> <span class="st">'devtools::test()'</span> <span class="dv">2</span><span class="op">&gt;&amp;</span><span class="dv">1</span> <span class="kw">|</span> <span class="fu">grep</span> <span class="at">-E</span> <span class="st">"(FAIL|ERROR|PASS)"</span> <span class="kw">|</span> <span class="fu">tail</span> <span class="at">-5</span></span></code></pre></div>
 <p>For error context: <code>grep -E "(ERROR:|FAIL )" -A 10 | head -25</code></p>
 </li>
 </ul><div class="section level3">
@@ -1559,7 +1761,7 @@
 <p>Run <code>lintr::lint_package()</code> before committing R package code. Fix all warnings — every lint should be worth fixing.</p>
 <div class="section level3">
 <h3 id="recommended-lintr-config">Recommended .lintr config<a class="anchor" aria-label="anchor" href="#recommended-lintr-config"></a></h3>
-<div class="sourceCode" id="cb40"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb47"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">linters</span><span class="op">:</span> <span class="fu">linters_with_defaults</span><span class="op">(</span></span>
 <span>    <span class="fu">line_length_linter</span><span class="op">(</span><span class="fl">120</span><span class="op">)</span>,</span>
 <span>    <span class="fu">object_name_linter</span><span class="op">(</span>styles <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"snake_case"</span>, <span class="st">"dotted.case"</span><span class="op">)</span><span class="op">)</span>,</span>
@@ -1597,18 +1799,18 @@
 <div class="section level3">
 <h3 id="branch-protection">Branch protection<a class="anchor" aria-label="anchor" href="#branch-protection"></a></h3>
 <p>Protect main from deletion and force pushes:</p>
-<div class="sourceCode" id="cb41"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb41-1"><a href="#cb41-1" tabindex="-1"></a><span class="ex">gh</span> api repos/OWNER/REPO/rulesets <span class="at">--method</span> POST <span class="at">--input</span> <span class="at">-</span> <span class="op">&lt;&lt;'EOF'</span></span>
-<span id="cb41-2"><a href="#cb41-2" tabindex="-1"></a><span class="st">{</span></span>
-<span id="cb41-3"><a href="#cb41-3" tabindex="-1"></a><span class="st">  "name": "Protect main",</span></span>
-<span id="cb41-4"><a href="#cb41-4" tabindex="-1"></a><span class="st">  "target": "branch",</span></span>
-<span id="cb41-5"><a href="#cb41-5" tabindex="-1"></a><span class="st">  "enforcement": "active",</span></span>
-<span id="cb41-6"><a href="#cb41-6" tabindex="-1"></a><span class="st">  "bypass_actors": [</span></span>
-<span id="cb41-7"><a href="#cb41-7" tabindex="-1"></a><span class="st">    { "actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "always" }</span></span>
-<span id="cb41-8"><a href="#cb41-8" tabindex="-1"></a><span class="st">  ],</span></span>
-<span id="cb41-9"><a href="#cb41-9" tabindex="-1"></a><span class="st">  "conditions": { "ref_name": { "include": ["refs/heads/main"], "exclude": [] } },</span></span>
-<span id="cb41-10"><a href="#cb41-10" tabindex="-1"></a><span class="st">  "rules": [ { "type": "deletion" }, { "type": "non_fast_forward" } ]</span></span>
-<span id="cb41-11"><a href="#cb41-11" tabindex="-1"></a><span class="st">}</span></span>
-<span id="cb41-12"><a href="#cb41-12" tabindex="-1"></a><span class="op">EOF</span></span></code></pre></div>
+<div class="sourceCode" id="cb48"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb48-1"><a href="#cb48-1" tabindex="-1"></a><span class="ex">gh</span> api repos/OWNER/REPO/rulesets <span class="at">--method</span> POST <span class="at">--input</span> <span class="at">-</span> <span class="op">&lt;&lt;'EOF'</span></span>
+<span id="cb48-2"><a href="#cb48-2" tabindex="-1"></a><span class="st">{</span></span>
+<span id="cb48-3"><a href="#cb48-3" tabindex="-1"></a><span class="st">  "name": "Protect main",</span></span>
+<span id="cb48-4"><a href="#cb48-4" tabindex="-1"></a><span class="st">  "target": "branch",</span></span>
+<span id="cb48-5"><a href="#cb48-5" tabindex="-1"></a><span class="st">  "enforcement": "active",</span></span>
+<span id="cb48-6"><a href="#cb48-6" tabindex="-1"></a><span class="st">  "bypass_actors": [</span></span>
+<span id="cb48-7"><a href="#cb48-7" tabindex="-1"></a><span class="st">    { "actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "always" }</span></span>
+<span id="cb48-8"><a href="#cb48-8" tabindex="-1"></a><span class="st">  ],</span></span>
+<span id="cb48-9"><a href="#cb48-9" tabindex="-1"></a><span class="st">  "conditions": { "ref_name": { "include": ["refs/heads/main"], "exclude": [] } },</span></span>
+<span id="cb48-10"><a href="#cb48-10" tabindex="-1"></a><span class="st">  "rules": [ { "type": "deletion" }, { "type": "non_fast_forward" } ]</span></span>
+<span id="cb48-11"><a href="#cb48-11" tabindex="-1"></a><span class="st">}</span></span>
+<span id="cb48-12"><a href="#cb48-12" tabindex="-1"></a><span class="op">EOF</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="scaffold-checklist">Scaffold checklist<a class="anchor" aria-label="anchor" href="#scaffold-checklist"></a></h3>
@@ -1694,11 +1896,11 @@
 <h2 id="in-reports-bookdown">In Reports (bookdown)<a class="anchor" aria-label="anchor" href="#in-reports-bookdown"></a></h2>
 <div class="section level3">
 <h3 id="bibliography-generation">Bibliography generation<a class="anchor" aria-label="anchor" href="#bibliography-generation"></a></h3>
-<div class="sourceCode" id="cb42"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb42-1"><a href="#cb42-1" tabindex="-1"></a><span class="co"># index.Rmd — dynamic bib from Zotero via Better BibTeX</span></span>
-<span id="cb42-2"><a href="#cb42-2" tabindex="-1"></a><span class="fu">bibliography</span><span class="kw">:</span><span class="at"> </span><span class="st">"`r rbbt::bbt_write_bib('references.bib', overwrite = TRUE)`"</span></span></code></pre></div>
+<div class="sourceCode" id="cb49"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb49-1"><a href="#cb49-1" tabindex="-1"></a><span class="co"># index.Rmd — dynamic bib from Zotero via Better BibTeX</span></span>
+<span id="cb49-2"><a href="#cb49-2" tabindex="-1"></a><span class="fu">bibliography</span><span class="kw">:</span><span class="at"> </span><span class="st">"`r rbbt::bbt_write_bib('references.bib', overwrite = TRUE)`"</span></span></code></pre></div>
 <p><code>rbbt</code> pulls from BBT, which syncs with Zotero. Edit references in Zotero → rebuild report → bibliography updates.</p>
 <p><strong>Library targeting:</strong> rbbt must know which Zotero library to search. This is set globally in <code>~/.Rprofile</code>:</p>
-<div class="sourceCode" id="cb43"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb50"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># default library — NewGraphEnvironment group (libraryID 9, group 4733734)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/options.html" class="external-link">options</a></span><span class="op">(</span>rbbt.default.library_id <span class="op">=</span> <span class="fl">9</span><span class="op">)</span></span></code></pre></div>
 <p>Without this option, rbbt searches only the personal library (libraryID 1) and won’t find group library references. The library IDs map to Zotero’s internal numbering — use <code>/zotero-lookup</code> with <code>SELECT DISTINCT libraryID FROM citationkey</code> against the BBT database to discover available libraries.</p>
