@@ -1211,6 +1211,17 @@ asNamespace("flooded") patched     FAIL = 0     zeros = 1    &lt;- false green, 
 <li>New variables: update .tfvars.example</li>
 <li>New workflows: update relevant README</li>
 </ul></div>
+<div class="section level3">
+<h3 id="generating-from-another-repos-working-tree-copies-its-half-finished-edits">Generating from another repo’s working tree copies its half-finished edits<a class="anchor" aria-label="anchor" href="#generating-from-another-repos-working-tree-copies-its-half-finished-edits"></a></h3>
+<ul><li><p>Tooling that reads a <em>source</em> repo to generate a <em>target</em> file (<code>claude-md-init</code> reading <code>soul/conventions/</code>, template renderers, codegen from a schema repo) reads the working tree by default. If a second session is mid-edit there, you silently bake uncommitted, possibly-inconsistent state into a commit in the target — and the target’s git history then attributes it to you.</p></li>
+<li><p>Worse than a stale read, because partial edits are <em>internally</em> inconsistent. Cross-references are the tell: a file gaining a section renumbers its siblings, and pointers elsewhere update in a <strong>later</strong> commit. Catch it halfway and you ship a pointer to the wrong section that resolves to plausible, wrong content.</p></li>
+<li><p>Caught 2026-08-26 syncing <code>fly</code> from <code>soul</code>: <code>karpathy.md</code> gained a section, shifting “Subagents Are Evidence” from §5 to §6. <code>planning.md</code>’s pointer was corrected in soul minutes later, in a separate commit. The sync landed between the two, so <code>fly</code> shipped “see <code>karpathy.md</code> §5” pointing at the wrong rule. <code>git pull</code> in soul reported “Already up to date” both times — the changes were staged, not unpushed, so nothing about the source repo <em>looked</em> stale.</p></li>
+<li>
+<p>Generate from the committed tree, not the checkout:</p>
+<div class="sourceCode" id="cb36"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb36-1"><a href="#cb36-1" tabindex="-1"></a><span class="va">SRC</span><span class="op">=</span><span class="va">$(</span><span class="fu">mktemp</span> <span class="at">-d</span><span class="va">)</span> <span class="kw">&amp;&amp;</span> <span class="fu">git</span> <span class="at">-C</span> /path/to/source archive HEAD <span class="op">&lt;</span>subdir<span class="op">&gt;</span> <span class="kw">|</span> <span class="fu">tar</span> <span class="at">-x</span> <span class="at">-C</span> <span class="st">"</span><span class="va">$SRC</span><span class="st">"</span></span></code></pre></div>
+</li>
+<li><p>Verify the same way after any concurrent-session sync: rebuild from <code>HEAD</code> into a temp file and <code>diff</code> it against what you committed. Identical means the source was quiet while you read it; a diff is the drift, and it is cheaper to find now than in a downstream repo weeks later.</p></li>
+</ul></div>
 </div>
 </div>
 <div class="section level1">
@@ -1459,16 +1470,16 @@ asNamespace("flooded") patched     FAIL = 0     zeros = 1    &lt;- false green, 
 </tr><tr><td><code>search.json</code></td>
 <td>the full-text index, containing the text</td>
 </tr></tbody></table><p>Deleting <code>docs/CLAUDE.html</code> after the build leaves the other two. It looks like a fix and achieves nothing. Remove the file from the CI checkout <strong>before</strong> <code>build_site()</code> runs:</p>
-<div class="sourceCode" id="cb37"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb37-1"><a href="#cb37-1" tabindex="-1"></a><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> Keep internal notes out of the published site</span></span>
-<span id="cb37-2"><a href="#cb37-2" tabindex="-1"></a><span class="at">  </span><span class="fu">run</span><span class="kw">:</span><span class="at"> rm -f CLAUDE.md</span></span></code></pre></div>
+<div class="sourceCode" id="cb38"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb38-1"><a href="#cb38-1" tabindex="-1"></a><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> Keep internal notes out of the published site</span></span>
+<span id="cb38-2"><a href="#cb38-2" tabindex="-1"></a><span class="at">  </span><span class="fu">run</span><span class="kw">:</span><span class="at"> rm -f CLAUDE.md</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="gate-on-a-declared-allowlist">Gate on a declared allowlist<a class="anchor" aria-label="anchor" href="#gate-on-a-declared-allowlist"></a></h3>
 <p>Each repo states which extra root pages it <em>intends</em> to publish. Anything else fails the build, so a new root markdown file cannot leak silently:</p>
-<div class="sourceCode" id="cb38"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb38-1"><a href="#cb38-1" tabindex="-1"></a><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> Fail if an unexpected page reached the site</span></span>
-<span id="cb38-2"><a href="#cb38-2" tabindex="-1"></a><span class="fu">  run</span><span class="kw">: </span><span class="ch">|</span></span>
-<span id="cb38-3"><a href="#cb38-3" tabindex="-1"></a>    allowed="404 authors index LICENSE LICENSE-text"   # + declared extras</span>
-<span id="cb38-4"><a href="#cb38-4" tabindex="-1"></a>    ...</span></code></pre></div>
+<div class="sourceCode" id="cb39"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb39-1"><a href="#cb39-1" tabindex="-1"></a><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> Fail if an unexpected page reached the site</span></span>
+<span id="cb39-2"><a href="#cb39-2" tabindex="-1"></a><span class="fu">  run</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb39-3"><a href="#cb39-3" tabindex="-1"></a>    allowed="404 authors index LICENSE LICENSE-text"   # + declared extras</span>
+<span id="cb39-4"><a href="#cb39-4" tabindex="-1"></a>    ...</span></code></pre></div>
 <p>Add to <code>allowed</code> only after deciding the page should be public. <code>link</code> publishes <code>NOTICE</code> and <code>RUNBOOK</code> deliberately — it is a public repo and both are genuine documentation. That is the decision the allowlist is meant to record.</p>
 <p>Test the gate against <strong>both</strong> known answers before shipping it: it must exit non-zero on a site that does contain the file, and zero on one that does not. A guard that only ever returns one value is indistinguishable from a broken one.</p>
 </div>
@@ -1491,7 +1502,7 @@ asNamespace("flooded") patched     FAIL = 0     zeros = 1    &lt;- false green, 
 <li>
 <strong>hand-added assets</strong> not produced by the build. Favicons and web manifests under <code>pkgdown/favicon/</code> <em>are</em> produced by the build and are safe.</li>
 </ul><p>Use <code>clean-exclude</code> for anything that must survive.</p>
-<div class="sourceCode" id="cb39"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb39-1"><a href="#cb39-1" tabindex="-1"></a><span class="ex">gh</span> api <span class="st">"repos/OWNER/REPO/contents?ref=gh-pages"</span> <span class="at">--jq</span> <span class="st">'.[] | "\(.type) \(.name)"'</span></span></code></pre></div>
+<div class="sourceCode" id="cb40"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb40-1"><a href="#cb40-1" tabindex="-1"></a><span class="ex">gh</span> api <span class="st">"repos/OWNER/REPO/contents?ref=gh-pages"</span> <span class="at">--jq</span> <span class="st">'.[] | "\(.type) \(.name)"'</span></span></code></pre></div>
 </div>
 </div>
 <div class="section level2">
@@ -1559,40 +1570,40 @@ asNamespace("flooded") patched     FAIL = 0     zeros = 1    &lt;- false green, 
 <div class="section level3">
 <h3 id="task_planmd">task_plan.md<a class="anchor" aria-label="anchor" href="#task_planmd"></a></h3>
 <p>Phases with checkboxes. This is the core tracking file.</p>
-<div class="sourceCode" id="cb40"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb40-1"><a href="#cb40-1" tabindex="-1"></a><span class="fu"># Task: &lt;issue title&gt; (#&lt;N&gt;)</span></span>
-<span id="cb40-2"><a href="#cb40-2" tabindex="-1"></a></span>
-<span id="cb40-3"><a href="#cb40-3" tabindex="-1"></a><span class="dt">&lt;</span><span class="kw">issue</span><span class="ot"> body </span><span class="er">—</span><span class="ot"> Problem section if present</span><span class="er">,</span><span class="ot"> otherwise first paragraph</span><span class="dt">&gt;</span></span>
-<span id="cb40-4"><a href="#cb40-4" tabindex="-1"></a></span>
-<span id="cb40-5"><a href="#cb40-5" tabindex="-1"></a><span class="fu">## Phase 1: [Name]</span></span>
-<span id="cb40-6"><a href="#cb40-6" tabindex="-1"></a><span class="ss">- </span><span class="va">[ ]</span> Task description</span>
-<span id="cb40-7"><a href="#cb40-7" tabindex="-1"></a><span class="ss">- </span><span class="va">[ ]</span> Another task</span>
-<span id="cb40-8"><a href="#cb40-8" tabindex="-1"></a></span>
-<span id="cb40-9"><a href="#cb40-9" tabindex="-1"></a><span class="fu">## Phase 2: [Name]</span></span>
-<span id="cb40-10"><a href="#cb40-10" tabindex="-1"></a><span class="ss">- </span><span class="va">[ ]</span> Task description</span></code></pre></div>
+<div class="sourceCode" id="cb41"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb41-1"><a href="#cb41-1" tabindex="-1"></a><span class="fu"># Task: &lt;issue title&gt; (#&lt;N&gt;)</span></span>
+<span id="cb41-2"><a href="#cb41-2" tabindex="-1"></a></span>
+<span id="cb41-3"><a href="#cb41-3" tabindex="-1"></a><span class="dt">&lt;</span><span class="kw">issue</span><span class="ot"> body </span><span class="er">—</span><span class="ot"> Problem section if present</span><span class="er">,</span><span class="ot"> otherwise first paragraph</span><span class="dt">&gt;</span></span>
+<span id="cb41-4"><a href="#cb41-4" tabindex="-1"></a></span>
+<span id="cb41-5"><a href="#cb41-5" tabindex="-1"></a><span class="fu">## Phase 1: [Name]</span></span>
+<span id="cb41-6"><a href="#cb41-6" tabindex="-1"></a><span class="ss">- </span><span class="va">[ ]</span> Task description</span>
+<span id="cb41-7"><a href="#cb41-7" tabindex="-1"></a><span class="ss">- </span><span class="va">[ ]</span> Another task</span>
+<span id="cb41-8"><a href="#cb41-8" tabindex="-1"></a></span>
+<span id="cb41-9"><a href="#cb41-9" tabindex="-1"></a><span class="fu">## Phase 2: [Name]</span></span>
+<span id="cb41-10"><a href="#cb41-10" tabindex="-1"></a><span class="ss">- </span><span class="va">[ ]</span> Task description</span></code></pre></div>
 <p>Mark tasks done as they’re completed: <code>- [x] Task description</code></p>
 </div>
 <div class="section level3">
 <h3 id="findingsmd">findings.md<a class="anchor" aria-label="anchor" href="#findingsmd"></a></h3>
 <p>Append-only research log. Discoveries, technical analysis, things learned.</p>
-<div class="sourceCode" id="cb41"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb41-1"><a href="#cb41-1" tabindex="-1"></a><span class="fu"># Findings</span></span>
-<span id="cb41-2"><a href="#cb41-2" tabindex="-1"></a></span>
-<span id="cb41-3"><a href="#cb41-3" tabindex="-1"></a><span class="fu">## [Topic]</span></span>
-<span id="cb41-4"><a href="#cb41-4" tabindex="-1"></a><span class="co">[</span><span class="ot">What was found, with source/date</span><span class="co">]</span></span>
-<span id="cb41-5"><a href="#cb41-5" tabindex="-1"></a></span>
-<span id="cb41-6"><a href="#cb41-6" tabindex="-1"></a><span class="fu">## Errors Encountered</span></span>
-<span id="cb41-7"><a href="#cb41-7" tabindex="-1"></a></span>
-<span id="cb41-8"><a href="#cb41-8" tabindex="-1"></a><span class="pp">|</span> Error <span class="pp">|</span> Resolution <span class="pp">|</span></span>
-<span id="cb41-9"><a href="#cb41-9" tabindex="-1"></a><span class="pp">|-------|------------|</span></span></code></pre></div>
+<div class="sourceCode" id="cb42"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb42-1"><a href="#cb42-1" tabindex="-1"></a><span class="fu"># Findings</span></span>
+<span id="cb42-2"><a href="#cb42-2" tabindex="-1"></a></span>
+<span id="cb42-3"><a href="#cb42-3" tabindex="-1"></a><span class="fu">## [Topic]</span></span>
+<span id="cb42-4"><a href="#cb42-4" tabindex="-1"></a><span class="co">[</span><span class="ot">What was found, with source/date</span><span class="co">]</span></span>
+<span id="cb42-5"><a href="#cb42-5" tabindex="-1"></a></span>
+<span id="cb42-6"><a href="#cb42-6" tabindex="-1"></a><span class="fu">## Errors Encountered</span></span>
+<span id="cb42-7"><a href="#cb42-7" tabindex="-1"></a></span>
+<span id="cb42-8"><a href="#cb42-8" tabindex="-1"></a><span class="pp">|</span> Error <span class="pp">|</span> Resolution <span class="pp">|</span></span>
+<span id="cb42-9"><a href="#cb42-9" tabindex="-1"></a><span class="pp">|-------|------------|</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="progressmd">progress.md<a class="anchor" aria-label="anchor" href="#progressmd"></a></h3>
 <p>Session entries with commit references.</p>
-<div class="sourceCode" id="cb42"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb42-1"><a href="#cb42-1" tabindex="-1"></a><span class="fu"># Progress</span></span>
-<span id="cb42-2"><a href="#cb42-2" tabindex="-1"></a></span>
-<span id="cb42-3"><a href="#cb42-3" tabindex="-1"></a><span class="fu">## Session YYYY-MM-DD</span></span>
-<span id="cb42-4"><a href="#cb42-4" tabindex="-1"></a><span class="ss">- </span>Completed: <span class="co">[</span><span class="ot">items</span><span class="co">]</span></span>
-<span id="cb42-5"><a href="#cb42-5" tabindex="-1"></a><span class="ss">- </span>Commits: <span class="co">[</span><span class="ot">refs</span><span class="co">]</span></span>
-<span id="cb42-6"><a href="#cb42-6" tabindex="-1"></a><span class="ss">- </span>Next: <span class="co">[</span><span class="ot">items</span><span class="co">]</span></span></code></pre></div>
+<div class="sourceCode" id="cb43"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb43-1"><a href="#cb43-1" tabindex="-1"></a><span class="fu"># Progress</span></span>
+<span id="cb43-2"><a href="#cb43-2" tabindex="-1"></a></span>
+<span id="cb43-3"><a href="#cb43-3" tabindex="-1"></a><span class="fu">## Session YYYY-MM-DD</span></span>
+<span id="cb43-4"><a href="#cb43-4" tabindex="-1"></a><span class="ss">- </span>Completed: <span class="co">[</span><span class="ot">items</span><span class="co">]</span></span>
+<span id="cb43-5"><a href="#cb43-5" tabindex="-1"></a><span class="ss">- </span>Commits: <span class="co">[</span><span class="ot">refs</span><span class="co">]</span></span>
+<span id="cb43-6"><a href="#cb43-6" tabindex="-1"></a><span class="ss">- </span>Next: <span class="co">[</span><span class="ot">items</span><span class="co">]</span></span></code></pre></div>
 <!-- The Reboot Test and the error ledger below are adapted from -->
 <!-- OthmanAdi/planning-with-files (MIT). Soul does not install or invoke that -->
 <!-- plugin — the useful parts are carried here as text. Adapted 2026-08-26. -->
@@ -1631,7 +1642,7 @@ asNamespace("flooded") patched     FAIL = 0     zeros = 1    &lt;- false green, 
 <p><strong><code>planning/active/</code> must be tracked, not gitignored.</strong> The atomic-commit rule above requires each commit to carry its own checkbox flip in <code>task_plan.md</code>; an ignored <code>active/</code> drops it silently, so <code>git log -- planning/</code> shows archives appearing fully-formed with no history behind them. In-flight PWF also stops surviving a move between machines.</p>
 <p>The failure is quiet in both directions. <code>git add planning/</code> reports nothing and exits 0 on an ignored path, and files tracked <em>before</em> the rule existed keep being tracked — including through a <code>git mv</code> into the ignored directory. So a repo can look like it is working right up until the first genuinely new PWF file, which simply never appears in a commit.</p>
 <p>Check rather than assume:</p>
-<div class="sourceCode" id="cb44"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb44-1"><a href="#cb44-1" tabindex="-1"></a><span class="fu">git</span> check-ignore <span class="at">-v</span> planning/active/task_plan.md   <span class="co"># expect no output</span></span></code></pre></div>
+<div class="sourceCode" id="cb45"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb45-1"><a href="#cb45-1" tabindex="-1"></a><span class="fu">git</span> check-ignore <span class="at">-v</span> planning/active/task_plan.md   <span class="co"># expect no output</span></span></code></pre></div>
 <p>Found 2026-08-24 in gq, where the rule dated from the scaffold commit and the #17 files had only survived because they predated their move into that directory. gq and roli were the only 2 of 32 repos carrying it; roli still does.</p>
 </div>
 <div class="section level2">
@@ -1646,11 +1657,11 @@ asNamespace("flooded") patched     FAIL = 0     zeros = 1    &lt;- false green, 
 </ul><div class="section level3">
 <h3 id="log-the-errors-that-cost-a-retry">Log the errors that cost a retry<a class="anchor" aria-label="anchor" href="#log-the-errors-that-cost-a-retry"></a></h3>
 <p>An error that took more than one attempt to get past goes in <code>findings.md</code>, so one task does not hit the same wall twice:</p>
-<div class="sourceCode" id="cb45"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb45-1"><a href="#cb45-1" tabindex="-1"></a><span class="fu">## Errors Encountered</span></span>
-<span id="cb45-2"><a href="#cb45-2" tabindex="-1"></a></span>
-<span id="cb45-3"><a href="#cb45-3" tabindex="-1"></a><span class="pp">|</span> Error <span class="pp">|</span> Resolution <span class="pp">|</span></span>
-<span id="cb45-4"><a href="#cb45-4" tabindex="-1"></a><span class="pp">|-------|------------|</span></span>
-<span id="cb45-5"><a href="#cb45-5" tabindex="-1"></a><span class="pp">|</span> <span class="in">`fatal: Unimplemented pathspec magic '_'`</span> <span class="pp">|</span> Long-form <span class="in">`:(exclude)path`</span> <span class="pp">|</span></span></code></pre></div>
+<div class="sourceCode" id="cb46"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb46-1"><a href="#cb46-1" tabindex="-1"></a><span class="fu">## Errors Encountered</span></span>
+<span id="cb46-2"><a href="#cb46-2" tabindex="-1"></a></span>
+<span id="cb46-3"><a href="#cb46-3" tabindex="-1"></a><span class="pp">|</span> Error <span class="pp">|</span> Resolution <span class="pp">|</span></span>
+<span id="cb46-4"><a href="#cb46-4" tabindex="-1"></a><span class="pp">|-------|------------|</span></span>
+<span id="cb46-5"><a href="#cb46-5" tabindex="-1"></a><span class="pp">|</span> <span class="in">`fatal: Unimplemented pathspec magic '_'`</span> <span class="pp">|</span> Long-form <span class="in">`:(exclude)path`</span> <span class="pp">|</span></span></code></pre></div>
 <p>That row is also what graduation looks like: it began as one task’s blocker and now lives in <code>code-check.md</code> as a general rule about pathspec magic. Most rows never make that trip and should not — the ledger’s job is to stop one task repeating itself.</p>
 <p>When a failure does generalize, it graduates to the convention that owns its class: <code>code-check.md</code> for a bug class in a diff (or <code>code-check-infra.md</code> when it is specific to provisioning), <code>ci-monitoring.md</code> for CI behaviour, the domain convention otherwise.</p>
 </div>
@@ -1680,7 +1691,7 @@ asNamespace("flooded") patched     FAIL = 0     zeros = 1    &lt;- false green, 
 <li><p>Prefix column name vectors with <code>cols_</code> for discoverability in the environment pane: <code>cols_all</code>, <code>cols_carry</code>, <code>cols_split</code>, <code>cols_writable</code>. Same principle for other grouped vectors (<code>params_</code>, <code>tbl_</code>, etc.)</p></li>
 <li>
 <p>For SQL DDL+INSERT pairs that share a schema, use a single named vector as the source of truth. Both <code>CREATE TABLE</code> and <code>INSERT (cols) SELECT cols</code> derive their column lists from the same <code>cols_*</code> vector. Avoids drift between table shape and write projection — when columns change, you edit one place. Example:</p>
-<div class="sourceCode" id="cb46"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb47"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">cols_streams</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
 <span>  id_segment           <span class="op">=</span> <span class="st">"integer NOT NULL"</span>,</span>
 <span>  watershed_group_code <span class="op">=</span> <span class="st">"varchar(4) NOT NULL"</span>,</span>
@@ -1728,7 +1739,7 @@ asNamespace("flooded") patched     FAIL = 0     zeros = 1    &lt;- false green, 
 <li><p>Tests must pass before closing the function’s issue</p></li>
 <li>
 <p>Always grep for errors in the same command as the test run to avoid running twice:</p>
-<div class="sourceCode" id="cb48"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb48-1"><a href="#cb48-1" tabindex="-1"></a><span class="ex">Rscript</span> <span class="at">-e</span> <span class="st">'devtools::test()'</span> <span class="dv">2</span><span class="op">&gt;&amp;</span><span class="dv">1</span> <span class="kw">|</span> <span class="fu">grep</span> <span class="at">-E</span> <span class="st">"(FAIL|ERROR|PASS)"</span> <span class="kw">|</span> <span class="fu">tail</span> <span class="at">-5</span></span></code></pre></div>
+<div class="sourceCode" id="cb49"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb49-1"><a href="#cb49-1" tabindex="-1"></a><span class="ex">Rscript</span> <span class="at">-e</span> <span class="st">'devtools::test()'</span> <span class="dv">2</span><span class="op">&gt;&amp;</span><span class="dv">1</span> <span class="kw">|</span> <span class="fu">grep</span> <span class="at">-E</span> <span class="st">"(FAIL|ERROR|PASS)"</span> <span class="kw">|</span> <span class="fu">tail</span> <span class="at">-5</span></span></code></pre></div>
 <p>For error context: <code>grep -E "(ERROR:|FAIL )" -A 10 | head -25</code></p>
 </li>
 </ul><div class="section level3">
@@ -1781,7 +1792,7 @@ asNamespace("flooded") patched     FAIL = 0     zeros = 1    &lt;- false green, 
 <p>Run <code>lintr::lint_package()</code> before committing R package code. Fix all warnings — every lint should be worth fixing.</p>
 <div class="section level3">
 <h3 id="recommended-lintr-config">Recommended .lintr config<a class="anchor" aria-label="anchor" href="#recommended-lintr-config"></a></h3>
-<div class="sourceCode" id="cb49"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb50"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">linters</span><span class="op">:</span> <span class="fu">linters_with_defaults</span><span class="op">(</span></span>
 <span>    <span class="fu">line_length_linter</span><span class="op">(</span><span class="fl">120</span><span class="op">)</span>,</span>
 <span>    <span class="fu">object_name_linter</span><span class="op">(</span>styles <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"snake_case"</span>, <span class="st">"dotted.case"</span><span class="op">)</span><span class="op">)</span>,</span>
@@ -1819,18 +1830,18 @@ asNamespace("flooded") patched     FAIL = 0     zeros = 1    &lt;- false green, 
 <div class="section level3">
 <h3 id="branch-protection">Branch protection<a class="anchor" aria-label="anchor" href="#branch-protection"></a></h3>
 <p>Protect main from deletion and force pushes:</p>
-<div class="sourceCode" id="cb50"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb50-1"><a href="#cb50-1" tabindex="-1"></a><span class="ex">gh</span> api repos/OWNER/REPO/rulesets <span class="at">--method</span> POST <span class="at">--input</span> <span class="at">-</span> <span class="op">&lt;&lt;'EOF'</span></span>
-<span id="cb50-2"><a href="#cb50-2" tabindex="-1"></a><span class="st">{</span></span>
-<span id="cb50-3"><a href="#cb50-3" tabindex="-1"></a><span class="st">  "name": "Protect main",</span></span>
-<span id="cb50-4"><a href="#cb50-4" tabindex="-1"></a><span class="st">  "target": "branch",</span></span>
-<span id="cb50-5"><a href="#cb50-5" tabindex="-1"></a><span class="st">  "enforcement": "active",</span></span>
-<span id="cb50-6"><a href="#cb50-6" tabindex="-1"></a><span class="st">  "bypass_actors": [</span></span>
-<span id="cb50-7"><a href="#cb50-7" tabindex="-1"></a><span class="st">    { "actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "always" }</span></span>
-<span id="cb50-8"><a href="#cb50-8" tabindex="-1"></a><span class="st">  ],</span></span>
-<span id="cb50-9"><a href="#cb50-9" tabindex="-1"></a><span class="st">  "conditions": { "ref_name": { "include": ["refs/heads/main"], "exclude": [] } },</span></span>
-<span id="cb50-10"><a href="#cb50-10" tabindex="-1"></a><span class="st">  "rules": [ { "type": "deletion" }, { "type": "non_fast_forward" } ]</span></span>
-<span id="cb50-11"><a href="#cb50-11" tabindex="-1"></a><span class="st">}</span></span>
-<span id="cb50-12"><a href="#cb50-12" tabindex="-1"></a><span class="op">EOF</span></span></code></pre></div>
+<div class="sourceCode" id="cb51"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb51-1"><a href="#cb51-1" tabindex="-1"></a><span class="ex">gh</span> api repos/OWNER/REPO/rulesets <span class="at">--method</span> POST <span class="at">--input</span> <span class="at">-</span> <span class="op">&lt;&lt;'EOF'</span></span>
+<span id="cb51-2"><a href="#cb51-2" tabindex="-1"></a><span class="st">{</span></span>
+<span id="cb51-3"><a href="#cb51-3" tabindex="-1"></a><span class="st">  "name": "Protect main",</span></span>
+<span id="cb51-4"><a href="#cb51-4" tabindex="-1"></a><span class="st">  "target": "branch",</span></span>
+<span id="cb51-5"><a href="#cb51-5" tabindex="-1"></a><span class="st">  "enforcement": "active",</span></span>
+<span id="cb51-6"><a href="#cb51-6" tabindex="-1"></a><span class="st">  "bypass_actors": [</span></span>
+<span id="cb51-7"><a href="#cb51-7" tabindex="-1"></a><span class="st">    { "actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "always" }</span></span>
+<span id="cb51-8"><a href="#cb51-8" tabindex="-1"></a><span class="st">  ],</span></span>
+<span id="cb51-9"><a href="#cb51-9" tabindex="-1"></a><span class="st">  "conditions": { "ref_name": { "include": ["refs/heads/main"], "exclude": [] } },</span></span>
+<span id="cb51-10"><a href="#cb51-10" tabindex="-1"></a><span class="st">  "rules": [ { "type": "deletion" }, { "type": "non_fast_forward" } ]</span></span>
+<span id="cb51-11"><a href="#cb51-11" tabindex="-1"></a><span class="st">}</span></span>
+<span id="cb51-12"><a href="#cb51-12" tabindex="-1"></a><span class="op">EOF</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="scaffold-checklist">Scaffold checklist<a class="anchor" aria-label="anchor" href="#scaffold-checklist"></a></h3>
@@ -1916,11 +1927,11 @@ asNamespace("flooded") patched     FAIL = 0     zeros = 1    &lt;- false green, 
 <h2 id="in-reports-bookdown">In Reports (bookdown)<a class="anchor" aria-label="anchor" href="#in-reports-bookdown"></a></h2>
 <div class="section level3">
 <h3 id="bibliography-generation">Bibliography generation<a class="anchor" aria-label="anchor" href="#bibliography-generation"></a></h3>
-<div class="sourceCode" id="cb51"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb51-1"><a href="#cb51-1" tabindex="-1"></a><span class="co"># index.Rmd — dynamic bib from Zotero via Better BibTeX</span></span>
-<span id="cb51-2"><a href="#cb51-2" tabindex="-1"></a><span class="fu">bibliography</span><span class="kw">:</span><span class="at"> </span><span class="st">"`r rbbt::bbt_write_bib('references.bib', overwrite = TRUE)`"</span></span></code></pre></div>
+<div class="sourceCode" id="cb52"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb52-1"><a href="#cb52-1" tabindex="-1"></a><span class="co"># index.Rmd — dynamic bib from Zotero via Better BibTeX</span></span>
+<span id="cb52-2"><a href="#cb52-2" tabindex="-1"></a><span class="fu">bibliography</span><span class="kw">:</span><span class="at"> </span><span class="st">"`r rbbt::bbt_write_bib('references.bib', overwrite = TRUE)`"</span></span></code></pre></div>
 <p><code>rbbt</code> pulls from BBT, which syncs with Zotero. Edit references in Zotero → rebuild report → bibliography updates.</p>
 <p><strong>Library targeting:</strong> rbbt must know which Zotero library to search. This is set globally in <code>~/.Rprofile</code>:</p>
-<div class="sourceCode" id="cb52"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb53"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># default library — NewGraphEnvironment group (libraryID 9, group 4733734)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/options.html" class="external-link">options</a></span><span class="op">(</span>rbbt.default.library_id <span class="op">=</span> <span class="fl">9</span><span class="op">)</span></span></code></pre></div>
 <p>Without this option, rbbt searches only the personal library (libraryID 1) and won’t find group library references. The library IDs map to Zotero’s internal numbering — use <code>/zotero-lookup</code> with <code>SELECT DISTINCT libraryID FROM citationkey</code> against the BBT database to discover available libraries.</p>

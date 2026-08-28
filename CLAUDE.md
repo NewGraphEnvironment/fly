@@ -2536,6 +2536,41 @@ project’s `settings.json` → soul):
 - New variables: update .tfvars.example
 - New workflows: update relevant README
 
+### Generating from another repo’s working tree copies its half-finished edits
+
+- Tooling that reads a *source* repo to generate a *target* file
+  (`claude-md-init` reading `soul/conventions/`, template renderers,
+  codegen from a schema repo) reads the working tree by default. If a
+  second session is mid-edit there, you silently bake uncommitted,
+  possibly-inconsistent state into a commit in the target — and the
+  target’s git history then attributes it to you.
+
+- Worse than a stale read, because partial edits are *internally*
+  inconsistent. Cross-references are the tell: a file gaining a section
+  renumbers its siblings, and pointers elsewhere update in a **later**
+  commit. Catch it halfway and you ship a pointer to the wrong section
+  that resolves to plausible, wrong content.
+
+- Caught 2026-08-26 syncing `fly` from `soul`: `karpathy.md` gained a
+  section, shifting “Subagents Are Evidence” from §5 to §6.
+  `planning.md`’s pointer was corrected in soul minutes later, in a
+  separate commit. The sync landed between the two, so `fly` shipped
+  “see `karpathy.md` §5” pointing at the wrong rule. `git pull` in soul
+  reported “Already up to date” both times — the changes were staged,
+  not unpushed, so nothing about the source repo *looked* stale.
+
+- Generate from the committed tree, not the checkout:
+
+  ``` bash
+  SRC=$(mktemp -d) && git -C /path/to/source archive HEAD <subdir> | tar -x -C "$SRC"
+  ```
+
+- Verify the same way after any concurrent-session sync: rebuild from
+  `HEAD` into a temp file and `diff` it against what you committed.
+  Identical means the source was quiet while you read it; a diff is the
+  drift, and it is cheaper to find now than in a downstream repo weeks
+  later.
+
 # NGE Feature Workflow
 
 For non-trivial issue-driven work, follow this checklist. Each step
