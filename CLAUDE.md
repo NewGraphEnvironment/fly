@@ -584,6 +584,34 @@ Add new checks here when a bug class is discovered — they compound over time.
 ### `gh` CLI
 - **`gh pr create` resolves branch from CWD, not `--repo`**. Specifying `--repo NewGraphEnvironment/X` does NOT switch branch resolution — the command still reads the current working directory's checked-out branch. To open a PR in repo X, `cd` into X's checkout first, or pass `--head <branch>` explicitly.
 - **`gh issue create` / `gh pr create` with heredoc bodies fail on prose containing special shell characters** (apostrophes, dollar signs, backticks). Use `--body-file /tmp/issue.md` instead — every project's `newgraph.md` convention specifies this; codified here for the underlying class. The two are written interchangeably, so the trap applies to both: `gh pr create --body "$(cat <<'EOF' … EOF)"` breaks the parser on a prose apostrophe and bash reports `unexpected EOF while looking for matching '"'`, aborting the whole command before anything runs.
+- **Before you *cut* a branch, verify local is current with origin.** The mirror of the
+  rule below, and easier to miss because everything about the working tree looks fine. A
+  clean tree and the right branch name say nothing about whether that branch is 19 commits
+  behind. A branch cut from a stale base regenerates its content from stale input, and the
+  PR either conflicts (loud, cheap) or auto-merges non-overlapping hunks and quietly
+  reverts someone's newer edit (silent, expensive). Assert it:
+  ```bash
+  git fetch -q origin
+  [ "$(git rev-list --count HEAD..@{u})" -eq 0 ] || { echo "local behind origin"; exit 1; }
+  ```
+  Caught 2026-08-28 syncing CLAUDE.md across 25 repos: preconditions checked clean-tree
+  and on-default-branch but not up-to-date. `nrp-nutrient-loading-2025` was 19 behind, one
+  of those commits having touched the same file, and the PR conflicted. The 24 that merged
+  cleanly still had to be proven safe after the fact — by asserting the sync commit changed
+  nothing above the CLAUDE.md marker, which is the invariant the operation actually claimed.
+- **A per-item loop reports the wrapper's exit, not the items'.** `for r in ...; do
+  script "$r"; done` exits 0 whenever the *last* item succeeds, however many failed before
+  it. The task notification then says "completed (exit code 0)" over a batch with real
+  failures in it. Same family as the wrapped-job trap above, and the fix is the same shape:
+  gate on in-band markers. Print a per-item `OK`/`FAIL` line and count the FAILs, or
+  accumulate `RC=$((RC+1))` and `exit "$RC"`. Never read a loop's exit as "all items
+  succeeded".
+- **Distinguish "the action failed" from "the cleanup after it failed".** A wrapper that
+  treats any non-zero from `gh pr merge` as *merge failed* will report a false negative
+  when the merge succeeded and only `--delete-branch` errored. Two of three failures in the
+  same 2026-08-28 run were misreported this way — one had already merged. Re-read the
+  authoritative state (`gh pr view --json state`) before acting on a failure report, rather
+  than trusting the exit code of the compound command.
 - **Before `gh pr merge`, verify the branch is fully pushed.** `gh pr merge` merges the REMOTE branch — commits made locally but never pushed are silently excluded, so the PR merges "successfully" while `main` is missing work you know you committed. Check `git status -sb` shows no `ahead N` before merging (or that `git rev-list --count @{u}..HEAD` is 0). Worse: if you then delete the local branch (`--delete-branch`, or a follow-up `git branch -D`), the unpushed commits become **dangling** — recoverable via `git reflog` / `git fsck --lost-found` then `git cherry-pick`, but only if you notice they're missing. Caught twice 2026-07 in `floodplains`: PR #6 merged 1 of 3 branch commits (the drift#34 `changes_only` fix + a CLAUDE.md update were unpushed → stranded as danglers → recovered and re-merged via a follow-up PR); a second branch sat 4-ahead-unpushed at compact time. The same check belongs in the `gh-pr-merge` skill's pre-merge step.
 
 ### Process Visibility
@@ -846,6 +874,37 @@ prevented it.
   review.
 - Then prove the alarm can fire: feed it a deliberately undeclared input and
   assert it is reported. A guard nobody has seen fail is decoration.
+
+### Tests that silently do not run
+
+`expect_snapshot()` **skips on CRAN**, and `testthat` treats a non-interactive run
+as CRAN by default. A regression net written with it passes locally, reports
+`SKIP` in CI, and is silently absent in exactly the run that matters. The failure
+is invisible: the suite is green either way.
+
+Seen 2026-08-28 in link#227 — a golden test pinning the output of the most
+delicate SQL in the package, written to make a refactor provably
+behaviour-preserving, was skipped the moment it ran non-interactively.
+
+Use explicit assertions for anything that is a **regression net**:
+
+```r
+# Skips on CRAN — fine for reviewing human-readable output, useless as a guard
+expect_snapshot(list(n = nrow(got), ids = sort(got$id)))
+
+# Runs everywhere
+expect_identical(nrow(got), 8L)
+expect_identical(anyDuplicated(got$id), 0L)
+```
+
+If the pinned values come from live data that may legitimately move, say so in a
+comment and re-pin deliberately — do not loosen the assertion to make it stop
+failing, which converts the guard back into decoration.
+
+Same class, different mechanism: `skip_if_no_db()` and friends are correct for
+tests that genuinely need a database, but a suite where the only coverage of a
+behaviour sits behind a skip has no coverage of it in CI. When a check matters,
+give it a mock-based twin that always runs.
 
 ### pak Behavior
 - pak stops on first unresolvable package — all subsequent packages are skipped
