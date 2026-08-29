@@ -637,6 +637,17 @@ Add new checks here when a bug class is discovered — they compound over time.
   same 2026-08-28 run were misreported this way — one had already merged. Re-read the
   authoritative state (`gh pr view --json state`) before acting on a failure report, rather
   than trusting the exit code of the compound command.
+- **Never send a push's stderr to `/dev/null`.** The rule below assumes you *notice* an
+  unpushed branch. Suppressing the push's error removes the only signal that it happened,
+  and the very next step in the usual sequence — `git branch -D` after a merge — then turns
+  the commit into a dangling object. `git push -q ... 2>/dev/null` is the shape; `-q`
+  already silences success, so the redirect can only ever hide a failure. Caught 2026-08-29
+  in soul: a suppressed rejection meant `gh pr create` had no branch to open against, the
+  cleanup deleted the branch anyway, and the commit survived only via `git reflog`. Keep
+  stderr, or test the exit status explicitly:
+  ```bash
+  git push -u origin "$BRANCH" || { echo "push failed"; exit 1; }
+  ```
 - **Before `gh pr merge`, verify the branch is fully pushed.** `gh pr merge` merges the REMOTE branch — commits made locally but never pushed are silently excluded, so the PR merges "successfully" while `main` is missing work you know you committed. Check `git status -sb` shows no `ahead N` before merging (or that `git rev-list --count @{u}..HEAD` is 0). Worse: if you then delete the local branch (`--delete-branch`, or a follow-up `git branch -D`), the unpushed commits become **dangling** — recoverable via `git reflog` / `git fsck --lost-found` then `git cherry-pick`, but only if you notice they're missing. Caught twice 2026-07 in `floodplains`: PR #6 merged 1 of 3 branch commits (the drift#34 `changes_only` fix + a CLAUDE.md update were unpushed → stranded as danglers → recovered and re-merged via a follow-up PR); a second branch sat 4-ahead-unpushed at compact time. The same check belongs in the `gh-pr-merge` skill's pre-merge step.
 
 ### Process Visibility
@@ -1047,6 +1058,48 @@ give it a mock-based twin that always runs.
   ```
 - Downstream that reads as a real record. Caught 2026-08-24 in trap#14: an empty annotation table produced one key, which the join then reported as "an annotation matching no session". Guard with an explicit `if (!nrow(x)) return(character(0))`.
 - Same shape for any vectorised builder fed a possibly-empty frame — `sprintf()`, `file.path()`, `interaction()`.
+
+### A zero-length value in a row-builder drops the whole record, group and all
+
+- Third member of the zero-length family above, and the one that removes evidence
+  rather than corrupting it. A tibble/data.frame constructor recycles its columns:
+  give one of them a zero-length value and you get **zero rows**, not one row with
+  a blank. Inside a `map_dfr()`/`bind_rows()` over groups, that group then vanishes
+  from the result entirely.
+  ```r
+  covered_area <- as.numeric(sf::st_area(covered))   # empty geometry -> numeric(0)
+  dplyr::tibble(group = grp, covered_km2 = covered_area / 1e6)   # 0 rows
+  ```
+- The output looks *correct*, just shorter. Nothing is wrong on the page, no NA
+  appears, and the absent group reads as "not in the input" rather than "could not
+  be computed" — so a reviewer comparing group counts is the only way to catch it.
+- Caught 2026-08-28 in fly#30: a coverage table silently omitted a photo-year whose
+  frames all had unresolvable footprints, instead of reporting that it covered
+  nothing.
+- Fix by folding to a scalar at the boundary — `sum()` over `st_area()` is both the
+  zero-length guard (`sum(numeric(0))` is `0`) and the fix for the mirror bug, where
+  a multi-feature result silently emits several rows instead of one.
+
+### Inserting a helper between a roxygen block and its function rebinds `@export`
+
+- roxygen2 attaches a block to **whatever object follows it**. Add a helper directly
+  above the function the block documents and the docs, `@examples` and `@export` all
+  bind to the helper. The real function loses its export, and roxygen writes an `.Rd`
+  for an internal helper.
+- `devtools::test()` will not catch it. `load_all()` exports everything regardless of
+  NAMESPACE, so the suite stays green at full pass while the package's main function
+  is no longer exported — it fails only for someone who installs it.
+- Caught 2026-08-28 in fly#30: `export(fly_footprint)` disappeared and
+  `fly_film_media.Rd` appeared; 120 tests passed throughout. The signal was in
+  `devtools::document()` output, not the test run.
+- Read what `document()` prints, every time. `Writing '<something unexpected>.Rd'` or
+  `Deleting` on a file you did not touch is the tell. Cheap confirmation:
+  ```bash
+  git diff NAMESPACE            # an export you did not intend to change
+  grep -c "^export(" NAMESPACE  # count should not fall
+  ```
+- Put internal helpers at the top of the file or in their own file. The roxygen block
+  must sit immediately above the function it documents, with nothing between.
 
 ### A zero-length value in a comparison makes every branch false and silently picks the fallback
 
