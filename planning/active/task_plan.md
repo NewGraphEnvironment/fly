@@ -25,9 +25,9 @@ DEM source: **MRDEM-30**, NRCan's 30 m bare-earth DTM, the same product
 
 ## Phase 1: Test DEM fixture
 
-- [ ] Extend `data-raw/make_testdata.R` with an MRDEM-30 clip over centroids + 4 km buffer
-- [ ] Write `inst/testdata/dem.tif` (INT2S, DEFLATE, tiled); confirm size and 566-1520 m range
-- [ ] Document the source and regeneration in the script header
+- [x] Extend `data-raw/make_testdata.R` with an MRDEM-30 clip over centroids + 4 km buffer
+- [x] Write `inst/testdata/dem.tif` (INT2S, DEFLATE, tiled); confirm size and 566-1520 m range
+- [x] Document the source and regeneration in the script header
 
 ## Phase 2: `fly_footprint(dem =)`
 

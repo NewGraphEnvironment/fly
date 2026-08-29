@@ -7,6 +7,11 @@
 # Dual-scale coverage: 1:12000 and 1:31680 (1968).
 #
 # Source: diggs cached data (BC Data Catalogue + flooded VCA output)
+#   ... except dem.tif, which is fetched over the network from NRCan's MRDEM-30
+#   (see the DEM section at the foot of this script). That step needs outbound
+#   HTTPS to canelevation-dem.s3.ca-central-1.amazonaws.com; everything else is
+#   local. Takes a few seconds.
+#
 # Run from fly repo root: Rscript data-raw/make_testdata.R
 
 library(sf)
@@ -115,5 +120,55 @@ if (nrow(streams_clip) > 0) {
            delete_dsn = TRUE, quiet = TRUE)
   message("lakes.gpkg: ", nrow(lakes), " lake(s)")
 }
+
+# --- DEM: MRDEM-30 clip for terrain-adjusted footprints (#9) --------------
+#
+# MRDEM-30 is NRCan's Medium-Resolution Digital Elevation Model: a 30 m
+# bare-earth DTM covering all of Canada as a single ~84 GB Cloud-Optimized
+# GeoTIFF in EPSG:3979, public and unauthenticated. `/vsicurl/` range-reads
+# only the bytes intersecting our AOI, so nothing near 84 GB is transferred.
+#
+# Same product `flooded::fl_dem_aoi()` defaults to, which is why fly reaches
+# for it rather than a second elevation source. Compared head to head against
+# elevatr z=10 over this AOI, the two agree to within 0.42 percentage points on
+# the resulting footprint-area correction (fly#9) — so this choice is about
+# provenance and dependencies, not accuracy.
+#
+# Buffer is 4 km: the widest footprint here is 1:31680, 7.2 km across, so a
+# frame centred on the edge of the centroid bbox reaches 3.6 km beyond it.
+# Without the buffer, edge frames would sample NA and fall back to nominal
+# scale — which the fixture exists to exercise the *absence* of.
+#
+# Crop in the source CRS, project after. Never reproject the whole COG.
+
+message("Fetching MRDEM-30 clip (network step) ...")
+terra::setGDALconfig("GDAL_HTTP_MAX_RETRY", "3")
+terra::setGDALconfig("GDAL_HTTP_RETRY_DELAY", "2")
+
+mrdem_url <- paste0(
+  "/vsicurl/https://canelevation-dem.s3.ca-central-1.amazonaws.com/",
+  "mrdem-30/mrdem-30-dtm.tif"
+)
+
+dem_aoi <- st_sf(geometry = st_union(st_buffer(st_transform(test_photos, 3005), 4000)))
+dem_src <- terra::rast(mrdem_url)
+dem_clip <- terra::crop(
+  dem_src,
+  terra::vect(st_transform(dem_aoi, st_crs(terra::crs(dem_src)))),
+  snap = "out"
+)
+dem_clip <- terra::project(dem_clip, "EPSG:3005")
+
+# INT2S: elevations are metres, and a sub-metre DEM read is not meaningful at
+# 30 m posting. Halves the file against FLT4S for no loss that matters here.
+dem_path <- file.path(outdir, "dem.tif")
+terra::writeRaster(
+  dem_clip, dem_path, overwrite = TRUE, datatype = "INT2S",
+  gdal = c("COMPRESS=DEFLATE", "PREDICTOR=2", "TILED=YES")
+)
+message("dem.tif: ", paste(dim(dem_clip)[1:2], collapse = "x"), " cells at ",
+        round(terra::res(dem_clip)[1], 1), " m, ",
+        paste(round(as.vector(terra::minmax(dem_clip, compute = TRUE))), collapse = "-"),
+        " m, ", round(file.size(dem_path) / 1024), " KB")
 
 message("\nDone. Test data in: ", outdir)
