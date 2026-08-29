@@ -7,7 +7,7 @@ useful on same-scale photos from the same flight.
 ## Usage
 
 ``` r
-fly_overlap(photos_sf)
+fly_overlap(photos_sf, dem = NULL)
 ```
 
 ## Arguments
@@ -16,6 +16,14 @@ fly_overlap(photos_sf)
 
   An sf point object with a `scale` column.
 
+- dem:
+
+  Optional elevation raster passed to
+  [`fly_footprint()`](https://newgraphenvironment.github.io/fly/reference/fly_footprint.md),
+  sizing each frame from its height above ground instead of the reported
+  scale. See the **Terrain** section of
+  [`fly_footprint()`](https://newgraphenvironment.github.io/fly/reference/fly_footprint.md).
+
 ## Value
 
 A tibble with columns `photo_a`, `photo_b`, `overlap_km2`, `pct_of_a`,
@@ -23,9 +31,14 @@ and `pct_of_b`. Only pairs with non-zero overlap are returned.
 
 ## Details
 
-Overlap percentages are estimates based on flat-terrain footprints from
+Overlap percentages are estimates from
+[`fly_footprint()`](https://newgraphenvironment.github.io/fly/reference/fly_footprint.md),
+and inherit whatever basis it was given. Without `dem` that is the
+reported scale, which assumes flat ground and understates footprint area
+wherever the terrain sits below the elevation the scale was computed
+for. Pass `dem` to size each frame from its height above ground instead
+— see the **Terrain** section of
 [`fly_footprint()`](https://newgraphenvironment.github.io/fly/reference/fly_footprint.md).
-See that function for details on terrain limitations.
 
 ## Examples
 

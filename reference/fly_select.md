@@ -12,7 +12,8 @@ fly_select(
   aoi_sf,
   mode = "minimal",
   target_coverage = 0.95,
-  component_ensure = FALSE
+  component_ensure = FALSE,
+  dem = NULL
 )
 ```
 
@@ -44,6 +45,14 @@ fly_select(
   selection. Useful for multi-polygon AOIs (e.g. patchy floodplain
   fragments) where small components might otherwise get zero coverage.
   Only used when `mode = "minimal"`.
+
+- dem:
+
+  Optional elevation raster passed to
+  [`fly_footprint()`](https://newgraphenvironment.github.io/fly/reference/fly_footprint.md),
+  sizing each frame from its height above ground instead of the reported
+  scale. See the **Terrain** section of
+  [`fly_footprint()`](https://newgraphenvironment.github.io/fly/reference/fly_footprint.md).
 
 ## Value
 

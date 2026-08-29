@@ -15,7 +15,8 @@ fly_georef(
   dest_dir = "georef",
   overwrite = FALSE,
   srcnodata = "0",
-  rotation = "auto"
+  rotation = "auto",
+  dem = NULL
 )
 ```
 
@@ -60,6 +61,14 @@ fly_georef(
   `film_roll` and `frame_number` columns. Fixed values apply the same
   rotation to all photos. Overridden per-photo if `photos_sf` contains a
   `rotation` column.
+
+- dem:
+
+  Optional elevation raster passed to
+  [`fly_footprint()`](https://newgraphenvironment.github.io/fly/reference/fly_footprint.md),
+  sizing each frame from its height above ground instead of the reported
+  scale. See the **Terrain** section of
+  [`fly_footprint()`](https://newgraphenvironment.github.io/fly/reference/fly_footprint.md).
 
 ## Value
 
@@ -121,11 +130,13 @@ shadow detail is minimal. For full-resolution scans where shadow detail
 matters, set `srcnodata = NULL` and handle frame masking downstream
 (e.g., circle detection).
 
-**Accuracy:** footprints assume flat terrain and nadir camera angle. The
-georeferenced images are approximate — useful for visual context, not
-survey-grade positioning. See
-[`fly_footprint()`](https://newgraphenvironment.github.io/fly/reference/fly_footprint.md)
-for details on limitations.
+**Accuracy:** footprints assume a nadir camera angle, and without `dem`
+they also assume flat terrain. Passing `dem` sizes each frame from its
+height above ground, which on steep ground is the larger of the two
+error terms — but the images stay approximate either way, useful for
+visual context rather than survey-grade positioning. See the **Terrain**
+section of
+[`fly_footprint()`](https://newgraphenvironment.github.io/fly/reference/fly_footprint.md).
 
 ## Examples
 
@@ -151,6 +162,6 @@ georef
 #> # A tibble: 2 × 4
 #>   airp_id source                               dest                      success
 #>     <int> <chr>                                <chr>                     <lgl>  
-#> 1  699370 /tmp/RtmpIrj3et/bc5282_176_thumb.jpg /tmp/RtmpIrj3et/bc5282_1… TRUE   
-#> 2  699415 /tmp/RtmpIrj3et/bc5282_221_thumb.jpg /tmp/RtmpIrj3et/bc5282_2… TRUE   
+#> 1  699370 /tmp/RtmpJl7wOx/bc5282_176_thumb.jpg /tmp/RtmpJl7wOx/bc5282_1… TRUE   
+#> 2  699415 /tmp/RtmpJl7wOx/bc5282_221_thumb.jpg /tmp/RtmpJl7wOx/bc5282_2… TRUE   
 ```

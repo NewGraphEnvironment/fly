@@ -9,7 +9,7 @@ reports percent coverage grouped by a column."><meta property="og:image" content
 
     <a class="navbar-brand me-2" href="../index.html">fly</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.5.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -45,7 +45,7 @@ reports percent coverage grouped by a column.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">fly_coverage</span><span class="op">(</span><span class="va">photos_sf</span>, <span class="va">aoi_sf</span>, by <span class="op">=</span> <span class="st">"photo_year"</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">fly_coverage</span><span class="op">(</span><span class="va">photos_sf</span>, <span class="va">aoi_sf</span>, by <span class="op">=</span> <span class="st">"photo_year"</span>, dem <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -62,6 +62,12 @@ reports percent coverage grouped by a column.</p>
 
 <dt id="arg-by">by<a class="anchor" aria-label="anchor" href="#arg-by"></a></dt>
 <dd><p>Column name to group by (default <code>"photo_year"</code>).</p></dd>
+
+
+<dt id="arg-dem">dem<a class="anchor" aria-label="anchor" href="#arg-dem"></a></dt>
+<dd><p>Optional elevation raster passed to <code><a href="fly_footprint.html">fly_footprint()</a></code>, sizing each
+frame from its height above ground instead of the reported scale. See the
+<strong>Terrain</strong> section of <code><a href="fly_footprint.html">fly_footprint()</a></code>.</p></dd>
 
 </dl></div>
     <div class="section level2">

@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fly</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.5.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,19 @@
 
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="development version" id="fly-development-version">fly (development version)<a class="anchor" aria-label="anchor" href="#fly-development-version"></a></h2>
+<div class="section level3">
+<h3 id="id_050-development-version">0.5.0 (2026-08-29)<a class="anchor" aria-label="anchor" href="#id_050-development-version"></a></h3>
+<ul><li>
+<code><a href="../reference/fly_footprint.html">fly_footprint()</a></code> gains a <code>dem</code> argument, sizing each frame from its height above ground instead of the reported scale (<a href="https://github.com/NewGraphEnvironment/fly/issues/9" class="external-link">#9</a>). On the bundled Upper Bulkley AOI the reported scale understates footprint <strong>area by a median 14%, ranging to 26%</strong> — and always in the same direction, because the scale is referenced to an elevation above the valley floor the photos cover. This is a datum offset, not the slope effect the issue described</li>
+<li>
+<code>FLYING_HEIGHT</code> is metres above sea level, so subtracting terrain elevation is what turns it into the height ground coverage scales with. Elevation is the mean under the whole footprint, not a reading at the centroid — the two differ by up to 140 m on a 7.2 km frame. It is measured in two passes, because the footprint being averaged over is itself what the correction changes</li>
+<li>New <code>footprint_terrain</code>, <code>height_agl</code> and <code>dem_coverage</code> columns record which terrain treatment each frame received, the height it was sized from, and how much of its footprint the DEM actually covered — measured against the cells the footprint should have covered, so that a footprint running past the edge of a cropped DEM is reported rather than counted as complete. <code>footprint_basis</code> is unchanged: it is already matched by value downstream, so encoding terrain into it would break caller filters</li>
+<li>
+<code>dem</code> is accepted by <code><a href="../reference/fly_coverage.html">fly_coverage()</a></code>, <code><a href="../reference/fly_overlap.html">fly_overlap()</a></code>, <code><a href="../reference/fly_filter.html">fly_filter()</a></code>, <code><a href="../reference/fly_select.html">fly_select()</a></code> and <code><a href="../reference/fly_georef.html">fly_georef()</a></code>, so the correction is reachable from every function that builds a footprint</li>
+<li>Frames the DEM cannot correct — outside its coverage, or with unusable <code>flying_height</code> / <code>focal_length</code> — fall back to nominal scale with a warning rather than being dropped. A frame the DEM covers only partly is still corrected, from the mean of the covered part, and warns below 95% coverage</li>
+<li>New <code>inst/testdata/dem.tif</code>, a clip of NRCan’s MRDEM-30. <code>terra</code> added to Suggests; it is only needed when a <code>dem</code> is supplied</li>
+<li>Footprints remain axis-aligned rectangles under a nadir assumption. Per-corner ray-casting measures ~2% against the 14% the DEM addresses, and is deferred</li>
+</ul></div>
 <div class="section level3">
 <h3 id="id_040-development-version">0.4.0 (2026-08-28)<a class="anchor" aria-label="anchor" href="#id_040-development-version"></a></h3>
 <ul><li>

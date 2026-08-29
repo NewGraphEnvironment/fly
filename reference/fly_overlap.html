@@ -11,7 +11,7 @@ Most useful on same-scale photos from the same flight."><meta property="og:image
 
     <a class="navbar-brand me-2" href="../index.html">fly</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.5.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -48,7 +48,7 @@ Most useful on same-scale photos from the same flight.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">fly_overlap</span><span class="op">(</span><span class="va">photos_sf</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">fly_overlap</span><span class="op">(</span><span class="va">photos_sf</span>, dem <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -58,6 +58,12 @@ Most useful on same-scale photos from the same flight.</p>
 <dl><dt id="arg-photos-sf">photos_sf<a class="anchor" aria-label="anchor" href="#arg-photos-sf"></a></dt>
 <dd><p>An sf point object with a <code>scale</code> column.</p></dd>
 
+
+<dt id="arg-dem">dem<a class="anchor" aria-label="anchor" href="#arg-dem"></a></dt>
+<dd><p>Optional elevation raster passed to <code><a href="fly_footprint.html">fly_footprint()</a></code>, sizing each
+frame from its height above ground instead of the reported scale. See the
+<strong>Terrain</strong> section of <code><a href="fly_footprint.html">fly_footprint()</a></code>.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
@@ -66,8 +72,12 @@ Most useful on same-scale photos from the same flight.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>Overlap percentages are estimates based on flat-terrain footprints from
-<code><a href="fly_footprint.html">fly_footprint()</a></code>. See that function for details on terrain limitations.</p>
+    <p>Overlap percentages are estimates from <code><a href="fly_footprint.html">fly_footprint()</a></code>, and inherit
+whatever basis it was given. Without <code>dem</code> that is the reported scale, which
+assumes flat ground and understates footprint area wherever the terrain sits
+below the elevation the scale was computed for. Pass <code>dem</code> to size each frame
+from its height above ground instead — see the <strong>Terrain</strong> section of
+<code><a href="fly_footprint.html">fly_footprint()</a></code>.</p>
     </div>
 
     <div class="section level2">

@@ -9,7 +9,7 @@ of each airphoto, based on film negative dimensions and the reported scale."><me
 
     <a class="navbar-brand me-2" href="../index.html">fly</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.5.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -45,7 +45,7 @@ of each airphoto, based on film negative dimensions and the reported scale.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">fly_footprint</span><span class="op">(</span><span class="va">centroids_sf</span>, negative_size <span class="op">=</span> <span class="fl">9</span>, format_size <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">fly_footprint</span><span class="op">(</span><span class="va">centroids_sf</span>, negative_size <span class="op">=</span> <span class="fl">9</span>, format_size <span class="op">=</span> <span class="cn">NULL</span>, dem <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -69,11 +69,23 @@ recording format per frame when present.</p></dd>
 keyed by <code>media</code> value, merged over the shipped film defaults. Supply this
 to size frames whose format <code>fly</code> does not know — see Details.</p></dd>
 
+
+<dt id="arg-dem">dem<a class="anchor" aria-label="anchor" href="#arg-dem"></a></dt>
+<dd><p>Optional elevation raster used to size each frame from its true
+height above ground rather than the reported scale. A <code><a href="https://rspatial.github.io/terra/reference/SpatRaster-class.html" class="external-link">terra::SpatRaster</a></code>,
+a file path, or a <code>/vsicurl/</code> URL. Requires <code>flying_height</code> and
+<code>focal_length</code> columns, and the <code>terra</code> package. <code>NULL</code> (default) keeps the
+flat-terrain behaviour — see <strong>Terrain</strong> below.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>An sf polygon object in the same CRS as input, with footprint
-rectangles and a <code>footprint_basis</code> column recording how each was sized.
+rectangles, a <code>footprint_basis</code> column recording how each was sized, a
+<code>footprint_terrain</code> column recording which terrain treatment was applied,
+<code>height_agl</code> giving the metres above ground each footprint was sized from,
+and <code>dem_coverage</code> giving the fraction of each footprint the DEM actually
+covered (<code>0</code> where it covered none, <code>NA</code> only where there is no footprint).
 Frames whose format could not be resolved get an empty geometry.</p>
     </div>
     <div class="section level2">
@@ -116,13 +128,79 @@ count that would let <code>ground_sample_distance</code> stand in for it. Supply
 the bundled test data. Note the field is <code>SCALE</code>, not <code>PHOTO_SCALE</code> — the
 latter returns all <code>NULL</code>, which reads as missing data rather than a wrong
 field name.</p>
-<p><strong>Flat-terrain assumption:</strong> footprints are estimated assuming flat ground
-beneath the aircraft. In reality terrain slope changes the actual ground
-coverage — downhill slopes increase the true footprint (ground falls away
-from the camera), while uphill slopes reduce it. In steep terrain typical
-of BC valleys, true footprints may differ meaningfully from these estimates.
-Coverage and overlap calculations downstream (e.g. <code><a href="fly_coverage.html">fly_coverage()</a></code>,
-<code><a href="fly_overlap.html">fly_overlap()</a></code>) inherit this limitation.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="terrain">Terrain<a class="anchor" aria-label="anchor" href="#terrain"></a></h2>
+
+
+
+<p>Without <code>dem</code>, footprints are sized from the reported scale, which assumes
+flat ground at whatever elevation the scale was computed for. That assumption
+costs more than it looks: on the bundled Upper Bulkley AOI the reported scale
+<strong>understates footprint area by a median 14%, ranging to 26%</strong> — and always in
+the same direction, because the scale is referenced to an elevation above the
+valley floor the photos actually cover.</p>
+<p>Supplying <code>dem</code> removes that bias. <code>FLYING_HEIGHT</code> is metres above sea level,
+not height above ground, so subtracting terrain elevation is what turns it
+into the height ground coverage actually scales with:</p>
+<p></p><div class="sourceCode"><pre><code><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a>height above ground <span class="ot">=</span> flying_height <span class="sc">-</span> terrain elevation</span>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a>ground width        <span class="ot">=</span> format width <span class="sc">*</span> (height above ground <span class="sc">/</span> focal length)</span></code></pre><p></p></div>
+<p>Elevation is the <strong>mean under the whole footprint</strong>, not a reading at the
+centroid — on a 7.2 km wide 1:31680 frame the two differ by up to 140 m.
+That is measured in two passes, because the footprint being averaged over is
+itself what the correction changes: the first pass averages over the
+nominal-scale rectangle, the second over the rectangle the first produced.
+The second pass is a refinement rather than the substance — it moves area by
+at most 0.5% against the correction's own 14% — and a third moves it by
+0.03%, so two is where this settles.</p>
+<p><code>footprint_terrain</code> records what happened to each frame:</p>
+<dl><dt><code>"nominal_scale"</code></dt>
+<dd><p>sized from the reported scale (no <code>dem</code>, or a
+fallback — see below)</p></dd>
+
+<dt><code>"dem_agl"</code></dt>
+<dd><p>sized from height above ground</p></dd>
+
+<dt><code>"no_dem_coverage"</code></dt>
+<dd><p><code>dem</code> supplied but does not cover the frame</p></dd>
+
+<dt><code>NA</code></dt>
+<dd><p>no footprint to place — see <code>footprint_basis</code></p></dd>
+
+
+</dl><p>A frame the DEM cannot correct falls back to nominal scale with a warning,
+rather than being dropped. The same applies where the DEM puts terrain at or
+above the aircraft, which means <code>flying_height</code> is not in metres ASL.</p>
+<p><strong>Still assumed, with or without a DEM:</strong> the camera points straight down.
+The BC catalogue carries no tilt, roll or crab, so footprints stay
+axis-aligned rectangles and corner rays are not projected individually. On
+this AOI that per-corner refinement is worth roughly 2%, against the 14% the
+DEM addresses.</p>
+<p><strong>DEM sources.</strong> Any raster <code>terra</code> can open works. Three that suit BC:</p>
+<ul><li><p><strong>MRDEM-30</strong> — NRCan's 30 m bare-earth DTM, all of Canada, public
+and unauthenticated. A good default, and what the bundled <code>dem.tif</code> is
+cut from:
+<code>/vsicurl/https://canelevation-dem.s3.ca-central-1.amazonaws.com/mrdem-30/mrdem-30-dtm.tif</code></p></li>
+<li><p><strong>LidarBC</strong> — sub-10 m where coverage exists; query the
+<code>stac-dem-bc</code> STAC catalogue and pass an item's COG URL.</p></li>
+<li><p><strong>BC TRIM</strong> — 25 m provincial DEM via the <code>bcdata</code> CLI
+(<code>bcdata get-dem</code>).</p></li>
+</ul><p>Resolution matters less here than extent. A 30 m DEM resolves a 2.7 km
+footprint's mean elevation perfectly well; a DEM that stops short of the
+frame edges does not, and this is the ordinary failure rather than an exotic
+one — a DEM cropped to an AOI simply stops. <code>no_dem_coverage</code> is reached only
+when a footprint finds no elevation at all. A footprint that is merely
+truncated is still corrected, from the mean of the part the DEM described,
+and warns once that falls below 95%. <code>dem_coverage</code> reports the fraction per
+frame — measured against the cells the footprint should have covered, not the
+cells that came back — so a truncated footprint can be filtered rather than
+merely noticed.</p>
+<p>Buffer past the <strong>corner</strong> of the widest footprint, not its half-side: the
+far point of a square is <code>half_side * sqrt(2)</code>, which at 1:31680 is 5.1 km
+rather than 3.6 km. Allow more again for the correction itself, which
+enlarges footprints before the second pass samples them.</p>
+<p>Coverage and overlap downstream (e.g. <code><a href="fly_coverage.html">fly_coverage()</a></code>, <code><a href="fly_overlap.html">fly_overlap()</a></code>)
+accept the same <code>dem</code> argument and inherit whichever basis you give them.</p>
     </div>
 
     <div class="section level2">
@@ -150,6 +228,24 @@ Coverage and overlap calculations downstream (e.g. <code><a href="fly_coverage.h
 <span class="r-in"><span><span class="va">sized</span> <span class="op">&lt;-</span> <span class="va">footprints</span><span class="op">[</span><span class="va">footprints</span><span class="op">$</span><span class="va">footprint_basis</span> <span class="op">!=</span> <span class="st">"unknown_format"</span>, <span class="op">]</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">sized</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] 20</span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Terrain-adjusted: size each frame from its height above ground instead of</span></span></span>
+<span class="r-in"><span><span class="co"># the reported scale. On this AOI every footprint grows, by a median 14%.</span></span></span>
+<span class="r-in"><span><span class="co"># terra is Suggests-only, so the DEM path is guarded here.</span></span></span>
+<span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/ns-load.html" class="external-link">requireNamespace</a></span><span class="op">(</span><span class="st">"terra"</span>, quietly <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span></span>
+<span class="r-in"><span>  <span class="va">terrain</span> <span class="op">&lt;-</span> <span class="fu">fly_footprint</span><span class="op">(</span></span></span>
+<span class="r-in"><span>    <span class="va">centroids</span>,</span></span>
+<span class="r-in"><span>    dem <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"testdata/dem.tif"</span>, package <span class="op">=</span> <span class="st">"fly"</span><span class="op">)</span></span></span>
+<span class="r-in"><span>  <span class="op">)</span></span></span>
+<span class="r-in"><span>  <span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fl">100</span> <span class="op">*</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="fu">sf</span><span class="fu">::</span><span class="fu"><a href="https://r-spatial.github.io/sf/reference/geos_measures.html" class="external-link">st_area</a></span><span class="op">(</span><span class="fu">sf</span><span class="fu">::</span><span class="fu"><a href="https://r-spatial.github.io/sf/reference/st_transform.html" class="external-link">st_transform</a></span><span class="op">(</span><span class="va">terrain</span>, <span class="fl">3005</span><span class="op">)</span><span class="op">)</span><span class="op">)</span> <span class="op">/</span></span></span>
+<span class="r-in"><span>    <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="fu">sf</span><span class="fu">::</span><span class="fu"><a href="https://r-spatial.github.io/sf/reference/geos_measures.html" class="external-link">st_area</a></span><span class="op">(</span><span class="fu">sf</span><span class="fu">::</span><span class="fu"><a href="https://r-spatial.github.io/sf/reference/st_transform.html" class="external-link">st_transform</a></span><span class="op">(</span><span class="va">footprints</span>, <span class="fl">3005</span><span class="op">)</span><span class="op">)</span><span class="op">)</span> <span class="op">-</span> <span class="fl">1</span><span class="op">)</span>, <span class="fl">1</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span>  <span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/table.html" class="external-link">table</a></span><span class="op">(</span><span class="va">terrain</span><span class="op">$</span><span class="va">footprint_terrain</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="op">}</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  [1] 16.9 11.1 15.4  4.9  0.5 13.4 14.1  2.1 18.1 12.8 16.1 16.0 15.0 11.0  9.0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [16] 26.4  6.2  9.1 16.4 15.5</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> dem_agl </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>      20 </span>
 <span class="r-in"><span></span></span>
 </code></pre></div>
     </div>

@@ -11,7 +11,7 @@ BC Albers (EPSG:3005). Works with thumbnails and full-resolution scans."><meta p
 
     <a class="navbar-brand me-2" href="../index.html">fly</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.5.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -54,7 +54,8 @@ BC Albers (EPSG:3005). Works with thumbnails and full-resolution scans.</p>
 <span>  dest_dir <span class="op">=</span> <span class="st">"georef"</span>,</span>
 <span>  overwrite <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  srcnodata <span class="op">=</span> <span class="st">"0"</span>,</span>
-<span>  rotation <span class="op">=</span> <span class="st">"auto"</span></span>
+<span>  rotation <span class="op">=</span> <span class="st">"auto"</span>,</span>
+<span>  dem <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -98,6 +99,12 @@ bearing from consecutive centroids and derives rotation per-photo —
 requires <code>film_roll</code> and <code>frame_number</code> columns. Fixed values apply
 the same rotation to all photos. Overridden per-photo if <code>photos_sf</code>
 contains a <code>rotation</code> column.</p></dd>
+
+
+<dt id="arg-dem">dem<a class="anchor" aria-label="anchor" href="#arg-dem"></a></dt>
+<dd><p>Optional elevation raster passed to <code><a href="fly_footprint.html">fly_footprint()</a></code>, sizing each
+frame from its height above ground instead of the reported scale. See the
+<strong>Terrain</strong> section of <code><a href="fly_footprint.html">fly_footprint()</a></code>.</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -143,10 +150,12 @@ shadows). At thumbnail resolution (~1250x1250) this is acceptable —
 shadow detail is minimal. For full-resolution scans where shadow
 detail matters, set <code>srcnodata = NULL</code> and handle frame masking
 downstream (e.g., circle detection).</p>
-<p><strong>Accuracy:</strong> footprints assume flat terrain and nadir camera angle.
-The georeferenced images are approximate — useful for visual context,
-not survey-grade positioning. See <code><a href="fly_footprint.html">fly_footprint()</a></code> for details on
-limitations.</p>
+<p><strong>Accuracy:</strong> footprints assume a nadir camera angle, and without <code>dem</code>
+they also assume flat terrain. Passing <code>dem</code> sizes each frame from its
+height above ground, which on steep ground is the larger of the two error
+terms — but the images stay approximate either way, useful for visual
+context rather than survey-grade positioning. See the <strong>Terrain</strong> section
+of <code><a href="fly_footprint.html">fly_footprint()</a></code>.</p>
     </div>
 
     <div class="section level2">
@@ -172,8 +181,8 @@ limitations.</p>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;"># A tibble: 2 × 4</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   airp_id source                               dest                      success</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>     <span style="color: #949494; font-style: italic;">&lt;int&gt;</span> <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>                                <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>                     <span style="color: #949494; font-style: italic;">&lt;lgl&gt;</span>  </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">1</span>  <span style="text-decoration: underline;">699</span>370 /tmp/RtmpIrj3et/bc5282_176_thumb.jpg /tmp/RtmpIrj3et/bc5282_1… TRUE   </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">2</span>  <span style="text-decoration: underline;">699</span>415 /tmp/RtmpIrj3et/bc5282_221_thumb.jpg /tmp/RtmpIrj3et/bc5282_2… TRUE   </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">1</span>  <span style="text-decoration: underline;">699</span>370 /tmp/RtmpJl7wOx/bc5282_176_thumb.jpg /tmp/RtmpJl7wOx/bc5282_1… TRUE   </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">2</span>  <span style="text-decoration: underline;">699</span>415 /tmp/RtmpJl7wOx/bc5282_221_thumb.jpg /tmp/RtmpJl7wOx/bc5282_2… TRUE   </span>
 <span class="r-in"><span></span></span>
 </code></pre></div>
     </div>

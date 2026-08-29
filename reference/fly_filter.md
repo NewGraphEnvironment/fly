@@ -7,7 +7,13 @@ outside the AOI but whose ground coverage overlaps it.
 ## Usage
 
 ``` r
-fly_filter(photos_sf, aoi_sf, method = c("footprint", "centroid"), buffer = 0)
+fly_filter(
+  photos_sf,
+  aoi_sf,
+  method = c("footprint", "centroid"),
+  buffer = 0,
+  dem = NULL
+)
 ```
 
 ## Arguments
@@ -28,6 +34,14 @@ fly_filter(photos_sf, aoi_sf, method = c("footprint", "centroid"), buffer = 0)
 
   Buffer distance in metres added to the AOI before testing intersection
   (default 0). Applied in BC Albers (EPSG:3005).
+
+- dem:
+
+  Optional elevation raster passed to
+  [`fly_footprint()`](https://newgraphenvironment.github.io/fly/reference/fly_footprint.md),
+  sizing each frame from its height above ground instead of the reported
+  scale. See the **Terrain** section of
+  [`fly_footprint()`](https://newgraphenvironment.github.io/fly/reference/fly_footprint.md).
 
 ## Value
 

@@ -6,7 +6,7 @@ reports percent coverage grouped by a column.
 ## Usage
 
 ``` r
-fly_coverage(photos_sf, aoi_sf, by = "photo_year")
+fly_coverage(photos_sf, aoi_sf, by = "photo_year", dem = NULL)
 ```
 
 ## Arguments
@@ -22,6 +22,14 @@ fly_coverage(photos_sf, aoi_sf, by = "photo_year")
 - by:
 
   Column name to group by (default `"photo_year"`).
+
+- dem:
+
+  Optional elevation raster passed to
+  [`fly_footprint()`](https://newgraphenvironment.github.io/fly/reference/fly_footprint.md),
+  sizing each frame from its height above ground instead of the reported
+  scale. See the **Terrain** section of
+  [`fly_footprint()`](https://newgraphenvironment.github.io/fly/reference/fly_footprint.md).
 
 ## Value
 

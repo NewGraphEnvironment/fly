@@ -11,7 +11,7 @@ the AOI.'><meta property="og:image" content="https://newgraphenvironment.github.
 
     <a class="navbar-brand me-2" href="../index.html">fly</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.5.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -53,7 +53,8 @@ the AOI.</p>
 <span>  <span class="va">aoi_sf</span>,</span>
 <span>  mode <span class="op">=</span> <span class="st">"minimal"</span>,</span>
 <span>  target_coverage <span class="op">=</span> <span class="fl">0.95</span>,</span>
-<span>  component_ensure <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span>  component_ensure <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  dem <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -86,6 +87,12 @@ polygon component of <code>aoi_sf</code> is covered by at least one photo before
 running the greedy selection. Useful for multi-polygon AOIs (e.g. patchy
 floodplain fragments) where small components might otherwise get zero
 coverage. Only used when <code>mode = "minimal"</code>.</p></dd>
+
+
+<dt id="arg-dem">dem<a class="anchor" aria-label="anchor" href="#arg-dem"></a></dt>
+<dd><p>Optional elevation raster passed to <code><a href="fly_footprint.html">fly_footprint()</a></code>, sizing each
+frame from its height above ground instead of the reported scale. See the
+<strong>Terrain</strong> section of <code><a href="fly_footprint.html">fly_footprint()</a></code>.</p></dd>
 
 </dl></div>
     <div class="section level2">

@@ -1558,24 +1558,26 @@ CI. When a check matters, give it a mock-based twin that always runs.
   `'match' requires vector arguments`. A
   [`library(terra)`](https://rspatial.org/) smoke test passes (attaching
   installs the S4 method), so the bug hides until package context. Use
-  `terra::subst(x, from, to, others = ...)` or `terra::classify()` for
-  code-set membership/masking instead of the `%in%` operator. Same trap
-  for any operator terra defines via S4 that base also defines as an
-  ordinary function. (drift#34)
+  `terra::subst(x, from, to, others = ...)` or
+  [`terra::classify()`](https://rspatial.github.io/terra/reference/classify.html)
+  for code-set membership/masking instead of the `%in%` operator. Same
+  trap for any operator terra defines via S4 that base also defines as
+  an ordinary function. (drift#34)
 
-- **`terra::freq()` errors on an all-NA raster**
-  (`replacement has length zero`) rather than returning a 0-row table.
-  Any path that can yield an all-NA layer (an impossible filter,
-  everything masked out) must guard:
+- **[`terra::freq()`](https://rspatial.github.io/terra/reference/freq.html)
+  errors on an all-NA raster** (`replacement has length zero`) rather
+  than returning a 0-row table. Any path that can yield an all-NA layer
+  (an impossible filter, everything masked out) must guard:
   `f <- tryCatch(terra::freq(r), error = function(e) NULL)`, then treat
   `NULL`/0 rows as “no values”. Don’t assume the empty case gives
   `nrow(freq(r)) == 0`. (drift#34)
 
-- **`terra::minmax()` reports *cached* statistics, not computed ones.**
-  It defaults to `compute = FALSE` and returns `Inf`/`-Inf` for any
-  raster whose min/max have never been calculated — which is every
-  file-backed raster until something touches it. A guard written on top
-  of it therefore fires on real data:
+- **[`terra::minmax()`](https://rspatial.github.io/terra/reference/minmax.html)
+  reports *cached* statistics, not computed ones.** It defaults to
+  `compute = FALSE` and returns `Inf`/`-Inf` for any raster whose
+  min/max have never been calculated — which is every file-backed raster
+  until something touches it. A guard written on top of it therefore
+  fires on real data:
 
   ``` r
 
@@ -1586,10 +1588,11 @@ CI. When a check matters, give it a mock-based twin that always runs.
   ```
 
 - The trap is that it *appears* to work, because plenty of upstream
-  operations compute min/max as a side effect — `terra::crop()` does, so
-  anything arriving via `maptiles::get_tiles(crop = TRUE)` has them.
-  Correct by accident, through an internal that is not a contract. Pass
-  `compute = TRUE`, and test the guard against a **file-backed**
+  operations compute min/max as a side effect —
+  [`terra::crop()`](https://rspatial.github.io/terra/reference/crop.html)
+  does, so anything arriving via `maptiles::get_tiles(crop = TRUE)` has
+  them. Correct by accident, through an internal that is not a contract.
+  Pass `compute = TRUE`, and test the guard against a **file-backed**
   fixture: one built by `rast(vals = ...)` is in memory, has statistics
   cached, and cannot reach this. (gq#57, 2026-08 — a flat-tile detector
   called every file-backed raster flat, and the whole fixture set shared
@@ -3877,7 +3880,8 @@ required - **Use bundled test data** via
 [`system.file()`](https://rdrr.io/r/base/system.file.html) so they work
 for anyone - **Show why the function is useful** — not just that it
 runs, but what it produces and why you’d use it - **Use qualified
-names** for non-exported dependencies (`terra::rast()`,
+names** for non-exported dependencies
+([`terra::rast()`](https://rspatial.github.io/terra/reference/rast.html),
 [`sf::st_read()`](https://r-spatial.github.io/sf/reference/st_read.html))
 since examples run in the user’s environment
 
