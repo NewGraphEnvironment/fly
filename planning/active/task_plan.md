@@ -107,21 +107,21 @@ passes `format_size = c("Digital - Colour" = 3.54)` today.
 - [x] `devtools::document()`
 
 ### Phase 5: Hand off the research
-- [ ] File the follow-up issue: identify the cameras behind the 2011/2018 digital
+- [x] File the follow-up issue: identify the cameras behind the 2011/2018 digital
       rolls and establish sensor widths. Record the `pixel_pitch = GSD / scale`
       lever and `camera_calibration_url` as the two routes, and that #30 ships
       the `format_size` slot the results drop into
-- [ ] Cross-reference #9 (DEM-adjusted footprints) and #10 (flight metadata) —
+- [x] Cross-reference #9 (DEM-adjusted footprints) and #10 (flight metadata) —
       both need focal length and flying height, which Phase 4 establishes are
       already available
 
 ## Validation
 
-- [ ] `Rscript -e 'devtools::test()' 2>&1 | grep -E "(FAIL|ERROR|PASS)" | tail -5`
-- [ ] `Rscript -e 'lintr::lint_package()'` clean
-- [ ] `Rscript -e 'devtools::document()' 2>&1 | grep -E "(Writing|warning)"`
-- [ ] `/code-check` clean on each commit
-- [ ] PWF checkboxes match landed work
+- [x] `Rscript -e 'devtools::test()' 2>&1 | grep -E "(FAIL|ERROR|PASS)" | tail -5`
+- [x] `Rscript -e 'lintr::lint_package()'` clean
+- [x] `Rscript -e 'devtools::document()' 2>&1 | grep -E "(Writing|warning)"`
+- [x] `/code-check` clean on each commit
+- [x] PWF checkboxes match landed work
 - [ ] `/planning-archive` on completion
 
 ## Notes
