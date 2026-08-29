@@ -48,14 +48,26 @@ fly_dem_sample <- function(dem, rects) {
   if (!any(ok)) {
     return(list(elev = elev, covered = covered))
   }
-  v <- terra::vect(sf::st_transform(sf::st_sf(geometry = rects[ok]),
-                                    sf::st_crs(terra::crs(dem))))
-  cells <- terra::extract(dem, v)
+  in_dem <- sf::st_transform(sf::st_sf(geometry = rects[ok]),
+                             sf::st_crs(terra::crs(dem)))
+  cells <- terra::extract(dem, terra::vect(in_dem))
   # split() keys on the ID column, whose values are 1..n in ascending order, so
   # the results come back aligned with `rects[ok]`.
   per_frame <- split(cells[, 2], cells[, 1])
   elev[ok] <- vapply(per_frame, function(x) mean(x, na.rm = TRUE), numeric(1))
-  covered[ok] <- vapply(per_frame, function(x) mean(!is.na(x)), numeric(1))
+
+  # Coverage is measured against the cells the footprint SHOULD have, not the
+  # cells extract() handed back. Ground beyond the raster's extent yields no row
+  # at all — not an NA row — so counting NAs among the returned values reports a
+  # footprint half off the edge of the data as fully covered, which is the
+  # affirmative claim the column exists to prevent. A DEM cropped to an AOI is
+  # exactly this shape: no NA interior, it simply stops.
+  expected <- as.numeric(sf::st_area(in_dem)) / prod(terra::res(dem))
+  got <- vapply(per_frame, function(x) sum(!is.na(x)), numeric(1))
+  # extract() takes a cell whose centre falls inside the polygon, so `got` is
+  # within a cell-perimeter of `expected` even at full coverage; cap at 1.
+  covered[ok] <- pmin(1, got / expected)
+
   elev[is.nan(elev)] <- NA_real_
   list(elev = elev, covered = covered)
 }
@@ -105,7 +117,8 @@ fly_rectangles <- function(coords, half_side) {
 #'   `footprint_terrain` column recording which terrain treatment was applied,
 #'   `height_agl` giving the metres above ground each footprint was sized from,
 #'   and `dem_coverage` giving the fraction of each footprint the DEM actually
-#'   covered. Frames whose format could not be resolved get an empty geometry.
+#'   covered (`0` where it covered none, `NA` only where there is no footprint).
+#'   Frames whose format could not be resolved get an empty geometry.
 #'
 #' @details
 #' Ground coverage is computed as `negative_size * scale_number * 0.0254` metres
@@ -211,12 +224,15 @@ fly_rectangles <- function(coords, half_side) {
 #'  }
 #'
 #' Resolution matters less here than extent. A 30 m DEM resolves a 2.7 km
-#' footprint's mean elevation perfectly well, but a DEM that stops short of the
-#' frame edges will not. `no_dem_coverage` catches only a frame whose *centroid*
-#' has no elevation; a frame whose centroid is covered and whose edges are not
-#' is still corrected, from the mean of the covered part, and warns once it
-#' falls below 95%. `dem_coverage` reports the fraction per frame, so a
-#' partially-sampled footprint can be filtered rather than merely noticed.
+#' footprint's mean elevation perfectly well; a DEM that stops short of the
+#' frame edges does not, and this is the ordinary failure rather than an exotic
+#' one — a DEM cropped to an AOI simply stops. `no_dem_coverage` is reached only
+#' when a footprint finds no elevation at all. A footprint that is merely
+#' truncated is still corrected, from the mean of the part the DEM described,
+#' and warns once that falls below 95%. `dem_coverage` reports the fraction per
+#' frame — measured against the cells the footprint should have covered, not the
+#' cells that came back — so a truncated footprint can be filtered rather than
+#' merely noticed.
 #'
 #' Buffer past the **corner** of the widest footprint, not its half-side: the
 #' far point of a square is `half_side * sqrt(2)`, which at 1:31680 is 5.1 km
@@ -400,7 +416,10 @@ fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL,
 
     half_side[corrected] <- candidate[corrected]
     height_agl[corrected] <- agl[corrected]
-    dem_coverage[corrected] <- covered[corrected]
+    # Report coverage for every frame that had a footprint to sample, not only
+    # the corrected ones: `no_dem_coverage` means a measured zero, and leaving
+    # it NA makes the documented "filter on dem_coverage" workflow impossible.
+    dem_coverage[sized] <- covered[sized]
     terrain[sized] <- "nominal_scale"
     terrain[corrected] <- "dem_agl"
     terrain[uncovered] <- "no_dem_coverage"

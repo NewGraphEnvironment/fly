@@ -31,7 +31,8 @@ rectangles, a \code{footprint_basis} column recording how each was sized, a
 \code{footprint_terrain} column recording which terrain treatment was applied,
 \code{height_agl} giving the metres above ground each footprint was sized from,
 and \code{dem_coverage} giving the fraction of each footprint the DEM actually
-covered. Frames whose format could not be resolved get an empty geometry.
+covered (\code{0} where it covered none, \code{NA} only where there is no footprint).
+Frames whose format could not be resolved get an empty geometry.
 }
 \description{
 Creates rectangular polygons representing the estimated ground coverage
@@ -140,12 +141,15 @@ cut from:
 }
 
 Resolution matters less here than extent. A 30 m DEM resolves a 2.7 km
-footprint's mean elevation perfectly well, but a DEM that stops short of the
-frame edges will not. \code{no_dem_coverage} catches only a frame whose \emph{centroid}
-has no elevation; a frame whose centroid is covered and whose edges are not
-is still corrected, from the mean of the covered part, and warns once it
-falls below 95\%. \code{dem_coverage} reports the fraction per frame, so a
-partially-sampled footprint can be filtered rather than merely noticed.
+footprint's mean elevation perfectly well; a DEM that stops short of the
+frame edges does not, and this is the ordinary failure rather than an exotic
+one — a DEM cropped to an AOI simply stops. \code{no_dem_coverage} is reached only
+when a footprint finds no elevation at all. A footprint that is merely
+truncated is still corrected, from the mean of the part the DEM described,
+and warns once that falls below 95\%. \code{dem_coverage} reports the fraction per
+frame — measured against the cells the footprint should have covered, not the
+cells that came back — so a truncated footprint can be filtered rather than
+merely noticed.
 
 Buffer past the \strong{corner} of the widest footprint, not its half-side: the
 far point of a square is \code{half_side * sqrt(2)}, which at 1:31680 is 5.1 km

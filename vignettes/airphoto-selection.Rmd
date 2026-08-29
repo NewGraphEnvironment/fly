@@ -348,11 +348,11 @@ fly_coverage(centroids, aoi, by = "scale", dem = mrdem)
 ```
 
 Buffer generously. Resolution matters less than extent here — 30 m resolves a
-2.7 km footprint's mean elevation perfectly well, but a DEM that stops short of
-the frame edges will not. Only a frame whose *centroid* has no elevation takes
-the `no_dem_coverage` fallback; one whose centroid is covered and whose edges
-are not is still corrected, from the mean of the covered part. `dem_coverage`
-reports the fraction per frame, and anything below 95% warns:
+2.7 km footprint's mean elevation perfectly well; a DEM that stops short of the
+frame edges does not. That is the ordinary case, not an exotic one: a DEM
+cropped to your AOI simply stops, and the footprints run past it. `dem_coverage`
+reports the fraction of each footprint the DEM actually described, and anything
+below 95% warns:
 
 ```{r terrain-coverage, eval = requireNamespace("terra", quietly = TRUE)}
 round(range(terrain$dem_coverage), 3)

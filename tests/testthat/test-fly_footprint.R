@@ -393,3 +393,55 @@ test_that("fly_footprint tolerates a centroid on a DEM hole", {
   expect_equal(fp$footprint_terrain, "dem_agl")
   expect_gt(fp$height_agl, 0)
 })
+
+test_that("fly_footprint detects a footprint running past the DEM's extent", {
+  skip_if_no_terra()
+  # The two ways a footprint can be short are NOT equivalent, and only one of
+  # them leaves NA cells to count. Ground beyond the raster's *extent* yields no
+  # row from terra::extract() at all, so measuring coverage as the non-NA share
+  # of returned cells calls a truncated footprint fully covered — an affirmative
+  # claim, and worse than saying nothing.
+  #
+  # A DEM cropped to an AOI is exactly this shape: no NA interior, it just
+  # stops. That is the ordinary way a user obtains one, via fl_dem_aoi() or
+  # `bcdata get-dem`, so this is the common case rather than the exotic one.
+  centroids <- sf::st_read(testdata_path("photo_centroids.gpkg"), quiet = TRUE)
+  full <- terra::rast(testdata_path("dem.tif"))
+  tight <- terra::crop(
+    full,
+    terra::vect(sf::st_union(sf::st_buffer(sf::st_transform(centroids, 3005), 500))),
+    snap = "out"
+  )
+  # The fixture must actually reach the failure mode: no NA interior to count.
+  expect_equal(
+    as.numeric(terra::global(tight, function(x) sum(is.na(x)))[1, 1]),
+    as.numeric(terra::global(terra::crop(full, tight), function(x) sum(is.na(x)))[1, 1])
+  )
+
+  w <- character()
+  fp <- withCallingHandlers(
+    fly_footprint(centroids, dem = tight),
+    warning = function(x) {
+      w <<- c(w, conditionMessage(x))
+      invokeRestart("muffleWarning")
+    }
+  )
+  expect_gt(length(w), 0)
+  expect_match(w, "covered by the DEM", all = FALSE)
+  expect_lt(min(fp$dem_coverage), 0.95)
+
+  # And the well-buffered DEM must NOT warn, or the guard is just noise.
+  expect_silent(fly_footprint(centroids, dem = full))
+})
+
+test_that("fly_footprint reports zero coverage, not NA, for a frame off the DEM", {
+  skip_if_no_terra()
+  # NA would mean "not measured". Zero is what was measured, and it is what the
+  # documented `dem_coverage` filter needs in order to exclude the frame.
+  photos <- sf::st_read(testdata_path("photo_centroids.gpkg"), quiet = TRUE)[1, ]
+  sf::st_geometry(photos) <- sf::st_sfc(sf::st_point(c(-120, 50)), crs = 4326)
+  fp <- suppressWarnings(fly_footprint(photos, dem = testdata_path("dem.tif")))
+
+  expect_equal(fp$footprint_terrain, "no_dem_coverage")
+  expect_equal(fp$dem_coverage, 0)
+})
