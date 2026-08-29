@@ -7,23 +7,34 @@ scale.
 ## Usage
 
 ``` r
-fly_footprint(centroids_sf, negative_size = 9)
+fly_footprint(centroids_sf, negative_size = 9, format_size = NULL)
 ```
 
 ## Arguments
 
 - centroids_sf:
 
-  An sf point object with a `scale` column (e.g. "1:31680").
+  An sf point object with a `scale` column (e.g. "1:31680"). A `media`
+  column (e.g. `"Film - BW"`, `"Digital - Colour"`) selects the
+  recording format per frame when present.
 
 - negative_size:
 
-  Negative dimension in inches (default 9 for standard 9" x 9").
+  Negative dimension in inches (default 9 for standard 9" x 9"). Applies
+  to film frames, and to every frame when there is no `media` column. It
+  never sizes a digital frame — see `format_size`.
+
+- format_size:
+
+  Named numeric vector of recording-format widths in inches, keyed by
+  `media` value, merged over the shipped film defaults. Supply this to
+  size frames whose format `fly` does not know — see Details.
 
 ## Value
 
-An sf polygon object in the same CRS as input, with footprint
-rectangles.
+An sf polygon object in the same CRS as input, with footprint rectangles
+and a `footprint_basis` column recording how each was sized. Frames
+whose format could not be resolved get an empty geometry.
 
 ## Details
 
@@ -34,12 +45,47 @@ accurate metric distances, then transformed back to the input CRS.
 The scale denominator is parsed from the `scale` column string (e.g.
 `"1:12000"` becomes `12000`).
 
-**9x9 assumption:** the default `negative_size = 9` (inches) reflects
-the standard 228 mm format used by BC aerial survey cameras (e.g. Wild
-RC-10, Zeiss RMK). The BC Air Photo Database records camera focal length
-per roll (Type 02 field 3.2.2) but this is not available in the
-simplified centroid data from the catalogue. If working with
-non-standard format photography, override `negative_size` accordingly.
+**Film and digital are not the same measurement.** The 9-inch default
+reflects the standard 228 mm negative used by BC aerial survey cameras
+(e.g. Wild RC-10, Zeiss RMK). A digital frame has no negative, and the
+catalogue mixes the two in one layer — roughly a fifth of frames in a
+sampled area are `Digital - Colour`. Ground width scales with the
+recording format, so applying a negative dimension to a sensor produces
+a rectangle that is wrong by an unknown factor while still drawing,
+still overlapping neighbours, and still yielding a coverage percentage.
+
+Each row is therefore sized from its `media` value, and
+`footprint_basis` records the outcome:
+
+- the `media` value:
+
+  format resolved from the format table
+
+- `"assumed_default"`:
+
+  no `media` column; `negative_size` applied
+
+- `"unknown_format"`:
+
+  `media` present but unknown; empty geometry
+
+Shipped defaults cover film only. Digital frames resolve to
+`"unknown_format"` rather than an invented number, because the sensor
+width they would need is not in the centroid metadata — and neither is
+the pixel count that would let `ground_sample_distance` stand in for it.
+Supply `format_size` if you know the camera:
+
+    fly_footprint(photos, format_size = c("Digital - Colour" = 3.54))
+
+Filter on `footprint_basis` to keep only frames sized from a known
+format.
+
+**Focal length and flying height are available.** `FOCAL_LENGTH`,
+`FLYING_HEIGHT` and `SCALE` are fully populated in
+`WHSE_IMAGERY_AND_BASE_MAPS.AIMG_PHOTO_CENTROIDS_SP` and carried through
+to the bundled test data. Note the field is `SCALE`, not `PHOTO_SCALE` —
+the latter returns all `NULL`, which reads as missing data rather than a
+wrong field name.
 
 **Flat-terrain assumption:** footprints are estimated assuming flat
 ground beneath the aircraft. In reality terrain slope changes the actual
@@ -66,4 +112,15 @@ centroids <- sf::st_read(system.file("testdata/photo_centroids.gpkg", package = 
 footprints <- fly_footprint(centroids)
 plot(sf::st_geometry(footprints))
 
+
+# How each footprint was sized
+table(footprints$footprint_basis)
+#> 
+#> Film - BW 
+#>        20 
+
+# Keep only frames sized from a known recording format
+sized <- footprints[footprints$footprint_basis != "unknown_format", ]
+nrow(sized)
+#> [1] 20
 ```

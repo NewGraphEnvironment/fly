@@ -45,7 +45,7 @@ of each airphoto, based on film negative dimensions and the reported scale.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">fly_footprint</span><span class="op">(</span><span class="va">centroids_sf</span>, negative_size <span class="op">=</span> <span class="fl">9</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">fly_footprint</span><span class="op">(</span><span class="va">centroids_sf</span>, negative_size <span class="op">=</span> <span class="fl">9</span>, format_size <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -53,16 +53,28 @@ of each airphoto, based on film negative dimensions and the reported scale.</p>
 
 
 <dl><dt id="arg-centroids-sf">centroids_sf<a class="anchor" aria-label="anchor" href="#arg-centroids-sf"></a></dt>
-<dd><p>An sf point object with a <code>scale</code> column (e.g. "1:31680").</p></dd>
+<dd><p>An sf point object with a <code>scale</code> column (e.g. "1:31680").
+A <code>media</code> column (e.g. <code>"Film - BW"</code>, <code>"Digital - Colour"</code>) selects the
+recording format per frame when present.</p></dd>
 
 
 <dt id="arg-negative-size">negative_size<a class="anchor" aria-label="anchor" href="#arg-negative-size"></a></dt>
-<dd><p>Negative dimension in inches (default 9 for standard 9" x 9").</p></dd>
+<dd><p>Negative dimension in inches (default 9 for standard
+9" x 9"). Applies to film frames, and to every frame when there is no
+<code>media</code> column. It never sizes a digital frame — see <code>format_size</code>.</p></dd>
+
+
+<dt id="arg-format-size">format_size<a class="anchor" aria-label="anchor" href="#arg-format-size"></a></dt>
+<dd><p>Named numeric vector of recording-format widths in inches,
+keyed by <code>media</code> value, merged over the shipped film defaults. Supply this
+to size frames whose format <code>fly</code> does not know — see Details.</p></dd>
 
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>An sf polygon object in the same CRS as input, with footprint rectangles.</p>
+    <p>An sf polygon object in the same CRS as input, with footprint
+rectangles and a <code>footprint_basis</code> column recording how each was sized.
+Frames whose format could not be resolved get an empty geometry.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
@@ -71,12 +83,39 @@ per side. Rectangles are constructed in BC Albers (EPSG:3005) for accurate
 metric distances, then transformed back to the input CRS.</p>
 <p>The scale denominator is parsed from the <code>scale</code> column string (e.g.
 <code>"1:12000"</code> becomes <code>12000</code>).</p>
-<p><strong>9x9 assumption:</strong> the default <code>negative_size = 9</code> (inches) reflects the
-standard 228 mm format used by BC aerial survey cameras (e.g. Wild RC-10,
-Zeiss RMK). The BC Air Photo Database records camera focal length per roll
-(Type 02 field 3.2.2) but this is not available in the simplified centroid
-data from the catalogue. If working with non-standard format photography,
-override <code>negative_size</code> accordingly.</p>
+<p><strong>Film and digital are not the same measurement.</strong> The 9-inch default
+reflects the standard 228 mm negative used by BC aerial survey cameras
+(e.g. Wild RC-10, Zeiss RMK). A digital frame has no negative, and the
+catalogue mixes the two in one layer — roughly a fifth of frames in a
+sampled area are <code>Digital - Colour</code>. Ground width scales with the recording
+format, so applying a negative dimension to a sensor produces a rectangle
+that is wrong by an unknown factor while still drawing, still overlapping
+neighbours, and still yielding a coverage percentage.</p>
+<p>Each row is therefore sized from its <code>media</code> value, and <code>footprint_basis</code>
+records the outcome:</p>
+<dl><dt>the <code>media</code> value</dt>
+<dd><p>format resolved from the format table</p></dd>
+
+<dt><code>"assumed_default"</code></dt>
+<dd><p>no <code>media</code> column; <code>negative_size</code> applied</p></dd>
+
+<dt><code>"unknown_format"</code></dt>
+<dd><p><code>media</code> present but unknown; empty geometry</p></dd>
+
+
+</dl><p>Shipped defaults cover film only. Digital frames resolve to
+<code>"unknown_format"</code> rather than an invented number, because the sensor width
+they would need is not in the centroid metadata — and neither is the pixel
+count that would let <code>ground_sample_distance</code> stand in for it. Supply
+<code>format_size</code> if you know the camera:</p>
+<p></p><div class="sourceCode r"><pre><code><span><span class="fu"><a href="../reference/fly_footprint.html">fly_footprint</a></span><span class="op">(</span><span class="va">photos</span>, format_size <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Digital - Colour"</span> <span class="op">=</span> <span class="fl">3.54</span><span class="op">)</span><span class="op">)</span></span></code></pre><p></p></div>
+<p>Filter on <code>footprint_basis</code> to keep only frames sized from a known format.</p>
+<p><strong>Focal length and flying height are available.</strong> <code>FOCAL_LENGTH</code>,
+<code>FLYING_HEIGHT</code> and <code>SCALE</code> are fully populated in
+<code>WHSE_IMAGERY_AND_BASE_MAPS.AIMG_PHOTO_CENTROIDS_SP</code> and carried through to
+the bundled test data. Note the field is <code>SCALE</code>, not <code>PHOTO_SCALE</code> — the
+latter returns all <code>NULL</code>, which reads as missing data rather than a wrong
+field name.</p>
 <p><strong>Flat-terrain assumption:</strong> footprints are estimated assuming flat ground
 beneath the aircraft. In reality terrain slope changes the actual ground
 coverage — downhill slopes increase the true footprint (ground falls away
@@ -100,6 +139,17 @@ Coverage and overlap calculations downstream (e.g. <code><a href="fly_coverage.h
 <span class="r-in"><span><span class="va">footprints</span> <span class="op">&lt;-</span> <span class="fu">fly_footprint</span><span class="op">(</span><span class="va">centroids</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="fu">sf</span><span class="fu">::</span><span class="fu"><a href="https://r-spatial.github.io/sf/reference/st_geometry.html" class="external-link">st_geometry</a></span><span class="op">(</span><span class="va">footprints</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-plt img"><img src="fly_footprint-1.png" alt="" width="700" height="433"></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># How each footprint was sized</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/table.html" class="external-link">table</a></span><span class="op">(</span><span class="va">footprints</span><span class="op">$</span><span class="va">footprint_basis</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Film - BW </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>        20 </span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Keep only frames sized from a known recording format</span></span></span>
+<span class="r-in"><span><span class="va">sized</span> <span class="op">&lt;-</span> <span class="va">footprints</span><span class="op">[</span><span class="va">footprints</span><span class="op">$</span><span class="va">footprint_basis</span> <span class="op">!=</span> <span class="st">"unknown_format"</span>, <span class="op">]</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">sized</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 20</span>
 <span class="r-in"><span></span></span>
 </code></pre></div>
     </div>
