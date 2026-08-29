@@ -563,3 +563,60 @@ test_that("fly_footprint handles anisotropic DEM cells", {
   fp <- fly_footprint(centroids, dem = r)
   expect_equal(fp$dem_coverage, rep(1, 2))
 })
+
+test_that("fly_footprint does not size its coverage grid to the span of the photo set", {
+  skip_if_no_terra()
+  # Counting the coverage denominator on one grid spanning every frame sizes it
+  # to the GAP between frames, not to the frames. Two photos 700 km apart —
+  # which the fallback test above already creates — made that 243 million cells
+  # where the same two counted separately need 16 thousand.
+  #
+  # Asserted as elapsed time because the failure is an allocation: the union
+  # form took seconds and gigabytes, the per-frame form is instant.
+  centroids <- sf::st_read(testdata_path("photo_centroids.gpkg"), quiet = TRUE)[1:2, ]
+  sf::st_geometry(centroids)[2] <- sf::st_sfc(sf::st_point(c(-120, 50)), crs = 4326)
+
+  elapsed <- system.time(
+    fp <- suppressWarnings(fly_footprint(centroids, dem = testdata_path("dem.tif")))
+  )[["elapsed"]]
+  expect_lt(elapsed, 10)
+  expect_equal(fp$footprint_terrain, c("dem_agl", "no_dem_coverage"))
+  expect_equal(fp$dem_coverage, c(1, 0))
+})
+
+test_that("fly_footprint reports coverage of the footprint it actually returns", {
+  skip_if_no_terra()
+  # Terrain above the aircraft gives a negative height above ground, so the
+  # second pass measures over a square sized from that — much smaller than the
+  # nominal footprint the frame falls back to. Reading the second pass's
+  # coverage there describes a rectangle the caller never receives: measured
+  # 100% for a footprint that was 30% covered, which is precisely the frame the
+  # documented `dem_coverage` filter exists to exclude.
+  dem <- terra::rast(testdata_path("dem.tif"))
+  with_data <- which(!is.na(terra::values(dem)))
+  xy <- terra::xyFromCell(dem, with_data)
+  west <- which.min(xy[, 1])
+  # Far enough inside that the small second-pass square is fully covered, close
+  # enough that the nominal footprint is not.
+  pt <- sf::st_sfc(sf::st_point(c(xy[west, 1] + 1200, xy[west, 2])), crs = 3005)
+
+  photos <- sf::st_read(testdata_path("photo_centroids.gpkg"), quiet = TRUE)[1, ]
+  photos$scale <- "1:31680"
+  photos$flying_height <- 100          # below the terrain -> unusable
+  sf::st_geometry(photos) <- sf::st_transform(pt, 4326)
+
+  fp <- suppressWarnings(fly_footprint(photos, dem = dem))
+  expect_equal(fp$footprint_terrain, "nominal_scale")
+
+  # Ground truth measured against the geometry that was returned.
+  g <- sf::st_transform(fp, sf::st_crs(terra::crs(dem)))
+  vals <- terra::extract(dem, terra::vect(g))[, 2]
+  tmpl <- terra::rast(terra::align(terra::ext(terra::vect(g)), dem),
+                      resolution = terra::res(dem), crs = terra::crs(dem))
+  terra::values(tmpl) <- 1L
+  truth <- sum(!is.na(vals)) /
+    sum(!is.na(terra::extract(tmpl, terra::vect(g))[, 2]))
+
+  expect_lt(truth, 0.95)               # the fixture must reach the failure mode
+  expect_equal(fp$dem_coverage, truth, tolerance = 1e-6)
+})

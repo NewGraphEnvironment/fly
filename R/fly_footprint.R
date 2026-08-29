@@ -59,26 +59,32 @@ fly_dem_sample <- function(dem, rects) {
   elev[ok] <- vapply(per_frame, function(x) mean(x, na.rm = TRUE), numeric(1))
   got <- vapply(per_frame, function(x) sum(!is.na(x)), numeric(1))
 
-  # The denominator has to be counted the same way the numerator is. extract()
-  # takes a cell when its *centre* falls inside the polygon, so dividing by the
+  # The denominator has to be counted the way the numerator is. extract() takes
+  # a cell when its *centre* falls inside the polygon, so dividing by the
   # footprint's area in cell units compares two different measurements and runs
-  # about 2/k low for a footprint k cells wide — on a DEM with no missing data
-  # and room to spare that reported 91% coverage and warned.
+  # about 2/k low for a footprint k cells wide — on a DEM with nothing missing
+  # that reported 91% coverage and warned.
   #
-  # So count against a grid aligned to the DEM's own, covering just the
-  # footprints. align() snaps the extent to the DEM's cell boundaries, which is
-  # what makes the two counts land on the same centres. Extending the DEM
-  # itself would do the same but sizes the raster to the union with the
-  # footprints — for one frame far outside a local DEM that is a 260-million
-  # cell allocation, where this template is only ever as large as the frames.
-  tmpl <- terra::rast(
-    terra::align(terra::ext(v), dem),
-    resolution = terra::res(dem),
-    crs = terra::crs(dem)
-  )
-  terra::values(tmpl) <- 1L
-  tmpl_cells <- terra::extract(tmpl, v)
-  expected <- vapply(split(tmpl_cells[, 2], tmpl_cells[, 1]), length, numeric(1))
+  # So count cells on a grid aligned to the DEM's own, per frame. align() snaps
+  # to the DEM's cell boundaries, which is what puts both counts on the same
+  # centres.
+  #
+  # Per frame, not once over their union: the union's bounding box spans the
+  # whole photo set, and one frame away from the rest sizes the template to the
+  # gap between them. On a fixture in this package's own suite that is 243
+  # million cells against 16 thousand for the same two frames counted
+  # separately. Each frame's own template is bounded by one footprint.
+  expected <- vapply(seq_len(nrow(in_dem)), function(i) {
+    vi <- terra::vect(in_dem[i, ])
+    tmpl <- terra::rast(
+      terra::align(terra::ext(vi), dem),
+      resolution = terra::res(dem),
+      crs = terra::crs(dem)
+    )
+    terra::values(tmpl) <- 1L
+    sum(!is.na(terra::extract(tmpl, vi)[, 2]))
+  }, numeric(1))
+
   covered[ok] <- ifelse(expected > 0, pmin(1, got / expected), 0)
 
   elev[is.nan(elev)] <- NA_real_
@@ -389,7 +395,6 @@ fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL,
     # Keep the first pass wherever the second could not improve on it, so a
     # frame is never lost to the resize alone.
     elev <- ifelse(is.na(second$elev), first$elev, second$elev)
-    covered <- ifelse(is.na(second$elev), first$covered, second$covered)
 
     sized <- !is.na(half_side)
     agl <- centroids_sf$flying_height - elev
@@ -404,6 +409,15 @@ fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL,
     corrected <- sized & is.finite(candidate) & candidate > 0
     uncovered <- sized & !corrected & is.na(elev)
     unusable <- sized & !corrected & !uncovered
+
+    # Coverage has to describe the footprint that is actually returned. A
+    # corrected frame ships the second pass's rectangle, so it takes the second
+    # pass's coverage; a frame that fell back ships the nominal one, so it takes
+    # the first pass's. Reading the second pass for a fallback frame is not a
+    # rounding difference — terrain above the aircraft gives a negative
+    # half-side, which draws a mirrored rectangle somewhere else entirely, and
+    # that measured 100% coverage for a footprint only 30% covered.
+    covered <- ifelse(corrected, second$covered, first$covered)
 
     # Every fallback keeps the frame at nominal scale rather than dropping it:
     # a frame we cannot correct is still a frame.
@@ -446,9 +460,9 @@ fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL,
 
     half_side[corrected] <- candidate[corrected]
     height_agl[corrected] <- agl[corrected]
-    # Report coverage for every frame that had a footprint to sample, not only
-    # the corrected ones: `no_dem_coverage` means a measured zero, and leaving
-    # it NA makes the documented "filter on dem_coverage" workflow impossible.
+    # Reported for every frame that had a footprint to sample, not only the
+    # corrected ones: `no_dem_coverage` is a measured zero, and leaving it NA
+    # makes the documented "filter on dem_coverage" workflow impossible.
     dem_coverage[sized] <- covered[sized]
     terrain[sized] <- "nominal_scale"
     terrain[corrected] <- "dem_agl"
