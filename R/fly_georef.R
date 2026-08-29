@@ -112,6 +112,7 @@ fly_georef <- function(fetch_result, photos_sf,
 
   # Build footprints in BC Albers
   footprints <- fly_footprint(photos_sf) |> sf::st_transform(3005)
+  fly_warn_unsized(footprints, "georeferencing")
 
   # Match fetch results to photos by airp_id
   ids <- fetch_result$airp_id
@@ -158,6 +159,10 @@ fly_georef <- function(fetch_result, photos_sf,
     fp_idx <- which(photos_sf[["airp_id"]] == results$airp_id[i])
     if (length(fp_idx) == 0) next
     fp <- footprints[fp_idx[1], ]
+
+    # No footprint means no ground control to warp onto; leave success = FALSE
+    # rather than writing a GeoTIFF positioned by a format we could not resolve.
+    if (sf::st_is_empty(sf::st_geometry(fp))[1]) next
 
     # Per-photo rotation from column, or default
     rot <- if (has_rotation_col) {

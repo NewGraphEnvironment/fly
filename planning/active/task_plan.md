@@ -83,15 +83,15 @@ passes `format_size = c("Digital - Colour" = 3.54)` today.
 - [x] Verify the phase-1 tests now pass
 
 ### Phase 3: Downstream — the five consumers
-- [ ] `fly_filter.R:39` — drop empty footprints before `st_intersects`; warn with
+- [x] `fly_filter.R:39` — drop empty footprints before `st_intersects`; warn with
       count (`st_intersects` on an empty geometry returns FALSE, so without this
       digital frames vanish from a filter result with no signal)
-- [ ] `fly_select.R:54`, `:111` — same, and confirm coverage denominators are not
+- [x] `fly_select.R:54`, `:111` — same, and confirm coverage denominators are not
       computed as if the dropped frames were absent from the input
-- [ ] `fly_overlap.R:26`, `fly_coverage.R:29` — same
-- [ ] `fly_georef.R:114` — skip unwarpable frames, report them in the return value
+- [x] `fly_overlap.R:26`, `fly_coverage.R:29` — same
+- [x] `fly_georef.R:114` — skip unwarpable frames, report them in the return value
       rather than erroring the whole batch
-- [ ] Test at least `fly_filter` and `fly_coverage` on mixed film/digital input
+- [x] Test at least `fly_filter` and `fly_coverage` on mixed film/digital input
 
 ### Phase 4: Docs
 - [ ] Fix the stale focal-length claim at `fly_footprint.R:20`. `FOCAL_LENGTH`,

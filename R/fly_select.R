@@ -52,6 +52,7 @@ fly_select_all <- function(photos_sf, aoi_sf) {
   on.exit(sf::sf_use_s2(TRUE))
 
   footprints <- fly_footprint(photos_sf)
+  fly_warn_unsized(footprints, "this selection")
   aoi_union <- sf::st_transform(aoi_sf, sf::st_crs(footprints)) |>
     sf::st_union() |>
     sf::st_make_valid()
@@ -109,6 +110,7 @@ fly_select_minimal <- function(photos_sf, aoi_sf, target_coverage,
   aoi_area <- as.numeric(sf::st_area(aoi_albers))
 
   footprints <- fly_footprint(photos_sf) |> sf::st_transform(3005)
+  fly_warn_unsized(footprints, "this selection")
   footprints$photo_idx <- seq_len(nrow(footprints))
 
   uncovered <- aoi_albers

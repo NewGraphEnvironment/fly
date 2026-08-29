@@ -24,10 +24,11 @@ fly_coverage <- function(photos_sf, aoi_sf, by = "photo_year") {
     sf::st_make_valid()
   aoi_area <- as.numeric(sf::st_area(aoi_albers))
 
+  footprints <- fly_footprint(photos_sf) |> sf::st_transform(3005)
+  fly_warn_unsized(footprints, "coverage")
+
   photos_with_fp <- photos_sf
-  photos_with_fp$footprint_geom <- sf::st_geometry(
-    fly_footprint(photos_sf) |> sf::st_transform(3005)
-  )
+  photos_with_fp$footprint_geom <- sf::st_geometry(footprints)
 
   groups <- sort(unique(photos_with_fp[[by]]))
 
@@ -53,7 +54,12 @@ fly_coverage <- function(photos_sf, aoi_sf, by = "photo_year") {
           sf::st_make_valid()
       }
     )
-    covered_area <- as.numeric(sf::st_area(covered))
+    # sum(), not the bare vector: st_area() on an empty intersection returns
+    # numeric(0), which collapses the tibble to zero rows and drops the group
+    # from the result entirely — a group whose frames are all unsized would
+    # vanish rather than report that it covers nothing. sum() also folds a
+    # multi-feature intersection into one row instead of several.
+    covered_area <- sum(as.numeric(sf::st_area(covered)))
     dplyr::tibble(
       !!by := grp,
       n_photos = nrow(grp_data),
