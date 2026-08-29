@@ -62,18 +62,18 @@ passes `format_size = c("Digital - Colour" = 3.54)` today.
 ## Phases
 
 ### Phase 1: Tests first
-- [ ] Add a synthesized digital fixture in `tests/testthat/` — bundled
+- [x] Add a synthesized digital fixture in `tests/testthat/` — bundled
       `inst/testdata/photo_centroids.gpkg` is 100% `Film - BW` / focal 153, and
       `data-raw/make_testdata.R` sources a 1968 film-only AOI, so digital cannot
       come from there
-- [ ] Test: digital rows return empty geometry, not a 9-inch rectangle
-- [ ] Test: `footprint_basis` values are correct for film / digital / no-media
-- [ ] Test: `warning()` fires with the digital count, and is catchable
+- [x] Test: digital rows return empty geometry, not a 9-inch rectangle
+- [x] Test: `footprint_basis` values are correct for film / digital / no-media
+- [x] Test: `warning()` fires with the digital count, and is catchable
       (pair with `expect_gt(length(w), 0)` — `expect_match(all = FALSE)` passes
       vacuously on `character(0)`)
-- [ ] Test: `format_size` override produces a real footprint for digital
-- [ ] Test: back-compat — film-only input is unchanged, `negative_size` still works
-- [ ] Confirm they fail against current `fly_footprint()`
+- [x] Test: `format_size` override produces a real footprint for digital
+- [x] Test: back-compat — film-only input is unchanged, `negative_size` still works
+- [x] Confirm they fail against current `fly_footprint()`
 
 ### Phase 2: fly_footprint()
 - [ ] Format lookup keyed on `media`, defaults film-only
