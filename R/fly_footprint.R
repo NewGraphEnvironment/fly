@@ -1,3 +1,30 @@
+# Catalogue `media` values recorded on film, and so sized by `negative_size`.
+# Digital media are deliberately absent: a sensor's width is not in the centroid
+# metadata, so those frames are left unresolved rather than guessed. See fly#30.
+fly_film_media <- function() {
+  c("Film - BW", "Film - Colour")
+}
+
+# Report frames excluded from an operation because they have no footprint.
+#
+# An empty geometry fails every sf predicate quietly: st_intersects() returns
+# FALSE and st_area() returns 0. The arithmetic is right, since an unsized frame
+# genuinely covers nothing we can claim — but without this the exclusion is
+# invisible, which is how a fifth of a query disappears from a coverage number
+# with nothing to show it happened.
+fly_warn_unsized <- function(footprints, operation) {
+  unsized <- sf::st_is_empty(sf::st_geometry(footprints))
+  if (any(unsized)) {
+    warning(
+      sum(unsized), " of ", length(unsized),
+      " frames have no footprint and are excluded from ", operation,
+      ". See `footprint_basis`, and `format_size` in ?fly_footprint.",
+      call. = FALSE
+    )
+  }
+  invisible(footprints)
+}
+
 #' Estimate photo footprint polygons from centroids and scale
 #'
 #' Creates rectangular polygons representing the estimated ground coverage
@@ -82,33 +109,6 @@
 #' nrow(sized)
 #'
 #' @export
-# Catalogue `media` values recorded on film, and so sized by `negative_size`.
-# Digital media are deliberately absent: a sensor's width is not in the centroid
-# metadata, so those frames are left unresolved rather than guessed. See fly#30.
-fly_film_media <- function() {
-  c("Film - BW", "Film - Colour")
-}
-
-# Report frames excluded from an operation because they have no footprint.
-#
-# An empty geometry fails every sf predicate quietly: st_intersects() returns
-# FALSE and st_area() returns 0. The arithmetic is right, since an unsized frame
-# genuinely covers nothing we can claim — but without this the exclusion is
-# invisible, which is how a fifth of a query disappears from a coverage number
-# with nothing to show it happened.
-fly_warn_unsized <- function(footprints, operation) {
-  unsized <- sf::st_is_empty(sf::st_geometry(footprints))
-  if (any(unsized)) {
-    warning(
-      sum(unsized), " of ", length(unsized),
-      " frames have no footprint and are excluded from ", operation,
-      ". See `footprint_basis`, and `format_size` in ?fly_footprint.",
-      call. = FALSE
-    )
-  }
-  invisible(footprints)
-}
-
 fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL) {
   if (!inherits(centroids_sf, "sf")) {
     stop("`centroids_sf` must be an sf object.", call. = FALSE)

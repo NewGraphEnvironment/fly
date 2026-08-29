@@ -94,17 +94,17 @@ passes `format_size = c("Digital - Colour" = 3.54)` today.
 - [x] Test at least `fly_filter` and `fly_coverage` on mixed film/digital input
 
 ### Phase 4: Docs
-- [ ] Fix the stale focal-length claim at `fly_footprint.R:20`. `FOCAL_LENGTH`,
+- [x] Fix the stale focal-length claim at `fly_footprint.R:20`. `FOCAL_LENGTH`,
       `FLYING_HEIGHT` and `SCALE` are 100% populated and already present in the
       bundled test data (`focal_length`, `flying_height`,
       `ground_sample_distance` columns) — the docstring says they are not
       available
-- [ ] Document `format_size` and `footprint_basis` with a runnable `@examples`
+- [x] Document `format_size` and `footprint_basis` with a runnable `@examples`
       block on mixed input
-- [ ] Note the field is `SCALE`, not `PHOTO_SCALE` (the latter returns all NULL,
+- [x] Note the field is `SCALE`, not `PHOTO_SCALE` (the latter returns all NULL,
       which reads as missing data rather than a wrong field name)
-- [ ] Vignette: a line on filtering by `footprint_basis`
-- [ ] `devtools::document()`
+- [x] Vignette: a line on filtering by `footprint_basis`
+- [x] `devtools::document()`
 
 ### Phase 5: Hand off the research
 - [ ] File the follow-up issue: identify the cameras behind the 2011/2018 digital
