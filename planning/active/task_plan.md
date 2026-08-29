@@ -76,11 +76,11 @@ passes `format_size = c("Digital - Colour" = 3.54)` today.
 - [x] Confirm they fail against current `fly_footprint()`
 
 ### Phase 2: fly_footprint()
-- [ ] Format lookup keyed on `media`, defaults film-only
-- [ ] `footprint_basis` column on the returned sf
-- [ ] Empty geometry for unknown format; `warning()` naming the count
-- [ ] No-`media` fallback to `negative_size` so existing callers keep working
-- [ ] Verify the phase-1 tests now pass
+- [x] Format lookup keyed on `media`, defaults film-only
+- [x] `footprint_basis` column on the returned sf
+- [x] Empty geometry for unknown format; `warning()` naming the count
+- [x] No-`media` fallback to `negative_size` so existing callers keep working
+- [x] Verify the phase-1 tests now pass
 
 ### Phase 3: Downstream — the five consumers
 - [ ] `fly_filter.R:39` — drop empty footprints before `st_intersects`; warn with
