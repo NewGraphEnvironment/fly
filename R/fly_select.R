@@ -11,6 +11,9 @@
 #'   (every photo touching the AOI).
 #' @param target_coverage Stop when this fraction is reached (default 0.95).
 #'   Only used when `mode = "minimal"`.
+#' @param dem Optional elevation raster passed to [fly_footprint()], sizing each
+#'   frame from its height above ground instead of the reported scale. See the
+#'   **Terrain** section of [fly_footprint()].
 #' @param component_ensure If `TRUE` (default `FALSE`), guarantee that every
 #'   polygon component of `aoi_sf` is covered by at least one photo before
 #'   running the greedy selection. Useful for multi-polygon AOIs (e.g. patchy
@@ -36,22 +39,22 @@
 #' @export
 fly_select <- function(photos_sf, aoi_sf, mode = "minimal",
                        target_coverage = 0.95,
-                       component_ensure = FALSE) {
+                       component_ensure = FALSE, dem = NULL) {
   mode <- match.arg(mode, c("minimal", "all"))
 
   if (mode == "all") {
-    return(fly_select_all(photos_sf, aoi_sf))
+    return(fly_select_all(photos_sf, aoi_sf, dem))
   }
 
-  fly_select_minimal(photos_sf, aoi_sf, target_coverage, component_ensure)
+  fly_select_minimal(photos_sf, aoi_sf, target_coverage, component_ensure, dem)
 }
 
 #' @noRd
-fly_select_all <- function(photos_sf, aoi_sf) {
+fly_select_all <- function(photos_sf, aoi_sf, dem = NULL) {
   sf::sf_use_s2(FALSE)
   on.exit(sf::sf_use_s2(TRUE))
 
-  footprints <- fly_footprint(photos_sf)
+  footprints <- fly_footprint(photos_sf, dem = dem)
   fly_warn_unsized(footprints, "this selection")
   aoi_union <- sf::st_transform(aoi_sf, sf::st_crs(footprints)) |>
     sf::st_union() |>
@@ -100,7 +103,7 @@ ensure_component_coverage <- function(footprints, aoi_albers) {
 
 #' @noRd
 fly_select_minimal <- function(photos_sf, aoi_sf, target_coverage,
-                               component_ensure) {
+                               component_ensure, dem = NULL) {
   sf::sf_use_s2(FALSE)
   on.exit(sf::sf_use_s2(TRUE))
 
@@ -109,7 +112,7 @@ fly_select_minimal <- function(photos_sf, aoi_sf, target_coverage,
     sf::st_make_valid()
   aoi_area <- as.numeric(sf::st_area(aoi_albers))
 
-  footprints <- fly_footprint(photos_sf) |> sf::st_transform(3005)
+  footprints <- fly_footprint(photos_sf, dem = dem) |> sf::st_transform(3005)
   fly_warn_unsized(footprints, "this selection")
   footprints$photo_idx <- seq_len(nrow(footprints))
 

@@ -25,6 +25,105 @@ fly_warn_unsized <- function(footprints, operation) {
   invisible(footprints)
 }
 
+# Coverage below which a footprint's mean elevation stops being trustworthy.
+#
+# Reprojecting a DEM leaves NA slivers along its edges, so a frame near the
+# margin is routinely a percent or two short through no fault of the caller —
+# warning on any missing cell at all would fire on a bundled frame that is
+# 99.96% covered, and a guard that noisy stops being read. A frame missing more
+# than a twentieth of its footprint is a different thing: that is enough for the
+# covered part to sit systematically higher or lower than the whole.
+fly_dem_coverage_min <- function() 0.95
+
+# The DEM-aligned grid a single footprint is counted against.
+#
+# Named and separate so the "one frame at a time" invariant can be asserted
+# rather than merely intended: the size of this grid is the whole difference
+# between a bounded allocation and one scaled to the distance between photos.
+fly_dem_grid <- function(dem, geom) {
+  terra::rast(
+    terra::align(terra::ext(terra::vect(geom)), dem),
+    resolution = terra::res(dem),
+    crs = terra::crs(dem)
+  )
+}
+
+# Mean ground elevation under each rectangle, with the fraction of the
+# rectangle the DEM actually described.
+#
+# `covered` matters because averaging with na.rm = TRUE cannot tell a
+# fully-sampled frame from one hanging half off the edge of the data — both
+# yield a number, and only one of them means what it appears to.
+fly_dem_sample <- function(dem, rects) {
+  elev <- rep(NA_real_, length(rects))
+  covered <- rep(NA_real_, length(rects))
+  ok <- !sf::st_is_empty(rects)
+  if (!any(ok)) {
+    return(list(elev = elev, covered = covered))
+  }
+  in_dem <- sf::st_transform(sf::st_sf(geometry = rects[ok]),
+                             sf::st_crs(terra::crs(dem)))
+  v <- terra::vect(in_dem)
+
+  cells <- terra::extract(dem, v)
+  # split() keys on the ID column, whose values are 1..n in ascending order, so
+  # the results come back aligned with `rects[ok]`.
+  per_frame <- split(cells[, 2], cells[, 1])
+  elev[ok] <- vapply(per_frame, function(x) mean(x, na.rm = TRUE), numeric(1))
+  got <- vapply(per_frame, function(x) sum(!is.na(x)), numeric(1))
+
+  # The denominator has to be counted the way the numerator is. extract() takes
+  # a cell when its *centre* falls inside the polygon, so dividing by the
+  # footprint's area in cell units compares two different measurements and runs
+  # about 2/k low for a footprint k cells wide — on a DEM with nothing missing
+  # that reported 91% coverage and warned.
+  #
+  # So count cells on a grid aligned to the DEM's own, per frame. align() snaps
+  # to the DEM's cell boundaries, which is what puts both counts on the same
+  # centres.
+  #
+  # Per frame, not once over their union: the union's bounding box spans the
+  # whole photo set, and one frame away from the rest sizes the template to the
+  # gap between them. On a fixture in this package's own suite that is 243
+  # million cells against 16 thousand for the same two frames counted
+  # separately. Each frame's own template is bounded by one footprint.
+  expected <- vapply(seq_len(nrow(in_dem)), function(i) {
+    vi <- terra::vect(in_dem[i, ])
+    tmpl <- fly_dem_grid(dem, in_dem[i, ])
+    terra::values(tmpl) <- 1L
+    sum(!is.na(terra::extract(tmpl, vi)[, 2]))
+  }, numeric(1))
+
+  covered[ok] <- ifelse(expected > 0, pmin(1, got / expected), 0)
+
+  elev[is.nan(elev)] <- NA_real_
+  list(elev = elev, covered = covered)
+}
+
+# Build axis-aligned squares of `half_side` metres about each coordinate pair.
+# A half-side that is NA or non-finite yields an empty polygon — the #30
+# contract for a frame whose recording format could not be resolved, and the
+# only safe answer for a frame whose metadata divides by zero. An infinite
+# rectangle is not merely meaningless: it reaches the sampler, which then tries
+# to size a raster to it.
+fly_rectangles <- function(coords, half_side) {
+  sf::st_sfc(lapply(seq_len(nrow(coords)), function(i) {
+    w <- half_side[i]
+    if (!is.finite(w)) {
+      return(sf::st_polygon())
+    }
+    cx <- coords[i, 1]
+    cy <- coords[i, 2]
+    sf::st_polygon(list(matrix(c(
+      cx - w, cy - w,
+      cx + w, cy - w,
+      cx + w, cy + w,
+      cx - w, cy + w,
+      cx - w, cy - w
+    ), ncol = 2, byrow = TRUE)))
+  }), crs = 3005)
+}
+
 #' Estimate photo footprint polygons from centroids and scale
 #'
 #' Creates rectangular polygons representing the estimated ground coverage
@@ -39,8 +138,17 @@ fly_warn_unsized <- function(footprints, operation) {
 #' @param format_size Named numeric vector of recording-format widths in inches,
 #'   keyed by `media` value, merged over the shipped film defaults. Supply this
 #'   to size frames whose format `fly` does not know — see Details.
+#' @param dem Optional elevation raster used to size each frame from its true
+#'   height above ground rather than the reported scale. A `terra::SpatRaster`,
+#'   a file path, or a `/vsicurl/` URL. Requires `flying_height` and
+#'   `focal_length` columns, and the `terra` package. `NULL` (default) keeps the
+#'   flat-terrain behaviour — see **Terrain** below.
 #' @return An sf polygon object in the same CRS as input, with footprint
-#'   rectangles and a `footprint_basis` column recording how each was sized.
+#'   rectangles, a `footprint_basis` column recording how each was sized, a
+#'   `footprint_terrain` column recording which terrain treatment was applied,
+#'   `height_agl` giving the metres above ground each footprint was sized from,
+#'   and `dem_coverage` giving the fraction of each footprint the DEM actually
+#'   covered (`0` where it covered none, `NA` only where there is no footprint).
 #'   Frames whose format could not be resolved get an empty geometry.
 #'
 #' @details
@@ -88,13 +196,84 @@ fly_warn_unsized <- function(footprints, operation) {
 #' latter returns all `NULL`, which reads as missing data rather than a wrong
 #' field name.
 #'
-#' **Flat-terrain assumption:** footprints are estimated assuming flat ground
-#' beneath the aircraft. In reality terrain slope changes the actual ground
-#' coverage — downhill slopes increase the true footprint (ground falls away
-#' from the camera), while uphill slopes reduce it. In steep terrain typical
-#' of BC valleys, true footprints may differ meaningfully from these estimates.
-#' Coverage and overlap calculations downstream (e.g. [fly_coverage()],
-#' [fly_overlap()]) inherit this limitation.
+#' @section Terrain:
+#'
+#' Without `dem`, footprints are sized from the reported scale, which assumes
+#' flat ground at whatever elevation the scale was computed for. That assumption
+#' costs more than it looks: on the bundled Upper Bulkley AOI the reported scale
+#' **understates footprint area by a median 14%, ranging to 26%** — and always in
+#' the same direction, because the scale is referenced to an elevation above the
+#' valley floor the photos actually cover.
+#'
+#' Supplying `dem` removes that bias. `FLYING_HEIGHT` is metres above sea level,
+#' not height above ground, so subtracting terrain elevation is what turns it
+#' into the height ground coverage actually scales with:
+#'
+#' ```
+#' height above ground = flying_height - terrain elevation
+#' ground width        = format width * (height above ground / focal length)
+#' ```
+#'
+#' Elevation is the **mean under the whole footprint**, not a reading at the
+#' centroid — on a 7.2 km wide 1:31680 frame the two differ by up to 140 m.
+#' That is measured in two passes, because the footprint being averaged over is
+#' itself what the correction changes: the first pass averages over the
+#' nominal-scale rectangle, the second over the rectangle the first produced.
+#' The second pass is a refinement rather than the substance — it moves area by
+#' at most 0.5% against the correction's own 14% — and a third moves it by
+#' 0.03%, so two is where this settles.
+#'
+#' `footprint_terrain` records what happened to each frame:
+#'
+#' \describe{
+#'   \item{`"nominal_scale"`}{sized from the reported scale (no `dem`, or a
+#'     fallback — see below)}
+#'   \item{`"dem_agl"`}{sized from height above ground}
+#'   \item{`"no_dem_coverage"`}{`dem` supplied but does not cover the frame}
+#'   \item{`NA`}{no footprint to place — see `footprint_basis`}
+#' }
+#'
+#' A frame the DEM cannot correct falls back to nominal scale with a warning,
+#' rather than being dropped. The same applies where the DEM puts terrain at or
+#' above the aircraft, which means `flying_height` is not in metres ASL.
+#'
+#' **Still assumed, with or without a DEM:** the camera points straight down.
+#' The BC catalogue carries no tilt, roll or crab, so footprints stay
+#' axis-aligned rectangles and corner rays are not projected individually. On
+#' this AOI that per-corner refinement is worth roughly 2%, against the 14% the
+#' DEM addresses.
+#'
+#' **DEM sources.** Any raster `terra` can open works. Three that suit BC:
+#'
+#' \itemize{
+#'   \item **MRDEM-30** — NRCan's 30 m bare-earth DTM, all of Canada, public
+#'     and unauthenticated. A good default, and what the bundled `dem.tif` is
+#'     cut from:
+#'     `/vsicurl/https://canelevation-dem.s3.ca-central-1.amazonaws.com/mrdem-30/mrdem-30-dtm.tif`
+#'   \item **LidarBC** — sub-10 m where coverage exists; query the
+#'     `stac-dem-bc` STAC catalogue and pass an item's COG URL.
+#'   \item **BC TRIM** — 25 m provincial DEM via the `bcdata` CLI
+#'     (`bcdata get-dem`).
+#'  }
+#'
+#' Resolution matters less here than extent. A 30 m DEM resolves a 2.7 km
+#' footprint's mean elevation perfectly well; a DEM that stops short of the
+#' frame edges does not, and this is the ordinary failure rather than an exotic
+#' one — a DEM cropped to an AOI simply stops. `no_dem_coverage` is reached only
+#' when a footprint finds no elevation at all. A footprint that is merely
+#' truncated is still corrected, from the mean of the part the DEM described,
+#' and warns once that falls below 95%. `dem_coverage` reports the fraction per
+#' frame — measured against the cells the footprint should have covered, not the
+#' cells that came back — so a truncated footprint can be filtered rather than
+#' merely noticed.
+#'
+#' Buffer past the **corner** of the widest footprint, not its half-side: the
+#' far point of a square is `half_side * sqrt(2)`, which at 1:31680 is 5.1 km
+#' rather than 3.6 km. Allow more again for the correction itself, which
+#' enlarges footprints before the second pass samples them.
+#'
+#' Coverage and overlap downstream (e.g. [fly_coverage()], [fly_overlap()])
+#' accept the same `dem` argument and inherit whichever basis you give them.
 #'
 #' @examples
 #' centroids <- sf::st_read(system.file("testdata/photo_centroids.gpkg", package = "fly"))
@@ -108,8 +287,22 @@ fly_warn_unsized <- function(footprints, operation) {
 #' sized <- footprints[footprints$footprint_basis != "unknown_format", ]
 #' nrow(sized)
 #'
+#' # Terrain-adjusted: size each frame from its height above ground instead of
+#' # the reported scale. On this AOI every footprint grows, by a median 14%.
+#' # terra is Suggests-only, so the DEM path is guarded here.
+#' if (requireNamespace("terra", quietly = TRUE)) {
+#'   terrain <- fly_footprint(
+#'     centroids,
+#'     dem = system.file("testdata/dem.tif", package = "fly")
+#'   )
+#'   print(round(100 * (as.numeric(sf::st_area(sf::st_transform(terrain, 3005))) /
+#'     as.numeric(sf::st_area(sf::st_transform(footprints, 3005))) - 1), 1))
+#'   print(table(terrain$footprint_terrain))
+#' }
+#'
 #' @export
-fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL) {
+fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL,
+                          dem = NULL) {
   if (!inherits(centroids_sf, "sf")) {
     stop("`centroids_sf` must be an sf object.", call. = FALSE)
   }
@@ -121,6 +314,31 @@ fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL) {
     if (!is.numeric(format_size) || is.null(names(format_size))) {
       stop("`format_size` must be a named numeric vector of widths in inches.",
            call. = FALSE)
+    }
+  }
+
+  if (!is.null(dem)) {
+    rlang::check_installed("terra", "for terrain-adjusted footprints.")
+    missing_cols <- setdiff(c("flying_height", "focal_length"), names(centroids_sf))
+    if (length(missing_cols)) {
+      stop(
+        "`dem` needs ", paste0("`", missing_cols, "`", collapse = " and "),
+        " on `centroids_sf`. Ground coverage scales with height above ground, ",
+        "which is `flying_height` (metres above sea level) minus terrain ",
+        "elevation \u2014 without it there is nothing for the DEM to correct.",
+        call. = FALSE
+      )
+    }
+    if (!inherits(dem, "SpatRaster")) {
+      dem <- terra::rast(dem)
+    }
+    if (!nzchar(terra::crs(dem))) {
+      stop(
+        "`dem` has no CRS, so its cells cannot be located against the photo ",
+        "centroids. Set one with `terra::crs(dem) <- \"EPSG:3005\"` (or ",
+        "whichever it is) before passing it.",
+        call. = FALSE
+      )
     }
   }
 
@@ -158,27 +376,116 @@ fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL) {
 
   half_side <- width_in * scale_num * 0.0254 / 2
 
-  polys <- lapply(seq_len(nrow(coords)), function(i) {
-    w <- half_side[i]
-    if (is.na(w)) {
-      return(sf::st_polygon())
+  # Keyed on half_side, not width_in: an unparseable `scale` also leaves a frame
+  # with no footprint, and a frame with no footprint has had no terrain
+  # treatment to report.
+  terrain <- ifelse(is.na(half_side), NA_character_, "nominal_scale")
+  height_agl <- rep(NA_real_, n)
+  dem_coverage <- rep(NA_real_, n)
+
+  if (!is.null(dem)) {
+    focal_m <- centroids_sf$focal_length / 1000
+    resize <- function(e) {
+      width_in * ((centroids_sf$flying_height - e) / focal_m) * 0.0254 / 2
     }
-    cx <- coords[i, 1]
-    cy <- coords[i, 2]
-    corners <- matrix(c(
-      cx - w, cy - w,
-      cx + w, cy - w,
-      cx + w, cy + w,
-      cx - w, cy + w,
-      cx - w, cy - w
-    ), ncol = 2, byrow = TRUE)
-    sf::st_polygon(list(corners))
-  })
+
+    # Two passes. The first averages the DEM over the nominal-scale rectangle,
+    # which yields a height above ground and so a better rectangle; the second
+    # averages over that one, since the window being averaged is itself what
+    # the correction changes.
+    #
+    # Keep the size of this in proportion. The correction as a whole moves area
+    # by a median 14%; the second pass moves it by at most a further 0.53%, and
+    # a third by 0.03%. It is worth one more extract, not the emphasis a bare
+    # "iterates until it converges" would imply.
+    first <- fly_dem_sample(dem, fly_rectangles(coords, half_side))
+    second <- fly_dem_sample(dem, fly_rectangles(coords, resize(first$elev)))
+
+    # Keep the first pass wherever the second could not improve on it, so a
+    # frame is never lost to the resize alone.
+    elev <- ifelse(is.na(second$elev), first$elev, second$elev)
+
+    sized <- !is.na(half_side)
+    agl <- centroids_sf$flying_height - elev
+    candidate <- resize(elev)
+
+    # Classify on the half-side we would actually use, not on the inputs that
+    # feed it. An NA or zero `focal_length`, or an NA `flying_height`, yields a
+    # non-finite half-side that would otherwise become an empty geometry — and
+    # an empty geometry here is indistinguishable from one whose recording
+    # format was never resolved, so the frame would vanish under a warning
+    # pointing at `format_size` rather than at its own metadata.
+    corrected <- sized & is.finite(candidate) & candidate > 0
+    uncovered <- sized & !corrected & is.na(elev)
+    unusable <- sized & !corrected & !uncovered
+
+    # Coverage has to describe the footprint that is actually returned. A
+    # corrected frame ships the second pass's rectangle, so it takes the second
+    # pass's coverage; a frame that fell back ships the nominal one, so it takes
+    # the first pass's. Reading the second pass for a fallback frame is not a
+    # rounding difference — terrain above the aircraft gives a negative
+    # half-side, which draws a mirrored rectangle somewhere else entirely, and
+    # that measured 100% coverage for a footprint only 30% covered.
+    covered <- ifelse(corrected, second$covered, first$covered)
+
+    # Every fallback keeps the frame at nominal scale rather than dropping it:
+    # a frame we cannot correct is still a frame.
+    if (any(uncovered)) {
+      warning(
+        sum(uncovered), " of ", sum(sized), " frames fall outside the DEM's ",
+        "coverage and were sized from nominal scale instead. See ",
+        "`footprint_terrain`.",
+        call. = FALSE
+      )
+    }
+    if (any(unusable)) {
+      warning(
+        sum(unusable), " of ", sum(sized), " frames have `flying_height` or ",
+        "`focal_length` values that give no usable height above ground \u2014 ",
+        "missing, zero, or terrain at or above the aircraft. Check that ",
+        "`flying_height` is metres above sea level. Sized from nominal scale ",
+        "instead. See `footprint_terrain`.",
+        call. = FALSE
+      )
+    }
+
+    # A footprint hanging off the edge of the DEM still yields a mean, taken
+    # from whichever part had data. That is the best estimate available and is
+    # kept — but it is not the full-frame mean it would otherwise be taken for,
+    # so it is reported rather than passed off silently.
+    partial <- corrected & !is.na(covered) & covered < fly_dem_coverage_min()
+    if (any(partial)) {
+      warning(
+        sum(partial), " of ", sum(corrected), " corrected frames are less than ",
+        round(100 * fly_dem_coverage_min()), "% covered by the DEM (as little ",
+        "as ", round(100 * min(covered[partial])), "% of one footprint). Their ",
+        "ground elevation is the mean of the covered part, which need not ",
+        "represent the whole. Buffer the DEM past the corner of the widest ",
+        "footprint \u2014 half its width times sqrt(2), not half its width. ",
+        "See `dem_coverage`.",
+        call. = FALSE
+      )
+    }
+
+    half_side[corrected] <- candidate[corrected]
+    height_agl[corrected] <- agl[corrected]
+    # Reported for every frame that had a footprint to sample, not only the
+    # corrected ones: `no_dem_coverage` is a measured zero, and leaving it NA
+    # makes the documented "filter on dem_coverage" workflow impossible.
+    dem_coverage[sized] <- covered[sized]
+    terrain[sized] <- "nominal_scale"
+    terrain[corrected] <- "dem_agl"
+    terrain[uncovered] <- "no_dem_coverage"
+    terrain[unusable] <- "nominal_scale"
+  }
 
   result <- sf::st_sf(
     sf::st_drop_geometry(pts_3005),
     footprint_basis = basis,
-    geometry = sf::st_sfc(polys, crs = 3005)
+    footprint_terrain = terrain,
+    height_agl = height_agl,
+    dem_coverage = dem_coverage,
+    geometry = fly_rectangles(coords, half_side)
   )
 
   sf::st_transform(result, input_crs)

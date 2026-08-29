@@ -10,7 +10,8 @@ fly_georef(
   dest_dir = "georef",
   overwrite = FALSE,
   srcnodata = "0",
-  rotation = "auto"
+  rotation = "auto",
+  dem = NULL
 )
 }
 \arguments{
@@ -39,6 +40,10 @@ bearing from consecutive centroids and derives rotation per-photo —
 requires \code{film_roll} and \code{frame_number} columns. Fixed values apply
 the same rotation to all photos. Overridden per-photo if \code{photos_sf}
 contains a \code{rotation} column.}
+
+\item{dem}{Optional elevation raster passed to \code{\link[=fly_footprint]{fly_footprint()}}, sizing each
+frame from its height above ground instead of the reported scale. See the
+\strong{Terrain} section of \code{\link[=fly_footprint]{fly_footprint()}}.}
 }
 \value{
 A tibble with columns \code{airp_id}, \code{source}, \code{dest}, and \code{success}.
@@ -100,10 +105,12 @@ shadow detail is minimal. For full-resolution scans where shadow
 detail matters, set \code{srcnodata = NULL} and handle frame masking
 downstream (e.g., circle detection).
 
-\strong{Accuracy:} footprints assume flat terrain and nadir camera angle.
-The georeferenced images are approximate — useful for visual context,
-not survey-grade positioning. See \code{\link[=fly_footprint]{fly_footprint()}} for details on
-limitations.
+\strong{Accuracy:} footprints assume a nadir camera angle, and without \code{dem}
+they also assume flat terrain. Passing \code{dem} sizes each frame from its
+height above ground, which on steep ground is the larger of the two error
+terms — but the images stay approximate either way, useful for visual
+context rather than survey-grade positioning. See the \strong{Terrain} section
+of \code{\link[=fly_footprint]{fly_footprint()}}.
 }
 \examples{
 centroids <- sf::st_read(system.file("testdata/photo_centroids.gpkg", package = "fly"))

@@ -4,10 +4,17 @@
 #' area and the percentage of each photo's footprint that overlaps.
 #' Most useful on same-scale photos from the same flight.
 #'
-#' Overlap percentages are estimates based on flat-terrain footprints from
-#' [fly_footprint()]. See that function for details on terrain limitations.
+#' Overlap percentages are estimates from [fly_footprint()], and inherit
+#' whatever basis it was given. Without `dem` that is the reported scale, which
+#' assumes flat ground and understates footprint area wherever the terrain sits
+#' below the elevation the scale was computed for. Pass `dem` to size each frame
+#' from its height above ground instead — see the **Terrain** section of
+#' [fly_footprint()].
 #'
 #' @param photos_sf An sf point object with a `scale` column.
+#' @param dem Optional elevation raster passed to [fly_footprint()], sizing each
+#'   frame from its height above ground instead of the reported scale. See the
+#'   **Terrain** section of [fly_footprint()].
 #' @return A tibble with columns `photo_a`, `photo_b`, `overlap_km2`,
 #'   `pct_of_a`, and `pct_of_b`. Only pairs with non-zero overlap are returned.
 #'
@@ -19,11 +26,11 @@
 #' fly_overlap(selected)
 #'
 #' @export
-fly_overlap <- function(photos_sf) {
+fly_overlap <- function(photos_sf, dem = NULL) {
   sf::sf_use_s2(FALSE)
   on.exit(sf::sf_use_s2(TRUE))
 
-  footprints <- fly_footprint(photos_sf) |> sf::st_transform(3005)
+  footprints <- fly_footprint(photos_sf, dem = dem) |> sf::st_transform(3005)
   fly_warn_unsized(footprints, "overlap")
   n <- nrow(footprints)
 

@@ -18,6 +18,9 @@
 #'   film holder edges at the cost of losing real black pixels — acceptable
 #'   for thumbnails but may need adjustment for full-resolution scans.
 #'   Set to `NULL` to disable source nodata detection entirely.
+#' @param dem Optional elevation raster passed to [fly_footprint()], sizing each
+#'   frame from its height above ground instead of the reported scale. See the
+#'   **Terrain** section of [fly_footprint()].
 #' @param rotation Image rotation in degrees clockwise. One of `"auto"`,
 #'   `0`, `90`, `180`, or `270`. `"auto"` (default) computes flight line
 #'   bearing from consecutive centroids and derives rotation per-photo —
@@ -77,10 +80,12 @@
 #' detail matters, set `srcnodata = NULL` and handle frame masking
 #' downstream (e.g., circle detection).
 #'
-#' **Accuracy:** footprints assume flat terrain and nadir camera angle.
-#' The georeferenced images are approximate — useful for visual context,
-#' not survey-grade positioning. See [fly_footprint()] for details on
-#' limitations.
+#' **Accuracy:** footprints assume a nadir camera angle, and without `dem`
+#' they also assume flat terrain. Passing `dem` sizes each frame from its
+#' height above ground, which on steep ground is the larger of the two error
+#' terms — but the images stay approximate either way, useful for visual
+#' context rather than survey-grade positioning. See the **Terrain** section
+#' of [fly_footprint()].
 #'
 #' @examples
 #' centroids <- sf::st_read(system.file("testdata/photo_centroids.gpkg", package = "fly"))
@@ -95,7 +100,7 @@
 #' @export
 fly_georef <- function(fetch_result, photos_sf,
                        dest_dir = "georef", overwrite = FALSE,
-                       srcnodata = "0", rotation = "auto") {
+                       srcnodata = "0", rotation = "auto", dem = NULL) {
   if (!all(c("airp_id", "dest", "success") %in% names(fetch_result))) {
     stop("`fetch_result` must be output from `fly_fetch()`.", call. = FALSE)
   }
@@ -111,7 +116,7 @@ fly_georef <- function(fetch_result, photos_sf,
   dir.create(dest_dir, recursive = TRUE, showWarnings = FALSE)
 
   # Build footprints in BC Albers
-  footprints <- fly_footprint(photos_sf) |> sf::st_transform(3005)
+  footprints <- fly_footprint(photos_sf, dem = dem) |> sf::st_transform(3005)
   fly_warn_unsized(footprints, "georeferencing")
 
   # Match fetch results to photos by airp_id

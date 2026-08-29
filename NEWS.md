@@ -1,5 +1,15 @@
 # fly (development version)
 
+## 0.5.0 (2026-08-29)
+
+- `fly_footprint()` gains a `dem` argument, sizing each frame from its height above ground instead of the reported scale ([#9](https://github.com/NewGraphEnvironment/fly/issues/9)). On the bundled Upper Bulkley AOI the reported scale understates footprint **area by a median 14%, ranging to 26%** — and always in the same direction, because the scale is referenced to an elevation above the valley floor the photos cover. This is a datum offset, not the slope effect the issue described
+- `FLYING_HEIGHT` is metres above sea level, so subtracting terrain elevation is what turns it into the height ground coverage scales with. Elevation is the mean under the whole footprint, not a reading at the centroid — the two differ by up to 140 m on a 7.2 km frame. It is measured in two passes, because the footprint being averaged over is itself what the correction changes
+- New `footprint_terrain`, `height_agl` and `dem_coverage` columns record which terrain treatment each frame received, the height it was sized from, and how much of its footprint the DEM actually covered — measured against the cells the footprint should have covered, so that a footprint running past the edge of a cropped DEM is reported rather than counted as complete. `footprint_basis` is unchanged: it is already matched by value downstream, so encoding terrain into it would break caller filters
+- `dem` is accepted by `fly_coverage()`, `fly_overlap()`, `fly_filter()`, `fly_select()` and `fly_georef()`, so the correction is reachable from every function that builds a footprint
+- Frames the DEM cannot correct — outside its coverage, or with unusable `flying_height` / `focal_length` — fall back to nominal scale with a warning rather than being dropped. A frame the DEM covers only partly is still corrected, from the mean of the covered part, and warns below 95% coverage
+- New `inst/testdata/dem.tif`, a clip of NRCan's MRDEM-30. `terra` added to Suggests; it is only needed when a `dem` is supplied
+- Footprints remain axis-aligned rectangles under a nadir assumption. Per-corner ray-casting measures ~2% against the 14% the DEM addresses, and is deferred
+
 ## 0.4.0 (2026-08-28)
 
 - `fly_footprint()` sizes each frame from its `media` value instead of applying a fixed 9-inch negative to everything. A digital frame has no negative, and the catalogue mixes film and digital in one layer ([#30](https://github.com/NewGraphEnvironment/fly/issues/30))

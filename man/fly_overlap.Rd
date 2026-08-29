@@ -4,10 +4,14 @@
 \alias{fly_overlap}
 \title{Compute pairwise overlap between photo footprints}
 \usage{
-fly_overlap(photos_sf)
+fly_overlap(photos_sf, dem = NULL)
 }
 \arguments{
 \item{photos_sf}{An sf point object with a \code{scale} column.}
+
+\item{dem}{Optional elevation raster passed to \code{\link[=fly_footprint]{fly_footprint()}}, sizing each
+frame from its height above ground instead of the reported scale. See the
+\strong{Terrain} section of \code{\link[=fly_footprint]{fly_footprint()}}.}
 }
 \value{
 A tibble with columns \code{photo_a}, \code{photo_b}, \code{overlap_km2},
@@ -19,8 +23,12 @@ area and the percentage of each photo's footprint that overlaps.
 Most useful on same-scale photos from the same flight.
 }
 \details{
-Overlap percentages are estimates based on flat-terrain footprints from
-\code{\link[=fly_footprint]{fly_footprint()}}. See that function for details on terrain limitations.
+Overlap percentages are estimates from \code{\link[=fly_footprint]{fly_footprint()}}, and inherit
+whatever basis it was given. Without \code{dem} that is the reported scale, which
+assumes flat ground and understates footprint area wherever the terrain sits
+below the elevation the scale was computed for. Pass \code{dem} to size each frame
+from its height above ground instead — see the \strong{Terrain} section of
+\code{\link[=fly_footprint]{fly_footprint()}}.
 }
 \examples{
 centroids <- sf::st_read(system.file("testdata/photo_centroids.gpkg", package = "fly"))
