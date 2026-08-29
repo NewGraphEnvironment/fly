@@ -117,3 +117,196 @@ test_that("fly_footprint leaves film-only input unchanged", {
   expected_side <- as.numeric(sub("1:", "", centroids$scale[1])) * 9 * 0.0254
   expect_equal(area_m2, expected_side^2, tolerance = 0.01)
 })
+
+
+# --- Terrain-adjusted footprints (#9) ------------------------------------
+
+test_that("fly_footprint with dem = NULL is unchanged", {
+  centroids <- sf::st_read(testdata_path("photo_centroids.gpkg"), quiet = TRUE)
+  flat <- fly_footprint(centroids)
+  explicit_null <- fly_footprint(centroids, dem = NULL)
+
+  expect_equal(sf::st_geometry(flat), sf::st_geometry(explicit_null))
+  expect_equal(flat$footprint_basis, explicit_null$footprint_basis)
+  # The terrain columns exist either way, so a caller's column handling does not
+  # change depending on whether a DEM was supplied.
+  expect_equal(flat$footprint_terrain, rep("nominal_scale", nrow(centroids)))
+  expect_true(all(is.na(flat$height_agl)))
+})
+
+test_that("fly_footprint terrain correction enlarges footprints as measured", {
+  skip_if_no_terra()
+  centroids <- sf::st_read(testdata_path("photo_centroids.gpkg"), quiet = TRUE)
+  flat <- fly_footprint(centroids)
+  terr <- fly_footprint(centroids, dem = testdata_path("dem.tif"))
+
+  pct <- 100 * (as.numeric(sf::st_area(sf::st_transform(terr, 3005))) /
+                  as.numeric(sf::st_area(sf::st_transform(flat, 3005))) - 1)
+
+  # Every frame grows. Reported scale on this AOI is referenced to an elevation
+  # above the real valley floor, so the bias is one-directional — a correction
+  # that shrank a footprint here would mean the sampling is wrong.
+  expect_true(all(pct > 0))
+  expect_gt(stats::median(pct), 10)
+  expect_lt(max(pct), 30)
+
+  expect_equal(terr$footprint_terrain, rep("dem_agl", nrow(centroids)))
+  expect_true(all(terr$height_agl > 0))
+  # h_agl is flying height above ground, so strictly below flying height ASL.
+  expect_true(all(terr$height_agl < centroids$flying_height))
+})
+
+test_that("fly_footprint samples the footprint mean, not just the centroid", {
+  skip_if_no_terra()
+  # The two-pass iteration is load-bearing, not cosmetic: centroid and
+  # footprint-mean elevation differ by up to 130 m on the wide 1:31680 frames.
+  # If this ever collapses to centroid-only sampling, the areas move.
+  centroids <- sf::st_read(testdata_path("photo_centroids.gpkg"), quiet = TRUE)
+  dem <- terra::rast(testdata_path("dem.tif"))
+  terr <- fly_footprint(centroids, dem = dem)
+
+  pts <- terra::extract(dem, terra::vect(sf::st_transform(centroids, 3005)))[, 2]
+  centroid_only_agl <- centroids$flying_height - pts
+
+  expect_false(isTRUE(all.equal(terr$height_agl, centroid_only_agl)))
+  expect_gt(max(abs(terr$height_agl - centroid_only_agl)), 20)
+})
+
+test_that("fly_footprint accepts a dem as path or SpatRaster", {
+  skip_if_no_terra()
+  centroids <- sf::st_read(testdata_path("photo_centroids.gpkg"), quiet = TRUE)
+  by_path <- fly_footprint(centroids, dem = testdata_path("dem.tif"))
+  by_rast <- fly_footprint(centroids, dem = terra::rast(testdata_path("dem.tif")))
+  expect_equal(sf::st_geometry(by_path), sf::st_geometry(by_rast))
+})
+
+test_that("fly_footprint leaves unsized frames empty rather than sampling them", {
+  skip_if_no_terra()
+  photos <- terrain_fixture()
+  fp <- suppressWarnings(fly_footprint(photos, dem = testdata_path("dem.tif")))
+
+  unknown <- fp[fp$footprint_basis == "unknown_format", ]
+  expect_equal(nrow(unknown), 1)
+  expect_true(sf::st_is_empty(sf::st_geometry(unknown)))
+  # No footprint means no terrain treatment to report — not a claim that one
+  # was applied, and not a number a caller could mistake for a real height.
+  expect_true(is.na(unknown$footprint_terrain))
+  expect_true(is.na(unknown$height_agl))
+
+  film <- fp[fp$footprint_basis == "Film - BW", ]
+  expect_equal(film$footprint_terrain, rep("dem_agl", 2))
+})
+
+test_that("fly_footprint errors when a dem is given without the fields it needs", {
+  skip_if_no_terra()
+  photos <- terrain_fixture()
+
+  no_height <- photos
+  no_height$flying_height <- NULL
+  expect_error(fly_footprint(no_height, dem = testdata_path("dem.tif")),
+               "flying_height")
+
+  no_focal <- photos
+  no_focal$focal_length <- NULL
+  expect_error(fly_footprint(no_focal, dem = testdata_path("dem.tif")),
+               "focal_length")
+})
+
+test_that("fly_footprint falls back to nominal scale outside DEM coverage", {
+  skip_if_no_terra()
+  photos <- terrain_fixture()
+  # Move one frame far outside the bundled DEM's extent. Falling back with a
+  # warning is the chosen failure direction: a frame we cannot correct is still
+  # a frame, and dropping it would be indistinguishable from an unsized one.
+  far <- photos[1:2, ]
+  sf::st_geometry(far)[2] <- sf::st_sfc(sf::st_point(c(-120.0, 50.0)), crs = 4326)
+
+  w <- character()
+  fp <- withCallingHandlers(
+    fly_footprint(far, dem = testdata_path("dem.tif")),
+    warning = function(x) {
+      w <<- c(w, conditionMessage(x))
+      invokeRestart("muffleWarning")
+    }
+  )
+  expect_gt(length(w), 0)
+  expect_match(w, "coverage", all = FALSE)
+
+  expect_equal(fp$footprint_terrain, c("dem_agl", "no_dem_coverage"))
+  expect_true(is.na(fp$height_agl[2]))
+  expect_false(sf::st_is_empty(sf::st_geometry(fp)[2]))
+
+  # The fallback frame is sized exactly as the flat path would size it.
+  flat <- fly_footprint(far)
+  expect_equal(
+    as.numeric(sf::st_area(sf::st_transform(fp[2, ], 3005))),
+    as.numeric(sf::st_area(sf::st_transform(flat[2, ], 3005)))
+  )
+})
+
+test_that("fly_footprint falls back when terrain sits above the aircraft", {
+  skip_if_no_terra()
+  photos <- terrain_fixture()[1:2, ]
+  # Terrain here is ~600 m. A flying height below that is bad data — most
+  # likely feet recorded as metres — and yields a non-positive height above
+  # ground, which would otherwise produce a zero or inverted footprint.
+  photos$flying_height <- c(2591, 100)
+
+  w <- character()
+  fp <- withCallingHandlers(
+    fly_footprint(photos, dem = testdata_path("dem.tif")),
+    warning = function(x) {
+      w <<- c(w, conditionMessage(x))
+      invokeRestart("muffleWarning")
+    }
+  )
+  expect_gt(length(w), 0)
+  expect_match(w, "above", all = FALSE)
+
+  expect_equal(fp$footprint_terrain, c("dem_agl", "nominal_scale"))
+  expect_false(sf::st_is_empty(sf::st_geometry(fp)[2]))
+})
+
+test_that("fly_footprint falls back on unusable height or focal metadata", {
+  skip_if_no_terra()
+  # An NA focal length or flying height makes the corrected half-side
+  # non-finite. Left unchecked that becomes an empty geometry, which is
+  # indistinguishable from an unresolved recording format — so the frame would
+  # disappear under a warning pointing at `format_size` rather than at its own
+  # metadata. Every such frame must keep its nominal-scale footprint.
+  centroids <- sf::st_read(testdata_path("photo_centroids.gpkg"), quiet = TRUE)[1:3, ]
+  centroids$focal_length[2] <- NA
+  centroids$flying_height[3] <- NA
+
+  w <- character()
+  fp <- withCallingHandlers(
+    fly_footprint(centroids, dem = testdata_path("dem.tif")),
+    warning = function(x) {
+      w <<- c(w, conditionMessage(x))
+      invokeRestart("muffleWarning")
+    }
+  )
+  expect_gt(length(w), 0)
+  expect_match(w, "focal_length", all = FALSE)
+
+  expect_equal(sum(sf::st_is_empty(sf::st_geometry(fp))), 0)
+  expect_equal(fp$footprint_terrain, c("dem_agl", "nominal_scale", "nominal_scale"))
+  expect_true(all(is.na(fp$height_agl[2:3])))
+
+  flat <- fly_footprint(centroids)
+  expect_equal(
+    as.numeric(sf::st_area(sf::st_transform(fp[2:3, ], 3005))),
+    as.numeric(sf::st_area(sf::st_transform(flat[2:3, ], 3005)))
+  )
+})
+
+test_that("fly_footprint falls back on a zero focal length", {
+  skip_if_no_terra()
+  # Zero divides rather than propagating NA, so it reaches the half-side as Inf
+  # and needs the same finite check.
+  centroids <- sf::st_read(testdata_path("photo_centroids.gpkg"), quiet = TRUE)[1:2, ]
+  centroids$focal_length[2] <- 0
+  fp <- suppressWarnings(fly_footprint(centroids, dem = testdata_path("dem.tif")))
+  expect_equal(sum(sf::st_is_empty(sf::st_geometry(fp))), 0)
+  expect_equal(fp$footprint_terrain, c("dem_agl", "nominal_scale"))
+})

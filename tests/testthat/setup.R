@@ -28,3 +28,31 @@ mixed_media_fixture <- function() {
     )
   )
 }
+
+
+# Skip a terrain test when terra is unavailable.
+#
+# `terra` is in Suggests, not Imports — the DEM path is optional. A test that
+# needs it must skip rather than fail on an install that reasonably lacks it.
+skip_if_no_terra <- function() {
+  testthat::skip_if_not_installed("terra")
+}
+
+# Centroids carrying the two fields the DEM path needs, plus a media value the
+# format table cannot resolve — so one frame arrives with an empty geometry and
+# the terrain code must leave it alone rather than sample a DEM under it.
+terrain_fixture <- function() {
+  sf::st_sf(
+    airp_id = 1:3,
+    scale = c("1:12000", "1:12000", "1:12000"),
+    media = c("Film - BW", "Film - BW", "Digital - Colour"),
+    focal_length = c(153, 153, 153),
+    flying_height = c(2591, 2591, 2591),
+    geometry = sf::st_sfc(
+      sf::st_point(c(-126.60, 54.40)),
+      sf::st_point(c(-126.58, 54.40)),
+      sf::st_point(c(-126.56, 54.40)),
+      crs = 4326
+    )
+  )
+}

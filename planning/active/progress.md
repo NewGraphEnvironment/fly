@@ -16,3 +16,13 @@
 - `inst/testdata/dem.tif`: 973x1086 at 30.5 m, 566-1520 m, 306 KB — matches the probe exactly
 - Buffer rationale recorded in the script: the widest footprint is 7.2 km, so an edge frame
   reaches 3.6 km past the centroid bbox
+
+### Phase 2 — fly_footprint(dem =) (done)
+
+- `dem` accepts SpatRaster, path, or /vsicurl/ URL; `terra` to Suggests behind `check_installed()`
+- Two-pass sizing; `footprint_terrain` + `height_agl` columns; `dem = NULL` byte-identical
+- Measured on the bundled AOI: median +14.1%, range +0.5% to +27.2%, matching the plan
+- Restore-the-bug check: collapsing to centroid-only sampling fails 2 tests, with the
+  patch proven active (max |height_agl - centroid_only| 20+ -> 0)
+- Self-review found and fixed a silent frame drop on NA/zero focal length or flying height
+- 164 pass, 0 fail, 0 warn; 0 lints; NAMESPACE unchanged at 9 exports

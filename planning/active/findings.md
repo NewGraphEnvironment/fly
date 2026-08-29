@@ -78,3 +78,31 @@ are separate facts and get separate columns.
 | `st_as_sfc` no applicable method for `sfc_POLYGON` | `st_union()` already returns sfc; drop the redundant `st_as_sfc()` |
 | `invalid 'na.print' specification` from `print(df, n = 25)` | `n =` is a tibble arg; the object was a data.frame after `as.data.frame()` |
 | `[rast] file does not exist` across two Rscript calls | `tempdir()` differs per R session; write probe artifacts to a stable path |
+
+## Self-review caught a silent frame drop (Phase 2)
+
+`/code-check`'s subagent rounds were not run — the session instruction bars the Agent tool
+unless the user asks. Reviewed against the checklist directly instead; it found one real bug.
+
+An NA or zero `focal_length`, or an NA `flying_height`, makes the corrected half-side
+non-finite. The first cut classified frames on the *inputs* (`is.na(elev)`, `agl <= 0`),
+none of which catch that, so the frame was marked `"dem_agl"` — an affirmative claim the
+correction applied — and then got an **empty geometry**:
+
+```
+      basis terrain      agl    area
+1 Film - BW dem_agl 1986.315 8807768
+2 Film - BW dem_agl 1938.688       0   <- focal_length NA
+3 Film - BW dem_agl       NA       0   <- flying_height NA
+```
+
+Downstream, `fly_warn_unsized()` reports empty geometries as unresolved *recording formats*
+and points the user at `format_size` — the wrong diagnosis entirely, for a metadata problem.
+
+Fix: classify on the half-side actually used (`is.finite(candidate) & candidate > 0`), not
+on the inputs feeding it. Three explicit categories — `corrected`, `uncovered`, `unusable`
+— each falling back to nominal scale. Two regression tests pin it, one for NA and one for
+zero (zero divides rather than propagating NA, so it arrives as `Inf` by a different route).
+
+Same class as CLAUDE.md's "a zero-length value in a row-builder drops the whole record":
+the output looked correct, just shorter.

@@ -31,11 +31,11 @@ DEM source: **MRDEM-30**, NRCan's 30 m bare-earth DTM, the same product
 
 ## Phase 2: `fly_footprint(dem =)`
 
-- [ ] Failing tests first: flat unchanged, terrain enlarges, empty geoms skipped, each guard
-- [ ] `terra` to Suggests with `check_installed()` guard
-- [ ] Two-pass sizing; `footprint_terrain` and `height_agl` columns
-- [ ] Guards for missing columns, no DEM coverage, non-positive `h_agl`
-- [ ] Confirm `dem = NULL` output is identical to current — assert, don't assume
+- [x] Failing tests first: flat unchanged, terrain enlarges, empty geoms skipped, each guard
+- [x] `terra` to Suggests with `check_installed()` guard
+- [x] Two-pass sizing; `footprint_terrain` and `height_agl` columns
+- [x] Guards for missing columns, no DEM coverage, non-positive `h_agl`
+- [x] Confirm `dem = NULL` output is identical to current — assert, don't assume
 
 ## Phase 3: Downstream passthrough
 

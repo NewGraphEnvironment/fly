@@ -4,7 +4,7 @@
 \alias{fly_footprint}
 \title{Estimate photo footprint polygons from centroids and scale}
 \usage{
-fly_footprint(centroids_sf, negative_size = 9, format_size = NULL)
+fly_footprint(centroids_sf, negative_size = 9, format_size = NULL, dem = NULL)
 }
 \arguments{
 \item{centroids_sf}{An sf point object with a \code{scale} column (e.g. "1:31680").
@@ -18,11 +18,19 @@ recording format per frame when present.}
 \item{format_size}{Named numeric vector of recording-format widths in inches,
 keyed by \code{media} value, merged over the shipped film defaults. Supply this
 to size frames whose format \code{fly} does not know — see Details.}
+
+\item{dem}{Optional elevation raster used to size each frame from its true
+height above ground rather than the reported scale. A \code{terra::SpatRaster},
+a file path, or a \verb{/vsicurl/} URL. Requires \code{flying_height} and
+\code{focal_length} columns, and the \code{terra} package. \code{NULL} (default) keeps the
+flat-terrain behaviour — see \strong{Terrain} below.}
 }
 \value{
 An sf polygon object in the same CRS as input, with footprint
-rectangles and a \code{footprint_basis} column recording how each was sized.
-Frames whose format could not be resolved get an empty geometry.
+rectangles, a \code{footprint_basis} column recording how each was sized, a
+\code{footprint_terrain} column recording which terrain treatment was applied,
+and \code{height_agl} giving the metres above ground each footprint was sized
+from. Frames whose format could not be resolved get an empty geometry.
 }
 \description{
 Creates rectangular polygons representing the estimated ground coverage
@@ -71,15 +79,71 @@ Filter on \code{footprint_basis} to keep only frames sized from a known format.
 the bundled test data. Note the field is \code{SCALE}, not \code{PHOTO_SCALE} — the
 latter returns all \code{NULL}, which reads as missing data rather than a wrong
 field name.
-
-\strong{Flat-terrain assumption:} footprints are estimated assuming flat ground
-beneath the aircraft. In reality terrain slope changes the actual ground
-coverage — downhill slopes increase the true footprint (ground falls away
-from the camera), while uphill slopes reduce it. In steep terrain typical
-of BC valleys, true footprints may differ meaningfully from these estimates.
-Coverage and overlap calculations downstream (e.g. \code{\link[=fly_coverage]{fly_coverage()}},
-\code{\link[=fly_overlap]{fly_overlap()}}) inherit this limitation.
 }
+\section{Terrain}{
+
+
+Without \code{dem}, footprints are sized from the reported scale, which assumes
+flat ground at whatever elevation the scale was computed for. That assumption
+costs more than it looks: on the bundled Upper Bulkley AOI the reported scale
+\strong{understates footprint area by a median 14\%, ranging to 27\%} — and always in
+the same direction, because the scale is referenced to an elevation above the
+valley floor the photos actually cover.
+
+Supplying \code{dem} removes that bias. \code{FLYING_HEIGHT} is metres above sea level,
+not height above ground, so subtracting terrain elevation is what turns it
+into the height ground coverage actually scales with:
+
+\if{html}{\out{<div class="sourceCode">}}\preformatted{height above ground = flying_height - terrain elevation
+ground width        = format width * (height above ground / focal length)
+}\if{html}{\out{</div>}}
+
+Elevation is sampled in two passes — at the centroid, then as the mean under
+the resulting rectangle. The second pass matters: on a 7.2 km wide 1:31680
+frame the two differ by up to 130 m.
+
+\code{footprint_terrain} records what happened to each frame:
+
+\describe{
+\item{\code{"nominal_scale"}}{sized from the reported scale (no \code{dem}, or a
+fallback — see below)}
+\item{\code{"dem_agl"}}{sized from height above ground}
+\item{\code{"no_dem_coverage"}}{\code{dem} supplied but does not cover the frame}
+\item{\code{NA}}{no footprint to place — see \code{footprint_basis}}
+}
+
+A frame the DEM cannot correct falls back to nominal scale with a warning,
+rather than being dropped. The same applies where the DEM puts terrain at or
+above the aircraft, which means \code{flying_height} is not in metres ASL.
+
+\strong{Still assumed, with or without a DEM:} the camera points straight down.
+The BC catalogue carries no tilt, roll or crab, so footprints stay
+axis-aligned rectangles and corner rays are not projected individually. On
+this AOI that per-corner refinement is worth roughly 2\%, against the 14\% the
+DEM addresses.
+
+\strong{DEM sources.} Any raster \code{terra} can open works. Three that suit BC:
+
+\itemize{
+\item \strong{MRDEM-30} — NRCan's 30 m bare-earth DTM, all of Canada, public
+and unauthenticated. A good default, and what the bundled \code{dem.tif} is
+cut from:
+\verb{/vsicurl/https://canelevation-dem.s3.ca-central-1.amazonaws.com/mrdem-30/mrdem-30-dtm.tif}
+\item \strong{LidarBC} — sub-10 m where coverage exists; query the
+\code{stac-dem-bc} STAC catalogue and pass an item's COG URL.
+\item \strong{BC TRIM} — 25 m provincial DEM via the \code{bcdata} CLI
+(\verb{bcdata get-dem}).
+}
+
+Resolution matters less here than extent. A 30 m DEM resolves a 2.7 km
+footprint's mean elevation perfectly well, but a DEM that stops short of the
+frame edges sends those frames down the \code{no_dem_coverage} fallback. Buffer
+the AOI by at least half the widest footprint.
+
+Coverage and overlap downstream (e.g. \code{\link[=fly_coverage]{fly_coverage()}}, \code{\link[=fly_overlap]{fly_overlap()}})
+accept the same \code{dem} argument and inherit whichever basis you give them.
+}
+
 \examples{
 centroids <- sf::st_read(system.file("testdata/photo_centroids.gpkg", package = "fly"))
 footprints <- fly_footprint(centroids)
@@ -91,5 +155,12 @@ table(footprints$footprint_basis)
 # Keep only frames sized from a known recording format
 sized <- footprints[footprints$footprint_basis != "unknown_format", ]
 nrow(sized)
+
+# Terrain-adjusted: size each frame from its height above ground instead of
+# the reported scale. On this AOI every footprint grows, by a median 14\%.
+terrain <- fly_footprint(centroids, dem = system.file("testdata/dem.tif", package = "fly"))
+round(100 * (as.numeric(sf::st_area(sf::st_transform(terrain, 3005))) /
+               as.numeric(sf::st_area(sf::st_transform(footprints, 3005))) - 1), 1)
+table(terrain$footprint_terrain)
 
 }
