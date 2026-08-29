@@ -13,7 +13,11 @@ metadata from the BC Data Catalogue, and georeference the images onto their esti
 ## Architecture
 
 - One exported function per file: `R/fly_footprint.R` → `tests/testthat/test-fly_footprint.R`
-- `inst/testdata/` — Upper Bulkley River floodplain near Houston, BC (20 photos, dual scale)
+- `inst/testdata/` — Upper Bulkley River floodplain near Houston, BC (20 photos, dual scale). All 1968 film,
+`Film - BW`, focal 153 — there is no digital frame in it, and `data-raw/make_testdata.R` sources a film-only AOI,
+so digital coverage cannot come from there
+- `mixed_media_fixture()` in `tests/testthat/setup.R` — synthesized film + digital frames, because the bundled
+data cannot exercise the media branch
 - `data-raw/make_testdata.R` — generates test data from diggs cached data
 
 ## Key Decisions
@@ -22,6 +26,12 @@ metadata from the BC Data Catalogue, and georeference the images onto their esti
 - **`fly_footprint()` uses vectorized `st_coordinates()` + `lapply()`** — do NOT use `dplyr::mutate(.data$geometry)` because the
 geometry column may be named `geom` not `geometry`
 - **Priority selection pattern:** all best-resolution photos first, then greedy backfill with coarser scales (see vignette)
+- **Refuse rather than estimate an unknown recording format** (v0.4.0, #30) — ground width scales with the
+recording format, so a 9-inch negative applied to a digital sensor is wrong by an unknown factor while still
+drawing as a rectangle and still producing a coverage percentage. `fly_footprint()` sizes each row from its
+`media` value, records the outcome in `footprint_basis`, and returns an **empty geometry** where the format is
+unknown. Downstream functions report how many frames they excluded. Digital defaults are deliberately unshipped
+until sensor widths are established (#32) — `format_size` is the slot they drop into
 
 ## Gotchas
 
