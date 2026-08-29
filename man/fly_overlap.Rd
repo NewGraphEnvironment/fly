@@ -4,10 +4,14 @@
 \alias{fly_overlap}
 \title{Compute pairwise overlap between photo footprints}
 \usage{
-fly_overlap(photos_sf)
+fly_overlap(photos_sf, dem = NULL)
 }
 \arguments{
 \item{photos_sf}{An sf point object with a \code{scale} column.}
+
+\item{dem}{Optional elevation raster passed to \code{\link[=fly_footprint]{fly_footprint()}}, sizing each
+frame from its height above ground instead of the reported scale. See the
+\strong{Terrain} section of \code{\link[=fly_footprint]{fly_footprint()}}.}
 }
 \value{
 A tibble with columns \code{photo_a}, \code{photo_b}, \code{overlap_km2},

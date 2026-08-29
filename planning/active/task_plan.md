@@ -39,9 +39,9 @@ DEM source: **MRDEM-30**, NRCan's 30 m bare-earth DTM, the same product
 
 ## Phase 3: Downstream passthrough
 
-- [ ] `dem = NULL` on `fly_coverage()`, `fly_overlap()`, `fly_select()`, `fly_filter()`, `fly_georef()`
-- [ ] Tests that a DEM reaching each consumer changes its numbers
-- [ ] Verify all six call sites are covered — enumerate, don't recall
+- [x] `dem = NULL` on `fly_coverage()`, `fly_overlap()`, `fly_select()`, `fly_filter()`, `fly_georef()`
+- [x] Tests that a DEM reaching each consumer changes its numbers
+- [x] Verify all six call sites are covered — enumerate, don't recall
 
 ## Phase 4: Docs and release
 

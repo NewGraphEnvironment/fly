@@ -26,3 +26,12 @@
   patch proven active (max |height_agl - centroid_only| 20+ -> 0)
 - Self-review found and fixed a silent frame drop on NA/zero focal length or flying height
 - 164 pass, 0 fail, 0 warn; 0 lints; NAMESPACE unchanged at 9 exports
+
+### Phase 3 — downstream passthrough (done)
+
+- All six call sites converted, enumerated by grep rather than recall:
+  fly_coverage, fly_overlap, fly_filter, fly_georef, fly_select_all, fly_select_minimal
+- `fly_select` threads dem through both internal helpers — separate call sites, so
+  passing in one mode proves nothing about the other; both are tested
+- Passthrough tests assert the numbers MOVE, not that the argument is tolerated
+- 176 pass, 0 fail; 0 real new lints (6 are installed-vs-source artifacts)

@@ -106,3 +106,30 @@ zero (zero divides rather than propagating NA, so it arrives as `Inf` by a diffe
 
 Same class as CLAUDE.md's "a zero-length value in a row-builder drops the whole record":
 the output looked correct, just shorter.
+
+## lintr's "unused argument (dem = dem)" is an installed-vs-source artifact
+
+`lint_package()` went 15 -> 21 after the passthrough. All six new lints are
+`unused argument (dem = dem)`, and all six are false — lintr resolves the callee
+against the **installed** namespace:
+
+```
+installed fly version:            0.3.0
+installed fly_footprint formals:  centroids_sf, negative_size, format_size
+source fly_footprint formals:     centroids_sf, negative_size, format_size, dem
+```
+
+They clear on reinstall. Zero real new lints — the delta is exactly the six artifacts.
+This is the CLAUDE.md rule about comparing against the baseline before treating a lint
+count as signal, in the variant where the warning reads as a code defect.
+
+## The first fly_georef passthrough test could not fail
+
+Written with `expect_silent(...)` plus a row count, it would have passed with `dem`
+silently dropped: `fly_georef()` with no images to warp never exposes the GCPs, so the
+footprints are unobservable from outside. Its own comment claimed it exercised the
+argument path — the exact "fixture cannot reach the failure mode" shape.
+
+Replaced with a discriminating assertion: strip `flying_height`, and `fly_footprint()`
+errors — which it can only do if `dem` actually arrived. Verified both ways by removing
+the `dem = dem` passthrough (test fails) and restoring it (test passes).

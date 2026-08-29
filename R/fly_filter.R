@@ -9,6 +9,9 @@
 #' @param method One of `"footprint"` (default) or `"centroid"`.
 #' @param buffer Buffer distance in metres added to the AOI before testing
 #'   intersection (default 0). Applied in BC Albers (EPSG:3005).
+#' @param dem Optional elevation raster passed to [fly_footprint()], sizing each
+#'   frame from its height above ground instead of the reported scale. See the
+#'   **Terrain** section of [fly_footprint()].
 #' @return A subset of `photos_sf` that intersects the AOI.
 #'
 #' @examples
@@ -20,7 +23,8 @@
 #' nrow(fp_result) >= nrow(ct_result)
 #'
 #' @export
-fly_filter <- function(photos_sf, aoi_sf, method = c("footprint", "centroid"), buffer = 0) {
+fly_filter <- function(photos_sf, aoi_sf, method = c("footprint", "centroid"),
+                       buffer = 0, dem = NULL) {
   method <- match.arg(method)
 
   aoi_3005 <- sf::st_transform(aoi_sf, 3005) |>
@@ -36,7 +40,7 @@ fly_filter <- function(photos_sf, aoi_sf, method = c("footprint", "centroid"), b
   if (method == "centroid") {
     hits <- sf::st_intersects(photos_sf, aoi_test, sparse = FALSE)[, 1]
   } else {
-    footprints <- fly_footprint(photos_sf)
+    footprints <- fly_footprint(photos_sf, dem = dem)
     fly_warn_unsized(footprints, "this filter")
     hits <- sf::st_intersects(footprints, aoi_test, sparse = FALSE)[, 1]
   }

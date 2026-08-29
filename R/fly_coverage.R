@@ -6,6 +6,9 @@
 #' @param photos_sf An sf point object with a `scale` column.
 #' @param aoi_sf An sf polygon to check coverage against.
 #' @param by Column name to group by (default `"photo_year"`).
+#' @param dem Optional elevation raster passed to [fly_footprint()], sizing each
+#'   frame from its height above ground instead of the reported scale. See the
+#'   **Terrain** section of [fly_footprint()].
 #' @return A tibble with the grouping column, `n_photos`, `covered_km2`,
 #'   and `coverage_pct`.
 #'
@@ -15,7 +18,7 @@
 #' fly_coverage(centroids, aoi, by = "scale")
 #'
 #' @export
-fly_coverage <- function(photos_sf, aoi_sf, by = "photo_year") {
+fly_coverage <- function(photos_sf, aoi_sf, by = "photo_year", dem = NULL) {
   sf::sf_use_s2(FALSE)
   on.exit(sf::sf_use_s2(TRUE))
 
@@ -24,7 +27,7 @@ fly_coverage <- function(photos_sf, aoi_sf, by = "photo_year") {
     sf::st_make_valid()
   aoi_area <- as.numeric(sf::st_area(aoi_albers))
 
-  footprints <- fly_footprint(photos_sf) |> sf::st_transform(3005)
+  footprints <- fly_footprint(photos_sf, dem = dem) |> sf::st_transform(3005)
   fly_warn_unsized(footprints, "coverage")
 
   photos_with_fp <- photos_sf

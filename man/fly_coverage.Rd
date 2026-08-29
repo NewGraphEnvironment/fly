@@ -4,7 +4,7 @@
 \alias{fly_coverage}
 \title{Check photo coverage of an AOI by group}
 \usage{
-fly_coverage(photos_sf, aoi_sf, by = "photo_year")
+fly_coverage(photos_sf, aoi_sf, by = "photo_year", dem = NULL)
 }
 \arguments{
 \item{photos_sf}{An sf point object with a \code{scale} column.}
@@ -12,6 +12,10 @@ fly_coverage(photos_sf, aoi_sf, by = "photo_year")
 \item{aoi_sf}{An sf polygon to check coverage against.}
 
 \item{by}{Column name to group by (default \code{"photo_year"}).}
+
+\item{dem}{Optional elevation raster passed to \code{\link[=fly_footprint]{fly_footprint()}}, sizing each
+frame from its height above ground instead of the reported scale. See the
+\strong{Terrain} section of \code{\link[=fly_footprint]{fly_footprint()}}.}
 }
 \value{
 A tibble with the grouping column, \code{n_photos}, \code{covered_km2},

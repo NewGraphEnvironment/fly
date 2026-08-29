@@ -4,7 +4,13 @@
 \alias{fly_filter}
 \title{Filter photos by spatial relationship with an AOI}
 \usage{
-fly_filter(photos_sf, aoi_sf, method = c("footprint", "centroid"), buffer = 0)
+fly_filter(
+  photos_sf,
+  aoi_sf,
+  method = c("footprint", "centroid"),
+  buffer = 0,
+  dem = NULL
+)
 }
 \arguments{
 \item{photos_sf}{An sf point object with a \code{scale} column.}
@@ -15,6 +21,10 @@ fly_filter(photos_sf, aoi_sf, method = c("footprint", "centroid"), buffer = 0)
 
 \item{buffer}{Buffer distance in metres added to the AOI before testing
 intersection (default 0). Applied in BC Albers (EPSG:3005).}
+
+\item{dem}{Optional elevation raster passed to \code{\link[=fly_footprint]{fly_footprint()}}, sizing each
+frame from its height above ground instead of the reported scale. See the
+\strong{Terrain} section of \code{\link[=fly_footprint]{fly_footprint()}}.}
 }
 \value{
 A subset of \code{photos_sf} that intersects the AOI.

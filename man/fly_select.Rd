@@ -9,7 +9,8 @@ fly_select(
   aoi_sf,
   mode = "minimal",
   target_coverage = 0.95,
-  component_ensure = FALSE
+  component_ensure = FALSE,
+  dem = NULL
 )
 }
 \arguments{
@@ -29,6 +30,10 @@ polygon component of \code{aoi_sf} is covered by at least one photo before
 running the greedy selection. Useful for multi-polygon AOIs (e.g. patchy
 floodplain fragments) where small components might otherwise get zero
 coverage. Only used when \code{mode = "minimal"}.}
+
+\item{dem}{Optional elevation raster passed to \code{\link[=fly_footprint]{fly_footprint()}}, sizing each
+frame from its height above ground instead of the reported scale. See the
+\strong{Terrain} section of \code{\link[=fly_footprint]{fly_footprint()}}.}
 }
 \value{
 An sf object (subset of \code{photos_sf}). For \code{mode = "minimal"},
