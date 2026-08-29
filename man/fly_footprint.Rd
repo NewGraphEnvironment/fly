@@ -105,7 +105,9 @@ centroid — on a 7.2 km wide 1:31680 frame the two differ by up to 140 m.
 That is measured in two passes, because the footprint being averaged over is
 itself what the correction changes: the first pass averages over the
 nominal-scale rectangle, the second over the rectangle the first produced.
-A third pass moves the area by under 0.02\% here, so two is where it settles.
+The second pass is a refinement rather than the substance — it moves area by
+at most 0.5\% against the correction's own 14\% — and a third moves it by
+0.03\%, so two is where this settles.
 
 \code{footprint_terrain} records what happened to each frame:
 

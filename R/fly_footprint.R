@@ -50,42 +50,51 @@ fly_dem_sample <- function(dem, rects) {
   }
   in_dem <- sf::st_transform(sf::st_sf(geometry = rects[ok]),
                              sf::st_crs(terra::crs(dem)))
-  cells <- terra::extract(dem, terra::vect(in_dem))
+  v <- terra::vect(in_dem)
+
+  cells <- terra::extract(dem, v)
   # split() keys on the ID column, whose values are 1..n in ascending order, so
   # the results come back aligned with `rects[ok]`.
   per_frame <- split(cells[, 2], cells[, 1])
   elev[ok] <- vapply(per_frame, function(x) mean(x, na.rm = TRUE), numeric(1))
-
-  # Coverage is measured against the cells the footprint SHOULD have, not the
-  # cells extract() handed back. Ground beyond the raster's extent yields no row
-  # at all — not an NA row — so counting NAs among the returned values reports a
-  # footprint half off the edge of the data as fully covered, which is the
-  # affirmative claim the column exists to prevent. A DEM cropped to an AOI is
-  # exactly this shape: no NA interior, it simply stops.
-  # Both halves must be in the DEM's own coordinate units. st_area() on a
-  # geographic CRS returns geodesic metres squared while terra::res() returns
-  # degrees, and dividing one by the other is meaningless — it reported ~1e-10
-  # coverage for fully-covered frames. Dropping the CRS forces the planar area,
-  # which is degrees squared for a geographic DEM and metres squared for a
-  # projected one, matching res() in both.
-  expected <- as.numeric(sf::st_area(sf::st_set_crs(in_dem, NA))) /
-    prod(terra::res(dem))
   got <- vapply(per_frame, function(x) sum(!is.na(x)), numeric(1))
-  # extract() takes a cell whose centre falls inside the polygon, so `got` is
-  # within a cell-perimeter of `expected` even at full coverage; cap at 1.
-  covered[ok] <- pmin(1, got / expected)
+
+  # The denominator has to be counted the same way the numerator is. extract()
+  # takes a cell when its *centre* falls inside the polygon, so dividing by the
+  # footprint's area in cell units compares two different measurements and runs
+  # about 2/k low for a footprint k cells wide — on a DEM with no missing data
+  # and room to spare that reported 91% coverage and warned.
+  #
+  # So count against a grid aligned to the DEM's own, covering just the
+  # footprints. align() snaps the extent to the DEM's cell boundaries, which is
+  # what makes the two counts land on the same centres. Extending the DEM
+  # itself would do the same but sizes the raster to the union with the
+  # footprints — for one frame far outside a local DEM that is a 260-million
+  # cell allocation, where this template is only ever as large as the frames.
+  tmpl <- terra::rast(
+    terra::align(terra::ext(v), dem),
+    resolution = terra::res(dem),
+    crs = terra::crs(dem)
+  )
+  terra::values(tmpl) <- 1L
+  tmpl_cells <- terra::extract(tmpl, v)
+  expected <- vapply(split(tmpl_cells[, 2], tmpl_cells[, 1]), length, numeric(1))
+  covered[ok] <- ifelse(expected > 0, pmin(1, got / expected), 0)
 
   elev[is.nan(elev)] <- NA_real_
   list(elev = elev, covered = covered)
 }
 
 # Build axis-aligned squares of `half_side` metres about each coordinate pair.
-# A NA half-side yields an empty polygon — the #30 contract for a frame whose
-# recording format could not be resolved.
+# A half-side that is NA or non-finite yields an empty polygon — the #30
+# contract for a frame whose recording format could not be resolved, and the
+# only safe answer for a frame whose metadata divides by zero. An infinite
+# rectangle is not merely meaningless: it reaches the sampler, which then tries
+# to size a raster to it.
 fly_rectangles <- function(coords, half_side) {
   sf::st_sfc(lapply(seq_len(nrow(coords)), function(i) {
     w <- half_side[i]
-    if (is.na(w)) {
+    if (!is.finite(w)) {
       return(sf::st_polygon())
     }
     cx <- coords[i, 1]
@@ -195,7 +204,9 @@ fly_rectangles <- function(coords, half_side) {
 #' That is measured in two passes, because the footprint being averaged over is
 #' itself what the correction changes: the first pass averages over the
 #' nominal-scale rectangle, the second over the rectangle the first produced.
-#' A third pass moves the area by under 0.02% here, so two is where it settles.
+#' The second pass is a refinement rather than the substance — it moves area by
+#' at most 0.5% against the correction's own 14% — and a third moves it by
+#' 0.03%, so two is where this settles.
 #'
 #' `footprint_terrain` records what happened to each frame:
 #'
@@ -306,6 +317,14 @@ fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL,
     if (!inherits(dem, "SpatRaster")) {
       dem <- terra::rast(dem)
     }
+    if (!nzchar(terra::crs(dem))) {
+      stop(
+        "`dem` has no CRS, so its cells cannot be located against the photo ",
+        "centroids. Set one with `terra::crs(dem) <- \"EPSG:3005\"` (or ",
+        "whichever it is) before passing it.",
+        call. = FALSE
+      )
+    }
   }
 
   input_crs <- sf::st_crs(centroids_sf)
@@ -357,10 +376,13 @@ fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL,
 
     # Two passes. The first averages the DEM over the nominal-scale rectangle,
     # which yields a height above ground and so a better rectangle; the second
-    # averages over that one. Iterating is not ceremony — the correction can
-    # enlarge a footprint by a quarter, so the nominal rectangle is measurably
-    # the wrong window to average over. A third pass moves the area by under
-    # 0.02% on this data, so two is where it converges.
+    # averages over that one, since the window being averaged is itself what
+    # the correction changes.
+    #
+    # Keep the size of this in proportion. The correction as a whole moves area
+    # by a median 14%; the second pass moves it by at most a further 0.53%, and
+    # a third by 0.03%. It is worth one more extract, not the emphasis a bare
+    # "iterates until it converges" would imply.
     first <- fly_dem_sample(dem, fly_rectangles(coords, half_side))
     second <- fly_dem_sample(dem, fly_rectangles(coords, resize(first$elev)))
 

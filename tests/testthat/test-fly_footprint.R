@@ -317,12 +317,13 @@ test_that("fly_footprint reports how much of each footprint the DEM covered", {
   terr <- fly_footprint(centroids, dem = testdata_path("dem.tif"))
 
   expect_true(all(terr$dem_coverage > 0 & terr$dem_coverage <= 1))
-  # The bundled DEM is buffered past the widest footprint, so nothing here is
-  # materially short — but reprojection leaves NA slivers, so it is not all 1
-  # either. Both halves matter: a guard that saw only 1s could not fire, and
-  # one that warned on anything below 1 would fire on data that is fine.
-  expect_lt(min(terr$dem_coverage), 1)
-  expect_gt(min(terr$dem_coverage), 0.95)
+  # The bundled DEM is buffered past the corner of the widest footprint, so
+  # every frame is essentially fully described — the shortfall below is real
+  # missing cells left by reprojection, not a counting artifact, and is four
+  # hundredths of a percent at worst. This asserts the guard stays quiet on
+  # good data; the AOI-clipped test below is what proves it can fire at all.
+  expect_gt(min(terr$dem_coverage), 0.99)
+  expect_silent(fly_footprint(centroids, dem = testdata_path("dem.tif")))
 
   flat <- fly_footprint(centroids)
   expect_true(all(is.na(flat$dem_coverage)))
@@ -478,4 +479,87 @@ test_that("fly_footprint measures coverage correctly on a geographic DEM", {
   # describe the same ground.
   proj <- fly_footprint(centroids, dem = testdata_path("dem.tif"))
   expect_equal(fp$height_agl, proj$height_agl, tolerance = 0.01)
+})
+
+test_that("fly_footprint iterates the sampling window, not just the elevation", {
+  skip_if_no_terra()
+  # The window the DEM is averaged over is itself what the correction changes,
+  # so the second pass measures over the corrected rectangle. Collapsing it to
+  # one pass left the whole suite green, which made the iteration untested
+  # rather than merely small. It IS small — under 0.5% of area against the
+  # correction's own 14% — so assert it on elevation, where it is legible.
+  centroids <- sf::st_read(testdata_path("photo_centroids.gpkg"), quiet = TRUE)
+  dem <- terra::rast(testdata_path("dem.tif"))
+  fp <- fly_footprint(centroids, dem = dem)
+
+  # Reproduce pass one alone: the mean under the NOMINAL rectangle.
+  nominal_half <- 9 * as.numeric(sub("1:", "", centroids$scale)) * 0.0254 / 2
+  pts <- sf::st_transform(centroids, 3005)
+  one_pass <- vapply(seq_len(nrow(centroids)), function(i) {
+    rect <- sf::st_buffer(pts[i, ], nominal_half[i], endCapStyle = "SQUARE")
+    mean(terra::extract(dem, terra::vect(rect))[, 2], na.rm = TRUE)
+  }, numeric(1))
+
+  two_pass_elev <- centroids$flying_height - fp$height_agl
+  expect_false(isTRUE(all.equal(two_pass_elev, one_pass)))
+  expect_gt(max(abs(two_pass_elev - one_pass)), 5)
+})
+
+test_that("fly_footprint rejects a DEM with no CRS", {
+  skip_if_no_terra()
+  # Without this the failure surfaces from inside sf as "invalid crs:", naming
+  # neither the argument nor the package.
+  dem <- terra::rast(testdata_path("dem.tif"))
+  terra::crs(dem) <- ""
+  centroids <- sf::st_read(testdata_path("photo_centroids.gpkg"), quiet = TRUE)[1, ]
+  expect_error(fly_footprint(centroids, dem = dem), "no CRS")
+})
+
+test_that("fly_footprint reports full coverage on a DEM that is entirely valid", {
+  skip_if_no_terra()
+  # The measurement has to be right on its own terms before missing data enters
+  # the picture. A DEM with no NA cell anywhere and room well beyond every
+  # footprint must report coverage of exactly 1 and warn about nothing.
+  #
+  # Counting the footprint's area in cell units against a count of cell centres
+  # compares two different measurements, and fails here rather than on anything
+  # to do with coverage: it reported 91% on the coarse grid below and warned
+  # that 3 of 3 frames were under-covered, on a raster with nothing missing.
+  #
+  # Two resolutions because the error scales as 2/k for a footprint k cells
+  # wide — a fine grid hides it, which is why the shipped 30 m fixture could
+  # not reach this.
+  centroids <- sf::st_read(testdata_path("photo_centroids.gpkg"), quiet = TRUE)[1:3, ]
+  bb <- sf::st_bbox(sf::st_transform(centroids, 3005))
+
+  for (cell in c(30, 900)) {
+    r <- terra::rast(
+      xmin = bb[["xmin"]] - 30000, xmax = bb[["xmax"]] + 30000,
+      ymin = bb[["ymin"]] - 30000, ymax = bb[["ymax"]] + 30000,
+      resolution = cell, crs = "EPSG:3005"
+    )
+    terra::values(r) <- 700
+    expect_equal(as.numeric(terra::global(r, function(x) sum(is.na(x)))[1, 1]), 0)
+
+    fp <- fly_footprint(centroids, dem = r)
+    expect_equal(fp$dem_coverage, rep(1, 3), info = paste("cell size", cell))
+    expect_silent(fly_footprint(centroids, dem = r))
+  }
+})
+
+test_that("fly_footprint handles anisotropic DEM cells", {
+  skip_if_no_terra()
+  # Non-square cells are ordinary in a geographic CRS away from the equator.
+  # The coverage denominator must account for both dimensions, not assume a
+  # square cell.
+  centroids <- sf::st_read(testdata_path("photo_centroids.gpkg"), quiet = TRUE)[1:2, ]
+  bb <- sf::st_bbox(sf::st_transform(centroids, 3005))
+  r <- terra::rast(
+    xmin = bb[["xmin"]] - 20000, xmax = bb[["xmax"]] + 20000,
+    ymin = bb[["ymin"]] - 20000, ymax = bb[["ymax"]] + 20000,
+    resolution = c(120, 904), crs = "EPSG:3005"
+  )
+  terra::values(r) <- 700
+  fp <- fly_footprint(centroids, dem = r)
+  expect_equal(fp$dem_coverage, rep(1, 2))
 })
