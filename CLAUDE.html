@@ -48,7 +48,9 @@
 <ul><li>One exported function per file: <code>R/fly_footprint.R</code> → <code>tests/testthat/test-fly_footprint.R</code>
 </li>
 <li>
-<code>inst/testdata/</code> — Upper Bulkley River floodplain near Houston, BC (20 photos, dual scale)</li>
+<code>inst/testdata/</code> — Upper Bulkley River floodplain near Houston, BC (20 photos, dual scale). All 1968 film, <code>Film - BW</code>, focal 153 — there is no digital frame in it, and <code>data-raw/make_testdata.R</code> sources a film-only AOI, so digital coverage cannot come from there</li>
+<li>
+<code>mixed_media_fixture()</code> in <code>tests/testthat/setup.R</code> — synthesized film + digital frames, because the bundled data cannot exercise the media branch</li>
 <li>
 <code>data-raw/make_testdata.R</code> — generates test data from diggs cached data</li>
 </ul></div>
@@ -61,6 +63,8 @@
 </li>
 <li>
 <strong>Priority selection pattern:</strong> all best-resolution photos first, then greedy backfill with coarser scales (see vignette)</li>
+<li>
+<strong>Refuse rather than estimate an unknown recording format</strong> (v0.4.0, #30) — ground width scales with the recording format, so a 9-inch negative applied to a digital sensor is wrong by an unknown factor while still drawing as a rectangle and still producing a coverage percentage. <code><a href="reference/fly_footprint.html">fly_footprint()</a></code> sizes each row from its <code>media</code> value, records the outcome in <code>footprint_basis</code>, and returns an <strong>empty geometry</strong> where the format is unknown. Downstream functions report how many frames they excluded. Digital defaults are deliberately unshipped until sensor widths are established (#32) — <code>format_size</code> is the slot they drop into</li>
 </ul></div>
 <div class="section level2">
 <h2 id="gotchas">Gotchas<a class="anchor" aria-label="anchor" href="#gotchas"></a></h2>
