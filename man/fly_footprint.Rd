@@ -4,15 +4,25 @@
 \alias{fly_footprint}
 \title{Estimate photo footprint polygons from centroids and scale}
 \usage{
-fly_footprint(centroids_sf, negative_size = 9)
+fly_footprint(centroids_sf, negative_size = 9, format_size = NULL)
 }
 \arguments{
-\item{centroids_sf}{An sf point object with a \code{scale} column (e.g. "1:31680").}
+\item{centroids_sf}{An sf point object with a \code{scale} column (e.g. "1:31680").
+A \code{media} column (e.g. \code{"Film - BW"}, \code{"Digital - Colour"}) selects the
+recording format per frame when present.}
 
-\item{negative_size}{Negative dimension in inches (default 9 for standard 9" x 9").}
+\item{negative_size}{Negative dimension in inches (default 9 for standard
+9" x 9"). Applies to film frames, and to every frame when there is no
+\code{media} column. It never sizes a digital frame — see \code{format_size}.}
+
+\item{format_size}{Named numeric vector of recording-format widths in inches,
+keyed by \code{media} value, merged over the shipped film defaults. Supply this
+to size frames whose format \code{fly} does not know — see Details.}
 }
 \value{
-An sf polygon object in the same CRS as input, with footprint rectangles.
+An sf polygon object in the same CRS as input, with footprint
+rectangles and a \code{footprint_basis} column recording how each was sized.
+Frames whose format could not be resolved get an empty geometry.
 }
 \description{
 Creates rectangular polygons representing the estimated ground coverage
@@ -26,12 +36,41 @@ metric distances, then transformed back to the input CRS.
 The scale denominator is parsed from the \code{scale} column string (e.g.
 \code{"1:12000"} becomes \code{12000}).
 
-\strong{9x9 assumption:} the default \code{negative_size = 9} (inches) reflects the
-standard 228 mm format used by BC aerial survey cameras (e.g. Wild RC-10,
-Zeiss RMK). The BC Air Photo Database records camera focal length per roll
-(Type 02 field 3.2.2) but this is not available in the simplified centroid
-data from the catalogue. If working with non-standard format photography,
-override \code{negative_size} accordingly.
+\strong{Film and digital are not the same measurement.} The 9-inch default
+reflects the standard 228 mm negative used by BC aerial survey cameras
+(e.g. Wild RC-10, Zeiss RMK). A digital frame has no negative, and the
+catalogue mixes the two in one layer — roughly a fifth of frames in a
+sampled area are \code{Digital - Colour}. Ground width scales with the recording
+format, so applying a negative dimension to a sensor produces a rectangle
+that is wrong by an unknown factor while still drawing, still overlapping
+neighbours, and still yielding a coverage percentage.
+
+Each row is therefore sized from its \code{media} value, and \code{footprint_basis}
+records the outcome:
+
+\describe{
+\item{the \code{media} value}{format resolved from the format table}
+\item{\code{"assumed_default"}}{no \code{media} column; \code{negative_size} applied}
+\item{\code{"unknown_format"}}{\code{media} present but unknown; empty geometry}
+}
+
+Shipped defaults cover film only. Digital frames resolve to
+\code{"unknown_format"} rather than an invented number, because the sensor width
+they would need is not in the centroid metadata — and neither is the pixel
+count that would let \code{ground_sample_distance} stand in for it. Supply
+\code{format_size} if you know the camera:
+
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{fly_footprint(photos, format_size = c("Digital - Colour" = 3.54))
+}\if{html}{\out{</div>}}
+
+Filter on \code{footprint_basis} to keep only frames sized from a known format.
+
+\strong{Focal length and flying height are available.} \code{FOCAL_LENGTH},
+\code{FLYING_HEIGHT} and \code{SCALE} are fully populated in
+\code{WHSE_IMAGERY_AND_BASE_MAPS.AIMG_PHOTO_CENTROIDS_SP} and carried through to
+the bundled test data. Note the field is \code{SCALE}, not \code{PHOTO_SCALE} — the
+latter returns all \code{NULL}, which reads as missing data rather than a wrong
+field name.
 
 \strong{Flat-terrain assumption:} footprints are estimated assuming flat ground
 beneath the aircraft. In reality terrain slope changes the actual ground
@@ -45,5 +84,12 @@ Coverage and overlap calculations downstream (e.g. \code{\link[=fly_coverage]{fl
 centroids <- sf::st_read(system.file("testdata/photo_centroids.gpkg", package = "fly"))
 footprints <- fly_footprint(centroids)
 plot(sf::st_geometry(footprints))
+
+# How each footprint was sized
+table(footprints$footprint_basis)
+
+# Keep only frames sized from a known recording format
+sized <- footprints[footprints$footprint_basis != "unknown_format", ]
+nrow(sized)
 
 }

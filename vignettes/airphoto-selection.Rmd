@@ -36,11 +36,27 @@ aoi <- st_read(system.file("testdata/aoi.gpkg", package = "fly"), quiet = TRUE)
 `fly_footprint()` converts point centroids into rectangular polygons
 representing estimated ground coverage. The standard 9" x 9" (228 mm) negative
 used by BC aerial survey cameras produces a footprint width of
-`9 * scale * 0.0254` metres. The 9x9 format is the default (`negative_size = 9`)
-and is correct for standard BC catalogue photography. The full BC Air Photo
-Database records camera focal length per roll, but this field is not available
-in the simplified centroid data — override `negative_size` if working with
-non-standard format photography.
+`9 * scale * 0.0254` metres, which is the default (`negative_size = 9`).
+
+Ground width scales with the recording format, so that figure is a film
+measurement. The catalogue mixes film and digital in one layer — in a sampled
+area roughly a fifth of frames are `Digital - Colour` — and a digital frame has
+no negative. `fly_footprint()` therefore sizes each row from its `media` value
+and records the outcome in `footprint_basis`. Frames whose format it cannot
+resolve get an empty geometry rather than a plausible rectangle, and every
+downstream function reports how many it excluded:
+
+```r
+table(footprints$footprint_basis)
+sized <- footprints[footprints$footprint_basis != "unknown_format", ]
+```
+
+Digital frames resolve to `"unknown_format"` because the sensor width they need
+is not in the centroid metadata. Supply it yourself if you know the camera:
+`fly_footprint(photos, format_size = c("Digital - Colour" = 3.54))`.
+
+The photos used throughout this vignette are 1968 film, so every footprint below
+is sized from the 9-inch negative.
 
 Note that footprints assume flat terrain beneath the aircraft. On slopes the
 true ground coverage differs — downhill slopes produce a larger actual

@@ -32,3 +32,35 @@ test_that("fly_filter returns zero-row sf when no intersection", {
   expect_equal(nrow(result), 0)
   expect_equal(names(result), names(centroids))
 })
+
+test_that("fly_filter warns when frames have no footprint (#30)", {
+  photos <- mixed_media_fixture()
+  aoi <- sf::st_as_sfc(sf::st_bbox(
+    c(xmin = -126.62, ymin = 54.38, xmax = -126.52, ymax = 54.42),
+    crs = 4326
+  )) |> sf::st_sf(geometry = _)
+
+  w <- character(0)
+  withCallingHandlers(
+    fly_filter(photos, aoi, method = "footprint"),
+    warning = function(x) {
+      w <<- c(w, conditionMessage(x))
+      invokeRestart("muffleWarning")
+    }
+  )
+  expect_gt(length(w), 0)
+  expect_match(w, "excluded from this filter", all = FALSE)
+})
+
+test_that("fly_filter does not admit digital frames on a phantom footprint", {
+  photos <- mixed_media_fixture()
+  # AOI placed away from the film centroids but where a spurious 9-inch
+  # rectangle around the digital frames would still reach.
+  aoi <- sf::st_as_sfc(sf::st_bbox(
+    c(xmin = -126.552, ymin = 54.415, xmax = -126.548, ymax = 54.418),
+    crs = 4326
+  )) |> sf::st_sf(geometry = _)
+
+  kept <- suppressWarnings(fly_filter(photos, aoi, method = "footprint"))
+  expect_false(any(kept$media == "Digital - Colour"))
+})

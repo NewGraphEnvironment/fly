@@ -37,6 +37,7 @@ fly_filter <- function(photos_sf, aoi_sf, method = c("footprint", "centroid"), b
     hits <- sf::st_intersects(photos_sf, aoi_test, sparse = FALSE)[, 1]
   } else {
     footprints <- fly_footprint(photos_sf)
+    fly_warn_unsized(footprints, "this filter")
     hits <- sf::st_intersects(footprints, aoi_test, sparse = FALSE)[, 1]
   }
 

@@ -24,6 +24,7 @@ fly_overlap <- function(photos_sf) {
   on.exit(sf::sf_use_s2(TRUE))
 
   footprints <- fly_footprint(photos_sf) |> sf::st_transform(3005)
+  fly_warn_unsized(footprints, "overlap")
   n <- nrow(footprints)
 
   if (n < 2) {
