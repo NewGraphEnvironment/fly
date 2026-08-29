@@ -621,6 +621,33 @@ compound over time.
   of 6 files, 28 insertions and **50 deletions**. Reset before it left
   the branch, but only because the file count looked wrong.
 
+### Running a generator is not committing what it generated
+
+- “Verified: the builder runs clean and the new field is present” is a
+  true statement about the **generator**. It says nothing about the
+  artifact in the repo, because the build happened in a temp dir or in
+  memory and was never written back. The commit then carries the input
+  and not the output, and every consumer reads the stale artifact.
+- It is convincing precisely because real verification happened. The
+  author ran the thing, read the output, and confirmed the change — so
+  the natural follow-up question (“did you test it?”) gets a confident
+  yes.
+- Caught 2026-08-28 in rfp#219: four form schema CSVs gained a `site_id`
+  column and the PR body recorded a genuine check —
+  `rfp_form_build("viewscape", ...)` built clean, 25 fields, `site_id`
+  in both the GeoPackage and the QML. The GeoPackages and QMLs a field
+  crew actually deploys were never rebuilt. CI caught it only because a
+  drift guard rebuilds every shipped schema and byte-compares against
+  the committed artifact.
+- Two habits: run the repo’s own regeneration script rather than the
+  function (`data-raw/*/build_*.R` exists to write the artifacts, not
+  just exercise the builder), and check `git status` afterwards — an
+  edit to a generated tree that produces no diff is the tell.
+- **Keep a guard that compares committed artifacts to their inputs.**
+  Without one this is invisible until something downstream reads the
+  artifact, which is usually in the field. With one it is a red CI check
+  thirty seconds after push.
+
 ### Never silence stderr on a mutating command, and never chain one with `;`
 
 - `cmd_that_moves_things 2>/dev/null; next_command` combines two
@@ -1317,6 +1344,23 @@ years of records. A type error was the only thing that had prevented it.
   re-litigated at every review.
 - Then prove the alarm can fire: feed it a deliberately undeclared input
   and assert it is reported. A guard nobody has seen fail is decoration.
+- **Pooling the inputs loses the resolution the guard exists to have.**
+  Walking all the sources and then comparing against their **union** is
+  a different check from comparing against each — and it passes for
+  exactly the drift that matters, an item present in one source and
+  absent from another. The guard looks thorough, reads as per-source,
+  and is not.
+- The tell is a lookup whose key omits the source: `x %in% all$path`
+  rather than `x %in% all$path[all$source == s]`. Ask what the guard
+  would report if one source lost an entry the others kept; if the
+  answer is “nothing”, it is pooled.
+- Caught 2026-08-28 in gq#66, inside the fix for that very issue. gq
+  declared a layer group that exists in one of two shipped QGIS
+  templates and not the other; the registry has no `template` column, so
+  declaring it declared it for both. The new drift guard compared paths
+  against the union of both templates and reported clean. A reviewer
+  found it, not the guard — which is the point: a pooled guard cannot
+  catch its own author.
 
 ### Tests that silently do not run
 
@@ -1661,6 +1705,42 @@ CI. When a check matters, give it a mock-based twin that always runs.
   [`file.path()`](https://rdrr.io/r/base/file.path.html),
   [`interaction()`](https://rdrr.io/r/base/interaction.html).
 
+### A zero-length value in a comparison makes every branch false and silently picks the fallback
+
+- `x == character(0)` is `logical(0)`, so
+  [`which()`](https://rdrr.io/r/base/which.html) gives `integer(0)` and
+  `if (length(hit))` is FALSE **for every element**. A lookup written
+  this way does not error and does not report “not found” — it falls
+  through to whatever the else-branch does, usually *create*. The
+  created thing then carries the zero-length value as its name or key,
+  and is unnamed rather than absent.
+
+  ``` r
+
+  hit <- which(trimws(xml2::xml_attr(groups, "name")) == trimws(group))
+  if (length(hit)) return(groups[[hit[[1]]]])   # group = NULL -> never taken
+  g <- xml2::xml_add_child(parent, "layer-tree-group")
+  xml2::xml_set_attr(g, "name", group)          # sets nothing; attribute absent
+  ```
+
+- **The docs are what make it survive.** Because the fallback runs
+  silently and produces a plausible object, whatever the roxygen
+  *claims* `NULL` means goes unchallenged — and then gets copied into a
+  CLAUDE.md and read as measured fact. Caught 2026-08-28 in rfp#213: two
+  exported writers documented `group = NULL` as “inserts at the root”
+  and “uses the registry’s group”; both created an **unnamed**
+  layer-tree group at the end of the tree instead, where everything in
+  it draws under the basemaps and is invisible. One of them did it once
+  per call.
+
+- Sibling of the [`paste0()`](https://rdrr.io/r/base/paste.html) entry
+  above: both turn “nothing” into “one thing” rather than into an error.
+
+- Fix: test the argument, not the search result —
+  `if (is.null(group)) stop(...)` — and make the message list what *is*
+  available, which is also the cheapest way to notice the lookup never
+  had a chance.
+
 ### open_dataset(unify_schemas = TRUE) requires aligned types
 
 - Cross-prefix/file schema unification only merges what types allow:
@@ -1804,6 +1884,18 @@ CI. When a check matters, give it a mock-based twin that always runs.
 - **Prevention:** one worktree per session —
   `git worktree add ../<repo>-<task> -b <branch>`. Each session gets its
   own directory and its own checked-out branch; no contention.
+
+  - **`git worktree add <path> <branch>` fails when that branch is
+    already checked out**, and the primary clone almost always has the
+    default branch checked out. So the obvious isolating command —
+    `git worktree add $SP/x main` — aborts precisely when you reach for
+    it. Chained as `git worktree add … ; cd "$SP/x" && …`, the failure
+    falls through: `cd` errors, the shell stays in the caller’s cwd, and
+    every later command runs **in the shared checkout** — the contention
+    the worktree existed to prevent. Use `-b <new-branch>` (or
+    `--detach`) so the worktree never asks for a branch someone holds,
+    and chain with `&&` so an abort cannot fall through. Seen 2026-08-28
+    appending the rule directly above this one.
 
 - **Detection (cheap; do it before any commit, merge, or visibility
   flip):** assert the branch is what you think it is, not just that the
