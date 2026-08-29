@@ -567,19 +567,46 @@ test_that("fly_footprint handles anisotropic DEM cells", {
 test_that("fly_footprint does not size its coverage grid to the span of the photo set", {
   skip_if_no_terra()
   # Counting the coverage denominator on one grid spanning every frame sizes it
-  # to the GAP between frames, not to the frames. Two photos 700 km apart —
-  # which the fallback test above already creates — made that 243 million cells
-  # where the same two counted separately need 16 thousand.
+  # to the GAP between frames, not to the frames. Two photos 700 km apart made
+  # that 243 million cells where the same two counted separately need 16
+  # thousand — a 4 GB allocation for a correct answer.
   #
-  # Asserted as elapsed time because the failure is an allocation: the union
-  # form took seconds and gigabytes, the per-frame form is instant.
+  # Asserted on the grid itself, not on elapsed time. The first version of this
+  # test used `expect_lt(elapsed, 10)`, and the defect runs in 1.0 s against the
+  # fix's 0.18 s — so it passed with a tenfold margin on the very thing it was
+  # written to catch, and no threshold separates them without being CI jitter.
+  # Every other assertion in it passed too, because the union grid produces the
+  # *right* number; it just allocates absurdly to get there.
   centroids <- sf::st_read(testdata_path("photo_centroids.gpkg"), quiet = TRUE)[1:2, ]
   sf::st_geometry(centroids)[2] <- sf::st_sfc(sf::st_point(c(-120, 50)), crs = 4326)
+  dem <- terra::rast(testdata_path("dem.tif"))
 
-  elapsed <- system.time(
-    fp <- suppressWarnings(fly_footprint(centroids, dem = testdata_path("dem.tif")))
-  )[["elapsed"]]
-  expect_lt(elapsed, 10)
+  # The fixture must be able to expose the defect: the grid spanning both
+  # frames is enormous, so a union-sized allocation would stand out at once.
+  # Measured before the mock is installed, or this call records itself.
+  flat <- fly_footprint(centroids)
+  union_cells <- prod(dim(fly_dem_grid(
+    dem, sf::st_transform(flat, sf::st_crs(terra::crs(dem)))
+  ))[1:2])
+  expect_gt(union_cells, 1e8)
+
+  # Record every grid the real call asks for.
+  sizes <- c()
+  real_grid <- fly_dem_grid
+  testthat::local_mocked_bindings(
+    fly_dem_grid = function(dem, geom) {
+      g <- real_grid(dem, geom)
+      sizes <<- c(sizes, prod(dim(g)[1:2]))
+      g
+    }
+  )
+  fp <- suppressWarnings(fly_footprint(centroids, dem = dem))
+
+  # No grid built during the call may approach it. Each is one footprint.
+  expect_gt(length(sizes), 0)
+  expect_lt(max(sizes), 1e6)
+  expect_lt(max(sizes), union_cells / 100)
+
   expect_equal(fp$footprint_terrain, c("dem_agl", "no_dem_coverage"))
   expect_equal(fp$dem_coverage, c(1, 0))
 })

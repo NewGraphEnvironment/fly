@@ -35,6 +35,19 @@ fly_warn_unsized <- function(footprints, operation) {
 # covered part to sit systematically higher or lower than the whole.
 fly_dem_coverage_min <- function() 0.95
 
+# The DEM-aligned grid a single footprint is counted against.
+#
+# Named and separate so the "one frame at a time" invariant can be asserted
+# rather than merely intended: the size of this grid is the whole difference
+# between a bounded allocation and one scaled to the distance between photos.
+fly_dem_grid <- function(dem, geom) {
+  terra::rast(
+    terra::align(terra::ext(terra::vect(geom)), dem),
+    resolution = terra::res(dem),
+    crs = terra::crs(dem)
+  )
+}
+
 # Mean ground elevation under each rectangle, with the fraction of the
 # rectangle the DEM actually described.
 #
@@ -76,11 +89,7 @@ fly_dem_sample <- function(dem, rects) {
   # separately. Each frame's own template is bounded by one footprint.
   expected <- vapply(seq_len(nrow(in_dem)), function(i) {
     vi <- terra::vect(in_dem[i, ])
-    tmpl <- terra::rast(
-      terra::align(terra::ext(vi), dem),
-      resolution = terra::res(dem),
-      crs = terra::crs(dem)
-    )
+    tmpl <- fly_dem_grid(dem, in_dem[i, ])
     terra::values(tmpl) <- 1L
     sum(!is.na(terra::extract(tmpl, vi)[, 2]))
   }, numeric(1))
