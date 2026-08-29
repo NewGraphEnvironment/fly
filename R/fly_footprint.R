@@ -62,7 +62,14 @@ fly_dem_sample <- function(dem, rects) {
   # footprint half off the edge of the data as fully covered, which is the
   # affirmative claim the column exists to prevent. A DEM cropped to an AOI is
   # exactly this shape: no NA interior, it simply stops.
-  expected <- as.numeric(sf::st_area(in_dem)) / prod(terra::res(dem))
+  # Both halves must be in the DEM's own coordinate units. st_area() on a
+  # geographic CRS returns geodesic metres squared while terra::res() returns
+  # degrees, and dividing one by the other is meaningless — it reported ~1e-10
+  # coverage for fully-covered frames. Dropping the CRS forces the planar area,
+  # which is degrees squared for a geographic DEM and metres squared for a
+  # projected one, matching res() in both.
+  expected <- as.numeric(sf::st_area(sf::st_set_crs(in_dem, NA))) /
+    prod(terra::res(dem))
   got <- vapply(per_frame, function(x) sum(!is.na(x)), numeric(1))
   # extract() takes a cell whose centre falls inside the polygon, so `got` is
   # within a cell-perimeter of `expected` even at full coverage; cap at 1.
@@ -408,8 +415,9 @@ fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL,
         round(100 * fly_dem_coverage_min()), "% covered by the DEM (as little ",
         "as ", round(100 * min(covered[partial])), "% of one footprint). Their ",
         "ground elevation is the mean of the covered part, which need not ",
-        "represent the whole. Buffer the DEM by at least half the widest ",
-        "footprint. See `dem_coverage`.",
+        "represent the whole. Buffer the DEM past the corner of the widest ",
+        "footprint \u2014 half its width times sqrt(2), not half its width. ",
+        "See `dem_coverage`.",
         call. = FALSE
       )
     }

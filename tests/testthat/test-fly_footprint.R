@@ -412,10 +412,20 @@ test_that("fly_footprint detects a footprint running past the DEM's extent", {
     terra::vect(sf::st_union(sf::st_buffer(sf::st_transform(centroids, 3005), 500))),
     snap = "out"
   )
-  # The fixture must actually reach the failure mode: no NA interior to count.
-  expect_equal(
-    as.numeric(terra::global(tight, function(x) sum(is.na(x)))[1, 1]),
-    as.numeric(terra::global(terra::crop(full, tight), function(x) sum(is.na(x)))[1, 1])
+  # The fixture must actually reach the failure mode, which is ground BEYOND
+  # the raster's extent — not NA cells within it. Assert that directly: some
+  # footprint must extend past the DEM's extent, or this test is checking the
+  # sliver case the previous test already covers and nothing new.
+  #
+  # (The earlier version of this premise compared `tight` against
+  # `terra::crop(full, tight)`, which is `tight` by construction. Both sides
+  # were equal for every possible fixture, so it could not fail.)
+  fp_flat <- fly_footprint(centroids)
+  fp_bbox <- sf::st_bbox(sf::st_transform(fp_flat, 3005))
+  dem_ext <- terra::ext(tight)
+  expect_true(
+    fp_bbox[["xmin"]] < dem_ext[1] || fp_bbox[["xmax"]] > dem_ext[2] ||
+      fp_bbox[["ymin"]] < dem_ext[3] || fp_bbox[["ymax"]] > dem_ext[4]
   )
 
   w <- character()
@@ -444,4 +454,28 @@ test_that("fly_footprint reports zero coverage, not NA, for a frame off the DEM"
 
   expect_equal(fp$footprint_terrain, "no_dem_coverage")
   expect_equal(fp$dem_coverage, 0)
+})
+
+test_that("fly_footprint measures coverage correctly on a geographic DEM", {
+  skip_if_no_terra()
+  # Every other DEM in this suite is EPSG:3005 or a crop of it, so the
+  # reprojection branch in fly_dem_sample() is never executed by them and a
+  # units error there is invisible. Coverage compares a footprint's area
+  # against the DEM's cell size, and both have to be in the DEM's own units:
+  # st_area() on a geographic CRS returns geodesic m2 while terra::res()
+  # returns degrees, which reported ~1e-10 coverage for fully-covered frames
+  # and warned on all of them.
+  centroids <- sf::st_read(testdata_path("photo_centroids.gpkg"), quiet = TRUE)
+  geo <- terra::project(terra::rast(testdata_path("dem.tif")), "EPSG:4326")
+  expect_true(sf::st_is_longlat(sf::st_crs(terra::crs(geo))))
+
+  fp <- fly_footprint(centroids, dem = geo)
+  expect_true(all(fp$dem_coverage > 0.95))
+  expect_true(all(fp$dem_coverage <= 1))
+  expect_equal(fp$footprint_terrain, rep("dem_agl", nrow(centroids)))
+
+  # And it must agree with the projected DEM it was made from, since the two
+  # describe the same ground.
+  proj <- fly_footprint(centroids, dem = testdata_path("dem.tif"))
+  expect_equal(fp$height_agl, proj$height_agl, tolerance = 0.01)
 })
