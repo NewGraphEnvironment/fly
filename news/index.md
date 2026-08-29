@@ -2,6 +2,32 @@
 
 ## fly (development version)
 
+### 0.4.0 (2026-08-28)
+
+- [`fly_footprint()`](https://newgraphenvironment.github.io/fly/reference/fly_footprint.md)
+  sizes each frame from its `media` value instead of applying a fixed
+  9-inch negative to everything. A digital frame has no negative, and
+  the catalogue mixes film and digital in one layer
+  ([\#30](https://github.com/NewGraphEnvironment/fly/issues/30))
+- New `footprint_basis` column records how each footprint was sized.
+  Frames whose recording format cannot be resolved get an empty geometry
+  and a warning, rather than a plausible rectangle
+- New `format_size` argument supplies widths for formats fly does not
+  ship. Digital defaults are deliberately absent until sensor widths are
+  established
+  ([\#32](https://github.com/NewGraphEnvironment/fly/issues/32))
+- `negative_size` keeps its meaning as the film dimension: it sizes film
+  and no-media input, and never sizes a digital frame
+- All functions that consume footprints now report how many frames they
+  excluded for want of one
+- Fix
+  [`fly_coverage()`](https://newgraphenvironment.github.io/fly/reference/fly_coverage.md)
+  dropping an entire group when all its footprints were unsized, and
+  emitting multiple rows for a multi-feature intersection
+- Correct the documented claim that focal length is unavailable in
+  centroid data — `FOCAL_LENGTH`, `FLYING_HEIGHT` and `SCALE` are fully
+  populated
+
 ### 0.3.0 (2026-03-12)
 
 - **BREAKING:** Rename `fly_thumb_georef()` →

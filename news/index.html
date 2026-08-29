@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fly</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,18 @@
 
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="development version" id="fly-development-version">fly (development version)<a class="anchor" aria-label="anchor" href="#fly-development-version"></a></h2>
+<div class="section level3">
+<h3 id="id_040-development-version">0.4.0 (2026-08-28)<a class="anchor" aria-label="anchor" href="#id_040-development-version"></a></h3>
+<ul><li>
+<code><a href="../reference/fly_footprint.html">fly_footprint()</a></code> sizes each frame from its <code>media</code> value instead of applying a fixed 9-inch negative to everything. A digital frame has no negative, and the catalogue mixes film and digital in one layer (<a href="https://github.com/NewGraphEnvironment/fly/issues/30" class="external-link">#30</a>)</li>
+<li>New <code>footprint_basis</code> column records how each footprint was sized. Frames whose recording format cannot be resolved get an empty geometry and a warning, rather than a plausible rectangle</li>
+<li>New <code>format_size</code> argument supplies widths for formats fly does not ship. Digital defaults are deliberately absent until sensor widths are established (<a href="https://github.com/NewGraphEnvironment/fly/issues/32" class="external-link">#32</a>)</li>
+<li>
+<code>negative_size</code> keeps its meaning as the film dimension: it sizes film and no-media input, and never sizes a digital frame</li>
+<li>All functions that consume footprints now report how many frames they excluded for want of one</li>
+<li>Fix <code><a href="../reference/fly_coverage.html">fly_coverage()</a></code> dropping an entire group when all its footprints were unsized, and emitting multiple rows for a multi-feature intersection</li>
+<li>Correct the documented claim that focal length is unavailable in centroid data — <code>FOCAL_LENGTH</code>, <code>FLYING_HEIGHT</code> and <code>SCALE</code> are fully populated</li>
+</ul></div>
 <div class="section level3">
 <h3 id="id_030-development-version">0.3.0 (2026-03-12)<a class="anchor" aria-label="anchor" href="#id_030-development-version"></a></h3>
 <ul><li>
