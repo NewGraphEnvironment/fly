@@ -80,10 +80,12 @@
 #' detail matters, set `srcnodata = NULL` and handle frame masking
 #' downstream (e.g., circle detection).
 #'
-#' **Accuracy:** footprints assume flat terrain and nadir camera angle.
-#' The georeferenced images are approximate — useful for visual context,
-#' not survey-grade positioning. See [fly_footprint()] for details on
-#' limitations.
+#' **Accuracy:** footprints assume a nadir camera angle, and without `dem`
+#' they also assume flat terrain. Passing `dem` sizes each frame from its
+#' height above ground, which on steep ground is the larger of the two error
+#' terms — but the images stay approximate either way, useful for visual
+#' context rather than survey-grade positioning. See the **Terrain** section
+#' of [fly_footprint()].
 #'
 #' @examples
 #' centroids <- sf::st_read(system.file("testdata/photo_centroids.gpkg", package = "fly"))

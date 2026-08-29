@@ -1,7 +1,7 @@
 Package: fly
 Title: Airphoto Footprint Estimation and Coverage Selection
-Version: 0.4.0
-Date: 2026-08-28
+Version: 0.5.0
+Date: 2026-08-29
 Authors@R: c(
     person("Allan", "Irvine", , "al@newgraphenvironment.com", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0002-3495-2128")),

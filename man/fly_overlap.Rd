@@ -23,8 +23,12 @@ area and the percentage of each photo's footprint that overlaps.
 Most useful on same-scale photos from the same flight.
 }
 \details{
-Overlap percentages are estimates based on flat-terrain footprints from
-\code{\link[=fly_footprint]{fly_footprint()}}. See that function for details on terrain limitations.
+Overlap percentages are estimates from \code{\link[=fly_footprint]{fly_footprint()}}, and inherit
+whatever basis it was given. Without \code{dem} that is the reported scale, which
+assumes flat ground and understates footprint area wherever the terrain sits
+below the elevation the scale was computed for. Pass \code{dem} to size each frame
+from its height above ground instead — see the \strong{Terrain} section of
+\code{\link[=fly_footprint]{fly_footprint()}}.
 }
 \examples{
 centroids <- sf::st_read(system.file("testdata/photo_centroids.gpkg", package = "fly"))

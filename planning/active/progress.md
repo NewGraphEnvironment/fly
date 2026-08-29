@@ -35,3 +35,15 @@
   passing in one mode proves nothing about the other; both are tested
 - Passthrough tests assert the numbers MOVE, not that the argument is tolerated
 - 176 pass, 0 fail; 0 real new lints (6 are installed-vs-source artifacts)
+
+### Phase 4 — docs and release (done)
+
+- Flat-terrain claims made conditional in fly_footprint (new **Terrain** section),
+  fly_overlap, fly_georef, and both vignette locations
+- Vignette gains a "Terrain-adjusted footprints" section: comparison table (medians
+  13.3% and 15.6%), an overlay figure, and the MRDEM-30 recipe for a user's own AOI
+- Issue #9 body edited rather than commented: records the datum-offset reframing, the
+  measured effect, why `footprint_terrain` supersedes the `footprint_basis` suggestion,
+  and the MRDEM-vs-elevatr comparison. Earlier corrections preserved
+- NEWS + version 0.5.0 as the final commit
+- 176 pass, 0 fail, 0 warn; examples clean; vignette renders

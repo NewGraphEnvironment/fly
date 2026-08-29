@@ -1,5 +1,15 @@
 # fly (development version)
 
+## 0.5.0 (2026-08-29)
+
+- `fly_footprint()` gains a `dem` argument, sizing each frame from its height above ground instead of the reported scale ([#9](https://github.com/NewGraphEnvironment/fly/issues/9)). On the bundled Upper Bulkley AOI the reported scale understates footprint **area by a median 14%, ranging to 27%** — and always in the same direction, because the scale is referenced to an elevation above the valley floor the photos cover. This is a datum offset, not the slope effect the issue described
+- `FLYING_HEIGHT` is metres above sea level, so subtracting terrain elevation is what turns it into the height ground coverage scales with. Elevation is sampled twice — at the centroid, then as the mean under the resulting rectangle, which differ by up to 130 m on a 7.2 km frame
+- New `footprint_terrain` and `height_agl` columns record which terrain treatment each frame received and the height it was sized from. `footprint_basis` is unchanged: it is already matched by value downstream, so encoding terrain into it would break caller filters
+- `dem` is accepted by `fly_coverage()`, `fly_overlap()`, `fly_filter()`, `fly_select()` and `fly_georef()`, so the correction is reachable from every function that builds a footprint
+- Frames the DEM cannot correct — outside its coverage, or with unusable `flying_height` / `focal_length` — fall back to nominal scale with a warning rather than being dropped
+- New `inst/testdata/dem.tif`, a clip of NRCan's MRDEM-30. `terra` added to Suggests; it is only needed when a `dem` is supplied
+- Footprints remain axis-aligned rectangles under a nadir assumption. Per-corner ray-casting measures ~2% against the 14% the DEM addresses, and is deferred
+
 ## 0.4.0 (2026-08-28)
 
 - `fly_footprint()` sizes each frame from its `media` value instead of applying a fixed 9-inch negative to everything. A digital frame has no negative, and the catalogue mixes film and digital in one layer ([#30](https://github.com/NewGraphEnvironment/fly/issues/30))

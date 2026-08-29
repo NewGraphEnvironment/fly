@@ -45,16 +45,16 @@ DEM source: **MRDEM-30**, NRCan's 30 m bare-earth DTM, the same product
 
 ## Phase 4: Docs and release
 
-- [ ] Rewrite the flat-terrain paragraphs as conditional in all four locations
-- [ ] Document DEM sources: MRDEM-30 default, LidarBC via `stac-dem-bc`, BC TRIM 25 m via `bcdata`
-- [ ] Vignette section showing flat vs terrain-adjusted on the bundled AOI
-- [ ] Edit issue #9 body: `footprint_terrain` supersedes the `footprint_basis` suggestion;
+- [x] Rewrite the flat-terrain paragraphs as conditional in all four locations
+- [x] Document DEM sources: MRDEM-30 default, LidarBC via `stac-dem-bc`, BC TRIM 25 m via `bcdata`
+- [x] Vignette section showing flat vs terrain-adjusted on the bundled AOI
+- [x] Edit issue #9 body: `footprint_terrain` supersedes the `footprint_basis` suggestion;
       effect is a datum offset rather than a slope effect
-- [ ] `NEWS.md`, version 0.5.0 as the final commit
+- [x] `NEWS.md`, version 0.5.0 as the final commit
 
 ## Validation
 
-- [ ] Tests pass
-- [ ] `/code-check` clean on each commit
-- [ ] PWF checkboxes match landed work
+- [x] Tests pass
+- [x] `/code-check` clean on each commit
+- [x] PWF checkboxes match landed work
 - [ ] `/planning-archive` on completion

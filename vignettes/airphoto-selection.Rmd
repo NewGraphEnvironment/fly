@@ -58,10 +58,11 @@ is not in the centroid metadata. Supply it yourself if you know the camera:
 The photos used throughout this vignette are 1968 film, so every footprint below
 is sized from the 9-inch negative.
 
-Note that footprints assume flat terrain beneath the aircraft. On slopes the
-true ground coverage differs — downhill slopes produce a larger actual
-footprint, uphill slopes a smaller one. All coverage and overlap numbers
-downstream inherit this approximation.
+By default footprints are sized from the reported scale, which assumes flat
+ground at whatever elevation that scale was computed for. Supplying a DEM
+removes that assumption — worth about 14% of footprint area here, and shown at
+the end of this vignette. Every coverage and overlap number below inherits
+whichever basis you choose.
 Figure \@ref(fig:fig-footprint) shows the estimated footprints for all 20
 photos. Notice that some centroids fall outside the AOI while their footprints
 still overlap it — `fly_filter()` with `method = "footprint"` catches these
@@ -274,8 +275,85 @@ georef <- fly_georef(fetched, centroids[1:3, ],
 georef[, c("airp_id", "dest", "success")]
 ```
 
-The georeferenced TIFFs inherit the flat-terrain and nadir-camera
-assumptions from `fly_footprint()` — they are approximate, useful for
-visual context rather than survey-grade positioning. Metadata from the
-original centroid data (date, scale, focal length) links back via
-`airp_id`.
+The georeferenced TIFFs inherit whatever basis `fly_footprint()` was given,
+plus its nadir-camera assumption — `fly_georef()` takes the same `dem`
+argument. They are approximate either way, useful for visual context rather
+than survey-grade positioning. Metadata from the original centroid data (date,
+scale, focal length) links back via `airp_id`.
+
+# Terrain-adjusted footprints
+
+Everything above sizes each frame from its reported scale. That scale is
+referenced to some elevation, and where the ground sits below that elevation the
+photo covers more than the scale implies.
+
+The catalogue carries what is needed to do better. `FLYING_HEIGHT` is metres
+above **sea level**, not height above ground, so subtracting terrain elevation
+gives the height ground coverage actually scales with:
+
+```{r terrain-compare}
+dem <- system.file("testdata/dem.tif", package = "fly")
+
+flat    <- fly_footprint(centroids)
+terrain <- fly_footprint(centroids, dem = dem)
+
+pct <- 100 * (as.numeric(st_area(st_transform(terrain, 3005))) /
+                as.numeric(st_area(st_transform(flat, 3005))) - 1)
+
+dplyr::tibble(
+  scale        = centroids$scale,
+  elevation_m  = round(centroids$flying_height - terrain$height_agl),
+  agl_m        = round(terrain$height_agl),
+  area_change  = round(pct, 1)
+) |>
+  dplyr::group_by(scale) |>
+  dplyr::summarise(
+    n          = dplyr::n(),
+    ground_m   = paste0(min(elevation_m), "-", max(elevation_m)),
+    `area +%`  = paste0(round(min(area_change), 1), " to ", round(max(area_change), 1)),
+    median     = round(median(area_change), 1)
+  ) |>
+  knitr::kable(caption = "Footprint area change from terrain-adjusted sizing, by scale.")
+```
+
+Every footprint grows, and none shrink. That one-directional bias is the tell
+that this is not a slope effect: the reported scale is referenced to an elevation
+above the valley floor these photos actually cover, so it understates every
+frame. Slope would push in both directions.
+
+```{r fig-terrain, fig.cap = "Flat-terrain footprints (grey) against terrain-adjusted footprints (red) for the 1:31680 frames. The correction is a uniform enlargement per frame, not a change of shape."}
+idx <- centroids$scale == "1:31680"
+plot(st_geometry(terrain[idx, ]), border = "firebrick")
+plot(st_geometry(flat[idx, ]), border = "grey50", add = TRUE)
+plot(st_geometry(aoi), col = NA, border = "grey20", add = TRUE)
+```
+
+`footprint_terrain` records what happened to each frame, so a fallback is
+visible rather than silent:
+
+```{r terrain-basis}
+table(terrain$footprint_terrain)
+```
+
+The bundled `dem.tif` is a clip of **MRDEM-30**, NRCan's 30 m bare-earth DTM.
+For your own area of interest, read it straight off the public COG — no download
+or account needed, since `/vsicurl/` fetches only the bytes that intersect:
+
+```r
+mrdem <- paste0(
+  "/vsicurl/https://canelevation-dem.s3.ca-central-1.amazonaws.com/",
+  "mrdem-30/mrdem-30-dtm.tif"
+)
+fly_coverage(centroids, aoi, by = "scale", dem = mrdem)
+```
+
+Buffer generously. Resolution matters less than extent here — 30 m resolves a
+2.7 km footprint's mean elevation perfectly well, but a DEM that stops short of
+the frame edges sends those frames to the `no_dem_coverage` fallback. Allow at
+least half the widest footprint, which is 3.6 km at 1:31680.
+
+What a DEM does **not** fix is the nadir assumption. The catalogue carries no
+tilt, roll or crab, so footprints stay axis-aligned rectangles. On this area
+that per-corner refinement is worth roughly 2%, against the 14% the DEM
+addresses.
+
