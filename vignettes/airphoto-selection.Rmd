@@ -291,7 +291,7 @@ The catalogue carries what is needed to do better. `FLYING_HEIGHT` is metres
 above **sea level**, not height above ground, so subtracting terrain elevation
 gives the height ground coverage actually scales with:
 
-```{r terrain-compare}
+```{r terrain-compare, eval = requireNamespace("terra", quietly = TRUE)}
 dem <- system.file("testdata/dem.tif", package = "fly")
 
 flat    <- fly_footprint(centroids)
@@ -321,7 +321,7 @@ that this is not a slope effect: the reported scale is referenced to an elevatio
 above the valley floor these photos actually cover, so it understates every
 frame. Slope would push in both directions.
 
-```{r fig-terrain, fig.cap = "Flat-terrain footprints (grey) against terrain-adjusted footprints (red) for the 1:31680 frames. The correction is a uniform enlargement per frame, not a change of shape."}
+```{r fig-terrain, eval = requireNamespace("terra", quietly = TRUE), fig.cap = "Flat-terrain footprints (grey) against terrain-adjusted footprints (red) for the 1:31680 frames. The correction is a uniform enlargement per frame, not a change of shape."}
 idx <- centroids$scale == "1:31680"
 plot(st_geometry(terrain[idx, ]), border = "firebrick")
 plot(st_geometry(flat[idx, ]), border = "grey50", add = TRUE)
@@ -331,7 +331,7 @@ plot(st_geometry(aoi), col = NA, border = "grey20", add = TRUE)
 `footprint_terrain` records what happened to each frame, so a fallback is
 visible rather than silent:
 
-```{r terrain-basis}
+```{r terrain-basis, eval = requireNamespace("terra", quietly = TRUE)}
 table(terrain$footprint_terrain)
 ```
 
@@ -354,13 +354,14 @@ the `no_dem_coverage` fallback; one whose centroid is covered and whose edges
 are not is still corrected, from the mean of the covered part. `dem_coverage`
 reports the fraction per frame, and anything below 95% warns:
 
-```{r terrain-coverage}
+```{r terrain-coverage, eval = requireNamespace("terra", quietly = TRUE)}
 round(range(terrain$dem_coverage), 3)
 ```
 
-Reprojecting a DEM leaves NA slivers along its edges, which is why these are
-just under 1 rather than exactly 1. Allow at least half the widest footprint —
-3.6 km at 1:31680 — and neither case arises.
+Buffer past the **corner** of the widest footprint rather than its half-side.
+The far point of a square is `half_side * sqrt(2)` — 5.1 km at 1:31680, not
+3.6 km — and the correction enlarges the rectangle again before the second
+sampling pass reaches it. The bundled DEM allows 5.4 km.
 
 What a DEM does **not** fix is the nadir assumption. The catalogue carries no
 tilt, roll or crab, so footprints stay axis-aligned rectangles. On this area

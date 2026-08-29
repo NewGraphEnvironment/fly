@@ -87,7 +87,7 @@ field name.
 Without \code{dem}, footprints are sized from the reported scale, which assumes
 flat ground at whatever elevation the scale was computed for. That assumption
 costs more than it looks: on the bundled Upper Bulkley AOI the reported scale
-\strong{understates footprint area by a median 14\%, ranging to 27\%} — and always in
+\strong{understates footprint area by a median 14\%, ranging to 26\%} — and always in
 the same direction, because the scale is referenced to an elevation above the
 valley floor the photos actually cover.
 
@@ -99,9 +99,12 @@ into the height ground coverage actually scales with:
 ground width        = format width * (height above ground / focal length)
 }\if{html}{\out{</div>}}
 
-Elevation is sampled in two passes — at the centroid, then as the mean under
-the resulting rectangle. The second pass matters: on a 7.2 km wide 1:31680
-frame the two differ by up to 130 m.
+Elevation is the \strong{mean under the whole footprint}, not a reading at the
+centroid — on a 7.2 km wide 1:31680 frame the two differ by up to 140 m.
+That is measured in two passes, because the footprint being averaged over is
+itself what the correction changes: the first pass averages over the
+nominal-scale rectangle, the second over the rectangle the first produced.
+A third pass moves the area by under 0.02\% here, so two is where it settles.
 
 \code{footprint_terrain} records what happened to each frame:
 
@@ -143,8 +146,11 @@ has no elevation; a frame whose centroid is covered and whose edges are not
 is still corrected, from the mean of the covered part, and warns once it
 falls below 95\%. \code{dem_coverage} reports the fraction per frame, so a
 partially-sampled footprint can be filtered rather than merely noticed.
-Buffer the DEM by at least half the widest footprint — 3.6 km at 1:31680 —
-so neither arises.
+
+Buffer past the \strong{corner} of the widest footprint, not its half-side: the
+far point of a square is \code{half_side * sqrt(2)}, which at 1:31680 is 5.1 km
+rather than 3.6 km. Allow more again for the correction itself, which
+enlarges footprints before the second pass samples them.
 
 Coverage and overlap downstream (e.g. \code{\link[=fly_coverage]{fly_coverage()}}, \code{\link[=fly_overlap]{fly_overlap()}})
 accept the same \code{dem} argument and inherit whichever basis you give them.
@@ -164,9 +170,15 @@ nrow(sized)
 
 # Terrain-adjusted: size each frame from its height above ground instead of
 # the reported scale. On this AOI every footprint grows, by a median 14\%.
-terrain <- fly_footprint(centroids, dem = system.file("testdata/dem.tif", package = "fly"))
-round(100 * (as.numeric(sf::st_area(sf::st_transform(terrain, 3005))) /
-               as.numeric(sf::st_area(sf::st_transform(footprints, 3005))) - 1), 1)
-table(terrain$footprint_terrain)
+# terra is Suggests-only, so the DEM path is guarded here.
+if (requireNamespace("terra", quietly = TRUE)) {
+  terrain <- fly_footprint(
+    centroids,
+    dem = system.file("testdata/dem.tif", package = "fly")
+  )
+  print(round(100 * (as.numeric(sf::st_area(sf::st_transform(terrain, 3005))) /
+    as.numeric(sf::st_area(sf::st_transform(footprints, 3005))) - 1), 1))
+  print(table(terrain$footprint_terrain))
+}
 
 }

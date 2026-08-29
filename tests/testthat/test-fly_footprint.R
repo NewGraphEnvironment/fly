@@ -361,3 +361,35 @@ test_that("fly_footprint warns when a footprint is materially off the DEM", {
   expect_false(sf::st_is_empty(sf::st_geometry(fp)))
   expect_lt(fp$dem_coverage, 0.95)
 })
+
+test_that("fly_footprint reports no terrain treatment for an unparseable scale", {
+  skip_if_no_terra()
+  # A resolvable `media` with a `scale` that will not parse still leaves a frame
+  # with no footprint. Keying the terrain column off the recording format alone
+  # labelled it "nominal_scale", claiming a treatment for a frame that has no
+  # geometry to treat.
+  photos <- sf::st_read(testdata_path("photo_centroids.gpkg"), quiet = TRUE)[1:2, ]
+  photos$scale[2] <- "not-a-scale"
+  fp <- suppressWarnings(fly_footprint(photos))
+
+  expect_true(sf::st_is_empty(sf::st_geometry(fp)[2]))
+  expect_true(is.na(fp$footprint_terrain[2]))
+  expect_false(is.na(fp$footprint_terrain[1]))
+})
+
+test_that("fly_footprint tolerates a centroid on a DEM hole", {
+  skip_if_no_terra()
+  # The mean is taken over the whole footprint, so a single missing cell beneath
+  # the centroid says nothing about whether the frame can be corrected. Punch a
+  # hole at one centroid and the frame must still come back corrected.
+  centroids <- sf::st_read(testdata_path("photo_centroids.gpkg"), quiet = TRUE)[1, ]
+  dem <- terra::rast(testdata_path("dem.tif"))
+  cell <- terra::cellFromXY(dem, sf::st_coordinates(sf::st_transform(centroids, 3005)))
+  dem[cell] <- NA
+  expect_true(is.na(terra::extract(dem,
+    terra::vect(sf::st_transform(centroids, 3005)))[, 2]))
+
+  fp <- fly_footprint(centroids, dem = dem)
+  expect_equal(fp$footprint_terrain, "dem_agl")
+  expect_gt(fp$height_agl, 0)
+})

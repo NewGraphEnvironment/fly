@@ -25,45 +25,38 @@ fly_warn_unsized <- function(footprints, operation) {
   invisible(footprints)
 }
 
-# Sample ground elevation beneath each frame from a DEM.
-#
-# Two passes. The first samples at the centroid to get a provisional footprint;
-# the second takes the mean elevation under that rectangle. The iteration is
-# load-bearing rather than cosmetic — on a 7.2 km 1:31680 frame the centroid and
-# the footprint mean differ by up to 130 m, which moves the area correction by
-# several percent.
-#
 # Coverage below which a footprint's mean elevation stops being trustworthy.
 #
 # Reprojecting a DEM leaves NA slivers along its edges, so a frame near the
 # margin is routinely a percent or two short through no fault of the caller —
-# warning on any missing cell at all would fire on 3 of the 20 bundled frames
-# and quickly stop being read. A frame missing more than a twentieth of its
-# footprint is a different thing: that is enough for the covered part to sit
-# systematically higher or lower than the whole.
+# warning on any missing cell at all would fire on a bundled frame that is
+# 99.96% covered, and a guard that noisy stops being read. A frame missing more
+# than a twentieth of its footprint is a different thing: that is enough for the
+# covered part to sit systematically higher or lower than the whole.
 fly_dem_coverage_min <- function() 0.95
 
-# Returns a list of `elev` (metres, NA where the DEM gives nothing at the
-# centroid) and `covered`, the fraction of cells under each footprint that
-# carried a value. `covered` matters because averaging with na.rm = TRUE cannot
-# tell a fully-sampled frame from one hanging half off the edge of the data —
-# both yield a number, and only one of them means what it appears to.
-fly_dem_elevation <- function(dem, pts_3005, half_side) {
-  dem_crs <- sf::st_crs(terra::crs(dem))
-  to_dem <- function(geom) terra::vect(sf::st_transform(geom, dem_crs))
-
-  elev <- terra::extract(dem, to_dem(pts_3005), fun = mean, na.rm = TRUE)[, 2]
-  covered <- rep(NA_real_, length(elev))
-
-  coords <- sf::st_coordinates(pts_3005)
-  provisional <- fly_rectangles(coords, half_side)
-  ok <- !is.na(elev) & !sf::st_is_empty(provisional)
-  if (any(ok)) {
-    cells <- terra::extract(dem, to_dem(sf::st_sf(geometry = provisional[ok])))
-    per_frame <- split(cells[, 2], cells[, 1])
-    elev[ok] <- vapply(per_frame, function(v) mean(v, na.rm = TRUE), numeric(1))
-    covered[ok] <- vapply(per_frame, function(v) mean(!is.na(v)), numeric(1))
+# Mean ground elevation under each rectangle, with the fraction of the
+# rectangle the DEM actually described.
+#
+# `covered` matters because averaging with na.rm = TRUE cannot tell a
+# fully-sampled frame from one hanging half off the edge of the data — both
+# yield a number, and only one of them means what it appears to.
+fly_dem_sample <- function(dem, rects) {
+  elev <- rep(NA_real_, length(rects))
+  covered <- rep(NA_real_, length(rects))
+  ok <- !sf::st_is_empty(rects)
+  if (!any(ok)) {
+    return(list(elev = elev, covered = covered))
   }
+  v <- terra::vect(sf::st_transform(sf::st_sf(geometry = rects[ok]),
+                                    sf::st_crs(terra::crs(dem))))
+  cells <- terra::extract(dem, v)
+  # split() keys on the ID column, whose values are 1..n in ascending order, so
+  # the results come back aligned with `rects[ok]`.
+  per_frame <- split(cells[, 2], cells[, 1])
+  elev[ok] <- vapply(per_frame, function(x) mean(x, na.rm = TRUE), numeric(1))
+  covered[ok] <- vapply(per_frame, function(x) mean(!is.na(x)), numeric(1))
+  elev[is.nan(elev)] <- NA_real_
   list(elev = elev, covered = covered)
 }
 
@@ -164,7 +157,7 @@ fly_rectangles <- function(coords, half_side) {
 #' Without `dem`, footprints are sized from the reported scale, which assumes
 #' flat ground at whatever elevation the scale was computed for. That assumption
 #' costs more than it looks: on the bundled Upper Bulkley AOI the reported scale
-#' **understates footprint area by a median 14%, ranging to 27%** — and always in
+#' **understates footprint area by a median 14%, ranging to 26%** — and always in
 #' the same direction, because the scale is referenced to an elevation above the
 #' valley floor the photos actually cover.
 #'
@@ -177,9 +170,12 @@ fly_rectangles <- function(coords, half_side) {
 #' ground width        = format width * (height above ground / focal length)
 #' ```
 #'
-#' Elevation is sampled in two passes — at the centroid, then as the mean under
-#' the resulting rectangle. The second pass matters: on a 7.2 km wide 1:31680
-#' frame the two differ by up to 130 m.
+#' Elevation is the **mean under the whole footprint**, not a reading at the
+#' centroid — on a 7.2 km wide 1:31680 frame the two differ by up to 140 m.
+#' That is measured in two passes, because the footprint being averaged over is
+#' itself what the correction changes: the first pass averages over the
+#' nominal-scale rectangle, the second over the rectangle the first produced.
+#' A third pass moves the area by under 0.02% here, so two is where it settles.
 #'
 #' `footprint_terrain` records what happened to each frame:
 #'
@@ -221,8 +217,11 @@ fly_rectangles <- function(coords, half_side) {
 #' is still corrected, from the mean of the covered part, and warns once it
 #' falls below 95%. `dem_coverage` reports the fraction per frame, so a
 #' partially-sampled footprint can be filtered rather than merely noticed.
-#' Buffer the DEM by at least half the widest footprint — 3.6 km at 1:31680 —
-#' so neither arises.
+#'
+#' Buffer past the **corner** of the widest footprint, not its half-side: the
+#' far point of a square is `half_side * sqrt(2)`, which at 1:31680 is 5.1 km
+#' rather than 3.6 km. Allow more again for the correction itself, which
+#' enlarges footprints before the second pass samples them.
 #'
 #' Coverage and overlap downstream (e.g. [fly_coverage()], [fly_overlap()])
 #' accept the same `dem` argument and inherit whichever basis you give them.
@@ -241,10 +240,16 @@ fly_rectangles <- function(coords, half_side) {
 #'
 #' # Terrain-adjusted: size each frame from its height above ground instead of
 #' # the reported scale. On this AOI every footprint grows, by a median 14%.
-#' terrain <- fly_footprint(centroids, dem = system.file("testdata/dem.tif", package = "fly"))
-#' round(100 * (as.numeric(sf::st_area(sf::st_transform(terrain, 3005))) /
-#'                as.numeric(sf::st_area(sf::st_transform(footprints, 3005))) - 1), 1)
-#' table(terrain$footprint_terrain)
+#' # terra is Suggests-only, so the DEM path is guarded here.
+#' if (requireNamespace("terra", quietly = TRUE)) {
+#'   terrain <- fly_footprint(
+#'     centroids,
+#'     dem = system.file("testdata/dem.tif", package = "fly")
+#'   )
+#'   print(round(100 * (as.numeric(sf::st_area(sf::st_transform(terrain, 3005))) /
+#'     as.numeric(sf::st_area(sf::st_transform(footprints, 3005))) - 1), 1))
+#'   print(table(terrain$footprint_terrain))
+#' }
 #'
 #' @export
 fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL,
@@ -314,23 +319,36 @@ fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL,
 
   half_side <- width_in * scale_num * 0.0254 / 2
 
-  terrain <- ifelse(is.na(width_in), NA_character_, "nominal_scale")
+  # Keyed on half_side, not width_in: an unparseable `scale` also leaves a frame
+  # with no footprint, and a frame with no footprint has had no terrain
+  # treatment to report.
+  terrain <- ifelse(is.na(half_side), NA_character_, "nominal_scale")
   height_agl <- rep(NA_real_, n)
   dem_coverage <- rep(NA_real_, n)
 
   if (!is.null(dem)) {
-    elev <- rep(NA_real_, n)
-    covered <- rep(NA_real_, n)
-    sized <- !is.na(half_side)
-    if (any(sized)) {
-      sampled <- fly_dem_elevation(dem, pts_3005[sized, ], half_side[sized])
-      elev[sized] <- sampled$elev
-      covered[sized] <- sampled$covered
+    focal_m <- centroids_sf$focal_length / 1000
+    resize <- function(e) {
+      width_in * ((centroids_sf$flying_height - e) / focal_m) * 0.0254 / 2
     }
 
+    # Two passes. The first averages the DEM over the nominal-scale rectangle,
+    # which yields a height above ground and so a better rectangle; the second
+    # averages over that one. Iterating is not ceremony — the correction can
+    # enlarge a footprint by a quarter, so the nominal rectangle is measurably
+    # the wrong window to average over. A third pass moves the area by under
+    # 0.02% on this data, so two is where it converges.
+    first <- fly_dem_sample(dem, fly_rectangles(coords, half_side))
+    second <- fly_dem_sample(dem, fly_rectangles(coords, resize(first$elev)))
+
+    # Keep the first pass wherever the second could not improve on it, so a
+    # frame is never lost to the resize alone.
+    elev <- ifelse(is.na(second$elev), first$elev, second$elev)
+    covered <- ifelse(is.na(second$elev), first$covered, second$covered)
+
+    sized <- !is.na(half_side)
     agl <- centroids_sf$flying_height - elev
-    focal_m <- centroids_sf$focal_length / 1000
-    candidate <- width_in * (agl / focal_m) * 0.0254 / 2
+    candidate <- resize(elev)
 
     # Classify on the half-side we would actually use, not on the inputs that
     # feed it. An NA or zero `focal_length`, or an NA `flying_height`, yields a

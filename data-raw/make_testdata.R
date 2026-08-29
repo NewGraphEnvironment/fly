@@ -134,10 +134,15 @@ if (nrow(streams_clip) > 0) {
 # the resulting footprint-area correction (fly#9) — so this choice is about
 # provenance and dependencies, not accuracy.
 #
-# Buffer is 4 km: the widest footprint here is 1:31680, 7.2 km across, so a
-# frame centred on the edge of the centroid bbox reaches 3.6 km beyond it.
-# Without the buffer, edge frames would sample NA and fall back to nominal
-# scale — which the fixture exists to exercise the *absence* of.
+# Buffer is 5.4 km. The widest footprint is 1:31680, 7.24 km across, so its
+# half-side is 3.62 km — but a square's *corner* is the far point, at
+# half_side * sqrt(2) = 5.12 km. Buffering by the half-side leaves the four
+# corners of every edge frame hanging over no-data, which is a partial mean
+# rather than a clean fallback. 5.4 km clears that with a little margin.
+#
+# The terrain correction also enlarges footprints by up to ~25% here, and the
+# second sampling pass averages over the *enlarged* rectangle, so the margin
+# has to cover that too.
 #
 # Crop in the source CRS, project after. Never reproject the whole COG.
 
@@ -150,7 +155,7 @@ mrdem_url <- paste0(
   "mrdem-30/mrdem-30-dtm.tif"
 )
 
-dem_aoi <- st_sf(geometry = st_union(st_buffer(st_transform(test_photos, 3005), 4000)))
+dem_aoi <- st_sf(geometry = st_union(st_buffer(st_transform(test_photos, 3005), 5400)))
 dem_src <- terra::rast(mrdem_url)
 dem_clip <- terra::crop(
   dem_src,

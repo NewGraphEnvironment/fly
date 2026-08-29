@@ -1,7 +1,16 @@
 # A `dem` argument that is accepted but never reaches fly_footprint() would be
 # invisible: every one of these functions returns perfectly plausible numbers
-# either way. Each test therefore asserts the numbers actually MOVE, not merely
-# that the argument is tolerated.
+# either way.
+#
+# Asserting that the numbers move is only a real check where they demonstrably
+# do. On the bundled data fly_filter() keeps 20 of 20 and fly_select() picks the
+# same frames with or without a DEM, so `expect_gte`/`expect_lte` there hold
+# for both implementations and detect nothing. Those two therefore also strip
+# `flying_height`, which makes fly_footprint() error — something it can only do
+# if `dem` actually arrived.
+#
+# Verified by patching fly_footprint() to discard `dem`: every test below then
+# fails.
 
 test_that("fly_coverage passes dem through to the footprints", {
   skip_if_no_terra()
@@ -47,6 +56,15 @@ test_that("fly_filter passes dem through to the footprints", {
     fly_filter(centroids, aoi, method = "centroid",
                dem = testdata_path("dem.tif"))$airp_id
   )
+
+  # The comparison above cannot fail on this data — every frame is kept either
+  # way — so it does not establish that `dem` arrived. This does.
+  no_height <- centroids
+  no_height$flying_height <- NULL
+  expect_error(
+    fly_filter(no_height, aoi, method = "footprint", dem = testdata_path("dem.tif")),
+    "flying_height"
+  )
 })
 
 test_that("fly_select passes dem through in both modes", {
@@ -67,6 +85,15 @@ test_that("fly_select passes dem through in both modes", {
   min_terr <- fly_select(photos, aoi, mode = "minimal", target_coverage = 0.95,
                          dem = dem)
   expect_lte(nrow(min_terr), nrow(min_flat))
+
+  # Neither comparison above can fail on this data — the same frames are chosen
+  # with or without a DEM. Assert arrival directly, once per internal call site,
+  # since fly_select_all() and fly_select_minimal() are separate.
+  no_height <- photos
+  no_height$flying_height <- NULL
+  expect_error(fly_select(no_height, aoi, mode = "all", dem = dem), "flying_height")
+  expect_error(fly_select(no_height, aoi, mode = "minimal",
+                          target_coverage = 0.95, dem = dem), "flying_height")
 })
 
 test_that("fly_georef passes dem through to the GCP footprints", {
