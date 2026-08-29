@@ -33,22 +33,38 @@ fly_warn_unsized <- function(footprints, operation) {
 # the footprint mean differ by up to 130 m, which moves the area correction by
 # several percent.
 #
-# Returns elevation in metres, NA where the DEM does not cover the frame.
+# Coverage below which a footprint's mean elevation stops being trustworthy.
+#
+# Reprojecting a DEM leaves NA slivers along its edges, so a frame near the
+# margin is routinely a percent or two short through no fault of the caller —
+# warning on any missing cell at all would fire on 3 of the 20 bundled frames
+# and quickly stop being read. A frame missing more than a twentieth of its
+# footprint is a different thing: that is enough for the covered part to sit
+# systematically higher or lower than the whole.
+fly_dem_coverage_min <- function() 0.95
+
+# Returns a list of `elev` (metres, NA where the DEM gives nothing at the
+# centroid) and `covered`, the fraction of cells under each footprint that
+# carried a value. `covered` matters because averaging with na.rm = TRUE cannot
+# tell a fully-sampled frame from one hanging half off the edge of the data —
+# both yield a number, and only one of them means what it appears to.
 fly_dem_elevation <- function(dem, pts_3005, half_side) {
   dem_crs <- sf::st_crs(terra::crs(dem))
-  sample_at <- function(geom) {
-    v <- terra::vect(sf::st_transform(geom, dem_crs))
-    terra::extract(dem, v, fun = mean, na.rm = TRUE)[, 2]
-  }
-  elev <- sample_at(pts_3005)
+  to_dem <- function(geom) terra::vect(sf::st_transform(geom, dem_crs))
+
+  elev <- terra::extract(dem, to_dem(pts_3005), fun = mean, na.rm = TRUE)[, 2]
+  covered <- rep(NA_real_, length(elev))
 
   coords <- sf::st_coordinates(pts_3005)
   provisional <- fly_rectangles(coords, half_side)
   ok <- !is.na(elev) & !sf::st_is_empty(provisional)
   if (any(ok)) {
-    elev[ok] <- sample_at(sf::st_sf(geometry = provisional[ok]))
+    cells <- terra::extract(dem, to_dem(sf::st_sf(geometry = provisional[ok])))
+    per_frame <- split(cells[, 2], cells[, 1])
+    elev[ok] <- vapply(per_frame, function(v) mean(v, na.rm = TRUE), numeric(1))
+    covered[ok] <- vapply(per_frame, function(v) mean(!is.na(v)), numeric(1))
   }
-  elev
+  list(elev = elev, covered = covered)
 }
 
 # Build axis-aligned squares of `half_side` metres about each coordinate pair.
@@ -94,8 +110,9 @@ fly_rectangles <- function(coords, half_side) {
 #' @return An sf polygon object in the same CRS as input, with footprint
 #'   rectangles, a `footprint_basis` column recording how each was sized, a
 #'   `footprint_terrain` column recording which terrain treatment was applied,
-#'   and `height_agl` giving the metres above ground each footprint was sized
-#'   from. Frames whose format could not be resolved get an empty geometry.
+#'   `height_agl` giving the metres above ground each footprint was sized from,
+#'   and `dem_coverage` giving the fraction of each footprint the DEM actually
+#'   covered. Frames whose format could not be resolved get an empty geometry.
 #'
 #' @details
 #' Ground coverage is computed as `negative_size * scale_number * 0.0254` metres
@@ -199,8 +216,13 @@ fly_rectangles <- function(coords, half_side) {
 #'
 #' Resolution matters less here than extent. A 30 m DEM resolves a 2.7 km
 #' footprint's mean elevation perfectly well, but a DEM that stops short of the
-#' frame edges sends those frames down the `no_dem_coverage` fallback. Buffer
-#' the AOI by at least half the widest footprint.
+#' frame edges will not. `no_dem_coverage` catches only a frame whose *centroid*
+#' has no elevation; a frame whose centroid is covered and whose edges are not
+#' is still corrected, from the mean of the covered part, and warns once it
+#' falls below 95%. `dem_coverage` reports the fraction per frame, so a
+#' partially-sampled footprint can be filtered rather than merely noticed.
+#' Buffer the DEM by at least half the widest footprint — 3.6 km at 1:31680 —
+#' so neither arises.
 #'
 #' Coverage and overlap downstream (e.g. [fly_coverage()], [fly_overlap()])
 #' accept the same `dem` argument and inherit whichever basis you give them.
@@ -294,12 +316,16 @@ fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL,
 
   terrain <- ifelse(is.na(width_in), NA_character_, "nominal_scale")
   height_agl <- rep(NA_real_, n)
+  dem_coverage <- rep(NA_real_, n)
 
   if (!is.null(dem)) {
     elev <- rep(NA_real_, n)
+    covered <- rep(NA_real_, n)
     sized <- !is.na(half_side)
     if (any(sized)) {
-      elev[sized] <- fly_dem_elevation(dem, pts_3005[sized, ], half_side[sized])
+      sampled <- fly_dem_elevation(dem, pts_3005[sized, ], half_side[sized])
+      elev[sized] <- sampled$elev
+      covered[sized] <- sampled$covered
     }
 
     agl <- centroids_sf$flying_height - elev
@@ -337,8 +363,26 @@ fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL,
       )
     }
 
+    # A footprint hanging off the edge of the DEM still yields a mean, taken
+    # from whichever part had data. That is the best estimate available and is
+    # kept — but it is not the full-frame mean it would otherwise be taken for,
+    # so it is reported rather than passed off silently.
+    partial <- corrected & !is.na(covered) & covered < fly_dem_coverage_min()
+    if (any(partial)) {
+      warning(
+        sum(partial), " of ", sum(corrected), " corrected frames are less than ",
+        round(100 * fly_dem_coverage_min()), "% covered by the DEM (as little ",
+        "as ", round(100 * min(covered[partial])), "% of one footprint). Their ",
+        "ground elevation is the mean of the covered part, which need not ",
+        "represent the whole. Buffer the DEM by at least half the widest ",
+        "footprint. See `dem_coverage`.",
+        call. = FALSE
+      )
+    }
+
     half_side[corrected] <- candidate[corrected]
     height_agl[corrected] <- agl[corrected]
+    dem_coverage[corrected] <- covered[corrected]
     terrain[sized] <- "nominal_scale"
     terrain[corrected] <- "dem_agl"
     terrain[uncovered] <- "no_dem_coverage"
@@ -350,6 +394,7 @@ fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL,
     footprint_basis = basis,
     footprint_terrain = terrain,
     height_agl = height_agl,
+    dem_coverage = dem_coverage,
     geometry = fly_rectangles(coords, half_side)
   )
 

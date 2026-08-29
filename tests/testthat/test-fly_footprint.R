@@ -310,3 +310,54 @@ test_that("fly_footprint falls back on a zero focal length", {
   expect_equal(sum(sf::st_is_empty(sf::st_geometry(fp))), 0)
   expect_equal(fp$footprint_terrain, c("dem_agl", "nominal_scale"))
 })
+
+test_that("fly_footprint reports how much of each footprint the DEM covered", {
+  skip_if_no_terra()
+  centroids <- sf::st_read(testdata_path("photo_centroids.gpkg"), quiet = TRUE)
+  terr <- fly_footprint(centroids, dem = testdata_path("dem.tif"))
+
+  expect_true(all(terr$dem_coverage > 0 & terr$dem_coverage <= 1))
+  # The bundled DEM is buffered past the widest footprint, so nothing here is
+  # materially short — but reprojection leaves NA slivers, so it is not all 1
+  # either. Both halves matter: a guard that saw only 1s could not fire, and
+  # one that warned on anything below 1 would fire on data that is fine.
+  expect_lt(min(terr$dem_coverage), 1)
+  expect_gt(min(terr$dem_coverage), 0.95)
+
+  flat <- fly_footprint(centroids)
+  expect_true(all(is.na(flat$dem_coverage)))
+})
+
+test_that("fly_footprint warns when a footprint is materially off the DEM", {
+  skip_if_no_terra()
+  dem <- terra::rast(testdata_path("dem.tif"))
+
+  # Put a wide frame on the westernmost cell that still carries data: the
+  # centroid samples fine, so this is NOT the no_dem_coverage path — half the
+  # footprint simply hangs over ground the DEM does not describe, and the mean
+  # comes from the covered half alone.
+  with_data <- which(!is.na(terra::values(dem)))
+  xy <- terra::xyFromCell(dem, with_data)
+  edge <- sf::st_sfc(sf::st_point(xy[which.min(xy[, 1]), ]), crs = 3005)
+
+  photos <- sf::st_read(testdata_path("photo_centroids.gpkg"), quiet = TRUE)[1, ]
+  photos$scale <- "1:31680"
+  sf::st_geometry(photos) <- sf::st_transform(edge, 4326)
+
+  w <- character()
+  fp <- withCallingHandlers(
+    fly_footprint(photos, dem = dem),
+    warning = function(x) {
+      w <<- c(w, conditionMessage(x))
+      invokeRestart("muffleWarning")
+    }
+  )
+  expect_gt(length(w), 0)
+  expect_match(w, "covered by the DEM", all = FALSE)
+
+  # Still corrected — the partial mean is the best estimate available, and
+  # discarding a frame over it would lose more than it protects.
+  expect_equal(fp$footprint_terrain, "dem_agl")
+  expect_false(sf::st_is_empty(sf::st_geometry(fp)))
+  expect_lt(fp$dem_coverage, 0.95)
+})

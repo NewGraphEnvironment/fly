@@ -29,8 +29,9 @@ flat-terrain behaviour — see \strong{Terrain} below.}
 An sf polygon object in the same CRS as input, with footprint
 rectangles, a \code{footprint_basis} column recording how each was sized, a
 \code{footprint_terrain} column recording which terrain treatment was applied,
-and \code{height_agl} giving the metres above ground each footprint was sized
-from. Frames whose format could not be resolved get an empty geometry.
+\code{height_agl} giving the metres above ground each footprint was sized from,
+and \code{dem_coverage} giving the fraction of each footprint the DEM actually
+covered. Frames whose format could not be resolved get an empty geometry.
 }
 \description{
 Creates rectangular polygons representing the estimated ground coverage
@@ -137,8 +138,13 @@ cut from:
 
 Resolution matters less here than extent. A 30 m DEM resolves a 2.7 km
 footprint's mean elevation perfectly well, but a DEM that stops short of the
-frame edges sends those frames down the \code{no_dem_coverage} fallback. Buffer
-the AOI by at least half the widest footprint.
+frame edges will not. \code{no_dem_coverage} catches only a frame whose \emph{centroid}
+has no elevation; a frame whose centroid is covered and whose edges are not
+is still corrected, from the mean of the covered part, and warns once it
+falls below 95\%. \code{dem_coverage} reports the fraction per frame, so a
+partially-sampled footprint can be filtered rather than merely noticed.
+Buffer the DEM by at least half the widest footprint — 3.6 km at 1:31680 —
+so neither arises.
 
 Coverage and overlap downstream (e.g. \code{\link[=fly_coverage]{fly_coverage()}}, \code{\link[=fly_overlap]{fly_overlap()}})
 accept the same \code{dem} argument and inherit whichever basis you give them.

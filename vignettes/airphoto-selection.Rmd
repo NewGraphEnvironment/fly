@@ -349,8 +349,18 @@ fly_coverage(centroids, aoi, by = "scale", dem = mrdem)
 
 Buffer generously. Resolution matters less than extent here — 30 m resolves a
 2.7 km footprint's mean elevation perfectly well, but a DEM that stops short of
-the frame edges sends those frames to the `no_dem_coverage` fallback. Allow at
-least half the widest footprint, which is 3.6 km at 1:31680.
+the frame edges will not. Only a frame whose *centroid* has no elevation takes
+the `no_dem_coverage` fallback; one whose centroid is covered and whose edges
+are not is still corrected, from the mean of the covered part. `dem_coverage`
+reports the fraction per frame, and anything below 95% warns:
+
+```{r terrain-coverage}
+round(range(terrain$dem_coverage), 3)
+```
+
+Reprojecting a DEM leaves NA slivers along its edges, which is why these are
+just under 1 rather than exactly 1. Allow at least half the widest footprint —
+3.6 km at 1:31680 — and neither case arises.
 
 What a DEM does **not** fix is the nadir assumption. The catalogue carries no
 tilt, roll or crab, so footprints stay axis-aligned rectangles. On this area
