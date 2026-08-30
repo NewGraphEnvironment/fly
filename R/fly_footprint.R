@@ -100,28 +100,76 @@ fly_dem_sample <- function(dem, rects) {
   list(elev = elev, covered = covered)
 }
 
-# Build axis-aligned squares of `half_side` metres about each coordinate pair.
-# A half-side that is NA or non-finite yields an empty polygon — the #30
-# contract for a frame whose recording format could not be resolved, and the
-# only safe answer for a frame whose metadata divides by zero. An infinite
-# rectangle is not merely meaningless: it reaches the sampler, which then tries
-# to size a raster to it.
-fly_rectangles <- function(coords, half_side) {
+# Build rectangles of `half_cross` by `half_along` metres about each coordinate pair.
+#
+# `half_cross` spans the across-flight axis and `half_along` the along-flight one. Film
+# is square, so the two are equal and the distinction costs nothing; a digital sensor is
+# not — the Leica DMC III is 100.3 x 56.9 mm — and drawing it square would be 76% too
+# deep. Defaulting `half_along` to `half_cross` keeps every film caller unchanged.
+#
+# A half-dimension that is NA, non-finite **or zero** yields an empty polygon. Zero
+# matters as much as the others and is easy to miss: `is.finite(0)` is TRUE, so a zero
+# would build a rectangle with five identical vertices, which `st_is_empty()` reports as
+# FALSE and `fly_warn_unsized()` therefore never mentions, while it silently covers
+# nothing downstream. That is strictly worse than the empty geometry #30 chose, and it
+# is reachable — `ground_sample_distance` is 0 on every frame of some digital rolls.
+#
+# `bearing` rotates the rectangle to the flight line, and is applied only where the two
+# half-dimensions differ. A square is unchanged by rotation up to vertex order, so
+# leaving film alone keeps its output identical rather than merely equivalent.
+#
+# Vertex order is preserved as BL, BR, TR, TL, BL in the rectangle's own frame, because
+# `fly_georef()` maps image corners onto footprint corners positionally and that order
+# is its contract.
+fly_rectangles <- function(coords, half_cross, half_along = half_cross, bearing = NULL) {
   sf::st_sfc(lapply(seq_len(nrow(coords)), function(i) {
-    w <- half_side[i]
-    if (!is.finite(w)) {
+    hc <- half_cross[i]
+    ha <- half_along[i]
+    if (!is.finite(hc) || !is.finite(ha) || hc <= 0 || ha <= 0) {
       return(sf::st_polygon())
     }
     cx <- coords[i, 1]
     cy <- coords[i, 2]
-    sf::st_polygon(list(matrix(c(
-      cx - w, cy - w,
-      cx + w, cy - w,
-      cx + w, cy + w,
-      cx - w, cy + w,
-      cx - w, cy - w
-    ), ncol = 2, byrow = TRUE)))
+    xy <- matrix(
+      c(-hc, -ha, hc, -ha, hc, ha, -hc, ha, -hc, -ha),
+      ncol = 2, byrow = TRUE
+    )
+
+    b <- if (is.null(bearing)) NA_real_ else bearing[i]
+    if (!isTRUE(all.equal(hc, ha)) && is.finite(b)) {
+      # `bearing` is degrees clockwise from north, so the along-track axis is the local
+      # +y. Rotating (x, y) by b clockwise sends (0, 1) to (sin b, cos b) — the heading
+      # itself — which is what puts the long axis across the flight line rather than
+      # along it.
+      rad <- b * pi / 180
+      rot <- matrix(c(cos(rad), sin(rad), -sin(rad), cos(rad)), nrow = 2)
+      xy <- xy %*% rot
+    }
+
+    sf::st_polygon(list(cbind(xy[, 1] + cx, xy[, 2] + cy)))
   }), crs = 3005)
+}
+
+# Which footprints are squares.
+#
+# This is the predicate `fly_georef()` needs, and "is it axis-aligned" is not — that is
+# a proxy for "was it rotated", and a flight line running exactly north or east produces
+# a rotated footprint whose edges are still axis-parallel, so the proxy misses it.
+#
+# Squareness is the property that actually matters. `georef_one()` maps image corners
+# onto footprint corners positionally and then shifts that mapping by a
+# 90-degree-quantized bearing, a scheme calibrated against north-up 9x9 negatives. With
+# a square footprint a wrong-by-90 shift is harmless; with a 1.76:1 rectangle it maps a
+# landscape image onto a portrait quad. And only non-square footprints are rotated, so
+# this catches the double-rotation case too.
+fly_is_square <- function(footprints) {
+  g <- sf::st_geometry(sf::st_transform(footprints, 3005))
+  vapply(seq_along(g), function(i) {
+    if (sf::st_is_empty(g[i])) return(TRUE)
+    xy <- sf::st_coordinates(g[[i]])[, 1:2, drop = FALSE]
+    d <- sqrt(rowSums(diff(xy)^2))
+    isTRUE(all.equal(max(d), min(d)))
+  }, logical(1))
 }
 
 #' Estimate photo footprint polygons from centroids and scale
@@ -136,8 +184,10 @@ fly_rectangles <- function(coords, half_side) {
 #'   9" x 9"). Applies to film frames, and to every frame when there is no
 #'   `media` column. It never sizes a digital frame — see `format_size`.
 #' @param format_size Named numeric vector of recording-format widths in inches,
-#'   keyed by `media` value, merged over the shipped film defaults. Supply this
-#'   to size frames whose format `fly` does not know — see Details.
+#'   keyed by `media` value, merged over the shipped film defaults. Frames it names are
+#'   sized from the reported `scale`, as film is, and it takes precedence over the
+#'   shipped camera table — it is the escape hatch for a camera `fly` does not know.
+#'   See Details.
 #' @param dem Optional elevation raster used to size each frame from its true
 #'   height above ground rather than the reported scale. A `terra::SpatRaster`,
 #'   a file path, or a `/vsicurl/` URL. Requires `flying_height` and
@@ -177,15 +227,46 @@ fly_rectangles <- function(coords, half_side) {
 #'
 #' \describe{
 #'   \item{the `media` value}{format resolved from the format table}
+#'   \item{`"inferred_format"`}{digital frame with no calibration, sized from a
+#'     format inferred from its `focal_length`}
 #'   \item{`"assumed_default"`}{no `media` column; `negative_size` applied}
 #'   \item{`"unknown_format"`}{`media` present but unknown; empty geometry}
 #' }
 #'
-#' Shipped defaults cover film only. Digital frames resolve to
-#' `"unknown_format"` rather than an invented number, because the sensor width
-#' they would need is not in the centroid metadata — and neither is the pixel
-#' count that would let `ground_sample_distance` stand in for it. Supply
-#' `format_size` if you know the camera:
+#' @section Digital frames:
+#'
+#' A digital frame has no negative, and the catalogue mixes film and digital in one
+#' layer — 223,667 of 1,670,471 frames province-wide are `Digital - Colour`. Sensor
+#' dimensions are not in the centroid metadata, but they are recoverable from the
+#' calibration report each frame links to through `camera_calibration_url`, and `fly`
+#' ships them (`inst/extdata/camera_formats.csv`, built by
+#' `data-raw/make_camera_formats.R`).
+#'
+#' Digital frames are sized as `pixel count x ground_sample_distance`, which needs
+#' neither `scale` nor a DEM. **`scale` is never used for a digital frame `fly` sized
+#' itself.** That field is not the true image scale for digital: measured against
+#' terrain on 40 UltraCam Eagle frames it gives 34% of true width, because it is a
+#' derived nominal figure — the pixel pitch it implies is about 12.5 um for every
+#' camera regardless of model, against real pitches of 3.9 to 12 um.
+#' `ground_sample_distance` is in centimetres.
+#'
+#' Where a frame carries no `camera_calibration_url` — about a fifth of digital frames —
+#' the format is inferred from `focal_length` and `footprint_basis` records
+#' `"inferred_format"`. Sensor width spreads only 1-3% at a given focal length, but
+#' pixel count spreads 32-83%, so an inferred frame can only be sized through a DEM
+#' (`width x height above ground / focal length`) and never from its GSD.
+#'
+#' `width_source` names the calibration file or fallback rule per row, so every
+#' footprint traces back to a source. Calibrations that could not be corroborated are
+#' listed in `inst/extdata/camera_formats_excluded.csv` with the reason, and frames
+#' naming one are refused rather than inferred.
+#'
+#' **Digital footprints are not square** — sensors run from 1.10:1 (Leica DMC II) to
+#' 1.80:1 (Intergraph DMC) — so they are rotated onto the flight line using
+#' [fly_bearing()]. Where no bearing can be computed the rectangle stays axis-aligned
+#' and `width_source` says so. Film stays square and is unaffected.
+#'
+#' Supply `format_size` to size a frame `fly` cannot, or to override it:
 #'
 #' ```r
 #' fly_footprint(photos, format_size = c("Digital - Colour" = 3.54))
@@ -232,6 +313,9 @@ fly_rectangles <- function(coords, half_side) {
 #' \describe{
 #'   \item{`"nominal_scale"`}{sized from the reported scale (no `dem`, or a
 #'     fallback — see below)}
+#'   \item{`"gsd_scaled"`}{digital frame sized from its pixel count and ground
+#'     sample distance; used neither the reported scale nor a DEM, so `height_agl`
+#'     and `dem_coverage` are `NA`}
 #'   \item{`"dem_agl"`}{sized from height above ground}
 #'   \item{`"no_dem_coverage"`}{`dem` supplied but does not cover the frame}
 #'   \item{`NA`}{no footprint to place — see `footprint_basis`}
@@ -349,7 +433,13 @@ fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL,
   input_crs <- sf::st_crs(centroids_sf)
   pts_3005 <- sf::st_transform(centroids_sf, 3005)
   coords <- sf::st_coordinates(pts_3005)
-  scale_num <- as.numeric(stringr::str_remove(centroids_sf$scale, "1:"))
+  # An unparseable `scale` is an expected input, not an exception: it yields NA, the
+  # frame gets no footprint, and that is reported by name below. Base R's
+  # "NAs introduced by coercion" would arrive alongside that as a second, vaguer warning
+  # pointing at no column in particular.
+  scale_num <- suppressWarnings(
+    as.numeric(stringr::str_remove(centroids_sf$scale, "1:"))
+  )
 
   n <- nrow(centroids_sf)
   film <- fly_film_media()
@@ -371,7 +461,24 @@ fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL,
     basis <- as.character(ifelse(is.na(width_in), "unknown_format", media))
   }
 
-  unresolved <- is.na(width_in)
+  # Sensor dimensions for digital frames, from the shipped camera table. Consulted only
+  # where `formats` did not already resolve the row, so a caller's own `format_size`
+  # still wins \u2014 it is the documented escape hatch for a camera `fly` does not know.
+  fmt <- fly_camera_format(centroids_sf)
+  from_table <- is.na(width_in) & !is.na(fmt$width_mm)
+
+  width_source <- rep(NA_character_, n)
+  width_source[from_table] <- fmt$width_source[from_table]
+  # A frame naming a withheld calibration is not `from_table` — it resolved to nothing —
+  # so without this the refusal is computed and then dropped, and the frame is
+  # indistinguishable from one whose media was simply unknown.
+  withheld <- is.na(width_in) & !is.na(fmt$width_source) &
+    startsWith(fmt$width_source, "withheld:")
+  width_source[withheld] <- fmt$width_source[withheld]
+  basis[from_table] <- ifelse(fmt$inferred[from_table], "inferred_format",
+                              as.character(centroids_sf$media)[from_table])
+
+  unresolved <- is.na(width_in) & !from_table
   if (any(unresolved)) {
     unknown <- sort(unique(as.character(centroids_sf$media)[unresolved]))
     warning(
@@ -383,19 +490,85 @@ fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL,
     )
   }
 
-  half_side <- width_in * scale_num * 0.0254 / 2
+  # Film, and anything `format_size` names: ground width is the format width times the
+  # reported scale, and the negative is square.
+  half_cross <- width_in * scale_num * 0.0254 / 2
+  half_along <- half_cross
 
-  # Keyed on half_side, not width_in: an unparseable `scale` also leaves a frame
-  # with no footprint, and a frame with no footprint has had no terrain
-  # treatment to report.
-  terrain <- as.character(ifelse(is.na(half_side), NA_character_, "nominal_scale"))
+  # Digital: ground width is the pixel count times the ground sample distance. This uses
+  # neither `scale` nor a DEM.
+  #
+  # `scale` is deliberately not used. Measured against terrain on 40 UltraCam Eagle
+  # frames, sizing a digital frame from the catalogue's `SCALE` gives 34% of its true
+  # width, because that field is a derived nominal figure rather than the image scale \u2014
+  # the pixel pitch it implies is ~12.5 um for every camera regardless of model, against
+  # real pitches of 3.9 to 12 um. A third-size footprint would still draw, still overlap
+  # its neighbours and still yield a coverage percentage, which is the failure #30 was
+  # written to prevent.
+  gsd_m <- rep(NA_real_, n)
+  if ("ground_sample_distance" %in% names(centroids_sf)) {
+    gsd_m <- fly_gsd_m(as.numeric(centroids_sf$ground_sample_distance))
+  }
+  by_gsd <- from_table & !is.na(fmt$px_cross) & !is.na(fmt$px_along) &
+    !is.na(gsd_m) & gsd_m > 0
+  half_cross[by_gsd] <- fmt$px_cross[by_gsd] * gsd_m[by_gsd] / 2
+  half_along[by_gsd] <- fmt$px_along[by_gsd] * gsd_m[by_gsd] / 2
+
+  # Flight-line azimuth, for rotating a non-square footprint onto the flight line.
+  #
+  # Decided from the FORMAT's aspect ratio, not from the half-dimensions. The
+  # half-dimensions are NA for every camera-table row until a sizing route fills them,
+  # and the DEM route fills them *after* this point — so keying on them would leave
+  # `non_square` FALSE for exactly the frames the DEM exists to size, drawing them
+  # axis-aligned while `fly_bearing()` had a perfectly good azimuth for them. It would
+  # also make the answer depend on what else was in the batch. The aspect ratio is known
+  # before any route runs, which is what makes it the right thing to key on.
+  #
+  # This is the same NA-by-construction fact that has now bitten three separate
+  # conditions in this function; a value that only some routes populate is not a safe
+  # thing to branch on.
+  fmt_aspect_cross <- ifelse(is.na(width_in), fmt$width_mm, width_in * 25.4)
+  fmt_aspect_along <- ifelse(is.na(width_in), fmt$height_mm, width_in * 25.4)
+  non_square <- !is.na(fmt_aspect_cross) & !is.na(fmt_aspect_along) &
+    abs(fmt_aspect_cross - fmt_aspect_along) >
+      sqrt(.Machine$double.eps) * pmax(fmt_aspect_cross, fmt_aspect_along)
+
+  # `fly_bearing()` stops rather than returning NA when its columns are absent, and
+  # `fly_footprint()` requires only `scale`, so the guard belongs here.
+  bearing <- rep(NA_real_, n)
+  if (any(non_square) && all(c("film_roll", "frame_number") %in% names(centroids_sf))) {
+    bearing <- fly_bearing(centroids_sf)$bearing
+  }
+  if (any(non_square & !is.finite(bearing))) {
+    width_source[non_square & !is.finite(bearing)] <- paste0(
+      width_source[non_square & !is.finite(bearing)], "; axis_aligned_no_bearing"
+    )
+  }
+
+  # Keyed on the half-dimensions, not on width_in: an unparseable `scale` also leaves a
+  # frame with no footprint, and a frame with no footprint has had no terrain treatment
+  # to report.
+  #
+  # A frame sized from its ground sample distance did not come from the reported scale
+  # and did not come from a DEM, so it gets its own value rather than borrowing
+  # `nominal_scale` \u2014 which is documented as "sized from the reported scale" and would
+  # be a false claim about the one route that deliberately avoids it.
+  terrain <- as.character(ifelse(is.na(half_cross), NA_character_, "nominal_scale"))
+  terrain[by_gsd] <- "gsd_scaled"
   height_agl <- rep(NA_real_, n)
   dem_coverage <- rep(NA_real_, n)
 
   if (!is.null(dem)) {
     focal_m <- centroids_sf$focal_length / 1000
+
+    # Format width in metres, whichever way the row was resolved: `negative_size` is
+    # inches, the camera table is millimetres.
+    fmt_cross_m <- ifelse(is.na(width_in), fmt$width_mm / 1000, width_in * 0.0254)
+    fmt_along_m <- ifelse(is.na(width_in), fmt$height_mm / 1000, width_in * 0.0254)
+
     resize <- function(e) {
-      width_in * ((centroids_sf$flying_height - e) / focal_m) * 0.0254 / 2
+      k <- (centroids_sf$flying_height - e) / focal_m
+      list(cross = fmt_cross_m * k / 2, along = fmt_along_m * k / 2)
     }
 
     # Two passes. The first averages the DEM over the nominal-scale rectangle,
@@ -407,14 +580,41 @@ fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL,
     # by a median 14%; the second pass moves it by at most a further 0.53%, and
     # a third by 0.03%. It is worth one more extract, not the emphasis a bare
     # "iterates until it converges" would imply.
-    first <- fly_dem_sample(dem, fly_rectangles(coords, half_side))
-    second <- fly_dem_sample(dem, fly_rectangles(coords, resize(first$elev)))
+    # The sampling windows are built exactly as the returned footprint is — same two
+    # half-dimensions, same rotation. Sampling an unrotated rectangle and returning a
+    # rotated one would make `dem_coverage` and the mean elevation describe a shape the
+    # caller never receives, which is the returned-versus-measured mismatch this
+    # function already guards against elsewhere.
+    # Which frames the DEM route may size.
+    #
+    # NOT `!is.na(half_cross)`. That is the nominal-scale half-side, and it is NA for
+    # every row resolved from the camera table — `width_in` is NA there by definition —
+    # so keying on it makes the DEM route unreachable for exactly the frames it exists
+    # to serve. An inferred-format frame carries no pixel count and so has no GSD route
+    # at all; the DEM is its only route, and it would have come back empty with a DEM
+    # supplied and no warning.
+    dem_eligible <- !by_gsd & (!is.na(half_cross) | from_table)
+
+    # A camera-table frame has no nominal rectangle to sample the first pass over, so
+    # seed one from the whole flying height — terrain at sea level, which is the largest
+    # plausible window and therefore certain to contain the true footprint. The second
+    # pass then averages over the rectangle the first produced, as it does for film.
+    seed_cross <- half_cross
+    seed_along <- half_along
+    need_seed <- dem_eligible & is.na(seed_cross)
+    if (any(need_seed)) {
+      at_sea_level <- resize(0)
+      seed_cross[need_seed] <- at_sea_level$cross[need_seed]
+      seed_along[need_seed] <- at_sea_level$along[need_seed]
+    }
+
+    first <- fly_dem_sample(dem, fly_rectangles(coords, seed_cross, seed_along, bearing))
+    r1 <- resize(first$elev)
+    second <- fly_dem_sample(dem, fly_rectangles(coords, r1$cross, r1$along, bearing))
 
     # Keep the first pass wherever the second could not improve on it, so a
     # frame is never lost to the resize alone.
     elev <- ifelse(is.na(second$elev), first$elev, second$elev)
-
-    sized <- !is.na(half_side)
     agl <- centroids_sf$flying_height - elev
     candidate <- resize(elev)
 
@@ -424,9 +624,17 @@ fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL,
     # an empty geometry here is indistinguishable from one whose recording
     # format was never resolved, so the frame would vanish under a warning
     # pointing at `format_size` rather than at its own metadata.
-    corrected <- sized & is.finite(candidate) & candidate > 0
-    uncovered <- sized & !corrected & is.na(elev)
-    unusable <- sized & !corrected & !uncovered
+    #
+    # `!by_gsd` is what keeps the DEM from overwriting a frame already sized from its
+    # ground sample distance. Without it, passing `dem` would silently switch a digital
+    # frame onto a different route — and every downstream consumer forwards `dem`, so
+    # that is the ordinary path rather than an edge case. The two routes agree to about
+    # 1%, but agreeing is not the same as being interchangeable: the GSD route is the
+    # measurement and the DEM route is the estimate.
+    corrected <- dem_eligible & is.finite(candidate$cross) & candidate$cross > 0 &
+      is.finite(candidate$along) & candidate$along > 0
+    uncovered <- dem_eligible & !corrected & is.na(elev)
+    unusable <- dem_eligible & !corrected & !uncovered
 
     # Coverage has to describe the footprint that is actually returned. A
     # corrected frame ships the second pass's rectangle, so it takes the second
@@ -441,7 +649,7 @@ fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL,
     # a frame we cannot correct is still a frame.
     if (any(uncovered)) {
       warning(
-        sum(uncovered), " of ", sum(sized), " frames fall outside the DEM's ",
+        sum(uncovered), " of ", sum(dem_eligible), " frames fall outside the DEM's ",
         "coverage and were sized from nominal scale instead. See ",
         "`footprint_terrain`.",
         call. = FALSE
@@ -449,7 +657,7 @@ fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL,
     }
     if (any(unusable)) {
       warning(
-        sum(unusable), " of ", sum(sized), " frames have `flying_height` or ",
+        sum(unusable), " of ", sum(dem_eligible), " frames have `flying_height` or ",
         "`focal_length` values that give no usable height above ground \u2014 ",
         "missing, zero, or terrain at or above the aircraft. Check that ",
         "`flying_height` is metres above sea level. Sized from nominal scale ",
@@ -476,16 +684,56 @@ fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL,
       )
     }
 
-    half_side[corrected] <- candidate[corrected]
+    half_cross[corrected] <- candidate$cross[corrected]
+    half_along[corrected] <- candidate$along[corrected]
     height_agl[corrected] <- agl[corrected]
     # Reported for every frame that had a footprint to sample, not only the
     # corrected ones: `no_dem_coverage` is a measured zero, and leaving it NA
     # makes the documented "filter on dem_coverage" workflow impossible.
-    dem_coverage[sized] <- covered[sized]
-    terrain[sized] <- "nominal_scale"
+    #
+    # Excluding `by_gsd`, though. A DEM was sampled under those frames, but the number
+    # describes a window that had no bearing on the geometry returned — the footprint
+    # came from the pixel count and the ground sample distance. Reporting it would be a
+    # coverage figure for a shape the caller never receives.
+    dem_coverage[dem_eligible] <- covered[dem_eligible]
+    terrain[dem_eligible] <- "nominal_scale"
     terrain[corrected] <- "dem_agl"
     terrain[uncovered] <- "no_dem_coverage"
     terrain[unusable] <- "nominal_scale"
+  }
+
+  # A frame with no rectangle has had no terrain treatment to report, whichever route
+  # failed to produce one. Keeping the invariant "footprint_terrain is NA exactly where
+  # the geometry is empty" is what lets a caller read the column at all.
+  no_geom <- is.na(half_cross) | is.na(half_along) | half_cross <= 0 | half_along <= 0
+  terrain[no_geom] <- NA_character_
+  height_agl[no_geom] <- NA_real_
+  dem_coverage[no_geom] <- NA_real_
+
+  # A frame whose format resolved but which could not be sized is the quiet case: its
+  # `footprint_basis` names a real format and `width_source` names a calibration, so
+  # nothing about the row says the geometry is empty. It is not covered by the
+  # unknown-format warning above, and with no `dem` it is covered by none of the terrain
+  # warnings either.
+  # Split by cause: a film frame reaches this state through an unparseable `scale`, and
+  # telling its owner to supply a ground sample distance points at the wrong column.
+  unsized_digital <- from_table & no_geom
+  unsized_film <- !is.na(width_in) & no_geom
+  if (any(unsized_digital)) {
+    warning(
+      sum(unsized_digital), " of ", n, " frames have a known recording format but no ",
+      "way to size it, so they have no footprint. A digital frame needs either a ",
+      "`ground_sample_distance` and a calibrated pixel count, or `dem` together with ",
+      "`flying_height` and `focal_length`. See `footprint_basis` and `width_source`.",
+      call. = FALSE
+    )
+  }
+  if (any(unsized_film)) {
+    warning(
+      sum(unsized_film), " of ", n, " frames have a known recording format but no ",
+      "usable `scale`, so they have no footprint. Expected a value like \"1:12000\".",
+      call. = FALSE
+    )
   }
 
   # Assign the reporting columns onto the attribute frame rather than passing
@@ -498,10 +746,14 @@ fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL,
   attrs <- sf::st_drop_geometry(pts_3005)
   attrs$footprint_basis <- basis
   attrs$footprint_terrain <- terrain
+  attrs$width_source <- width_source
   attrs$height_agl <- height_agl
   attrs$dem_coverage <- dem_coverage
 
-  result <- sf::st_sf(attrs, geometry = fly_rectangles(coords, half_side))
+  result <- sf::st_sf(
+    attrs,
+    geometry = fly_rectangles(coords, half_cross, half_along, bearing)
+  )
 
   sf::st_transform(result, input_crs)
 }

@@ -1,0 +1,6 @@
+"key","key_type","reason","frames","retrieved"
+"10210206_2015","calib_file","calibration present only as a scanned image, not machine-readable; visually read as UltraCam Eagle 20010x13080 @ 5.2um = 104.052x68.016mm f100.5",495,"2026-08-30"
+"11937933_2009","calib_file","calibration present only as a scanned image, not machine-readable; visually read as AIC Pro (P65+) 8984x6732 @ 6.0um = 53.904x40.392mm f60.68",443,"2026-08-30"
+"12335326_2017","calib_file","calibration present only as a scanned image, not machine-readable; visually read as PhaseOne IXU-RS-1000 11608x8708 @ 4.6um = 53.4x40.1mm f51.56",7140,"2026-08-30"
+"72914123_2019","calib_file","catalogue GSD/FLYING_HEIGHT contradict the report: implied ground elevation -418 m",1545,"2026-08-30"
+"83","focal_length","no fallback row: no calibrated camera at focal 83, and extrapolating from a different focal is not warranted without knowing the camera - focal distance does not predict the error",,"2026-08-30"

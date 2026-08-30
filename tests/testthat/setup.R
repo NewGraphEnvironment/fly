@@ -4,26 +4,78 @@ testdata_path <- function(...) {
 }
 
 
-# Synthesized mixed film/digital fixture.
+# Synthesized mixed film/digital fixture, where the digital frames CANNOT be resolved.
 #
-# The bundled centroids are 100% `Film - BW`: they come from a 1968 AOI near
-# Houston (data-raw/make_testdata.R), which has no digital coverage at all. A
-# digital frame therefore has to be constructed rather than sampled.
+# The bundled centroids are 100% `Film - BW`, so a digital frame has to be constructed
+# rather than sampled.
 #
-# Focal lengths and GSD mirror the catalogue's two tells for a sensor: 92/100 mm
-# against 153/305 mm for film, and a populated GROUND_SAMPLE_DISTANCE.
+# Focal length 53 is deliberate and is not an arbitrary number: it is the catalogue
+# focal of the PhaseOne rolls, whose calibration report is an image-only PDF and which
+# `camera_formats_excluded.csv` therefore records as unresolvable. So it is a real
+# unresolvable case rather than one invented to dodge the format table — and because
+# no frame at focal 53 lacks a calibration, there is no focal-length fallback row for
+# it either.
+#
+# That premise is asserted in the tests that depend on it (`test-fly_footprint.R`),
+# so a future table that starts shipping focal 53 fails naming the real cause rather
+# than failing on the behaviour under test.
+#
+# GROUND_SAMPLE_DISTANCE is CENTIMETRES in the catalogue — see `fly_gsd_m()`.
 mixed_media_fixture <- function() {
   sf::st_sf(
     airp_id = 1:4,
     scale = c("1:12000", "1:12000", "1:15000", "1:15000"),
     media = c("Film - BW", "Film - Colour", "Digital - Colour", "Digital - Colour"),
-    focal_length = c(153, 305, 92, 100),
-    ground_sample_distance = c(NA, NA, 0.10, 0.10),
+    focal_length = c(153, 305, 53, 53),
+    ground_sample_distance = c(NA, NA, 10, 10),
     geometry = sf::st_sfc(
       sf::st_point(c(-126.60, 54.40)),
       sf::st_point(c(-126.58, 54.40)),
       sf::st_point(c(-126.56, 54.40)),
       sf::st_point(c(-126.54, 54.40)),
+      crs = 4326
+    )
+  )
+}
+
+
+# Digital frames that DO resolve, one per key type and with two very different sensor
+# shapes.
+#
+# Rows 1-2 are a Leica DMC II (87.1 x 79.2 mm, aspect 1.10) and rows 3-4 an UltraCam
+# Eagle (105.8 x 68.0 mm, aspect 1.56), both keyed by their real calibration file. Two
+# aspect ratios that far apart are what lets a test tell a correctly-shaped footprint
+# from a square one — a fixture carrying a single shape cannot.
+#
+# Row 5 has no calibration URL and focal 100, so it takes the focal-length fallback and
+# is marked inferred. Row 6 has a calibration but GSD 0, which is the state that would
+# build a degenerate five-identical-vertex polygon if the zero guard were removed.
+#
+# `film_roll` and `frame_number` are present so `fly_bearing()` can resolve a flight
+# line; frames 1-4 run west to east.
+digital_fixture <- function() {
+  url <- function(k) paste0("https://openmaps.gov.bc.ca/thumbs/calib_report_zips/", k, ".zip")
+  sf::st_sf(
+    airp_id = 1:6,
+    scale = c("1:20000", "1:20000", "1:20000", "1:20000", "1:20000", "1:20000"),
+    media = rep("Digital - Colour", 6),
+    film_roll = c("a", "a", "a", "a", "b", "c"),
+    frame_number = c(1, 2, 3, 4, 1, 1),
+    focal_length = c(92, 92, 80, 80, 100, 120),
+    flying_height = rep(3000, 6),
+    ground_sample_distance = c(20, 20, 15, 15, 25, 0),
+    camera_calibration_url = c(
+      url("121201_2011"), url("121201_2011"),
+      url("20814295_2018"), url("20814295_2018"),
+      NA, url("dmc100039_2006")
+    ),
+    geometry = sf::st_sfc(
+      sf::st_point(c(-126.62, 54.40)),
+      sf::st_point(c(-126.58, 54.40)),
+      sf::st_point(c(-126.54, 54.40)),
+      sf::st_point(c(-126.50, 54.40)),
+      sf::st_point(c(-126.46, 54.40)),
+      sf::st_point(c(-126.42, 54.40)),
       crs = 4326
     )
   )
@@ -106,4 +158,30 @@ mixed_media_shapes <- function() {
 # The columns #30 and #9 added, which #35 found were reaching no tibble caller.
 fly_reported_cols <- function() {
   c("footprint_basis", "footprint_terrain", "height_agl", "dem_coverage")
+}
+
+
+# Every input shape `fly_footprint()` can be handed, for the invariant sweep in
+# test-fly_footprint_invariants.R. Lives here rather than in the test file so its
+# dependencies — the other fixtures and `testdata_path()` — are defined alongside it.
+footprint_cases <- function() {
+  dem <- testdata_path("dem.tif")
+  film <- sf::st_read(testdata_path("photo_centroids.gpkg"), quiet = TRUE)
+  digital <- sf::st_read(testdata_path("photo_centroids_digital.gpkg"), quiet = TRUE)
+  no_gsd <- digital
+  no_gsd$ground_sample_distance <- NA
+  list(
+    "film, no dem"              = list(x = film, dem = NULL),
+    "film, dem"                 = list(x = film, dem = dem),
+    "digital, no dem"           = list(x = digital, dem = NULL),
+    "digital, dem"              = list(x = digital, dem = dem),
+    "digital, no gsd, dem"      = list(x = no_gsd, dem = dem),
+    "digital, no gsd, no dem"   = list(x = no_gsd, dem = NULL),
+    "unknown format"            = list(x = mixed_media_fixture(), dem = NULL),
+    "mixed resolvability"       = list(x = digital_fixture(), dem = NULL),
+    "mixed resolvability + dem" = list(x = digital_fixture(), dem = dem),
+    "terrain fixture"           = list(x = terrain_fixture(), dem = dem),
+    "no media column"           = list(x = film[, setdiff(names(film), "media")], dem = NULL),
+    "empty input"               = list(x = digital_fixture()[0, ], dem = NULL)
+  )
 }

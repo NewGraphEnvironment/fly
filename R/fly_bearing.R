@@ -41,6 +41,10 @@ fly_bearing <- function(photos_sf) {
 
   ord <- order(photos_sf$film_roll, photos_sf$frame_number)
 
+  # `isTRUE()` on the roll comparisons below, rather than a bare `==`: an NA in
+  # `film_roll` makes the comparison NA, which aborts an `if` with "missing value where
+  # TRUE/FALSE needed". A frame with no roll simply has no neighbour to take a bearing
+  # from, which is what NA already means here.
   bearing <- rep(NA_real_, nrow(photos_sf))
 
   rolls <- photos_sf$film_roll[ord]
@@ -48,12 +52,12 @@ fly_bearing <- function(photos_sf) {
   y <- coords[ord, 2]
 
   for (i in seq_along(ord)) {
-    if (i < length(ord) && rolls[i] == rolls[i + 1]) {
+    if (i < length(ord) && isTRUE(rolls[i] == rolls[i + 1])) {
       # Forward bearing to next frame on same roll
       dx <- x[i + 1] - x[i]
       dy <- y[i + 1] - y[i]
       bearing[ord[i]] <- (atan2(dx, dy) * 180 / pi) %% 360
-    } else if (i > 1 && rolls[i] == rolls[i - 1]) {
+    } else if (i > 1 && isTRUE(rolls[i] == rolls[i - 1])) {
       # Last frame on roll: use bearing from previous
       dx <- x[i] - x[i - 1]
       dy <- y[i] - y[i - 1]

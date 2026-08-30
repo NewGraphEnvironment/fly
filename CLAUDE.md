@@ -14,8 +14,11 @@ metadata from the BC Data Catalogue, and georeference the images onto their esti
 
 - One exported function per file: `R/fly_footprint.R` → `tests/testthat/test-fly_footprint.R`
 - `inst/testdata/` — Upper Bulkley River floodplain near Houston, BC (20 photos, dual scale). All 1968 film,
-`Film - BW`, focal 153 — there is no digital frame in it, and `data-raw/make_testdata.R` sources a film-only AOI,
-so digital coverage cannot come from there
+`Film - BW`, focal 153 — so the *sampled* photos cannot exercise the digital path. The **AOI is not
+film-only**, though: it holds 181 `Digital - Colour` frames from two cameras, 24 of which now ship as
+`inst/testdata/photo_centroids_digital.gpkg` (fly#32). An earlier note here said digital coverage could not
+come from there; that came from a `BBOX(SHAPE, ...)` CQL query which returns 0 features for this AOI even for
+a positive control — a broken probe, not an absence. Query bboxes through `bcdata::filter(BBOX(...))`
 - `inst/testdata/dem.tif` — MRDEM-30 clip (NRCan 30 m bare-earth DTM), buffered 5.4 km past the centroids.
 It is one CRS at one resolution, so it **cannot** exercise the reprojection, coarse-grid, truncating-extent or
 wide-spread branches of the terrain code — see `inst/notes/terrain-correction.md`
