@@ -431,9 +431,9 @@ georef[, c("airp_id", "dest", "success")]
 #> # A tibble: 3 × 3
 #>   airp_id dest                                 success
 #>     <int> <chr>                                <lgl>  
-#> 1  699370 /tmp/RtmpeuWN4P/bc5282_176_thumb.tif TRUE   
-#> 2  699415 /tmp/RtmpeuWN4P/bc5282_221_thumb.tif TRUE   
-#> 3  699426 /tmp/RtmpeuWN4P/bc5282_232_thumb.tif TRUE
+#> 1  699370 /tmp/RtmpxMdrNT/bc5282_176_thumb.tif TRUE   
+#> 2  699415 /tmp/RtmpxMdrNT/bc5282_221_thumb.tif TRUE   
+#> 3  699426 /tmp/RtmpxMdrNT/bc5282_232_thumb.tif TRUE
 ```
 
 The georeferenced TIFFs inherit whatever basis
