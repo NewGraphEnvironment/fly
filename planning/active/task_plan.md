@@ -83,16 +83,18 @@ reproduced before acting on it.
 
 ## Phase 5: Release v0.5.1
 
-- [ ] `NEWS.md` — name the class, the data source it breaks, and that geometry
+- [x] `NEWS.md` — name the class, the data source it breaks, and that geometry
       and downstream numbers were always correct (reporting loss only)
-- [ ] Bump `DESCRIPTION` to `0.5.1` as the **final** commit of the branch
-- [ ] Tag `v0.5.1`
+- [x] Bump `DESCRIPTION` to `0.5.1` as the **final** commit of the branch
+- [~] Tag `v0.5.1` — **deliberately not done on the branch.** `/gh-pr-merge`
+      does release bookkeeping after the merge, and a tag on a branch tip that
+      review may amend moves silently. Tag on `main`, after merge
 
 ## Validation
 
-- [ ] Tests pass
-- [ ] `/code-check` clean on each commit
-- [ ] End-to-end against a real `bcdata::collect()` result — the case the
+- [x] Tests pass
+- [x] `/code-check` round 1 run on the fix; 5 findings, all folded in
+- [x] End-to-end against a real `bcdata::collect()` result — the case the
       fixture structurally cannot reach
 - [ ] PWF checkboxes match landed work
 - [ ] `/planning-archive` on completion

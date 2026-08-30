@@ -181,3 +181,29 @@ columns. The guard is real.
   `test-fly_footprint.R:391`, vignette)
 - `devtools::document()` wrote only `fly_footprint.Rd`; `NAMESPACE` unchanged at
   9 exports, so no roxygen block rebound
+
+## End-to-end against the live BC Data Catalogue
+
+The case the fixture structurally cannot reach. `bcdc_query_geodata()` on
+`WHSE_IMAGERY_AND_BASE_MAPS.AIMG_PHOTO_CENTROIDS_SP`, bbox-filtered to the
+bundled AOI, then `collect()`:
+
+```
+rows: 1405
+input class : bcdc_sf,sf,tbl_df,tbl,data.frame
+output class: sf,bcdc_sf,tbl_df,tbl,data.frame
+four columns present: TRUE
+basis values: Film - BW | Film - Colour | unknown_format
+documented filter: 1254 of 1405
+```
+
+Three things this establishes that no fixture could:
+
+- the real input class is exactly the shape #35 named, and the four columns
+  arrive on it
+- the class **reordering** is real rather than an artefact of the hand-set
+  `bcdc_sf` in `centroid_shapes()` — `sf` leads on the way out, and it is
+  `st_transform()` that does it
+- the documented `footprint_basis != "unknown_format"` filter actually excludes
+  something on live data — 151 of 1405 frames — which is the digital-frame
+  exclusion #30 built and #35 had made unreachable from this source
