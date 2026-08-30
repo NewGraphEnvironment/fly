@@ -383,6 +383,35 @@ Add new checks here when a bug class is discovered — they compound over time.
 - Anything building pathspecs from a file (`.Rbuildignore`, `.gitignore`) will
   eventually meet a leading `_`, `(`, or `^`.
 
+### `sed 1d f1 f2 f3` strips only the FIRST file's header
+
+`sed` treats multiple file arguments as one concatenated stream, so a line-address
+script applies once across the whole set rather than per file. Stripping CSV headers
+this way — especially via `find … -exec sed 1d {} +`, which batches many files into one
+invocation — leaves every header but the first embedded in the data.
+
+It is silent, and it lands rows that parse. Caught 2026-08-30 concatenating 24 paged WFS
+responses: 23 stray header rows entered a 223,667-row analysis and showed up only as a
+row-count reconciliation failing by exactly 23.
+
+```bash
+for f in pages/*.csv; do sed 1d "$f"; done > combined.csv   # per file
+awk 'FNR>1' pages/*.csv > combined.csv                      # or FNR, which resets
+```
+
+Reconcile the row count against what the source said it would be. That is the check that
+catches this, and it costs one line.
+
+### `sed -n '/X/,$d' file` prints nothing at all
+
+`-n` suppresses auto-print, and `d` only deletes — so nothing is ever emitted and the
+output is empty. The intent (print up to a marker) needs `sed '/X/,$d'` without `-n`, or
+`sed -n '1,/X/p'`.
+
+Fails toward an **empty file**, which downstream reads as "no matches" rather than as a
+broken command. Same family as the guards below: the silent direction is the dangerous
+one.
+
 ### Reading a file line-by-line drops the last line without a trailing newline
 - `while IFS= read -r line; do ...; done < file` skips a final line that has no
   newline after it. Use `while IFS= read -r line || [ -n "$line" ]`.
@@ -810,6 +839,34 @@ qpdf --qdf --object-streams=disable in.pdf - | strings | grep -oE 'https?://[^ )
 
 `pdftotext` also splits ligatures — "fish" comes out as " sh" — so a grep for any term
 containing `fi`, `fl` or `ffi` can report a false absence.
+
+### Extracted PDF text carries corrupted glyphs, and a tolerant parser turns them into wrong numbers
+
+Worse than the ligature case above, because it fails silently with a plausible value
+rather than a missing match. Three shapes, all met in one set of 18 camera calibration
+reports (fly#32, 2026-08-30):
+
+| what the PDF renders | what it means | what a naive parser does |
+|---|---|---|
+| `2001Opixel` | 20010 | `gsub("[^0-9.]", "", x)` **deletes** the O and returns 2001 |
+| `Pixel Size [<U+F06D>m]` | `[µm]` in a Symbol font | a literal `\[µm\]` misses; a human reading the extract sees `[m]` and takes **metres** |
+| `Pixel Size  5.200 m` | 5.200 µm, sign dropped entirely | reads as metres — a factor of 10^6 |
+
+The micron sign is the common one: U+F06D is a **Private Use Area** codepoint emitted by
+Word-generated PDFs, so it is neither `µ` (U+00B5) nor `μ` (U+03BC) and matches neither.
+
+Three habits:
+
+- **Anchor on the label, not the unit.** Take the first number on the `Pixel Size` line
+  rather than matching a unit that is written three different ways.
+- **Never strip non-digits to "clean" a number.** That silently deletes a corrupted
+  glyph instead of failing on it. Substitute deliberately (`[Oo]` preceded by a digit
+  → `0`) and let an independent check prove the result.
+- **Have an independent identity to check against.** These reports state pixel count,
+  pixel size *and* image size in mm, so `px × pitch == mm` catches any one of the three
+  being wrong — which is what made the O→0 substitution safe rather than reckless. Where
+  the document states only two of the three, the check is vacuous; know which rows those
+  are rather than counting them as passes.
 
 ## R / Package Installation
 
@@ -1491,6 +1548,30 @@ When importing config from one location into a canonical one (legacy `~/.bash_pr
   output is structurally valid and semantically wrong, so every check that looks
   only at shape passes it.
 
+### A grep that cannot show a failure is not a check
+
+- Filtering a run's output to the lines you expect is not verification. If the
+  filter cannot match an error, a failing run and a passing one look identical —
+  and the lines immediately before a fatal error are usually exactly the ones you
+  were hoping to see.
+- Seen 2026-08-29: a driver run was piped through
+  `grep -E "greyscale stretch|added"`. It matched the line printed one statement
+  before `Error: could not find function`, and the success was reported from that
+  match. The work was then completed by hand, which produced the right result and
+  hid that the driver had not. A PR claim of "verified end to end" was true of the
+  earlier commits and false of that one.
+- This is the sibling of *"a wrapper's exit 0 is not the work completing"* below,
+  one step earlier: that rule is about trusting the wrong exit status, this one is
+  about never seeing the status at all. `cmd | grep ...` reports **grep's** exit,
+  so `$?` is 0 whenever the pattern matched, whatever the command did.
+- Capture the whole run, gate on it, then look at the part you care about:
+  ```bash
+  cmd > run.log 2>&1; rc=$?
+  errs=$(grep -c 'Execution halted\|^Error\|could not find' run.log)
+  [ "$rc" -eq 0 ] && [ "$errs" -eq 0 ] || { tail -30 run.log; exit 1; }
+  grep -E "the interesting lines" run.log
+  ```
+
 ### A round-trip through your own reader proves nothing about interop
 - When code writes a format some **other** program consumes — a database table, a config file, an export another tool imports — a test that writes then reads it back with your own reader validates only that you are self-consistent. It cannot detect that the real consumer rejects what you wrote.
 - Symptom when wrong: every test green, the artifact byte-perfect on inspection, and the feature silently does nothing in production. Failures on the consumer's side are often **silent by design** — a lookup that matches nothing returns "no result", not an error.
@@ -1574,6 +1655,44 @@ When importing config from one location into a canonical one (legacy `~/.bash_pr
   differently under `devtools::test()`, `R CMD check`, and an installed package.
   Green in the one you run locally says nothing about the one CI runs. Run both
   before believing it.
+
+### Do not branch on a value only some code paths populate
+
+A variable that one route fills in and another leaves `NA` is not a safe thing to test.
+The condition reads as a property of the row — "has this been sized", "is this
+non-square" — but it is really a property of *which route ran first*, so every branch
+downstream inherits an ordering dependency nobody wrote down.
+
+The failure is total and silent for the affected rows: the condition is uniformly false
+for a whole class of input, so the branch is never taken, no warning fires, and the
+reporting columns say the work happened.
+
+**Tell: the value is assigned in more than one place, and at least one of them is
+conditional.** Ask what it holds for a row that has taken none of those paths yet — if
+the answer is `NA`, anything branching on it before every path has run is testing
+arrival order.
+
+Measured 2026-08-30 in fly#32, where the same `NA`-by-construction fact broke **three
+separate conditions** in one function over three review rounds, each found inside the
+previous round's fix:
+
+| round | condition | consequence |
+|---|---|---|
+| 1 | `sized <- !is.na(half_side)` | fine for the old single route |
+| 2 | `corrected <- sized & !by_gsd` | the two are disjoint, so the DEM route was unreachable for every row it existed to serve — 24/24 empty, silently |
+| 3 | `non_square <- abs(half_cross - half_along) > tol` | computed before the DEM route fills those values, so DEM-sized frames were never rotated; and the answer depended on **what else was in the batch** |
+
+The fix is not a better condition. It is to branch on something known **before any route
+runs** — there, the recording format's aspect ratio rather than the sized half-dimensions.
+Derive the predicate from the inputs, not from a work-in-progress.
+
+**Batch dependence is the confirming symptom.** If whether row *i* takes a branch can be
+changed by editing row *j*, the predicate is reading shared mutable state. Test it: run
+one row alone and in company, and compare.
+
+Related to the proxy rule below — both are conditions that stand in for the property you
+actually want — but distinct in remedy. A proxy needs a truer measurement; this needs the
+same measurement taken *earlier*.
 
 ### A guard that encodes the cause you measured is a proxy for the property you want
 
@@ -1873,6 +1992,62 @@ you cannot say why it went unnoticed, you have not found it yet.
   a rebuild would have silently replaced them with differently-shaped output,
   invisible in a single-record spot check. Fetch, edit the one field, write back,
   and diff a sample to prove nothing else moved.
+
+### `system2()` shell-quotes the command but not the arguments
+
+- `system2("git", c("-C", dir, "status"))` breaks the moment `dir` contains a
+  space: the command name is quoted, the args are pasted on raw and re-split by
+  the shell. Wrap every path or user-derived arg in `shQuote()`.
+- It fails in the direction that hides itself. A `git -C "/some path" rev-parse`
+  that gets split returns nothing on stdout, so a probe reads it as "not a git
+  checkout" and **skips every later check** rather than erroring. The provenance
+  guard then reports nothing wrong because it never ran.
+- Same family as the stderr-interleaving rule above, and the same fix shape:
+  read the exit **status**, not just the output. `stdout = TRUE` discards the
+  status, so `length(out) == 0` conflates "the command failed" with "there was
+  nothing to report" — check `attr(out, "status")`, or call again with
+  `stdout = FALSE` when you only need pass/fail.
+- Caught 2026-08-29 in gq#64, and only by testing the guard against a checkout
+  deliberately placed at a path containing a space. Reading it proved nothing;
+  the two-answer test did.
+
+### `expect_setequal()` refuses NULL, and `names(character(0))` is NULL
+
+- An exemption list keyed by name — `c(layer_a = "reason", layer_b = "reason")` —
+  is normally asserted two ways: the offenders are all exempt, and every
+  exemption is still needed. The second calls `names()`.
+- Emptying that list, which is the goal every such list documents as its correct
+  state, then **errors the test**:
+  ```r
+  local_exempt <- character(0)     # or c(), or NULL
+  names(local_exempt)              # NULL, not character(0)
+  expect_setequal(setdiff(names(local_exempt), offenders), character(0))
+  #> Error: `object` must be a vector, not `NULL`.
+  ```
+- Use `stats::setNames(character(0), character(0))`, and say why in a comment —
+  it reads as a affectation otherwise and the next person will simplify it back.
+- **Do not fix it by deleting the "still needed" assertion.** That assertion is
+  the tripwire that makes the list a set of decisions rather than a backlog;
+  removing it to make emptying easy discards the reason the list was trustworthy.
+- The trap is that this fires at the exact moment of success. The guard works for
+  as long as it has entries, and breaks when you finally earn the empty state —
+  so it is a bug you cannot meet until the day you are trying to close the issue.
+
+### A writer that rewrites a whole file changes more than the rows you added
+
+- Appending via a library writer usually means read-all, append, write-all. The
+  library then imposes its own conventions on **every** line, not just yours:
+  Python's `csv.writer` terminates with `\r\n` by default, so a two-row append
+  converted an entire CSV to CRLF and every line showed as modified.
+- The diff stat is the only warning, and it is easy to skim past — "21
+  insertions, 19 deletions" for two added rows. Read the count against your
+  intent: if it exceeds what you changed, stop and look before committing.
+- Prefer opening in append mode and writing only the new bytes, with the
+  terminator stated explicitly (`lineterminator='\n'`). When a full rewrite is
+  unavoidable, diff before staging.
+- Same family as "`git add -A` after a generator sweeps its side effects into
+  your commit", one level lower: there the extra changes come from another tool,
+  here from the writer you called yourself.
 
 
 # NGE Feature Workflow
