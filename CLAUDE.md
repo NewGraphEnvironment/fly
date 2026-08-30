@@ -314,6 +314,37 @@ Add new checks here when a bug class is discovered — they compound over time.
   the rule above: `r-lib`'s check workflow sets `cancel-in-progress: true`, so a
   second push to main minutes after a merge legitimately cancels the first run.
 
+### A proxy assertion does not guard the thing it stands for
+
+- When the defect is a **resource** — an allocation, a query count, a number of network
+  calls — the natural assertion is a proxy for it: elapsed time. Proxies compress. A
+  defect that allocates 243 million cells where the fix allocates sixteen thousand, a
+  factor of **14,950**, showed up as 1.0 s against 0.18 s: a factor of 5, and inside CI
+  jitter. No threshold separates those, so the test passed on the exact defect it was
+  written for.
+- Worse, the other assertions in that test passed too, because the defective code
+  computed the **right answer** — it just spent absurdly getting there. Correct output is
+  not evidence about cost.
+- **Assert the quantity that actually differs.** Where it is internal, give it a name and
+  observe it, rather than reaching for a wall-clock stand-in:
+  ```r
+  # name the thing whose size is the invariant
+  fly_dem_grid <- function(dem, geom) { ... }
+
+  sizes <- c(); real <- fly_dem_grid
+  local_mocked_bindings(fly_dem_grid = function(...) {
+    g <- real(...); sizes <<- c(sizes, prod(dim(g)[1:2])); g
+  })
+  do_the_work()
+  expect_lt(max(sizes), bound)          # 14,950x apart, not 5x
+  ```
+- **A test that observes through a mock must not call the mocked function itself.** The
+  baseline computed inside the mocked region records itself and poisons the measurement —
+  seen immediately on the first draft of the above. Compute any reference value *before*
+  installing the mock.
+- Caught 2026-08-29 in fly#9, in a guard written one commit earlier specifically to catch
+  that defect, whose commit message asserted it had been verified against a restore.
+
 ### git pathspec excludes: use the long form
 - `:!path` is short-form magic, and git keeps parsing magic characters after the
   `!`. A path starting with one aborts the whole command:
@@ -1028,6 +1059,29 @@ give it a mock-based twin that always runs.
   ```
 - The trap is that it *appears* to work, because plenty of upstream operations compute min/max as a side effect — `terra::crop()` does, so anything arriving via `maptiles::get_tiles(crop = TRUE)` has them. Correct by accident, through an internal that is not a contract. Pass `compute = TRUE`, and test the guard against a **file-backed** fixture: one built by `rast(vals = ...)` is in memory, has statistics cached, and cannot reach this. (gq#57, 2026-08 — a flat-tile detector called every file-backed raster flat, and the whole fixture set shared the one property that hid it.)
 
+### terra: `extract()` returns no row for ground beyond the raster, and counts cells by centre
+
+- Two traps in one call, and both make a partial result look complete.
+- **Ground past the raster's *extent* yields no row at all**, not an `NA` row. So measuring
+  coverage as the non-`NA` share of what came back reports a footprint hanging half off the
+  data as fully covered. A raster cropped to an AOI is exactly this shape — no `NA`
+  interior, it simply stops — which is how most people obtain one, so this is the common
+  case rather than the exotic one. Measured in fly#9: every frame reported coverage `1`
+  while the sampled elevation was wrong by 83 m.
+- **`extract()` takes a cell when its *centre* falls inside the polygon.** So a denominator
+  computed from the polygon's *area* in cell units is a different measurement from the
+  numerator, low by roughly `2/k` for a polygon `k` cells across. On a raster with no
+  missing data at all and room to spare, that reported 91% coverage at 900 m cells.
+  Count the denominator the same way — cells on a grid aligned to the raster's own via
+  `terra::align()` — or use `exact = TRUE` and accept it being ~23x slower.
+- Do the alignment **per feature**, not once over their union: the union's bounding box
+  spans the whole set, so one outlying feature sizes the grid to the *gap*. Two points
+  700 km apart went to 243 million cells against 16 thousand counted separately.
+  `terra::extend()` has the same failure — it sizes to the union of raster and features.
+- Fine test rasters hide all of this. A 30 m grid makes the `2/k` error invisible, and a
+  fixture whose CRS matches the data leaves every reprojection branch unexecuted. Test at
+  two resolutions, with anisotropic cells, and in a geographic CRS.
+
 ### sf: `st_join(largest = TRUE)` ignores the join predicate
 - `sf::st_join(x, y, join = predicate, largest = TRUE)` does **not** use `predicate` to decide matches — with `largest = TRUE`, sf runs `st_intersection(x, y)` and keeps the feature of greatest overlap area, so matching is *always* intersection-based regardless of what `join =` is set to. A function that exposes a configurable predicate AND a largest-overlap mode therefore silently mis-attributes when both are combined: pass `st_within` expecting containment, get anything that merely *overlaps*. Verify against sf source, not the argument list — the `join` arg is accepted and ignored, not rejected. Fix: abort when a non-default predicate is combined with the largest-overlap mode, rather than honouring one and dropping the other. (drift#42)
 - Corollary: `largest = TRUE` also drops zero-area geometries from consideration — so a predicate join against **point** or **line** overlays cannot use largest mode at all (no area to compare). Point/line attribution must go through the plain (`largest = FALSE`) predicate path.
@@ -1411,6 +1465,13 @@ When importing config from one location into a canonical one (legacy `~/.bash_pr
 ### A fixture set that cannot reach the failure mode is not validation
 - Hand-picked fixtures test the cases you thought of. If every one of them is structurally incapable of triggering the bug class you are fixing, a green run means nothing — and it is *more* dangerous than no test, because it licenses the claim "validated".
 - Before declaring a fix verified, ask what the fixtures have in common and whether that shared property is the very thing the bug depends on. If it is, the set has a hole no amount of additions to it will close.
+- **A fixture that matches the code's happy path makes whole branches unexecuted.** Not
+  merely untested — never run. A single test raster in the same CRS as the data makes
+  every reprojection an identity, so a units error there is invisible to a full suite;
+  fly#9 shipped one that reported coverage of `1.4e-10` on a geographic raster while 200+
+  tests passed. Ask which branches your fixture *cannot enter*, and vary the fixture along
+  exactly those axes — CRS, resolution, extent, spread — rather than adding more cases
+  along the axis it already covers.
 - Prefer a **global structural invariant** over more examples. Properties like antisymmetry, transitivity, "every node reaches a terminal", or a conservation total sweep the whole domain and cannot be gamed by fixture choice.
 - (link#227 / fresh#214, 2026-08: a watershed drainage-closure fix was declared validated on 8 hydrology fixtures. All 8 compared groups with *differing* stream codes — the bug only manifests between groups sharing one code, so the set could not have caught it. The very next case tried, the Fraser, dropped the group the entire basin drains through. What actually earned the claim was a transitivity sweep: 0 violations across 3,537 triples, plus 0 cycles and every group reaching an outlet.)
 
@@ -1471,6 +1532,58 @@ When importing config from one location into a canonical one (legacy `~/.bash_pr
   Green in the one you run locally says nothing about the one CI runs. Run both
   before believing it.
 
+### A guard that encodes the cause you measured is a proxy for the property you want
+
+You reproduce a bug, measure the state that produced it, and write the guard
+against that state. It fixes the case in front of you and leaves every other
+state with the same *property* wide open — because the condition you wrote is a
+proxy, and the thing it stands for is what actually matters.
+
+The tell is a guard whose condition names a **mechanism** ("has no row in table
+X", "the file is older than Y", "the id is one of these two values") where the
+requirement is a **capability** ("can be resolved", "is current", "means
+something"). Ask: *what property was I actually testing for, and is my condition
+equivalent to it or merely correlated with it?* If it is a list of known-bad
+states, the list is incomplete and nothing will tell you when.
+
+Measured 2026-08-29 in rfp#218, over four review rounds each of which fixed the
+previous round's fix. Carrying geometry across a CRS change had three failure
+arms, and the same broken file took a different one depending only on the
+**target** CRS:
+
+| arm | what happens | guard that works |
+|---|---|---|
+| **skipped** | the source CRS will not resolve, the branch is never entered, values carried verbatim | the symptom: `is.na(st_crs(x))` |
+| **vacuous** | the transform runs and is an exact identity | a file-level fact the transform cannot see |
+| **failed** | it returns `NaN` for every value without raising | a post-condition on the result |
+
+Round 2 post-conditioned the *failed* arm — a check on the result of an
+operation it assumed had run and meant something. Round 3 found the *vacuous*
+one and enumerated the file-level states it had measured. Round 4 found that
+one of those states, "has no `gpkg_spatial_ref_sys` row", was a proxy for
+"`st_crs()` can resolve it": a row that **exists and resolves to nothing** passes
+the check and corrupts. The skip arm now guards the symptom directly, which
+needs no guess about which state caused it.
+
+Two things that generalise:
+
+- **Guard the symptom where you can test it directly**, and reserve enumeration
+  for the arm where the symptom is invisible — here, the vacuous transform,
+  where everything looks healthy and only a file-level fact discriminates. One
+  guard per arm; they are not interchangeable, and a single "better" condition
+  covering all three does not exist.
+- **Check the fix does not refuse recoverable input.** A garbage `definition`
+  under a real EPSG id still resolves through its organisation code and
+  transforms correctly. Refusing it would have been a false refusal of live
+  field data, which is worse than the bug — so that case is asserted as its own
+  test, beside the refusals.
+
+And the fixture rule below applies with teeth here: a fixture pinning one target
+CRS reaches **one** of three arms while appearing to cover the behaviour. Where
+an input dimension selects which failure you get, that dimension belongs in a
+table, with a healthy control at each value so the guard is distinguishable from
+one that refuses everything.
+
 ### Restore the bug and confirm the test fails
 - The rule above says a fixture that cannot reach the failure mode is worthless. This is the thirty-second check that tells you which kind you just wrote: **put the defect back, run the test, watch it go red.** A test that stays green against the code it was written to reject is decoration, and reading it will not tell you that — every case below looked correct on the page.
 - Cheapest form when the fix is inside a package: patch the binding rather than editing the source back and forth. For a data-shaped bug, feed the function the input the fix was about and assert the old answer is gone.
@@ -1494,6 +1607,19 @@ When importing config from one location into a canonical one (legacy `~/.bash_pr
     unlockBinding("f", e); assign("f", broken_version, e)
   }
   ```
+- **Restore the defect from the source that had it, not from memory.** A hand-rewritten
+  "previous version" is a *different* program, and the difference is invisible because
+  both look like the bug you remember. Measured 2026-08-29 in fly#9: a reconstruction
+  used `sum(!is.na(x))` where the original had `length(x)`, and failed **4** tests where
+  the real prior code failed **0** — so the reconstruction said "the guard works" about a
+  guard that did not. Pull the exact bytes:
+  ```bash
+  git show <sha>:R/f.R | sed -n '/^my_fn <- function/,/^}/p' > /tmp/prior.R
+  ```
+  The direction of that error is the dangerous one: a reconstruction is *more* likely to
+  fail the tests than the real defect was, because any incidental difference can trip an
+  assertion. A green reconstruction proves nothing and a red one proves almost nothing.
+
 - **Do not reason about which environment — print a value that proves the patch took.** One line, before the assertion, whose output can only come from the broken version. That is what turns "I patched it" into "the broken code ran", and it is the same check whether the language is R, Python or JS. Assigning into `globalenv()` also appears to work in R, by *shadowing* the attached copy earlier on the search path — a workaround that happens to produce the right answer for the wrong reason, and silently fails the moment the caller is inside the package.
 - Three instances in one PR (gq#52, 2026-08), all written by someone who had just read the fixture rule directly above:
   - A scale-bar test asserting the bar stays within `share` of the frame — threshold hardcoded at **0.75** against a `share` of **0.35**, so a bar at 2.1x the requested size passed. Every width in the fixture also happened to round *down*, so none could overrun even at the right threshold.
@@ -1831,6 +1957,35 @@ stop and ask"*. Those are about **what the user wants**: intent, scope, an ambig
 requirement, a tradeoff only they can weigh. This is about **how you carry it out**.
 Ask about intent; decide about mechanism. A question starting "should I use…" is
 almost always the second kind, and almost always yours to answer.
+
+#### Standing authorization: the harness bars the Agent tool by default on Opus 5
+
+Sessions on Opus 5 carry a hardcoded instruction from the CLI itself —
+*"Do not call the AgentTool unless the user requested it"* — alongside the same
+line for workflows and deep-research. It is not a setting anyone here
+misconfigured, and it cannot be turned off locally: measured 2026-08-29 in
+`claude` v2.1.251, the string is a literal in the bundle, emitted when the
+session is on the `opus_5_prompt_bundle` and the server-side flag
+`tengu_fennel_godwit` is off. That flag and the replacement text
+(`tengu_heron_brook`) are both remote config; nothing in `~/.claude/settings.json`
+reaches them.
+
+The symptom is a skill quietly doing less than it says: `/code-check` reporting
+*"the subagent rounds did not run — your session instruction bars the Agent
+tool"*, which is the review the command exists to perform. It reads as a
+configuration problem, so the fix gets looked for in the wrong place.
+
+**The clause is conditional, so this convention is the request.** Invoking a
+skill that mandates subagents — `/code-check`'s three rounds, the Plan review in
+`planning.md` — **is** the user requesting them. Spawn them. This paragraph is a
+standing user instruction, written for exactly that purpose (airvine,
+2026-08-29), and CLAUDE.md project instructions override default behaviour by
+their own terms.
+
+It authorizes the mandated spawns and nothing wider: the bounds in this section
+still hold — two or three concurrent, about five per task, no fan-out from a
+child — and a workflow or deep-research run fanning out dozens of agents remains
+a spending decision that needs an explicit ask.
 
 **Spawn without asking when:**
 
