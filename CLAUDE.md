@@ -16,6 +16,11 @@ metadata from the BC Data Catalogue, and georeference the images onto their esti
 - `inst/testdata/` — Upper Bulkley River floodplain near Houston, BC (20 photos, dual scale). All 1968 film,
 `Film - BW`, focal 153 — there is no digital frame in it, and `data-raw/make_testdata.R` sources a film-only AOI,
 so digital coverage cannot come from there
+- `inst/testdata/dem.tif` — MRDEM-30 clip (NRCan 30 m bare-earth DTM), buffered 5.4 km past the centroids.
+It is one CRS at one resolution, so it **cannot** exercise the reprojection, coarse-grid, truncating-extent or
+wide-spread branches of the terrain code — see `inst/notes/terrain-correction.md`
+- `inst/notes/terrain-correction.md` — why the DEM path is built the way it is, and the four wrong ways to
+compute `dem_coverage` that each passed their own tests
 - `mixed_media_fixture()` in `tests/testthat/setup.R` — synthesized film + digital frames, because the bundled
 data cannot exercise the media branch
 - `data-raw/make_testdata.R` — generates test data from diggs cached data
@@ -33,11 +38,23 @@ drawing as a rectangle and still producing a coverage percentage. `fly_footprint
 unknown. Downstream functions report how many frames they excluded. Digital defaults are deliberately unshipped
 until sensor widths are established (#32) — `format_size` is the slot they drop into
 
+- **Terrain error is a datum offset, not slope** (v0.5.0, #9) — `FLYING_HEIGHT` is metres **above sea level**,
+and reported scale is referenced to an elevation above the ground the photos cover, so it understates footprint
+area by a median 13.8% *always in the same direction*. `fly_footprint(dem =)` sizes each frame from
+`flying_height - terrain elevation` and reports `footprint_terrain`, `height_agl` and `dem_coverage`. Slope
+would push both ways and is much smaller; per-corner ray-casting is worth ~2% against this 14% and is deferred
+(#10). Do not rebuild this as a slope model
+
 ## Gotchas
 
 - `.lintr` must be single-line DCF format — multi-line breaks newer lintr versions
 - `sf_use_s2(FALSE)` needed for spatial operations on complex geometries
 - `!!by := grp` in `fly_coverage()` requires `@importFrom rlang :=` in `fly-package.R`
+- **A green suite says little about the terrain code.** Six review rounds of fly#9 each found a real defect in
+the previous round's fix, every time because the bundled DEM could not reach the failure mode — four successive
+`dem_coverage` implementations passed 200+ tests while wrong. Before changing anything under `dem`, read
+`inst/notes/terrain-correction.md` and test at two resolutions, with anisotropic cells, in a geographic CRS,
+with a truncating extent, and with frames far apart
 
 <!-- BEGIN SOUL CONVENTIONS — DO NOT EDIT BELOW THIS LINE -->
 
