@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fly</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.5.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.5.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,17 @@
 
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="development version" id="fly-development-version">fly (development version)<a class="anchor" aria-label="anchor" href="#fly-development-version"></a></h2>
+<div class="section level3">
+<h3 id="id_051-development-version">0.5.1 (2026-08-29)<a class="anchor" aria-label="anchor" href="#id_051-development-version"></a></h3>
+<ul><li>Fix <code><a href="../reference/fly_footprint.html">fly_footprint()</a></code> silently dropping <code>footprint_basis</code>, <code>footprint_terrain</code>, <code>height_agl</code> and <code>dem_coverage</code> whenever its input carried the <code>tbl_df</code> class (<a href="https://github.com/NewGraphEnvironment/fly/issues/35" class="external-link">#35</a>). <code>bcdata::collect()</code> returns exactly that class, so every caller querying <code>WHSE_IMAGERY_AND_BASE_MAPS.AIMG_PHOTO_CENTROIDS_SP</code> — the documented source for this package — lost the whole reporting surface 0.4.0 and 0.5.0 added, and the documented “filter on <code>footprint_basis</code>” and “filter on <code>dem_coverage</code>” workflows were unreachable from it</li>
+<li>Geometry and every downstream number were always correct; what was lost was the audit trail, which is what made it invisible. <code><a href="https://r-spatial.github.io/sf/reference/sf.html" class="external-link">sf::st_sf()</a></code> keeps only its first argument when that argument is a tibble, discarding every trailing named column — a general R trap rather than a <code>fly</code> one</li>
+<li>Every class the input carries is carried through, so a tibble-backed sf comes back tibble-backed. The order is not preserved: <code><a href="https://r-spatial.github.io/sf/reference/st_transform.html" class="external-link">sf::st_transform()</a></code> moves <code>sf</code> to the front, so a <code>bcdc_sf</code> input returns <code>sf, bcdc_sf, ...</code> — as it always has</li>
+<li>Where the input already carried a column named <code>footprint_basis</code> (or one of the other three), the old code kept the caller’s value and appended a duplicate <code>footprint_basis.1</code> — so the documented <code>footprint_basis != "unknown_format"</code> filter read the caller’s column while fly’s own answer sat unread beside it. The computed value now wins, and there is one column. Plain <code>sf</code> callers were affected by this too, though never by the tibble bug</li>
+<li>
+<code><a href="../reference/fly_footprint.html">fly_footprint()</a></code> on an input matching no frames now returns <code>footprint_basis</code> and <code>footprint_terrain</code> as <code>character</code> rather than <code>logical</code>, so an empty result binds to a populated one. Assembling a per-AOI ledger across queries previously failed on the column type the first time an area returned nothing</li>
+<li>Tests sweep the input-class axis (plain / tibble / grouped) rather than adding cases along the one axis the bundled fixture could present. Every fixture in the package reads back as plain <code>sf, data.frame</code>, so the suite was structurally incapable of seeing this</li>
+<li>Widen the <code>DESCRIPTION</code> Title and Description, which described roughly half the package — they predated <code><a href="../reference/fly_fetch.html">fly_fetch()</a></code>, <code><a href="../reference/fly_georef.html">fly_georef()</a></code> and <code><a href="../reference/fly_bearing.html">fly_bearing()</a></code> (<a href="https://github.com/NewGraphEnvironment/fly/issues/31" class="external-link">#31</a>)</li>
+</ul></div>
 <div class="section level3">
 <h3 id="id_050-development-version">0.5.0 (2026-08-29)<a class="anchor" aria-label="anchor" href="#id_050-development-version"></a></h3>
 <ul><li>

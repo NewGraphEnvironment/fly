@@ -1,8 +1,9 @@
-# fly: Airphoto Footprint Estimation and Coverage Selection
+# fly: Historic Airphoto Footprints, Selection and Georeferencing for British Columbia
 
 Estimate ground footprints from airphoto centroids and scale, compute
-coverage of areas of interest, and select minimum photo sets using
-greedy set-cover.
+coverage of areas of interest, select minimum photo sets using greedy
+set-cover, fetch scans and flight metadata from the BC Data Catalogue,
+and georeference the images onto their estimated footprints.
 
 ## See also
 

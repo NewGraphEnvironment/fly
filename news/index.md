@@ -2,6 +2,56 @@
 
 ## fly (development version)
 
+### 0.5.1 (2026-08-29)
+
+- Fix
+  [`fly_footprint()`](https://newgraphenvironment.github.io/fly/reference/fly_footprint.md)
+  silently dropping `footprint_basis`, `footprint_terrain`, `height_agl`
+  and `dem_coverage` whenever its input carried the `tbl_df` class
+  ([\#35](https://github.com/NewGraphEnvironment/fly/issues/35)).
+  `bcdata::collect()` returns exactly that class, so every caller
+  querying `WHSE_IMAGERY_AND_BASE_MAPS.AIMG_PHOTO_CENTROIDS_SP` — the
+  documented source for this package — lost the whole reporting surface
+  0.4.0 and 0.5.0 added, and the documented “filter on
+  `footprint_basis`” and “filter on `dem_coverage`” workflows were
+  unreachable from it
+- Geometry and every downstream number were always correct; what was
+  lost was the audit trail, which is what made it invisible.
+  [`sf::st_sf()`](https://r-spatial.github.io/sf/reference/sf.html)
+  keeps only its first argument when that argument is a tibble,
+  discarding every trailing named column — a general R trap rather than
+  a `fly` one
+- Every class the input carries is carried through, so a tibble-backed
+  sf comes back tibble-backed. The order is not preserved:
+  [`sf::st_transform()`](https://r-spatial.github.io/sf/reference/st_transform.html)
+  moves `sf` to the front, so a `bcdc_sf` input returns
+  `sf, bcdc_sf, ...` — as it always has
+- Where the input already carried a column named `footprint_basis` (or
+  one of the other three), the old code kept the caller’s value and
+  appended a duplicate `footprint_basis.1` — so the documented
+  `footprint_basis != "unknown_format"` filter read the caller’s column
+  while fly’s own answer sat unread beside it. The computed value now
+  wins, and there is one column. Plain `sf` callers were affected by
+  this too, though never by the tibble bug
+- [`fly_footprint()`](https://newgraphenvironment.github.io/fly/reference/fly_footprint.md)
+  on an input matching no frames now returns `footprint_basis` and
+  `footprint_terrain` as `character` rather than `logical`, so an empty
+  result binds to a populated one. Assembling a per-AOI ledger across
+  queries previously failed on the column type the first time an area
+  returned nothing
+- Tests sweep the input-class axis (plain / tibble / grouped) rather
+  than adding cases along the one axis the bundled fixture could
+  present. Every fixture in the package reads back as plain
+  `sf, data.frame`, so the suite was structurally incapable of seeing
+  this
+- Widen the `DESCRIPTION` Title and Description, which described roughly
+  half the package — they predated
+  [`fly_fetch()`](https://newgraphenvironment.github.io/fly/reference/fly_fetch.md),
+  [`fly_georef()`](https://newgraphenvironment.github.io/fly/reference/fly_georef.md)
+  and
+  [`fly_bearing()`](https://newgraphenvironment.github.io/fly/reference/fly_bearing.md)
+  ([\#31](https://github.com/NewGraphEnvironment/fly/issues/31))
+
 ### 0.5.0 (2026-08-29)
 
 - [`fly_footprint()`](https://newgraphenvironment.github.io/fly/reference/fly_footprint.md)

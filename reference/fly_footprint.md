@@ -48,7 +48,12 @@ applied, `height_agl` giving the metres above ground each footprint was
 sized from, and `dem_coverage` giving the fraction of each footprint the
 DEM actually covered (`0` where it covered none, `NA` only where there
 is no footprint). Frames whose format could not be resolved get an empty
-geometry.
+geometry. Every class the input carries is carried through, so a
+tibble-backed sf — which is what `bcdata::collect()` returns — comes
+back tibble-backed. The order is not preserved:
+[`sf::st_transform()`](https://r-spatial.github.io/sf/reference/st_transform.html)
+moves `sf` to the front, so a `bcdc_sf` input returns
+`sf, bcdc_sf, ...`, as it always has.
 
 ## Details
 

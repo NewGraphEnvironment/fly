@@ -9,7 +9,7 @@ of each airphoto, based on film negative dimensions and the reported scale."><me
 
     <a class="navbar-brand me-2" href="../index.html">fly</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.5.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.5.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -86,7 +86,11 @@ rectangles, a <code>footprint_basis</code> column recording how each was sized, 
 <code>height_agl</code> giving the metres above ground each footprint was sized from,
 and <code>dem_coverage</code> giving the fraction of each footprint the DEM actually
 covered (<code>0</code> where it covered none, <code>NA</code> only where there is no footprint).
-Frames whose format could not be resolved get an empty geometry.</p>
+Frames whose format could not be resolved get an empty geometry. Every
+class the input carries is carried through, so a tibble-backed sf — which
+is what <code>bcdata::collect()</code> returns — comes back tibble-backed. The order
+is not preserved: <code><a href="https://r-spatial.github.io/sf/reference/st_transform.html" class="external-link">sf::st_transform()</a></code> moves <code>sf</code> to the front, so a
+<code>bcdc_sf</code> input returns <code>sf, bcdc_sf, ...</code>, as it always has.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
