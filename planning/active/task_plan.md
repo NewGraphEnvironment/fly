@@ -72,14 +72,14 @@ the diagnostic ones; that gets stated in the test rather than left to luck.
 
 ## Phase 1: Make the corner mapping testable without GDAL
 
-- [ ] Extract GCP construction from `georef_one()` into a pure internal
+- [x] Extract GCP construction from `georef_one()` into a pure internal
       `fly_georef_gcps(ncol_px, nrow_px, coords, rotation)` returning the pixel->ground
       correspondence. No GDAL, no file I/O, no `sf::gdal_utils()`.
-- [ ] Rewrite `georef_one()` to call it; everything else in that function unchanged.
-- [ ] `tests/testthat/test-fly_georef_gcps.R`: film GCP output identical at all four
+- [x] Rewrite `georef_one()` to call it; everything else in that function unchanged.
+- [x] `tests/testthat/test-fly_georef_gcps.R`: film GCP output identical at all four
       rotations to the pre-change implementation, pulled with
       `git show HEAD:R/fly_georef.R` (not reconstructed from memory).
-- [ ] Put the helper at the top of `R/fly_georef.R` or its own file — never between a
+- [x] Put the helper at the top of `R/fly_georef.R` or its own file — never between a
       roxygen block and the function it documents (the fly#30 `@export` rebind).
 
 **Verify:** `devtools::test()` green; the film-parity test asserts equality against bytes

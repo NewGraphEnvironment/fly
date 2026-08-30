@@ -238,43 +238,15 @@ georef_one <- function(src, fp, out_file, srcnodata = "0", rotation = 180) {
   n_bands <- length(gregexpr("Band \\d+", info)[[1]])
   is_rgb <- n_bands >= 3
 
-  # Pixel corners: TL, TR, BR, BL
-  pixel_corners <- list(
-    c(0, 0),              # TL
-    c(ncol_px, 0),        # TR
-    c(ncol_px, nrow_px),  # BR
-    c(0, nrow_px)         # BL
-  )
-
-  # Footprint corners in same order: TL, TR, BR, BL
-  fp_corners <- list(
-    coords[4, 1:2],  # TL
-    coords[3, 1:2],  # TR
-    coords[2, 1:2],  # BR
-    coords[1, 1:2]   # BL
-  )
-
-  # Rotation: shift the footprint corner mapping
-
-  # rotation=0:   pixel TL → footprint TL (north-up, original behavior)
-  # rotation=90:  pixel TL → footprint TR (top of image = east)
-  # rotation=180: pixel TL → footprint BR (top of image = south)
-  # rotation=270: pixel TL → footprint BL (top of image = west)
-  n_shifts <- rotation %/% 90
-  if (n_shifts > 0) {
-    fp_corners <- c(
-      fp_corners[(n_shifts + 1):4],
-      fp_corners[1:n_shifts]
-    )
-  }
-
-  # Build GCP args mapping pixel corners to (rotated) footprint corners
+  # Build GCP args from the pixel-to-ground correspondence.
+  gcp <- fly_georef_gcps(ncol_px, nrow_px, coords, rotation)
+  # `unname()` matters: the ring arrives from `sf::st_coordinates()` carrying X/Y
+  # dimnames, and without it the option vector handed to GDAL is named. Harmless to
+  # GDAL, but it makes the args unequal to a plain character vector under
+  # `identical()`, which is what the parity test compares.
   gcp_args <- character(0)
-  for (j in seq_along(pixel_corners)) {
-    gcp_args <- c(gcp_args,
-      "-gcp", pixel_corners[[j]][1], pixel_corners[[j]][2],
-      fp_corners[[j]][1], fp_corners[[j]][2]
-    )
+  for (j in seq_len(nrow(gcp))) {
+    gcp_args <- c(gcp_args, "-gcp", as.character(unname(gcp[j, ])))
   }
 
   # Step 1: translate with GCPs
@@ -326,4 +298,52 @@ bearing_to_rotation <- function(bearing) {
   rot <- (floor((bearing + 91) / 90) * 90L) %% 360L
   rot[is.na(rot)] <- 180L
   as.integer(rot)
+}
+
+#' Map image pixel corners onto footprint ground corners
+#'
+#' The pure half of [georef_one()] — no GDAL, no file I/O, no `sf`. Split out
+#' because it is the part that can be wrong, and a GCP correspondence is
+#' checkable offline in a way a warped GeoTIFF is not.
+#'
+#' `coords` is the footprint's ring as [fly_footprint()] builds it, whose vertex
+#' order is a contract: rows 1-4 are BL, BR, TR, TL **in the rectangle's own
+#' frame**. For a non-square footprint that frame is the flight line's, so those
+#' are rear-left, rear-right, front-right, front-left — the same meaning whether
+#' or not the ring was rotated onto a bearing. See `fly_rectangles()`.
+#'
+#' @param ncol_px,nrow_px Image dimensions in pixels.
+#' @param coords A 4-row matrix of footprint ring coordinates, x in column 1
+#'   and y in column 2.
+#' @param rotation Image rotation, one of 0, 90, 180, 270. Cyclically shifts
+#'   which ground corner the top-left pixel maps to.
+#' @return A 4-row numeric matrix with columns `pixel_x`, `pixel_y`,
+#'   `ground_x`, `ground_y`, one row per corner in the order TL, TR, BR, BL.
+#' @noRd
+fly_georef_gcps <- function(ncol_px, nrow_px, coords, rotation) {
+  # Pixel corners: TL, TR, BR, BL
+  pixel <- matrix(
+    c(0, 0,
+      ncol_px, 0,
+      ncol_px, nrow_px,
+      0, nrow_px),
+    ncol = 2, byrow = TRUE
+  )
+
+  # Footprint corners in the same order: TL, TR, BR, BL
+  ground <- coords[c(4, 3, 2, 1), 1:2, drop = FALSE]
+
+  # Rotation shifts the footprint corner mapping:
+  #   0   pixel TL → footprint TL (north-up on a square; front-left on a rectangle)
+  #   90  pixel TL → footprint TR
+  #   180 pixel TL → footprint BR
+  #   270 pixel TL → footprint BL
+  n_shifts <- rotation %/% 90
+  if (n_shifts > 0) {
+    ground <- ground[c((n_shifts + 1):4, 1:n_shifts), , drop = FALSE]
+  }
+
+  out <- cbind(pixel, ground)
+  dimnames(out) <- list(NULL, c("pixel_x", "pixel_y", "ground_x", "ground_y"))
+  out
 }
