@@ -27,8 +27,10 @@ fly_footprint(centroids_sf, negative_size = 9, format_size = NULL, dem = NULL)
 - format_size:
 
   Named numeric vector of recording-format widths in inches, keyed by
-  `media` value, merged over the shipped film defaults. Supply this to
-  size frames whose format `fly` does not know — see Details.
+  `media` value, merged over the shipped film defaults. Frames it names
+  are sized from the reported `scale`, as film is, and it takes
+  precedence over the shipped camera table — it is the escape hatch for
+  a camera `fly` does not know. See Details.
 
 - dem:
 
@@ -80,6 +82,11 @@ Each row is therefore sized from its `media` value, and
 
   format resolved from the format table
 
+- `"inferred_format"`:
+
+  digital frame with no calibration, sized from a format inferred from
+  its `focal_length`
+
 - `"assumed_default"`:
 
   no `media` column; `negative_size` applied
@@ -88,11 +95,45 @@ Each row is therefore sized from its `media` value, and
 
   `media` present but unknown; empty geometry
 
-Shipped defaults cover film only. Digital frames resolve to
-`"unknown_format"` rather than an invented number, because the sensor
-width they would need is not in the centroid metadata — and neither is
-the pixel count that would let `ground_sample_distance` stand in for it.
-Supply `format_size` if you know the camera:
+## Digital frames
+
+A digital frame has no negative, and the catalogue mixes film and
+digital in one layer — 223,667 of 1,670,471 frames province-wide are
+`Digital - Colour`. Sensor dimensions are not in the centroid metadata,
+but they are recoverable from the calibration report each frame links to
+through `camera_calibration_url`, and `fly` ships them
+(`inst/extdata/camera_formats.csv`, built by
+`data-raw/make_camera_formats.R`).
+
+Digital frames are sized as `pixel count x ground_sample_distance`,
+which needs neither `scale` nor a DEM. **`scale` is never used for a
+digital frame `fly` sized itself.** That field is not the true image
+scale for digital: measured against terrain on 40 UltraCam Eagle frames
+it gives 34% of true width, because it is a derived nominal figure — the
+pixel pitch it implies is about 12.5 um for every camera regardless of
+model, against real pitches of 3.9 to 12 um. `ground_sample_distance` is
+in centimetres.
+
+Where a frame carries no `camera_calibration_url` — about a fifth of
+digital frames — the format is inferred from `focal_length` and
+`footprint_basis` records `"inferred_format"`. Sensor width spreads only
+1-3% at a given focal length, but pixel count spreads 32-83%, so an
+inferred frame can only be sized through a DEM
+(`width x height above ground / focal length`) and never from its GSD.
+
+`width_source` names the calibration file or fallback rule per row, so
+every footprint traces back to a source. Calibrations that could not be
+corroborated are listed in `inst/extdata/camera_formats_excluded.csv`
+with the reason, and frames naming one are refused rather than inferred.
+
+**Digital footprints are not square** — sensors run from 1.10:1 (Leica
+DMC II) to 1.80:1 (Intergraph DMC) — so they are rotated onto the flight
+line using
+[`fly_bearing()`](https://newgraphenvironment.github.io/fly/reference/fly_bearing.md).
+Where no bearing can be computed the rectangle stays axis-aligned and
+`width_source` says so. Film stays square and is unaffected.
+
+Supply `format_size` to size a frame `fly` cannot, or to override it:
 
     fly_footprint(photos, format_size = c("Digital - Colour" = 3.54))
 
@@ -137,6 +178,12 @@ substance — it moves area by at most 0.5% against the correction's own
 - `"nominal_scale"`:
 
   sized from the reported scale (no `dem`, or a fallback — see below)
+
+- `"gsd_scaled"`:
+
+  digital frame sized from its pixel count and ground sample distance;
+  used neither the reported scale nor a DEM, so `height_agl` and
+  `dem_coverage` are `NA`
 
 - `"dem_agl"`:
 

@@ -9,7 +9,7 @@ of each airphoto, based on film negative dimensions and the reported scale."><me
 
     <a class="navbar-brand me-2" href="../index.html">fly</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.5.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.6.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -66,8 +66,10 @@ recording format per frame when present.</p></dd>
 
 <dt id="arg-format-size">format_size<a class="anchor" aria-label="anchor" href="#arg-format-size"></a></dt>
 <dd><p>Named numeric vector of recording-format widths in inches,
-keyed by <code>media</code> value, merged over the shipped film defaults. Supply this
-to size frames whose format <code>fly</code> does not know — see Details.</p></dd>
+keyed by <code>media</code> value, merged over the shipped film defaults. Frames it names are
+sized from the reported <code>scale</code>, as film is, and it takes precedence over the
+shipped camera table — it is the escape hatch for a camera <code>fly</code> does not know.
+See Details.</p></dd>
 
 
 <dt id="arg-dem">dem<a class="anchor" aria-label="anchor" href="#arg-dem"></a></dt>
@@ -112,6 +114,10 @@ records the outcome:</p>
 <dl><dt>the <code>media</code> value</dt>
 <dd><p>format resolved from the format table</p></dd>
 
+<dt><code>"inferred_format"</code></dt>
+<dd><p>digital frame with no calibration, sized from a
+format inferred from its <code>focal_length</code></p></dd>
+
 <dt><code>"assumed_default"</code></dt>
 <dd><p>no <code>media</code> column; <code>negative_size</code> applied</p></dd>
 
@@ -119,11 +125,39 @@ records the outcome:</p>
 <dd><p><code>media</code> present but unknown; empty geometry</p></dd>
 
 
-</dl><p>Shipped defaults cover film only. Digital frames resolve to
-<code>"unknown_format"</code> rather than an invented number, because the sensor width
-they would need is not in the centroid metadata — and neither is the pixel
-count that would let <code>ground_sample_distance</code> stand in for it. Supply
-<code>format_size</code> if you know the camera:</p>
+</dl></div>
+    <div class="section level2">
+    <h2 id="digital-frames">Digital frames<a class="anchor" aria-label="anchor" href="#digital-frames"></a></h2>
+
+
+
+<p>A digital frame has no negative, and the catalogue mixes film and digital in one
+layer — 223,667 of 1,670,471 frames province-wide are <code>Digital - Colour</code>. Sensor
+dimensions are not in the centroid metadata, but they are recoverable from the
+calibration report each frame links to through <code>camera_calibration_url</code>, and <code>fly</code>
+ships them (<code>inst/extdata/camera_formats.csv</code>, built by
+<code>data-raw/make_camera_formats.R</code>).</p>
+<p>Digital frames are sized as <code>pixel count x ground_sample_distance</code>, which needs
+neither <code>scale</code> nor a DEM. <strong><code>scale</code> is never used for a digital frame <code>fly</code> sized
+itself.</strong> That field is not the true image scale for digital: measured against
+terrain on 40 UltraCam Eagle frames it gives 34% of true width, because it is a
+derived nominal figure — the pixel pitch it implies is about 12.5 um for every
+camera regardless of model, against real pitches of 3.9 to 12 um.
+<code>ground_sample_distance</code> is in centimetres.</p>
+<p>Where a frame carries no <code>camera_calibration_url</code> — about a fifth of digital frames —
+the format is inferred from <code>focal_length</code> and <code>footprint_basis</code> records
+<code>"inferred_format"</code>. Sensor width spreads only 1-3% at a given focal length, but
+pixel count spreads 32-83%, so an inferred frame can only be sized through a DEM
+(<code>width x height above ground / focal length</code>) and never from its GSD.</p>
+<p><code>width_source</code> names the calibration file or fallback rule per row, so every
+footprint traces back to a source. Calibrations that could not be corroborated are
+listed in <code>inst/extdata/camera_formats_excluded.csv</code> with the reason, and frames
+naming one are refused rather than inferred.</p>
+<p><strong>Digital footprints are not square</strong> — sensors run from 1.10:1 (Leica DMC II) to
+1.80:1 (Intergraph DMC) — so they are rotated onto the flight line using
+<code><a href="fly_bearing.html">fly_bearing()</a></code>. Where no bearing can be computed the rectangle stays axis-aligned
+and <code>width_source</code> says so. Film stays square and is unaffected.</p>
+<p>Supply <code>format_size</code> to size a frame <code>fly</code> cannot, or to override it:</p>
 <p></p><div class="sourceCode r"><pre><code><span><span class="fu"><a href="../reference/fly_footprint.html">fly_footprint</a></span><span class="op">(</span><span class="va">photos</span>, format_size <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Digital - Colour"</span> <span class="op">=</span> <span class="fl">3.54</span><span class="op">)</span><span class="op">)</span></span></code></pre><p></p></div>
 <p>Filter on <code>footprint_basis</code> to keep only frames sized from a known format.</p>
 <p><strong>Focal length and flying height are available.</strong> <code>FOCAL_LENGTH</code>,
@@ -161,6 +195,11 @@ at most 0.5% against the correction's own 14% — and a third moves it by
 <dl><dt><code>"nominal_scale"</code></dt>
 <dd><p>sized from the reported scale (no <code>dem</code>, or a
 fallback — see below)</p></dd>
+
+<dt><code>"gsd_scaled"</code></dt>
+<dd><p>digital frame sized from its pixel count and ground
+sample distance; used neither the reported scale nor a DEM, so <code>height_agl</code>
+and <code>dem_coverage</code> are <code>NA</code></p></dd>
 
 <dt><code>"dem_agl"</code></dt>
 <dd><p>sized from height above ground</p></dd>

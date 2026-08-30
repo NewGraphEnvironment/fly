@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fly</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.5.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.6.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,24 @@
 
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="development version" id="fly-development-version">fly (development version)<a class="anchor" aria-label="anchor" href="#fly-development-version"></a></h2>
+<div class="section level3">
+<h3 id="id_060-development-version">0.6.0 (2026-08-30)<a class="anchor" aria-label="anchor" href="#id_060-development-version"></a></h3>
+<ul><li>
+<code><a href="../reference/fly_footprint.html">fly_footprint()</a></code> now sizes digital frames, closing the gap <a href="https://github.com/NewGraphEnvironment/fly/issues/30" class="external-link">#30</a> made honest but left open (<a href="https://github.com/NewGraphEnvironment/fly/issues/32" class="external-link">#32</a>). Province-wide that is 223,667 of 1,670,471 frames — the package was quietly film-only for anything after ~2010</li>
+<li>Sensor dimensions are read from the camera calibration reports the catalogue itself links to through <code>camera_calibration_url</code>, and shipped as <code>inst/extdata/camera_formats.csv</code> (built by <code>data-raw/make_camera_formats.R</code>). 14 calibrations covering 169,688 frames, plus focal-length fallback rows for frames carrying no calibration</li>
+<li>
+<strong>The catalogue’s <code>SCALE</code> is not the true image scale for a digital frame, and is no longer used for one.</strong> Measured against terrain on 40 UltraCam Eagle frames it gives 34% of true width: it is a derived nominal figure, implying a pixel pitch of ~12.5 um for every camera regardless of model against real pitches of 3.9-12 um. A digital frame is sized as <code>pixel count x ground_sample_distance</code> instead, which needs neither <code>scale</code> nor a DEM. <code>ground_sample_distance</code> is centimetres</li>
+<li>
+<strong>Footprints are no longer always square.</strong> Digital sensors run from 1.10:1 (Leica DMC II) to 1.80:1 (Intergraph DMC), so a square footprint was up to 76% too deep. Non-square footprints are rotated onto the flight line via <code><a href="../reference/fly_bearing.html">fly_bearing()</a></code>. Film stays square and its output is unchanged</li>
+<li>New <code>width_source</code> column names the calibration file or fallback rule behind every digital footprint, and <code>footprint_terrain</code> gains <code>"gsd_scaled"</code> — <code>nominal_scale</code> is documented as “sized from the reported scale”, which is the one thing this route never does</li>
+<li>Frames whose calibration could not be corroborated are refused rather than inferred, listed with the reason in <code>inst/extdata/camera_formats_excluded.csv</code>. Two are medium-format bodies about half the width of everything else in the record, so inferring one from focal length would have been ~1.95x too wide</li>
+<li>
+<code><a href="../reference/fly_georef.html">fly_georef()</a></code> excludes rotated footprints with a warning: its corner mapping applies its own bearing rotation, calibrated for axis-aligned squares, and would count the rotation twice</li>
+<li>The shipped numbers are parsed from the reports, never typed, and gated on four checks before the table is written — <code>px x pitch</code> against the stated image size, report focal against the catalogue’s, plausibility bounds, and an implied ground elevation that must be a real BC elevation. The last two caught a camera whose catalogue metadata contradicts its own report, which is withheld</li>
+<li>
+<code>format_size</code> is unchanged and still takes precedence, so a caller who knows their camera can override the shipped table</li>
+<li>New <code>inst/testdata/photo_centroids_digital.gpkg</code>: 24 real digital frames over the AOI that already ships, from two cameras 0.46 apart in aspect ratio</li>
+</ul></div>
 <div class="section level3">
 <h3 id="id_051-development-version">0.5.1 (2026-08-29)<a class="anchor" aria-label="anchor" href="#id_051-development-version"></a></h3>
 <ul><li>Fix <code><a href="../reference/fly_footprint.html">fly_footprint()</a></code> silently dropping <code>footprint_basis</code>, <code>footprint_terrain</code>, <code>height_agl</code> and <code>dem_coverage</code> whenever its input carried the <code>tbl_df</code> class (<a href="https://github.com/NewGraphEnvironment/fly/issues/35" class="external-link">#35</a>). <code>bcdata::collect()</code> returns exactly that class, so every caller querying <code>WHSE_IMAGERY_AND_BASE_MAPS.AIMG_PHOTO_CENTROIDS_SP</code> — the documented source for this package — lost the whole reporting surface 0.4.0 and 0.5.0 added, and the documented “filter on <code>footprint_basis</code>” and “filter on <code>dem_coverage</code>” workflows were unreachable from it</li>

@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="index.html">fly</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.5.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.6.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -48,7 +48,8 @@
 <ul><li>One exported function per file: <code>R/fly_footprint.R</code> → <code>tests/testthat/test-fly_footprint.R</code>
 </li>
 <li>
-<code>inst/testdata/</code> — Upper Bulkley River floodplain near Houston, BC (20 photos, dual scale). All 1968 film, <code>Film - BW</code>, focal 153 — there is no digital frame in it, and <code>data-raw/make_testdata.R</code> sources a film-only AOI, so digital coverage cannot come from there</li>
+<code>inst/testdata/</code> — Upper Bulkley River floodplain near Houston, BC (20 photos, dual scale). All 1968 film, <code>Film - BW</code>, focal 153 — so the <em>sampled</em> photos cannot exercise the digital path. The <strong>AOI is not film-only</strong>, though: it holds 181 <code>Digital - Colour</code> frames from two cameras, 24 of which now ship as <code>inst/testdata/photo_centroids_digital.gpkg</code> (fly#32). An earlier note here said digital coverage could not come from there; that came from a <code>BBOX(SHAPE, ...)</code> CQL query which returns 0 features for this AOI even for a positive control — a broken probe, not an absence. Query bboxes through <code>bcdata::filter(BBOX(...))</code>
+</li>
 <li>
 <code>inst/testdata/dem.tif</code> — MRDEM-30 clip (NRCan 30 m bare-earth DTM), buffered 5.4 km past the centroids. It is one CRS at one resolution, so it <strong>cannot</strong> exercise the reprojection, coarse-grid, truncating-extent or wide-spread branches of the terrain code — see <code>inst/notes/terrain-correction.md</code>
 </li>

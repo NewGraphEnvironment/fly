@@ -2,6 +2,60 @@
 
 ## fly (development version)
 
+### 0.6.0 (2026-08-30)
+
+- [`fly_footprint()`](https://newgraphenvironment.github.io/fly/reference/fly_footprint.md)
+  now sizes digital frames, closing the gap
+  [\#30](https://github.com/NewGraphEnvironment/fly/issues/30) made
+  honest but left open
+  ([\#32](https://github.com/NewGraphEnvironment/fly/issues/32)).
+  Province-wide that is 223,667 of 1,670,471 frames — the package was
+  quietly film-only for anything after ~2010
+- Sensor dimensions are read from the camera calibration reports the
+  catalogue itself links to through `camera_calibration_url`, and
+  shipped as `inst/extdata/camera_formats.csv` (built by
+  `data-raw/make_camera_formats.R`). 14 calibrations covering 169,688
+  frames, plus focal-length fallback rows for frames carrying no
+  calibration
+- **The catalogue’s `SCALE` is not the true image scale for a digital
+  frame, and is no longer used for one.** Measured against terrain on 40
+  UltraCam Eagle frames it gives 34% of true width: it is a derived
+  nominal figure, implying a pixel pitch of ~12.5 um for every camera
+  regardless of model against real pitches of 3.9-12 um. A digital frame
+  is sized as `pixel count x ground_sample_distance` instead, which
+  needs neither `scale` nor a DEM. `ground_sample_distance` is
+  centimetres
+- **Footprints are no longer always square.** Digital sensors run from
+  1.10:1 (Leica DMC II) to 1.80:1 (Intergraph DMC), so a square
+  footprint was up to 76% too deep. Non-square footprints are rotated
+  onto the flight line via
+  [`fly_bearing()`](https://newgraphenvironment.github.io/fly/reference/fly_bearing.md).
+  Film stays square and its output is unchanged
+- New `width_source` column names the calibration file or fallback rule
+  behind every digital footprint, and `footprint_terrain` gains
+  `"gsd_scaled"` — `nominal_scale` is documented as “sized from the
+  reported scale”, which is the one thing this route never does
+- Frames whose calibration could not be corroborated are refused rather
+  than inferred, listed with the reason in
+  `inst/extdata/camera_formats_excluded.csv`. Two are medium-format
+  bodies about half the width of everything else in the record, so
+  inferring one from focal length would have been ~1.95x too wide
+- [`fly_georef()`](https://newgraphenvironment.github.io/fly/reference/fly_georef.md)
+  excludes rotated footprints with a warning: its corner mapping applies
+  its own bearing rotation, calibrated for axis-aligned squares, and
+  would count the rotation twice
+- The shipped numbers are parsed from the reports, never typed, and
+  gated on four checks before the table is written — `px x pitch`
+  against the stated image size, report focal against the catalogue’s,
+  plausibility bounds, and an implied ground elevation that must be a
+  real BC elevation. The last two caught a camera whose catalogue
+  metadata contradicts its own report, which is withheld
+- `format_size` is unchanged and still takes precedence, so a caller who
+  knows their camera can override the shipped table
+- New `inst/testdata/photo_centroids_digital.gpkg`: 24 real digital
+  frames over the AOI that already ships, from two cameras 0.46 apart in
+  aspect ratio
+
 ### 0.5.1 (2026-08-29)
 
 - Fix
