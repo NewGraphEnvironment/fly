@@ -32,7 +32,11 @@ rectangles, a \code{footprint_basis} column recording how each was sized, a
 \code{height_agl} giving the metres above ground each footprint was sized from,
 and \code{dem_coverage} giving the fraction of each footprint the DEM actually
 covered (\code{0} where it covered none, \code{NA} only where there is no footprint).
-Frames whose format could not be resolved get an empty geometry.
+Frames whose format could not be resolved get an empty geometry. Every
+class the input carries is carried through, so a tibble-backed sf — which
+is what \code{bcdata::collect()} returns — comes back tibble-backed. The order
+is not preserved: \code{sf::st_transform()} moves \code{sf} to the front, so a
+\code{bcdc_sf} input returns \verb{sf, bcdc_sf, ...}, as it always has.
 }
 \description{
 Creates rectangular polygons representing the estimated ground coverage

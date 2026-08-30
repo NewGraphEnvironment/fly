@@ -1,6 +1,7 @@
 Package: fly
-Title: Airphoto Footprint Estimation and Coverage Selection
-Version: 0.5.0
+Title: Historic Airphoto Footprints, Selection and Georeferencing for
+    British Columbia
+Version: 0.5.1
 Date: 2026-08-29
 Authors@R: c(
     person("Allan", "Irvine", , "al@newgraphenvironment.com", role = c("aut", "cre"),
@@ -8,8 +9,9 @@ Authors@R: c(
     person("New Graph Environment", role = "cph")
     )
 Description: Estimate ground footprints from airphoto centroids and scale,
-    compute coverage of areas of interest, and select minimum photo sets
-    using greedy set-cover.
+    compute coverage of areas of interest, select minimum photo sets using
+    greedy set-cover, fetch scans and flight metadata from the BC Data
+    Catalogue, and georeference the images onto their estimated footprints.
 License: MIT + file LICENSE
 URL: https://github.com/NewGraphEnvironment/fly,
     https://newgraphenvironment.github.io/fly/

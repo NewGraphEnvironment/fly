@@ -647,3 +647,164 @@ test_that("fly_footprint reports coverage of the footprint it actually returns",
   expect_lt(truth, 0.95)               # the fixture must reach the failure mode
   expect_equal(fp$dem_coverage, truth, tolerance = 1e-6)
 })
+
+
+test_that("fly_footprint reports the same columns whatever class the input carries", {
+  # #35: `sf::st_sf()` keeps only its first argument when that argument is a
+  # tibble, so the four reporting columns were discarded for every caller whose
+  # input carried `tbl_df` — which is what `bcdata::collect()` returns, and so
+  # what the package's own documented data source hands back. Every fixture in
+  # the package is plain `sf, data.frame`, so no case added along the existing
+  # axis could have found this. Sweep the axis instead.
+  shapes <- centroid_shapes()
+  reported <- fly_reported_cols()
+
+  out <- lapply(shapes, fly_footprint)
+
+  for (nm in names(out)) {
+    expect_true(all(reported %in% names(out[[nm]])), info = nm)
+  }
+
+  # The bundled centroids give a constant basis and all-NA terrain columns, so
+  # the value comparison below would hold for any implementation that got the
+  # names right. Sweep the mixed-media fixture too, where `footprint_basis`
+  # varies across rows and reaches `unknown_format`.
+  mixed <- lapply(mixed_media_shapes(), function(x) suppressWarnings(fly_footprint(x)))
+  expect_gt(length(unique(mixed$plain$footprint_basis)), 1)   # premise
+  for (nm in names(mixed)) {
+    expect_true(all(reported %in% names(mixed[[nm]])), info = nm)
+    expect_identical(mixed[[nm]]$footprint_basis, mixed$plain$footprint_basis,
+                     info = nm)
+  }
+
+  # Not merely present: identical, column for column, to what the plain shape
+  # gets. A fix that supplied the names and lost the values would pass the
+  # check above.
+  for (nm in names(out)) {
+    expect_identical(names(out[[nm]]), names(out$plain), info = nm)
+    for (col in reported) {
+      expect_identical(out[[nm]][[col]], out$plain[[col]],
+                       info = paste(nm, col))
+    }
+    expect_identical(sf::st_geometry(out[[nm]]), sf::st_geometry(out$plain),
+                     info = nm)
+  }
+})
+
+
+test_that("fly_footprint reports the same columns on the dem path too", {
+  skip_if_no_terra()
+  # All four columns are attached by the one `st_sf()` call, so the terrain path
+  # fails the same way — and it is `dem_coverage`, documented as the filter for
+  # partially-covered frames, that goes missing there.
+  dem <- terra::rast(testdata_path("dem.tif"))
+  shapes <- centroid_shapes()
+  reported <- fly_reported_cols()
+
+  out <- lapply(shapes, function(x) suppressWarnings(fly_footprint(x, dem = dem)))
+
+  # The fixture must reach the terrain code, or this sweep says nothing about it.
+  expect_true(any(out$plain$footprint_terrain == "dem_agl", na.rm = TRUE))
+  expect_true(any(!is.na(out$plain$dem_coverage)))
+
+  for (nm in names(out)) {
+    expect_true(all(reported %in% names(out[[nm]])), info = nm)
+    for (col in reported) {
+      expect_identical(out[[nm]][[col]], out$plain[[col]],
+                       info = paste(nm, col))
+    }
+  }
+})
+
+
+test_that("fly_footprint carries every class the input had", {
+  # Contract, not the #35 regression guard: the broken code carried the class
+  # correctly and dropped the columns. This guards the other direction — a fix
+  # that coerced the frame to `data.frame` would hand a bcdata caller back
+  # something narrower than they passed in.
+  #
+  # Set, not sequence. `sf::st_transform()` moves `sf` to the front, so a
+  # `bcdc_sf` input comes back `sf, bcdc_sf, ...` — measured, and true of the
+  # prior implementation too. An `identical(class(out), class(in))` here would
+  # pass on the three shapes the fixture used to have and fail on the one
+  # caller the issue was filed about, which is the trap this branch exists to
+  # close rather than repeat.
+  shapes <- centroid_shapes()
+  expect_true("bcdc" %in% names(shapes))          # premise: the shape is present
+  for (nm in names(shapes)) {
+    out <- fly_footprint(shapes[[nm]])
+    expect_true(all(class(shapes[[nm]]) %in% class(out)), info = nm)
+    expect_s3_class(out, "sf")
+  }
+})
+
+
+test_that("fly_footprint overwrites a colliding reporting column", {
+  # Before #35 the trailing-argument form appended `footprint_basis.1` for a
+  # data.frame caller and kept the caller's value under the documented name —
+  # so `footprints$footprint_basis != "unknown_format"`, the filter the docs
+  # prescribe, read the caller's column and fly's real answer sat unread. The
+  # computed value must win. Unguarded, a revert to trailing `st_sf()`
+  # arguments would reinstate the duplicate with nothing failing.
+  shapes <- centroid_shapes()
+  for (nm in names(shapes)) {
+    x <- shapes[[nm]]
+    x$footprint_basis <- "PRE-EXISTING"
+    out <- fly_footprint(x)
+    expect_equal(sum(grepl("^footprint_basis", names(out))), 1L, info = nm)
+    expect_false(any(out$footprint_basis == "PRE-EXISTING"), info = nm)
+  }
+})
+
+
+test_that("an empty result binds to a populated one", {
+  # `ifelse(logical(0), ...)` returns `logical(0)`, so a query matching no
+  # frames reported its basis as a logical column. Assembling a per-AOI ledger
+  # across queries — the use the reporting columns exist for — then fails on
+  # the type the first time an AOI returns nothing, rather than contributing no
+  # rows. Reachable only from the empty input, which no other test supplies.
+  shapes <- centroid_shapes()
+  for (nm in names(shapes)) {
+    empty <- fly_footprint(shapes[[nm]][0, ])
+    expect_identical(nrow(empty), 0L, info = nm)
+    expect_type(empty$footprint_basis, "character")
+    expect_type(empty$footprint_terrain, "character")
+    expect_type(empty$height_agl, "double")
+    expect_type(empty$dem_coverage, "double")
+  }
+  full <- fly_footprint(shapes$plain)
+  bound <- dplyr::bind_rows(fly_footprint(shapes$plain[0, ]), full)
+  expect_identical(nrow(bound), nrow(full))
+})
+
+
+test_that("a tibble-backed footprint still flows through the consumers", {
+  # The four columns are new on this path, so check they do not disturb the
+  # functions that take a footprint. Numbers come from the plain shape, which
+  # the rest of the suite already pins.
+  shapes <- centroid_shapes()
+  aoi <- sf::st_read(testdata_path("aoi.gpkg"), quiet = TRUE)
+
+  # `by = "scale"` because the fixture is a single photo year — grouping on it
+  # gives one group, and a one-row-against-one-row comparison is the weakest
+  # available. Premises assert each reference result is non-degenerate, since
+  # every comparison below passes when both sides are empty.
+  ref_filter <- fly_filter(shapes$plain, aoi)
+  ref_cover <- fly_coverage(shapes$plain, aoi, by = "scale")
+  ref_overlap <- fly_overlap(shapes$plain)
+  ref_select <- suppressMessages(fly_select(shapes$plain, aoi))
+  expect_gt(nrow(ref_filter), 0)
+  expect_gt(nrow(ref_cover), 1)
+  expect_gt(nrow(ref_overlap), 0)
+  expect_gt(nrow(ref_select), 0)
+
+  for (nm in names(shapes)) {
+    x <- shapes[[nm]]
+    expect_equal(nrow(fly_filter(x, aoi)), nrow(ref_filter), info = nm)
+    expect_equal(fly_coverage(x, aoi, by = "scale")$covered_km2,
+                 ref_cover$covered_km2, info = nm)
+    expect_equal(nrow(fly_overlap(x)), nrow(ref_overlap), info = nm)
+    expect_equal(nrow(suppressMessages(fly_select(x, aoi))), nrow(ref_select),
+                 info = nm)
+  }
+})

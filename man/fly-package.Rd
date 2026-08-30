@@ -4,11 +4,11 @@
 \name{fly-package}
 \alias{fly}
 \alias{fly-package}
-\title{fly: Airphoto Footprint Estimation and Coverage Selection}
+\title{fly: Historic Airphoto Footprints, Selection and Georeferencing for British Columbia}
 \description{
 \if{html}{\figure{logo.png}{options: style='float: right' alt='logo' width='120'}}
 
-Estimate ground footprints from airphoto centroids and scale, compute coverage of areas of interest, and select minimum photo sets using greedy set-cover.
+Estimate ground footprints from airphoto centroids and scale, compute coverage of areas of interest, select minimum photo sets using greedy set-cover, fetch scans and flight metadata from the BC Data Catalogue, and georeference the images onto their estimated footprints.
 }
 \seealso{
 Useful links:
