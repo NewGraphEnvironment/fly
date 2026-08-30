@@ -55,6 +55,16 @@ the previous round's fix, every time because the bundled DEM could not reach the
 `dem_coverage` implementations passed 200+ tests while wrong. Before changing anything under `dem`, read
 `inst/notes/terrain-correction.md` and test at two resolutions, with anisotropic cells, in a geographic CRS,
 with a truncating extent, and with frames far apart
+- **Every fixture in this package is plain `sf, data.frame`** — the bundled GeoPackage reads back that way, and
+`mixed_media_fixture()` / `terrain_fixture()` are built by `st_sf()` on plain vectors. `bcdata::collect()` returns
+`bcdc_sf, sf, tbl_df, tbl, data.frame`, so the suite is blind to anything that behaves differently on a tibble.
+That is how fly#35 shipped through two releases: `sf::st_sf()` keeps only its first argument when that argument is
+a tibble, so `footprint_basis`, `footprint_terrain`, `height_agl` and `dem_coverage` reached no caller of the
+documented data source, with geometry and every downstream number still correct. Use `centroid_shapes()` in
+`tests/testthat/setup.R` — it sweeps plain / tibble / grouped / `bcdc_sf` — for anything that attaches columns to
+user-supplied data. Note the class *set* is carried but not its order: `st_transform()` moves `sf` to the front
+- **`fly_footprint()` must not be handed its own output** (fly#37, open) — `st_coordinates()` on POLYGON returns one
+row per vertex, so 20 footprints in gives 100 rows out, silently. There is no guard yet
 
 <!-- BEGIN SOUL CONVENTIONS — DO NOT EDIT BELOW THIS LINE -->
 
