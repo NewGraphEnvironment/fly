@@ -49,3 +49,34 @@
   `asNamespace("fly")` and `as.environment("package:fly")`, with a printed ground
   coordinate that can only come from the broken version. Result: **FAIL=2**, the two
   isotropy assertions. The guard fires
+
+### Phase 3 — the constant is 270, and the plan's premise was wrong
+
+A concurrent plan review found that `patb_georef_url` — a column `fly_fetch()` already
+supports — carries **per-frame exterior orientation**, published and free. So the
+licence-restricted orthophotos were never the only route, and are not the best one.
+Verified before acting on it: the file downloads, parses, and covers all 24 bundled
+frames.
+
+Three measurements, all public, all in `data-raw/georef_calibrate-corner_mapping.R`:
+
+1. **Exterior orientation.** The Eagle's image x-axis tracks the flight heading at
+   0.18 deg (MAD 0.47) over 6839 frames spanning 32 compass bins, with the reflected
+   reading excluded at 14.1% against 98.7%. Under the ordinary top-left raster
+   convention that is rotation 270.
+2. **Adjacent-frame overlap.** Needs no reference imagery — consecutive frames overlap,
+   so at the right rotation their common ground agrees, and a 180-degree error reflects
+   each frame about its own centre. 270 wins on both cameras: +0.616 and +0.659 against
+   at most +0.43.
+3. **FWA lake darkness.** 270 makes water darkest on both frames tested, with the water
+   442 m and 1684 m off the footprint centre so the test could actually discriminate.
+
+**The PATB reading disagreed for the DMC II and was wrong.** It said 90. It looked
+strong — 97.6% agreement, four projects pooled — and could not have been right: that
+camera's bundled project flies east and west only, so its own data separates the two
+hypotheses at 97.6% against 98.4%, which is to say not at all. Recorded in
+`inst/notes/georeferencing.md` as the cautionary half, because it is the measurement a
+reader will find most convincing.
+
+Both cameras give the same answer, so the constant is global rather than a per-camera
+column.

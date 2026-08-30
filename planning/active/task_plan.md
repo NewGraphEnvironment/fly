@@ -102,26 +102,28 @@ pulled from git, and fails if the extraction changed any coordinate.
 the DMC II / UltraCam distortion factors are recorded so a future fixture change that
 drops the UltraCam is visible.
 
-## Phase 3: Establish the constant against orthophoto ground truth
+## Phase 3: Establish the constant  [DONE — re-scoped by measurement]
 
-Runs in the private catalogue repo. Two facts settle together:
+The plan assumed licence-restricted orthophotos were the only route. They are not, and
+the route that works is better: the catalogue publishes per-frame exterior orientation
+through `patb_georef_url`, and consecutive frames overlap enough to check each other.
+All three measurements below use public data, so the derivation lives in fly.
 
-- [ ] (a) Is the long sensor axis actually across-track? Compare the #32 footprint's
-      orientation against the ortho for the same ground. A 90-degree error here is not a
-      georef bug — it is a footprint bug, and it would reopen #32.
-- [ ] (b) Which of 90 / 270 is correct? They differ by a 180-degree flip of image content
-      inside the same quad.
-- [ ] Sample both bundled cameras plus the 1.76:1 Leica DMC III — the highest-ratio and
-      therefore most diagnostic case. Join ortho to catalogue on `BCGS_TILE` + `PHOTO_YEAR`.
-- [ ] Check visually **and** with a measurable: a named ground feature must land in the
-      same place in the warped thumbnail as in the ortho. A screenshot alone is not a result.
-- [ ] Record the answer **per camera**. Do not assume one constant serves both until
-      both are measured. If they differ, the constant becomes a `camera_formats.csv` column
-      and Phase 4 grows a lookup — decide then, not now.
-- [ ] Bring back only: the constant(s), the sample size, and what was compared. No pixels.
-
-**Verify:** the same answer for every frame of a camera; disagreement within a camera means
-the model is wrong, not that the sample is noisy.
+- [x] (a) Is the long sensor axis actually across-track? Guarded rather than assumed —
+      `parse_vexcel()` reads the manufacturer's own `long track`/`cross track` labels,
+      and Phase 4's isotropy guard refuses any frame whose delivered aspect disagrees
+      with its footprint
+- [x] (b) Which rotation is correct? **270**, for both cameras
+- [x] Exterior orientation from PATB: the Eagle's mount is rigid to 0.18 deg (MAD 0.47,
+      n=6839, 32 compass bins), reflection excluded at 14.1% against 98.7%
+- [x] Adjacent-frame overlap correlation — needs no reference imagery at all:
+      270 wins on both cameras (+0.616 / +0.659 against <= +0.43)
+- [x] FWA lake darkness as an outside opinion: 270 darkest on both frames tested,
+      water 442 m and 1684 m off-centre so the test could discriminate
+- [x] Recorded per camera. They agree, so the constant is global — **not** a
+      `camera_formats.csv` column
+- [x] `data-raw/georef_calibrate-corner_mapping.R` reproduces all three
+- [x] No imagery, licence-restricted or otherwise, enters the package
 
 ## Phase 4: Land the constant and remove the exclusion
 
