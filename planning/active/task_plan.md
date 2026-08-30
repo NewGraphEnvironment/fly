@@ -78,8 +78,8 @@ reproduced before acting on it.
 
 ## Phase 4: DESCRIPTION Title (#31, folded in)
 
-- [ ] Widen `Title:` and `Description:` to cover fetch and georeferencing
-- [ ] `devtools::document()`; `devtools::check()` for the title-case rules
+- [x] Widen `Title:` and `Description:` to cover fetch and georeferencing
+- [x] `devtools::document()`; `devtools::check()` for the title-case rules
 
 ## Phase 5: Release v0.5.1
 
