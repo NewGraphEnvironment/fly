@@ -119,6 +119,29 @@ fly_georef <- function(fetch_result, photos_sf,
   footprints <- fly_footprint(photos_sf, dem = dem) |> sf::st_transform(3005)
   fly_warn_unsized(footprints, "georeferencing")
 
+  # `georef_one()` maps image corners onto footprint corners positionally and shifts
+  # that mapping by a 90-degree-quantized bearing — a scheme calibrated against north-up
+  # 9x9 negatives. A non-square footprint breaks it twice over: the footprint is already
+  # rotated onto its flight line so the bearing would be counted a second time, and a
+  # wrong-by-90 mapping that is harmless on a square maps a landscape image onto a
+  # portrait quad on a 1.76:1 rectangle.
+  #
+  # Skipped rather than guessed at. The right corner mapping for a pre-rotated
+  # rectangle depends on camera mounting relative to flight direction, which is what
+  # `bearing_to_rotation()` was empirically fitted to and cannot be re-derived without
+  # imagery to check against. Digital frames had no footprint at all before fly#32, so
+  # this is the same coverage as before rather than a regression — but explicit now
+  # instead of silent. See fly#38.
+  rotated <- !fly_is_square(footprints)
+  if (any(rotated)) {
+    warning(
+      sum(rotated), " of ", nrow(footprints), " frames have a non-square footprint ",
+      "and are excluded from georeferencing: the corner mapping is calibrated for ",
+      "square, axis-aligned footprints. See fly#38.",
+      call. = FALSE
+    )
+  }
+
   # Match fetch results to photos by airp_id
   ids <- fetch_result$airp_id
 
@@ -163,6 +186,8 @@ fly_georef <- function(fetch_result, photos_sf,
     # Find matching footprint
     fp_idx <- which(photos_sf[["airp_id"]] == results$airp_id[i])
     if (length(fp_idx) == 0) next
+    # Warned about once, above, rather than per frame.
+    if (rotated[fp_idx[1]]) next
     fp <- footprints[fp_idx[1], ]
 
     # No footprint means no ground control to warp onto; leave success = FALSE

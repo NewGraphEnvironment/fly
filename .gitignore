@@ -7,3 +7,6 @@ docs
 /doc/
 /Meta/
 Rplots.pdf
+
+# Calibration report cache for data-raw/make_camera_formats.R (~25 MB, refetchable)
+data-raw/.cache/

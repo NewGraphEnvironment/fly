@@ -177,3 +177,49 @@ message("dem.tif: ", paste(dim(dem_clip)[1:2], collapse = "x"), " cells at ",
         " m, ", round(file.size(dem_path) / 1024), " KB")
 
 message("\nDone. Test data in: ", outdir)
+
+
+# --- Digital centroids: real frames over the same AOI (#32) ----------------
+#
+# The 20 photos above are the 1968 film sample, so nothing in them can exercise the
+# digital path. The AOI itself is not film-only though — it holds 181 `Digital - Colour`
+# frames from two cameras with very different sensor shapes, which is what lets a test
+# tell a correctly-shaped footprint from a square one:
+#
+#   121201_2011    Leica DMC II 230        87.1 x 79.2 mm   aspect 1.10
+#   20814295_2018  UltraCam Eagle M3      105.8 x 68.0 mm   aspect 1.56
+#
+# Fetched through bcdata rather than a hand-built WFS URL: a `BBOX(SHAPE, ...)` CQL
+# filter returns 0 features for this AOI — including for a control that certainly has
+# frames — so the obvious query reports a false absence.
+
+message("Fetching digital centroids (network step) ...")
+dig <- bcdata::bcdc_query_geodata("WHSE_IMAGERY_AND_BASE_MAPS.AIMG_PHOTO_CENTROIDS_SP") |>
+  bcdata::filter(bcdata::BBOX(local(test_bbox), crs = "EPSG:4326")) |>
+  dplyr::filter(MEDIA == "Digital - Colour") |>
+  bcdata::collect()
+
+stopifnot(nrow(dig) > 0)
+names(dig) <- tolower(names(dig))
+
+# Keep whole flight lines rather than a random sample: `fly_bearing()` needs consecutive
+# frames on a roll, and a scattered sample leaves every frame bearing-less.
+set.seed(42)
+keep <- dig |>
+  dplyr::group_by(.data$film_roll) |>
+  dplyr::arrange(.data$frame_number, .by_group = TRUE) |>
+  dplyr::slice_head(n = 6) |>
+  dplyr::ungroup()
+
+keep <- keep |>
+  dplyr::select(dplyr::any_of(c(
+    "airp_id", "photo_year", "photo_date", "scale", "film_roll", "frame_number",
+    "media", "photo_tag", "nts_tile", "focal_length", "flying_height",
+    "ground_sample_distance", "thumbnail_image_url", "flight_log_url",
+    "camera_calibration_url", "patb_georef_url", "geometry"
+  )))
+
+st_write(keep, file.path(outdir, "photo_centroids_digital.gpkg"),
+         delete_dsn = TRUE, quiet = TRUE)
+message("photo_centroids_digital.gpkg: ", nrow(keep), " frames, cameras ",
+        paste(sort(unique(basename(keep$camera_calibration_url))), collapse = ", "))

@@ -16,8 +16,10 @@ recording format per frame when present.}
 \code{media} column. It never sizes a digital frame — see \code{format_size}.}
 
 \item{format_size}{Named numeric vector of recording-format widths in inches,
-keyed by \code{media} value, merged over the shipped film defaults. Supply this
-to size frames whose format \code{fly} does not know — see Details.}
+keyed by \code{media} value, merged over the shipped film defaults. Frames it names are
+sized from the reported \code{scale}, as film is, and it takes precedence over the
+shipped camera table — it is the escape hatch for a camera \code{fly} does not know.
+See Details.}
 
 \item{dem}{Optional elevation raster used to size each frame from its true
 height above ground rather than the reported scale. A \code{terra::SpatRaster},
@@ -64,15 +66,47 @@ records the outcome:
 
 \describe{
 \item{the \code{media} value}{format resolved from the format table}
+\item{\code{"inferred_format"}}{digital frame with no calibration, sized from a
+format inferred from its \code{focal_length}}
 \item{\code{"assumed_default"}}{no \code{media} column; \code{negative_size} applied}
 \item{\code{"unknown_format"}}{\code{media} present but unknown; empty geometry}
 }
+}
+\section{Digital frames}{
 
-Shipped defaults cover film only. Digital frames resolve to
-\code{"unknown_format"} rather than an invented number, because the sensor width
-they would need is not in the centroid metadata — and neither is the pixel
-count that would let \code{ground_sample_distance} stand in for it. Supply
-\code{format_size} if you know the camera:
+
+A digital frame has no negative, and the catalogue mixes film and digital in one
+layer — 223,667 of 1,670,471 frames province-wide are \code{Digital - Colour}. Sensor
+dimensions are not in the centroid metadata, but they are recoverable from the
+calibration report each frame links to through \code{camera_calibration_url}, and \code{fly}
+ships them (\code{inst/extdata/camera_formats.csv}, built by
+\code{data-raw/make_camera_formats.R}).
+
+Digital frames are sized as \verb{pixel count x ground_sample_distance}, which needs
+neither \code{scale} nor a DEM. \strong{\code{scale} is never used for a digital frame \code{fly} sized
+itself.} That field is not the true image scale for digital: measured against
+terrain on 40 UltraCam Eagle frames it gives 34\% of true width, because it is a
+derived nominal figure — the pixel pitch it implies is about 12.5 um for every
+camera regardless of model, against real pitches of 3.9 to 12 um.
+\code{ground_sample_distance} is in centimetres.
+
+Where a frame carries no \code{camera_calibration_url} — about a fifth of digital frames —
+the format is inferred from \code{focal_length} and \code{footprint_basis} records
+\code{"inferred_format"}. Sensor width spreads only 1-3\% at a given focal length, but
+pixel count spreads 32-83\%, so an inferred frame can only be sized through a DEM
+(\verb{width x height above ground / focal length}) and never from its GSD.
+
+\code{width_source} names the calibration file or fallback rule per row, so every
+footprint traces back to a source. Calibrations that could not be corroborated are
+listed in \code{inst/extdata/camera_formats_excluded.csv} with the reason, and frames
+naming one are refused rather than inferred.
+
+\strong{Digital footprints are not square} — sensors run from 1.10:1 (Leica DMC II) to
+1.80:1 (Intergraph DMC) — so they are rotated onto the flight line using
+\code{\link[=fly_bearing]{fly_bearing()}}. Where no bearing can be computed the rectangle stays axis-aligned
+and \code{width_source} says so. Film stays square and is unaffected.
+
+Supply \code{format_size} to size a frame \code{fly} cannot, or to override it:
 
 \if{html}{\out{<div class="sourceCode r">}}\preformatted{fly_footprint(photos, format_size = c("Digital - Colour" = 3.54))
 }\if{html}{\out{</div>}}
@@ -86,6 +120,7 @@ the bundled test data. Note the field is \code{SCALE}, not \code{PHOTO_SCALE} �
 latter returns all \code{NULL}, which reads as missing data rather than a wrong
 field name.
 }
+
 \section{Terrain}{
 
 
@@ -118,6 +153,9 @@ at most 0.5\% against the correction's own 14\% — and a third moves it by
 \describe{
 \item{\code{"nominal_scale"}}{sized from the reported scale (no \code{dem}, or a
 fallback — see below)}
+\item{\code{"gsd_scaled"}}{digital frame sized from its pixel count and ground
+sample distance; used neither the reported scale nor a DEM, so \code{height_agl}
+and \code{dem_coverage} are \code{NA}}
 \item{\code{"dem_agl"}}{sized from height above ground}
 \item{\code{"no_dem_coverage"}}{\code{dem} supplied but does not cover the frame}
 \item{\code{NA}}{no footprint to place — see \code{footprint_basis}}

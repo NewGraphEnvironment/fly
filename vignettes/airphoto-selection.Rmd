@@ -51,12 +51,33 @@ table(footprints$footprint_basis)
 sized <- footprints[footprints$footprint_basis != "unknown_format", ]
 ```
 
-Digital frames resolve to `"unknown_format"` because the sensor width they need
-is not in the centroid metadata. Supply it yourself if you know the camera:
+A digital frame is sized from its camera instead. Sensor dimensions are not in
+the centroid metadata, but they are recoverable from the calibration report each
+frame links to through `camera_calibration_url`, and `fly` ships them for the
+cameras in the provincial record. The footprint is then
+`pixel count x ground_sample_distance`, which uses neither the reported `scale`
+nor a DEM:
+
+```r
+digital <- st_read(system.file("testdata/photo_centroids_digital.gpkg", package = "fly"))
+dfp <- fly_footprint(digital)
+table(dfp$width_source)
+```
+
+Two things differ from the film case. **`scale` is not used**: for a digital
+frame the catalogue's `SCALE` is a derived nominal figure rather than the true
+image scale, and sizing from it gives about a third of the real width.
+**Footprints are not square** — sensors run from 1.10:1 to 1.80:1 — so they are
+rotated onto the flight line using `fly_bearing()`.
+
+`width_source` names the calibration file behind each footprint, or the
+fallback rule where a frame carries no calibration; those are marked
+`"inferred_format"` in `footprint_basis`. `format_size` still overrides
+everything if you know your camera:
 `fly_footprint(photos, format_size = c("Digital - Colour" = 3.54))`.
 
-The photos used throughout this vignette are 1968 film, so every footprint below
-is sized from the 9-inch negative.
+The photos used throughout the rest of this vignette are 1968 film, so every
+footprint below is sized from the 9-inch negative.
 
 By default footprints are sized from the reported scale, which assumes flat
 ground at whatever elevation that scale was computed for. Supplying a DEM
