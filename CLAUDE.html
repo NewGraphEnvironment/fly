@@ -78,6 +78,10 @@
 </li>
 <li>
 <strong>A green suite says little about the terrain code.</strong> Six review rounds of fly#9 each found a real defect in the previous round’s fix, every time because the bundled DEM could not reach the failure mode — four successive <code>dem_coverage</code> implementations passed 200+ tests while wrong. Before changing anything under <code>dem</code>, read <code>inst/notes/terrain-correction.md</code> and test at two resolutions, with anisotropic cells, in a geographic CRS, with a truncating extent, and with frames far apart</li>
+<li>
+<strong>Every fixture in this package is plain <code>sf, data.frame</code></strong> — the bundled GeoPackage reads back that way, and <code>mixed_media_fixture()</code> / <code>terrain_fixture()</code> are built by <code>st_sf()</code> on plain vectors. <code>bcdata::collect()</code> returns <code>bcdc_sf, sf, tbl_df, tbl, data.frame</code>, so the suite is blind to anything that behaves differently on a tibble. That is how fly#35 shipped through two releases: <code><a href="https://r-spatial.github.io/sf/reference/sf.html" class="external-link">sf::st_sf()</a></code> keeps only its first argument when that argument is a tibble, so <code>footprint_basis</code>, <code>footprint_terrain</code>, <code>height_agl</code> and <code>dem_coverage</code> reached no caller of the documented data source, with geometry and every downstream number still correct. Use <code>centroid_shapes()</code> in <code>tests/testthat/setup.R</code> — it sweeps plain / tibble / grouped / <code>bcdc_sf</code> — for anything that attaches columns to user-supplied data. Note the class <em>set</em> is carried but not its order: <code>st_transform()</code> moves <code>sf</code> to the front</li>
+<li>
+<strong><code><a href="reference/fly_footprint.html">fly_footprint()</a></code> must not be handed its own output</strong> (fly#37, open) — <code>st_coordinates()</code> on POLYGON returns one row per vertex, so 20 footprints in gives 100 rows out, silently. There is no guard yet</li>
 </ul><!-- BEGIN SOUL CONVENTIONS — DO NOT EDIT BELOW THIS LINE --></div>
 </div>
 <div class="section level1">
@@ -514,8 +518,9 @@
 <li>
 <p>Fix pattern: each parallel job writes its own temp file (unique name, e.g. md5 of the input), concatenate after the fan-out completes:</p>
 <div class="sourceCode" id="cb16"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb16-1"><a href="#cb16-1" tabindex="-1"></a><span class="fu">cat</span> urls.txt <span class="kw">|</span> <span class="fu">xargs</span> <span class="at">-P</span> 20 <span class="at">-I</span> {} fetch_one.sh {} <span class="st">"</span><span class="va">$OUT_DIR</span><span class="st">"</span>   <span class="co"># each writes $OUT_DIR/&lt;md5&gt;.json</span></span>
-<span id="cb16-2"><a href="#cb16-2" tabindex="-1"></a><span class="fu">cat</span> <span class="st">"</span><span class="va">$OUT_DIR</span><span class="st">"</span>/<span class="pp">*</span>.json <span class="op">&gt;</span> combined.ndjson</span></code></pre></div>
+<span id="cb16-2"><a href="#cb16-2" tabindex="-1"></a><span class="fu">find</span> <span class="st">"</span><span class="va">$OUT_DIR</span><span class="st">"</span> <span class="at">-maxdepth</span> 1 <span class="at">-name</span> <span class="st">'*.json'</span> <span class="at">-exec</span> cat {} + <span class="op">&gt;</span> combined.ndjson</span></code></pre></div>
 </li>
+<li><p><strong>Concatenate with <code>find -exec … +</code>, never <code>cat "$OUT_DIR"/*</code>.</strong> This fix is what creates the file count that then blows <code>ARG_MAX</code> — see “<code>cmd dir/*</code> dies on ARG_MAX at scale” below. The two traps are a matched pair, and writing the glob form here is what put the bug into rtj’s registration script twice.</p></li>
 <li><p>Pair with a count guard — parallel <code>curl</code> failures under xargs are also silent: <code>[ "$(wc -l &lt; combined.ndjson)" -eq "$EXPECTED" ] || exit 1</code> before any downstream load.</p></li>
 </ul></div>
 <div class="section level3">
@@ -535,6 +540,8 @@
 <code>cmd dir/*</code> dies on ARG_MAX at scale — and only after the expensive work succeeded<a class="anchor" aria-label="anchor" href="#cmd-dir-dies-on-arg_max-at-scale--and-only-after-the-expensive-work-succeeded"></a></h3>
 <ul><li><p>A glob expands to argv. 98k filenames is roughly 6 MB against a ~2 MB limit, so <code>cat "$DIR"/*.json</code> fails with <code>argument list too long</code> — <strong>after</strong> whatever produced those files already succeeded. Silent-after-success: the costly stage worked and the cheap one threw it away.</p></li>
 <li><p>Caught 2026-07 in rtj#196: it killed a STAC registration following a completed 80-minute download.</p></li>
+<li><p><strong>Recurred 2026-08-29 in the same script</strong>, because #196 wrote this entry but never repaired <code>rtj/scripts/geoserv/stac_register-pypgstac.sh</code>, and the parallel-writers entry above still prescribed the glob. 102,460 downloaded item JSONs concatenated fine with <code>find</code>; the load then took 27 seconds. The costly stage had already succeeded both times.</p></li>
+<li><p>The cost is worse than a wasted download when the script <strong>deletes before it loads</strong>: that registration removes the collection in step 2, so failing in step 4 left a live public API serving zero items until it was repaired by hand. A destructive-then-rebuild sequence turns “retry it” into an outage.</p></li>
 <li>
 <p>Safe form — <code>find</code> batches under the limit itself:</p>
 <div class="sourceCode" id="cb17"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb17-1"><a href="#cb17-1" tabindex="-1"></a><span class="fu">find</span> <span class="st">"</span><span class="va">$DIR</span><span class="st">"</span> <span class="at">-maxdepth</span> 1 <span class="at">-name</span> <span class="st">'*.json'</span> <span class="at">-exec</span> cat {} + <span class="op">&gt;</span> combined.ndjson</span></code></pre></div>
@@ -1233,6 +1240,18 @@
 </ul><p>And the fixture rule below applies with teeth here: a fixture pinning one target CRS reaches <strong>one</strong> of three arms while appearing to cover the behaviour. Where an input dimension selects which failure you get, that dimension belongs in a table, with a healthy control at each value so the guard is distinguishable from one that refuses everything.</p>
 </div>
 <div class="section level3">
+<h3 id="a-probe-reporting-a-defect-in-long-shipped-code-is-usually-a-broken-probe">A probe reporting a defect in long-shipped code is usually a broken probe<a class="anchor" aria-label="anchor" href="#a-probe-reporting-a-defect-in-long-shipped-code-is-usually-a-broken-probe"></a></h3>
+<p>When an ad-hoc probe says something that has worked in production for months is broken, the prior belongs on the probe, not on the code. Check the instrument before you write the finding up — and certainly before it becomes scope.</p>
+<p><strong>The tell is an obviously-correct item in the failure list.</strong> A probe that reports 13 things missing, and the list contains items you can see with your own eyes, has not found 13 defects and one false positive; it is wrong about all 13. Scan the output for something you already know is fine, and if it is in there, stop reading the finding and read the probe.</p>
+<p>Measured 2026-08-29 in rfp#216. An issue flagged a map-theme group as possibly dangling, and a probe “confirmed” it — 13 theme rows naming groups not in the layer tree. The probe built each group’s path by walking parents to the document root, which is <em>itself</em> an unnamed group node, so every path gained a phantom leading segment and nothing matched. <code>bcrestoration Mobile /Basemap</code> was in the missing list, which is a group anyone can see in QGIS. Anchored at the right node, <strong>0</strong> of 25 rows dangled and the whole finding evaporated.</p>
+<p>Two habits, both cheap:</p>
+<ul><li>
+<strong>Print a positive control.</strong> Have the probe assert something you know is true before reporting what is false — “these 3 groups resolve” beside “these 13 do not”. A probe that cannot find the known-good case is not measuring what it claims.</li>
+<li>
+<strong>Reconcile the count against the population.</strong> 13 of 25 rows broken in a shipped artifact would mean half a feature has been failing silently. If a finding implies a failure rate nobody has noticed, the failure is in the measurement far more often than in the world.</li>
+</ul><p>The inverse case is real but rarer, and it announces itself differently — a genuine long-lived defect usually has a <em>reason</em> nobody noticed it (a guard that cannot see it, a code path nothing exercises), and you can name that reason. If you cannot say why it went unnoticed, you have not found it yet.</p>
+</div>
+<div class="section level3">
 <h3 id="restore-the-bug-and-confirm-the-test-fails">Restore the bug and confirm the test fails<a class="anchor" aria-label="anchor" href="#restore-the-bug-and-confirm-the-test-fails"></a></h3>
 <ul><li><p>The rule above says a fixture that cannot reach the failure mode is worthless. This is the thirty-second check that tells you which kind you just wrote: <strong>put the defect back, run the test, watch it go red.</strong> A test that stays green against the code it was written to reject is decoration, and reading it will not tell you that — every case below looked correct on the page.</p></li>
 <li><p>Cheapest form when the fix is inside a package: patch the binding rather than editing the source back and forth. For a data-shaped bug, feed the function the input the fix was about and assert the old answer is gone.</p></li>
@@ -1351,6 +1370,45 @@ asNamespace("flooded") patched     FAIL = 0     zeros = 1    &lt;- false green, 
 <div class="sourceCode" id="cb42"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb42-1"><a href="#cb42-1" tabindex="-1"></a><span class="va">SRC</span><span class="op">=</span><span class="va">$(</span><span class="fu">mktemp</span> <span class="at">-d</span><span class="va">)</span> <span class="kw">&amp;&amp;</span> <span class="fu">git</span> <span class="at">-C</span> /path/to/source archive HEAD <span class="op">&lt;</span>subdir<span class="op">&gt;</span> <span class="kw">|</span> <span class="fu">tar</span> <span class="at">-x</span> <span class="at">-C</span> <span class="st">"</span><span class="va">$SRC</span><span class="st">"</span></span></code></pre></div>
 </li>
 <li><p>Verify the same way after any concurrent-session sync: rebuild from <code>HEAD</code> into a temp file and <code>diff</code> it against what you committed. Identical means the source was quiet while you read it; a diff is the drift, and it is cheaper to find now than in a downstream repo weeks later.</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="a-guard-must-not-fail-toward-abort-either">A guard must not fail toward “abort” either<a class="anchor" aria-label="anchor" href="#a-guard-must-not-fail-toward-abort-either"></a></h3>
+<ul><li>The complement of “A guard must not fail toward <em>skip</em>” above. A gate that demands perfection from an operation where partial failure is <strong>certain</strong> will discard completed work, and it looks like rigour right up until it fires.</li>
+<li>
+<code>return 1 if errors else 0</code> over ~98k network requests is not a safety check, it is a coin flip on transient failure. Measured 2026-08-29 in stac_dem_bc: a backfill completed all 98,040 items in 16m37s, wrote 91,556 correct ones and passed its verify — then exited non-zero on <strong>2</strong> failures (0.002%), which skipped the publish and threw the run away.</li>
+<li>Fix in three parts, in this order:
+<ol style="list-style-type: decimal"><li>
+<strong>Retry in-process</strong> before an error can reach the exit code. Transient means retryable — every one of the 34 failures in an earlier local run re-fetched fine on the next attempt.</li>
+<li>
+<strong>Gate on a rate against a stated tolerance</strong>, not on zero, and test it against both known answers: a rate that must pass and one that must fail.</li>
+<li>
+<strong>Persist progress state on the failure path</strong> (<code>if: always()</code> in CI). The expensive half of that incident was not the failed exit — it was that the manifest recording 98,038 successes was only committed by a step that gets skipped on failure, so a re-run would have restarted from zero.</li>
+</ol></li>
+<li>Ask which direction the failure costs more. For a read-mostly bulk job, aborting on 0.002% is far worse than proceeding and reporting.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="a-progress-bar-on-stderr-silently-eats-your-log-lines">A progress bar on stderr silently eats your log lines<a class="anchor" aria-label="anchor" href="#a-progress-bar-on-stderr-silently-eats-your-log-lines"></a></h3>
+<ul><li>Extends “Merging stderr into stdout corrupts the stdout you are parsing” above. That entry covers stdout being corrupted; this is the other half — log lines <strong>disappearing entirely</strong>.</li>
+<li>
+<code>tqdm</code> (and any <code>\r</code>-based progress renderer) writes to stderr and returns the carriage. A <code>logger.warning</code> interleaved with it is overwritten and never appears — not truncated, not garbled, <em>absent</em>.</li>
+<li>Cost 2026-08-29: per-item failures in a 98k-item run were logged with <code>logger.warning</code> alongside a tqdm bar. Both locally and in CI the failing ids were unrecoverable from the log; the local ones had to be reconstructed by differencing a manifest against the input set, and the CI ones were simply lost.</li>
+<li>Fix: per-item diagnostics go to a <strong>file</strong>, not to a stream a progress bar shares. Keep the bar for humans, keep the record for machines.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="a-fix-to-code-that-writes-data-is-not-done-until-the-written-data-is-reconciled">A fix to code that writes data is not done until the written data is reconciled<a class="anchor" aria-label="anchor" href="#a-fix-to-code-that-writes-data-is-not-done-until-the-written-data-is-reconciled"></a></h3>
+<ul><li>Changing the writer changes nothing already written. The code is correct, the tests pass, the issue closes — and every existing record keeps the defect, often for months, because nothing reports the gap.</li>
+<li>Four instances in a single day (2026-08-29, stac_dem_bc), all the same shape:
+<ul><li>
+<code>dsm</code> assets added to item creation; ~91.5k published items had none.</li>
+<li>URL encoding fixed in the writer (#25, merged); <strong>90 published items kept hrefs that could not be formed into an HTTP request at all</strong> — <code>curl</code> returned no status. Broken since they were first built.</li>
+<li>
+<code>providers</code>/<code>keywords</code> added to the collection builder; the published collection was never regenerated, so it never got them.</li>
+<li>An ARG_MAX fix written into <em>this file</em> while the script it was found in kept the bug, and re-fired 13 months later on a bigger collection.</li>
+</ul></li>
+<li>Worse, the defect can be <strong>self-perpetuating</strong>: that catalogue’s monthly job fetches the published <code>collection.json</code>, appends to it, and writes the same 90 broken links back out every run.</li>
+<li>What closes it: a reconciliation pass over existing records (rewrite in place, do not rebuild — see below), plus a count you can check afterwards. “Fixed in the writer” is a half-finished sentence.</li>
+<li>
+<strong>Rewrite, do not rebuild.</strong> Rebuilding regenerates records through today’s code path, which is not the path that produced them. In that catalogue 60,324 of 100,345 records came from a fallback branch emitting a different property set — a rebuild would have silently replaced them with differently-shaped output, invisible in a single-record spot check. Fetch, edit the one field, write back, and diff a sample to prove nothing else moved.</li>
 </ul></div>
 </div>
 </div>
