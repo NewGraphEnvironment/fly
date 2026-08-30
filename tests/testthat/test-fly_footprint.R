@@ -647,3 +647,92 @@ test_that("fly_footprint reports coverage of the footprint it actually returns",
   expect_lt(truth, 0.95)               # the fixture must reach the failure mode
   expect_equal(fp$dem_coverage, truth, tolerance = 1e-6)
 })
+
+
+test_that("fly_footprint reports the same columns whatever class the input carries", {
+  # #35: `sf::st_sf()` keeps only its first argument when that argument is a
+  # tibble, so the four reporting columns were discarded for every caller whose
+  # input carried `tbl_df` — which is what `bcdata::collect()` returns, and so
+  # what the package's own documented data source hands back. Every fixture in
+  # the package is plain `sf, data.frame`, so no case added along the existing
+  # axis could have found this. Sweep the axis instead.
+  shapes <- centroid_shapes()
+  reported <- fly_reported_cols()
+
+  out <- lapply(shapes, fly_footprint)
+
+  for (nm in names(out)) {
+    expect_true(all(reported %in% names(out[[nm]])), info = nm)
+  }
+
+  # Not merely present: identical, column for column, to what the plain shape
+  # gets. A fix that supplied the names and lost the values would pass the
+  # check above.
+  for (nm in names(out)) {
+    expect_identical(names(out[[nm]]), names(out$plain), info = nm)
+    for (col in reported) {
+      expect_identical(out[[nm]][[col]], out$plain[[col]],
+                       info = paste(nm, col))
+    }
+    expect_identical(sf::st_geometry(out[[nm]]), sf::st_geometry(out$plain),
+                     info = nm)
+  }
+})
+
+
+test_that("fly_footprint reports the same columns on the dem path too", {
+  skip_if_no_terra()
+  # All four columns are attached by the one `st_sf()` call, so the terrain path
+  # fails the same way — and it is `dem_coverage`, documented as the filter for
+  # partially-covered frames, that goes missing there.
+  dem <- terra::rast(testdata_path("dem.tif"))
+  shapes <- centroid_shapes()
+  reported <- fly_reported_cols()
+
+  out <- lapply(shapes, function(x) suppressWarnings(fly_footprint(x, dem = dem)))
+
+  # The fixture must reach the terrain code, or this sweep says nothing about it.
+  expect_true(any(out$plain$footprint_terrain == "dem_agl", na.rm = TRUE))
+  expect_true(any(!is.na(out$plain$dem_coverage)))
+
+  for (nm in names(out)) {
+    expect_true(all(reported %in% names(out[[nm]])), info = nm)
+    for (col in reported) {
+      expect_identical(out[[nm]][[col]], out$plain[[col]],
+                       info = paste(nm, col))
+    }
+  }
+})
+
+
+test_that("fly_footprint returns the class it was given", {
+  # Contract, not the #35 regression guard: the broken code preserved the class
+  # correctly and dropped the columns. This guards the other direction — a fix
+  # that coerced the frame to `data.frame` would hand a bcdata caller back
+  # something narrower than they passed in.
+  shapes <- centroid_shapes()
+  for (nm in names(shapes)) {
+    expect_identical(class(fly_footprint(shapes[[nm]])), class(shapes[[nm]]),
+                     info = nm)
+  }
+})
+
+
+test_that("a tibble-backed footprint still flows through the consumers", {
+  # The four columns are new on this path, so check they do not disturb the
+  # functions that take a footprint. Numbers come from the plain shape, which
+  # the rest of the suite already pins.
+  shapes <- centroid_shapes()
+  aoi <- sf::st_read(testdata_path("aoi.gpkg"), quiet = TRUE)
+
+  for (nm in names(shapes)) {
+    x <- shapes[[nm]]
+    expect_equal(nrow(fly_filter(x, aoi)), nrow(fly_filter(shapes$plain, aoi)),
+                 info = nm)
+    expect_equal(fly_coverage(x, aoi, by = "photo_year")$covered_km2,
+                 fly_coverage(shapes$plain, aoi, by = "photo_year")$covered_km2,
+                 info = nm)
+    expect_equal(nrow(fly_overlap(x)), nrow(fly_overlap(shapes$plain)),
+                 info = nm)
+  }
+})

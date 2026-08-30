@@ -17,17 +17,17 @@ a tibble, discarding every trailing named column
 
 ## Phase 1: Regression tests first (must fail on unmodified source)
 
-- [ ] Add `centroid_shapes()` to `tests/testthat/setup.R` — plain / tibble /
+- [x] Add `centroid_shapes()` to `tests/testthat/setup.R` — plain / tibble /
       grouped shapes of the bundled fixture, via `sf::st_read(as_tibble = TRUE)`
       rather than class hacking, with the premise asserted inline
-- [ ] Class-shape sweep in `test-fly_footprint.R`: all four columns present in
+- [x] Class-shape sweep in `test-fly_footprint.R`: all four columns present in
       every shape; `names()` identical across shapes; the four columns' **values**
       identical across shapes; output class equals input class with `sf` present
-- [ ] Repeat the sweep with `dem = testdata_path("dem.tif")` behind
+- [x] Repeat the sweep with `dem = testdata_path("dem.tif")` behind
       `skip_if_no_terra()` — all four columns come from the same `st_sf()` call
-- [ ] Downstream pass-through: a tibble-backed footprint still flows through
+- [x] Downstream pass-through: a tibble-backed footprint still flows through
       `fly_coverage()` / `fly_overlap()` / `fly_filter()` / `fly_select()`
-- [ ] **Confirm the sweep fails on unmodified `R/`** before touching the source
+- [x] **Confirm the sweep fails on unmodified `R/`** before touching the source
 
 ## Phase 2: The fix
 

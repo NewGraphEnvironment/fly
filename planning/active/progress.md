@@ -9,3 +9,14 @@
 - Created branch `35-fly-footprint-drops-footprint-basis-and` off main
 - Scaffolded PWF baseline from issue #35 with approved phases
 - Next: Phase 1 — regression tests that fail on unmodified source
+
+### Phase 1 — regression tests (complete)
+
+- `centroid_shapes()` added to `tests/testthat/setup.R`: plain / `as_tibble = TRUE`
+  / `group_by()` shapes of the bundled fixture, premise asserted inline
+- Four tests added to `test-fly_footprint.R` — nominal sweep, `dem` sweep,
+  class contract, downstream pass-through
+- **Confirmed red on unmodified source**: the `tbl` and `grouped` shapes return
+  `NULL` for all four columns where the `plain` shape returns the vectors
+- The class-contract test passes on the broken code by design and is commented
+  as such — it guards against the coercing fix, not against #35

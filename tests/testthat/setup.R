@@ -56,3 +56,35 @@ terrain_fixture <- function() {
     )
   )
 }
+
+
+# The same bundled centroids in every class shape a real caller can supply.
+#
+# `bcdata::collect()` returns `bcdc_sf, sf, tbl_df, tbl, data.frame`, and #35
+# measured that `tbl_df` is the discriminating member — stripping the bcdata
+# class alone does not change the outcome — so these shapes bound the real
+# inputs without fly taking a dependency on bcdata to build a fixture.
+#
+# Read honestly rather than by overwriting `class()`: `st_read(as_tibble =)`
+# produces the tibble-backed sf a caller would actually hold. The premise is
+# asserted here so that a future `sf` change fails on the premise, naming the
+# real cause, rather than on the behaviour under test.
+centroid_shapes <- function() {
+  p <- testdata_path("photo_centroids.gpkg")
+  plain <- sf::st_read(p, quiet = TRUE)
+  tbl <- sf::st_read(p, quiet = TRUE, as_tibble = TRUE)
+  stopifnot(
+    !inherits(plain, "tbl_df"),
+    inherits(tbl, "tbl_df")
+  )
+  list(
+    plain = plain,
+    tbl = tbl,
+    grouped = dplyr::group_by(tbl, .data$scale)
+  )
+}
+
+# The columns #30 and #9 added, which #35 found were reaching no tibble caller.
+fly_reported_cols <- function() {
+  c("footprint_basis", "footprint_terrain", "height_agl", "dem_coverage")
+}
