@@ -608,8 +608,12 @@ Add new checks here when a bug class is discovered — they compound over time.
 - Fix pattern: each parallel job writes its own temp file (unique name, e.g. md5 of the input), concatenate after the fan-out completes:
   ```bash
   cat urls.txt | xargs -P 20 -I {} fetch_one.sh {} "$OUT_DIR"   # each writes $OUT_DIR/<md5>.json
-  cat "$OUT_DIR"/*.json > combined.ndjson
+  find "$OUT_DIR" -maxdepth 1 -name '*.json' -exec cat {} + > combined.ndjson
   ```
+- **Concatenate with `find -exec … +`, never `cat "$OUT_DIR"/*`.** This fix is what
+  creates the file count that then blows `ARG_MAX` — see "`cmd dir/*` dies on
+  ARG_MAX at scale" below. The two traps are a matched pair, and writing the glob
+  form here is what put the bug into rtj's registration script twice.
 - Pair with a count guard — parallel `curl` failures under xargs are also silent: `[ "$(wc -l < combined.ndjson)" -eq "$EXPECTED" ] || exit 1` before any downstream load.
 
 ### `mktemp` template needs enough X's, and a failed `mktemp` leaves an empty var
@@ -629,6 +633,15 @@ Add new checks here when a bug class is discovered — they compound over time.
   worked and the cheap one threw it away.
 - Caught 2026-07 in rtj#196: it killed a STAC registration following a completed
   80-minute download.
+- **Recurred 2026-08-29 in the same script**, because #196 wrote this entry but
+  never repaired `rtj/scripts/geoserv/stac_register-pypgstac.sh`, and the
+  parallel-writers entry above still prescribed the glob. 102,460 downloaded item
+  JSONs concatenated fine with `find`; the load then took 27 seconds. The costly
+  stage had already succeeded both times.
+- The cost is worse than a wasted download when the script **deletes before it
+  loads**: that registration removes the collection in step 2, so failing in step
+  4 left a live public API serving zero items until it was repaired by hand. A
+  destructive-then-rebuild sequence turns "retry it" into an outage.
 - Safe form — `find` batches under the limit itself:
   ```bash
   find "$DIR" -maxdepth 1 -name '*.json' -exec cat {} + > combined.ndjson
@@ -1611,6 +1624,42 @@ an input dimension selects which failure you get, that dimension belongs in a
 table, with a healthy control at each value so the guard is distinguishable from
 one that refuses everything.
 
+### A probe reporting a defect in long-shipped code is usually a broken probe
+
+When an ad-hoc probe says something that has worked in production for months is
+broken, the prior belongs on the probe, not on the code. Check the instrument
+before you write the finding up — and certainly before it becomes scope.
+
+**The tell is an obviously-correct item in the failure list.** A probe that
+reports 13 things missing, and the list contains items you can see with your own
+eyes, has not found 13 defects and one false positive; it is wrong about all 13.
+Scan the output for something you already know is fine, and if it is in there,
+stop reading the finding and read the probe.
+
+Measured 2026-08-29 in rfp#216. An issue flagged a map-theme group as possibly
+dangling, and a probe "confirmed" it — 13 theme rows naming groups not in the
+layer tree. The probe built each group's path by walking parents to the document
+root, which is *itself* an unnamed group node, so every path gained a phantom
+leading segment and nothing matched. `bcrestoration Mobile /Basemap` was in the
+missing list, which is a group anyone can see in QGIS. Anchored at the right
+node, **0** of 25 rows dangled and the whole finding evaporated.
+
+Two habits, both cheap:
+
+- **Print a positive control.** Have the probe assert something you know is true
+  before reporting what is false — "these 3 groups resolve" beside "these 13 do
+  not". A probe that cannot find the known-good case is not measuring what it
+  claims.
+- **Reconcile the count against the population.** 13 of 25 rows broken in a
+  shipped artifact would mean half a feature has been failing silently. If a
+  finding implies a failure rate nobody has noticed, the failure is in the
+  measurement far more often than in the world.
+
+The inverse case is real but rarer, and it announces itself differently — a
+genuine long-lived defect usually has a *reason* nobody noticed it (a guard that
+cannot see it, a code path nothing exercises), and you can name that reason. If
+you cannot say why it went unnoticed, you have not found it yet.
+
 ### Restore the bug and confirm the test fails
 - The rule above says a fixture that cannot reach the failure mode is worthless. This is the thirty-second check that tells you which kind you just wrote: **put the defect back, run the test, watch it go red.** A test that stays green against the code it was written to reject is decoration, and reading it will not tell you that — every case below looked correct on the page.
 - Cheapest form when the fix is inside a package: patch the binding rather than editing the source back and forth. For a data-shaped bug, feed the function the input the fix was about and assert the old answer is gone.
@@ -1756,6 +1805,71 @@ one that refuses everything.
   SRC=$(mktemp -d) && git -C /path/to/source archive HEAD <subdir> | tar -x -C "$SRC"
   ```
 - Verify the same way after any concurrent-session sync: rebuild from `HEAD` into a temp file and `diff` it against what you committed. Identical means the source was quiet while you read it; a diff is the drift, and it is cheaper to find now than in a downstream repo weeks later.
+
+### A guard must not fail toward "abort" either
+
+- The complement of "A guard must not fail toward *skip*" above. A gate that
+  demands perfection from an operation where partial failure is **certain** will
+  discard completed work, and it looks like rigour right up until it fires.
+- `return 1 if errors else 0` over ~98k network requests is not a safety check, it
+  is a coin flip on transient failure. Measured 2026-08-29 in stac_dem_bc: a
+  backfill completed all 98,040 items in 16m37s, wrote 91,556 correct ones and
+  passed its verify — then exited non-zero on **2** failures (0.002%), which
+  skipped the publish and threw the run away.
+- Fix in three parts, in this order:
+  1. **Retry in-process** before an error can reach the exit code. Transient means
+     retryable — every one of the 34 failures in an earlier local run re-fetched
+     fine on the next attempt.
+  2. **Gate on a rate against a stated tolerance**, not on zero, and test it
+     against both known answers: a rate that must pass and one that must fail.
+  3. **Persist progress state on the failure path** (`if: always()` in CI). The
+     expensive half of that incident was not the failed exit — it was that the
+     manifest recording 98,038 successes was only committed by a step that gets
+     skipped on failure, so a re-run would have restarted from zero.
+- Ask which direction the failure costs more. For a read-mostly bulk job, aborting
+  on 0.002% is far worse than proceeding and reporting.
+
+### A progress bar on stderr silently eats your log lines
+
+- Extends "Merging stderr into stdout corrupts the stdout you are parsing" above.
+  That entry covers stdout being corrupted; this is the other half — log lines
+  **disappearing entirely**.
+- `tqdm` (and any `\r`-based progress renderer) writes to stderr and returns the
+  carriage. A `logger.warning` interleaved with it is overwritten and never
+  appears — not truncated, not garbled, *absent*.
+- Cost 2026-08-29: per-item failures in a 98k-item run were logged with
+  `logger.warning` alongside a tqdm bar. Both locally and in CI the failing ids
+  were unrecoverable from the log; the local ones had to be reconstructed by
+  differencing a manifest against the input set, and the CI ones were simply lost.
+- Fix: per-item diagnostics go to a **file**, not to a stream a progress bar
+  shares. Keep the bar for humans, keep the record for machines.
+
+### A fix to code that writes data is not done until the written data is reconciled
+
+- Changing the writer changes nothing already written. The code is correct, the
+  tests pass, the issue closes — and every existing record keeps the defect, often
+  for months, because nothing reports the gap.
+- Four instances in a single day (2026-08-29, stac_dem_bc), all the same shape:
+  - `dsm` assets added to item creation; ~91.5k published items had none.
+  - URL encoding fixed in the writer (#25, merged); **90 published items kept
+    hrefs that could not be formed into an HTTP request at all** — `curl` returned
+    no status. Broken since they were first built.
+  - `providers`/`keywords` added to the collection builder; the published
+    collection was never regenerated, so it never got them.
+  - An ARG_MAX fix written into *this file* while the script it was found in kept
+    the bug, and re-fired 13 months later on a bigger collection.
+- Worse, the defect can be **self-perpetuating**: that catalogue's monthly job
+  fetches the published `collection.json`, appends to it, and writes the same 90
+  broken links back out every run.
+- What closes it: a reconciliation pass over existing records (rewrite in place,
+  do not rebuild — see below), plus a count you can check afterwards. "Fixed in
+  the writer" is a half-finished sentence.
+- **Rewrite, do not rebuild.** Rebuilding regenerates records through today's code
+  path, which is not the path that produced them. In that catalogue 60,324 of
+  100,345 records came from a fallback branch emitting a different property set —
+  a rebuild would have silently replaced them with differently-shaped output,
+  invisible in a single-record spot check. Fetch, edit the one field, write back,
+  and diff a sample to prove nothing else moved.
 
 
 # NGE Feature Workflow
