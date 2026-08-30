@@ -28,8 +28,18 @@ Deviated from the issue on one point: terrain went into a new `footprint_terrain
 rather than into `footprint_basis` as suggested, because that column is already matched by
 value downstream. Issue body edited to record it.
 
-`/code-check`'s subagent rounds were not run — the session barred the Agent tool. Reviewed
-against the checklist directly, which is what caught the empty-geometry bug.
+**Six rounds of adversarial review ran** (`review-round1.md` .. `review-round6.md`), after
+the user corrected an instruction the session had wrongly taken as barring subagents. Every
+round found a real defect in the previous round's fix — fifteen findings in total. The
+recurring cause was one thing: the bundled fixture, a single 30 m EPSG:3005 DEM, could not
+reach the failure modes. It cannot exercise a coarse grid, a geographic CRS, a truncating
+extent, or a wide photo spread, so four successive coverage measures each passed their own
+tests while wrong.
+
+Rounds 1-5 found bugs in the code; round 6 found one only in a test — a timing assertion
+(`expect_lt(elapsed, 10)`) guarding an allocation defect that runs in 1.0 s against the
+fix's 0.18 s — and confirmed the implementation correct under execution. That change of
+character is what convergence looked like.
 
 Closed by PR (`Fixes #9`). Suite 176 pass / 0 fail; `R CMD check` 0 errors, 0 warnings,
 2 pre-existing NOTEs; vignette rebuilds. Released 0.5.0.
