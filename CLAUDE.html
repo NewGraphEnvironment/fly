@@ -50,21 +50,22 @@
 <li>
 <code>inst/testdata/</code> — Upper Bulkley River floodplain near Houston, BC (20 photos, dual scale). All 1968 film, <code>Film - BW</code>, focal 153 — there is no digital frame in it, and <code>data-raw/make_testdata.R</code> sources a film-only AOI, so digital coverage cannot come from there</li>
 <li>
+<code>inst/testdata/dem.tif</code> — MRDEM-30 clip (NRCan 30 m bare-earth DTM), buffered 5.4 km past the centroids. It is one CRS at one resolution, so it <strong>cannot</strong> exercise the reprojection, coarse-grid, truncating-extent or wide-spread branches of the terrain code — see <code>inst/notes/terrain-correction.md</code>
+</li>
+<li>
+<code>inst/notes/terrain-correction.md</code> — why the DEM path is built the way it is, and the four wrong ways to compute <code>dem_coverage</code> that each passed their own tests</li>
+<li>
 <code>mixed_media_fixture()</code> in <code>tests/testthat/setup.R</code> — synthesized film + digital frames, because the bundled data cannot exercise the media branch</li>
 <li>
 <code>data-raw/make_testdata.R</code> — generates test data from diggs cached data</li>
 </ul></div>
 <div class="section level2">
 <h2 id="key-decisions">Key Decisions<a class="anchor" aria-label="anchor" href="#key-decisions"></a></h2>
-<ul><li>
-<strong>CRS 3005</strong> (BC Albers) not 32609 (UTM Zone 9) — works province-wide</li>
-<li>
-<strong><code><a href="reference/fly_footprint.html">fly_footprint()</a></code> uses vectorized <code>st_coordinates()</code> + <code><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply()</a></code></strong> — do NOT use <code>dplyr::mutate(.data$geometry)</code> because the geometry column may be named <code>geom</code> not <code>geometry</code>
-</li>
-<li>
-<strong>Priority selection pattern:</strong> all best-resolution photos first, then greedy backfill with coarser scales (see vignette)</li>
-<li>
-<strong>Refuse rather than estimate an unknown recording format</strong> (v0.4.0, #30) — ground width scales with the recording format, so a 9-inch negative applied to a digital sensor is wrong by an unknown factor while still drawing as a rectangle and still producing a coverage percentage. <code><a href="reference/fly_footprint.html">fly_footprint()</a></code> sizes each row from its <code>media</code> value, records the outcome in <code>footprint_basis</code>, and returns an <strong>empty geometry</strong> where the format is unknown. Downstream functions report how many frames they excluded. Digital defaults are deliberately unshipped until sensor widths are established (#32) — <code>format_size</code> is the slot they drop into</li>
+<ul><li><p><strong>CRS 3005</strong> (BC Albers) not 32609 (UTM Zone 9) — works province-wide</p></li>
+<li><p><strong><code><a href="reference/fly_footprint.html">fly_footprint()</a></code> uses vectorized <code>st_coordinates()</code> + <code><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply()</a></code></strong> — do NOT use <code>dplyr::mutate(.data$geometry)</code> because the geometry column may be named <code>geom</code> not <code>geometry</code></p></li>
+<li><p><strong>Priority selection pattern:</strong> all best-resolution photos first, then greedy backfill with coarser scales (see vignette)</p></li>
+<li><p><strong>Refuse rather than estimate an unknown recording format</strong> (v0.4.0, #30) — ground width scales with the recording format, so a 9-inch negative applied to a digital sensor is wrong by an unknown factor while still drawing as a rectangle and still producing a coverage percentage. <code><a href="reference/fly_footprint.html">fly_footprint()</a></code> sizes each row from its <code>media</code> value, records the outcome in <code>footprint_basis</code>, and returns an <strong>empty geometry</strong> where the format is unknown. Downstream functions report how many frames they excluded. Digital defaults are deliberately unshipped until sensor widths are established (#32) — <code>format_size</code> is the slot they drop into</p></li>
+<li><p><strong>Terrain error is a datum offset, not slope</strong> (v0.5.0, #9) — <code>FLYING_HEIGHT</code> is metres <strong>above sea level</strong>, and reported scale is referenced to an elevation above the ground the photos cover, so it understates footprint area by a median 13.8% <em>always in the same direction</em>. <code>fly_footprint(dem =)</code> sizes each frame from <code>flying_height - terrain elevation</code> and reports <code>footprint_terrain</code>, <code>height_agl</code> and <code>dem_coverage</code>. Slope would push both ways and is much smaller; per-corner ray-casting is worth ~2% against this 14% and is deferred (#10). Do not rebuild this as a slope model</p></li>
 </ul></div>
 <div class="section level2">
 <h2 id="gotchas">Gotchas<a class="anchor" aria-label="anchor" href="#gotchas"></a></h2>
@@ -75,6 +76,8 @@
 <li>
 <code>!!by := grp</code> in <code><a href="reference/fly_coverage.html">fly_coverage()</a></code> requires <code>@importFrom rlang :=</code> in <code>fly-package.R</code>
 </li>
+<li>
+<strong>A green suite says little about the terrain code.</strong> Six review rounds of fly#9 each found a real defect in the previous round’s fix, every time because the bundled DEM could not reach the failure mode — four successive <code>dem_coverage</code> implementations passed 200+ tests while wrong. Before changing anything under <code>dem</code>, read <code>inst/notes/terrain-correction.md</code> and test at two resolutions, with anisotropic cells, in a geographic CRS, with a truncating extent, and with frames far apart</li>
 </ul><!-- BEGIN SOUL CONVENTIONS — DO NOT EDIT BELOW THIS LINE --></div>
 </div>
 <div class="section level1">

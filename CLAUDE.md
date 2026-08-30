@@ -20,6 +20,14 @@ the images onto their estimated footprints.
   photos, dual scale). All 1968 film, `Film - BW`, focal 153 — there is
   no digital frame in it, and `data-raw/make_testdata.R` sources a
   film-only AOI, so digital coverage cannot come from there
+- `inst/testdata/dem.tif` — MRDEM-30 clip (NRCan 30 m bare-earth DTM),
+  buffered 5.4 km past the centroids. It is one CRS at one resolution,
+  so it **cannot** exercise the reprojection, coarse-grid,
+  truncating-extent or wide-spread branches of the terrain code — see
+  `inst/notes/terrain-correction.md`
+- `inst/notes/terrain-correction.md` — why the DEM path is built the way
+  it is, and the four wrong ways to compute `dem_coverage` that each
+  passed their own tests
 - `mixed_media_fixture()` in `tests/testthat/setup.R` — synthesized
   film + digital frames, because the bundled data cannot exercise the
   media branch
@@ -29,13 +37,16 @@ the images onto their estimated footprints.
 ## Key Decisions
 
 - **CRS 3005** (BC Albers) not 32609 (UTM Zone 9) — works province-wide
+
 - **[`fly_footprint()`](https://newgraphenvironment.github.io/fly/reference/fly_footprint.md)
   uses vectorized `st_coordinates()` +
   [`lapply()`](https://rdrr.io/r/base/lapply.html)** — do NOT use
   `dplyr::mutate(.data$geometry)` because the geometry column may be
   named `geom` not `geometry`
+
 - **Priority selection pattern:** all best-resolution photos first, then
   greedy backfill with coarser scales (see vignette)
+
 - **Refuse rather than estimate an unknown recording format** (v0.4.0,
   \#30) — ground width scales with the recording format, so a 9-inch
   negative applied to a digital sensor is wrong by an unknown factor
@@ -48,6 +59,16 @@ the images onto their estimated footprints.
   Digital defaults are deliberately unshipped until sensor widths are
   established (#32) — `format_size` is the slot they drop into
 
+- **Terrain error is a datum offset, not slope** (v0.5.0, \#9) —
+  `FLYING_HEIGHT` is metres **above sea level**, and reported scale is
+  referenced to an elevation above the ground the photos cover, so it
+  understates footprint area by a median 13.8% *always in the same
+  direction*. `fly_footprint(dem =)` sizes each frame from
+  `flying_height - terrain elevation` and reports `footprint_terrain`,
+  `height_agl` and `dem_coverage`. Slope would push both ways and is
+  much smaller; per-corner ray-casting is worth ~2% against this 14% and
+  is deferred (#10). Do not rebuild this as a slope model
+
 ## Gotchas
 
 - `.lintr` must be single-line DCF format — multi-line breaks newer
@@ -56,6 +77,14 @@ the images onto their estimated footprints.
 - `!!by := grp` in
   [`fly_coverage()`](https://newgraphenvironment.github.io/fly/reference/fly_coverage.md)
   requires `@importFrom rlang :=` in `fly-package.R`
+- **A green suite says little about the terrain code.** Six review
+  rounds of fly#9 each found a real defect in the previous round’s fix,
+  every time because the bundled DEM could not reach the failure mode —
+  four successive `dem_coverage` implementations passed 200+ tests while
+  wrong. Before changing anything under `dem`, read
+  `inst/notes/terrain-correction.md` and test at two resolutions, with
+  anisotropic cells, in a geographic CRS, with a truncating extent, and
+  with frames far apart
 
 # Cartography
 
