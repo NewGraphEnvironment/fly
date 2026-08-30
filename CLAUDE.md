@@ -31,6 +31,8 @@ compute `dem_coverage` that each passed their own tests
 `camera_formats_manifest.csv` as the offline drift guard
 - `inst/notes/camera-formats.md` — why `SCALE` is unusable for digital frames, what each of the five QA
 checks can and cannot catch, and the PDF extraction traps these specific reports carry
+- `inst/notes/georeferencing.md` — the ring-order contract, the three measurements that established the
+digital corner mapping, and the one of them that was wrong while looking strongest
 - `mixed_media_fixture()` in `tests/testthat/setup.R` — synthesized frames whose format nothing resolves;
 `digital_fixture()` beside it covers every resolver branch, and `footprint_cases()` sweeps the 12 input
 shapes the invariant tests run over
@@ -46,8 +48,17 @@ geometry column may be named `geom` not `geometry`
 recording format, so a 9-inch negative applied to a digital sensor is wrong by an unknown factor while still
 drawing as a rectangle and still producing a coverage percentage. `fly_footprint()` sizes each row from its
 `media` value, records the outcome in `footprint_basis`, and returns an **empty geometry** where the format is
-unknown. Downstream functions report how many frames they excluded. Digital defaults are deliberately unshipped
-until sensor widths are established (#32) — `format_size` is the slot they drop into
+unknown. Downstream functions report how many frames they excluded. Sensor widths landed in #32 and
+georeferencing in #38, so `footprint_basis` is now the record of *which* route sized a frame rather than a
+list of what is missing
+
+- **The digital corner mapping is rotation 270, and it was measured, not reasoned** (v0.7.0, #38) — a
+non-square footprint is already rotated onto its flight line by `fly_rectangles()`, so `fly_georef()` must
+not apply `bearing_to_rotation()` on top; the top-left pixel maps to the ring's rear-left corner. Three
+independent public routes agree (exterior orientation from `patb_georef_url`, adjacent-frame overlap
+correlation, FWA lake darkness). **The geometry alone cannot get there** — the aspect invariant narrows
+the answer to 270 or 90 and a rectangle is symmetric under the 180 degrees between them, so anyone
+re-deriving this from the ring will produce a plausible wrong answer. Read `inst/notes/georeferencing.md`
 
 - **Terrain error is a datum offset, not slope** (v0.5.0, #9) — `FLYING_HEIGHT` is metres **above sea level**,
 and reported scale is referenced to an elevation above the ground the photos cover, so it understates footprint
@@ -85,6 +96,12 @@ a tibble, so `footprint_basis`, `footprint_terrain`, `height_agl` and `dem_cover
 documented data source, with geometry and every downstream number still correct. Use `centroid_shapes()` in
 `tests/testthat/setup.R` — it sweeps plain / tibble / grouped / `bcdc_sf` — for anything that attaches columns to
 user-supplied data. Note the class *set* is carried but not its order: `st_transform()` moves `sf` to the front
+- **`local_mocked_bindings(.env = )` is the cleanup environment, not the target.** `.package` names the
+package to mock in; `.env` says what the mock unwinds with. Passing `asNamespace("fly")` to `.env` installs
+the stub correctly and then never removes it, because a namespace does not exit — so every later test in
+the run keeps it. It leaks in the direction that reads as success, since a stub returning `TRUE` makes
+assertions pass. Caught in #38 only because a later test asserted a file existed that the stub never wrote
+
 - **`fly_footprint()` must not be handed its own output** (fly#37, open) — `st_coordinates()` on POLYGON returns one
 row per vertex, so 20 footprints in gives 100 rows out, silently. There is no guard yet
 

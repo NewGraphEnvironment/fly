@@ -110,6 +110,35 @@ Mean luminance inside FWA lake polygons minus the frame mean:
 - **The overlap and water checks** both need real thumbnails, so they live in
   `data-raw/`, not in the test suite.
 
+## The stretch tolerance, and why it is not a shape gate
+
+`georef_one()` refuses a mapping whose image and footprint disagree about the frame's
+shape by more than 10%. The number is set from measurements, not picked:
+
+| \|log\| off isotropic | what it is |
+|---|---|
+| 0.0000 | the bundled film thumbnails, 1250 x 1250 |
+| 0.0645 | a full-resolution 9-inch scan at 9600 x 9000, carrying the negative's rebate |
+| **0.0770** | **the tolerance, 1.08** |
+| 0.0949 | the tightest case that must be caught — a Leica DMC II frame sized through `format_size` onto a square footprint |
+| 0.1898 | the tightest mispairing on a frame's own footprint, the same DMC II squared |
+| 0.4421 | a portrait UltraCam frame on a square footprint |
+
+The admissible band is **(1.0667, 1.0995)** and it is narrow, because a square-footprint
+DMC II frame is only slightly more eccentric than a badly rebated film scan. A first
+draft set 1.10, which is outside it by 0.4% and let exactly one row of
+`camera_formats.csv` through — the DMC II, the one case the tolerance had replaced a
+shape gate to cover. The test that was supposed to guard the threshold asserted it
+against the *UltraCam* at 0.442, which any tolerance clears. **Check a threshold against
+the least favourable member of the population, computed, not against a remembered
+example.**
+
+An earlier version exempted square footprints instead, on the reasoning that a square one
+has no pairing to get wrong. It is true and it is the wrong fix: `format_size` sizes a
+frame from a single width, so a digital frame from a camera `fly` does not know lands on a
+**square** footprint — and that is precisely the case the guard exists for. A shape gate
+switches it off there. A tolerance wide enough for the rebate does not.
+
 ## The one thing that would invalidate this
 
 All three measurements are downstream of `camera_formats.csv` assigning the long sensor

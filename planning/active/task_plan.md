@@ -127,18 +127,18 @@ All three measurements below use public data, so the derivation lives in fly.
 
 ## Phase 4: Land the constant and remove the exclusion
 
-- [ ] `fly_georef()` applies the constant to non-square footprints and does **not** apply
+- [x] `fly_georef()` applies the constant to non-square footprints and does **not** apply
       `bearing_to_rotation()` to them — the ring already carries the bearing.
-- [ ] Branch on `fly_is_square()` (`R/fly_footprint.R:165`), computed for every row before
+- [x] Branch on `fly_is_square()` (`R/fly_footprint.R:165`), computed for every row before
       the per-row loop. Never on `half_cross`/`half_along`, which are NA by construction
       until a sizing route fills them (CLAUDE.md, fly#32's three-round trap).
-- [ ] Keep the `rotation`-column override for non-square frames; document the
+- [x] Keep the `rotation`-column override for non-square frames; document the
       carried-column hazard in `@param rotation`.
-- [ ] Delete the exclusion block (`R/fly_georef.R:122-143`) and the `rotated[fp_idx[1]]`
+- [x] Delete the exclusion block (`R/fly_georef.R:122-143`) and the `rotated[fp_idx[1]]`
       skip (`:190`). Keep `fly_is_square()` itself — `test-fly_camera_format.R:266` uses it.
-- [ ] Keep the empty-geometry skip (`:195`) and `fly_warn_unsized()` (`:120`) untouched;
+- [x] Keep the empty-geometry skip (`:195`) and `fly_warn_unsized()` (`:120`) untouched;
       they cover a different exclusion.
-- [ ] Rewrite the **Rotation** `@details` section (`:38-65`), which currently documents
+- [x] Rewrite the **Rotation** `@details` section (`:38-65`), which currently documents
       only the film scheme, and the `@param rotation` text that says `"auto"` applies
       everywhere.
 
@@ -148,27 +148,29 @@ bearing rotation and digital the constant, asserted per row; no non-square warni
 
 ## Phase 5: Notes, docs, release
 
-- [ ] `inst/notes/georeferencing.md`, companion to `terrain-correction.md` and
+- [x] `inst/notes/georeferencing.md`, companion to `terrain-correction.md` and
       `camera-formats.md`: the ring-order contract, why the bearing must not be applied
       twice, what the QA measured and against what, and what the aspect invariant can and
       cannot catch. Ground truth referenced obliquely — no repo, endpoint or database named.
-- [ ] Update CLAUDE.md: the Key Decisions entry for #30 and the NEWS line
+- [x] Update CLAUDE.md: the Key Decisions entry for #30 and the NEWS line
       "`fly_georef()` excludes rotated footprints" are both now stale.
-- [ ] `devtools::document()` — **read its output**. `Writing '<unexpected>.Rd'` or a
+- [x] `devtools::document()` — **read its output**. `Writing '<unexpected>.Rd'` or a
       falling `grep -c "^export(" NAMESPACE` is the fly#30 rebind.
-- [ ] `lintr::lint_package()` against the `HEAD` baseline, not against zero.
-- [ ] NEWS entry; version 0.6.0 -> 0.7.0 as the **final** commit of the branch.
+- [x] `lintr::lint_package()` against the `HEAD` baseline, not against zero. `R/fly_georef.R`
+      1 against a baseline of 5; `data-raw/` script cleaned to 0
+- [x] NEWS entry; version 0.6.0 -> 0.7.0 as the **final** commit of the branch.
 
 ## Validation
 
-- [ ] `devtools::test()` passes
-- [ ] `/code-check` clean on each commit
-- [ ] No fly file names the private ortho repo, its endpoint, or its database:
+- [x] `devtools::test()` passes — 1255, 0 failures
+- [x] `/code-check` — 3 rounds, 1 + 3 + 3 findings; every round found a defect inside the
+      previous round's fix. See `review-round{1,2,3}.md`
+- [x] No fly file names the private ortho repo, its endpoint, or its database:
       `git diff main --stat` reviewed, plus a grep of the branch diff for the repo name
 - [x] Restore-the-bug check on the Phase 2 invariant: it goes red against the rejected
       rotations, patched in **both** `asNamespace("fly")` and
       `as.environment("package:fly")`, with a printed value proving the patch took
-- [ ] PWF checkboxes match landed work; `/planning-archive` on completion
+- [x] PWF checkboxes match landed work; `/planning-archive` on completion
 
 ## Open, deliberately not decided yet
 

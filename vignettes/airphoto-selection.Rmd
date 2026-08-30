@@ -302,6 +302,15 @@ argument. They are approximate either way, useful for visual context rather
 than survey-grade positioning. Metadata from the original centroid data (date,
 scale, focal length) links back via `airp_id`.
 
+Digital frames georeference too. Their footprints are not square and are
+already rotated onto the flight line, so they use a fixed corner mapping rather
+than the bearing rule film uses — see the **Rotation** section of
+`?fly_georef`. One consequence is worth knowing when experimenting: passing a
+single frame gives `fly_bearing()` no neighbour to work from, so its footprint
+is drawn axis-aligned and warps as though the flight line ran due north.
+`fly_georef()` warns when that happens. Pass consecutive frames from the same
+roll to get the real azimuth.
+
 # Terrain-adjusted footprints
 
 Everything above sizes each frame from its reported scale. That scale is

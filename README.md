@@ -23,7 +23,7 @@ fly estimates each photo's ground footprint from its scale and film format, then
 - **Explore** — summarize available photos by scale and year, and measure coverage and frame-to-frame overlap (`fly_summary`, `fly_coverage`, `fly_overlap`)
 - **Select** — keep only photos whose footprint covers your area of interest, then take the fewest needed (best resolution first) or every frame touching it (`fly_filter`, `fly_select`)
 - **Fetch** — download thumbnails, flight logs, and camera calibration reports from the BC Data Catalogue, optionally in parallel (`fly_fetch`)
-- **Georeference** — warp the scanned images onto their estimated footprints as GeoTIFFs (BC Albers), with automatic flight-line rotation (`fly_bearing`, `fly_georef`)
+- **Georeference** — warp the scanned images onto their estimated footprints as GeoTIFFs (BC Albers), with automatic flight-line rotation, for film and digital frames alike (`fly_bearing`, `fly_georef`)
 
 ## Installation
 

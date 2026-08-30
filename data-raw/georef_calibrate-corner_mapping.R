@@ -45,7 +45,8 @@ heading_per_frame <- function(roll, frame, east, north) {
     i <- which(roll == r)
     i <- i[order(frame[i])]
     if (length(i) < 2) next
-    de <- diff(east[i]); dn <- diff(north[i])
+    de <- diff(east[i])
+    dn <- diff(north[i])
     step <- sqrt(de^2 + dn^2)
     a <- az(de, dn)
     a[step < 100 | step > 5000] <- NA          # turns and roll breaks
@@ -59,10 +60,10 @@ report_offset <- function(label, image_x_az, heading) {
   d <- wrap(image_x_az[ok] - heading[ok])
   s <- (image_x_az[ok] + heading[ok]) %% 360
   tight <- function(v) 100 * mean(abs(wrap(v - median(v))) <= 5)
-  message(sprintf(
-    "%s  n=%d  compass bins=%d\n  rigid     median %8.2f  within +/-5: %5.1f%%\n  reflected median %8.2f  within +/-5: %5.1f%%",
-    label, sum(ok), length(unique(round(heading[ok] / 30) * 30 %% 360)),
-    median(d), tight(d), median(s), tight(s)))
+  message(sprintf("%s  n=%d  compass bins=%d", label, sum(ok),
+                  length(unique(round(heading[ok] / 30) * 30 %% 360))))
+  message(sprintf("  rigid     median %8.2f  within +/-5: %5.1f%%", median(d), tight(d)))
+  message(sprintf("  reflected median %8.2f  within +/-5: %5.1f%%", median(s), tight(s)))
 }
 
 read_patb <- function(url) {
@@ -138,7 +139,8 @@ grey <- function(path) {
 }
 
 pair_r <- function(a, b, res = 25) {
-  ga <- grey(a); gb <- grey(b)
+  ga <- grey(a)
+  gb <- grey(b)
   inter <- terra::intersect(ext(ga), ext(gb))
   if (is.null(inter)) return(NA_real_)
   tmpl <- rast(inter, resolution = res, crs = crs(ga))
@@ -169,10 +171,11 @@ for (case in list(list(i = 19:24, tag = "eagle", cam = "UltraCam Eagle M3"),
 # than assumed.
 
 bb <- st_bbox(st_union(st_geometry(fp)))
+lakes_query <- bcdata::bcdc_query_geodata("WHSE_BASEMAPPING.FWA_LAKES_POLY")
 lakes <- st_transform(
-  bcdata::collect(bcdata::filter(
-    bcdata::bcdc_query_geodata("WHSE_BASEMAPPING.FWA_LAKES_POLY"),
-    BBOX(!!as.numeric(bb), crs = "EPSG:3005"))), 3005)
+  bcdata::collect(bcdata::filter(lakes_query, BBOX(!!as.numeric(bb), crs = "EPSG:3005"))),
+  3005
+)
 water <- st_union(lakes)
 
 for (i in c(1, 2)) {

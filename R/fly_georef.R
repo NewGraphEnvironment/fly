@@ -22,11 +22,16 @@
 #'   frame from its height above ground instead of the reported scale. See the
 #'   **Terrain** section of [fly_footprint()].
 #' @param rotation Image rotation in degrees clockwise. One of `"auto"`,
-#'   `0`, `90`, `180`, or `270`. `"auto"` (default) computes flight line
-#'   bearing from consecutive centroids and derives rotation per-photo —
-#'   requires `film_roll` and `frame_number` columns. Fixed values apply
-#'   the same rotation to all photos. Overridden per-photo if `photos_sf`
-#'   contains a `rotation` column.
+#'   `0`, `90`, `180`, or `270`. Applies to frames with a **square**
+#'   footprint only. `"auto"` (default) computes flight line bearing from
+#'   consecutive centroids and derives rotation per-photo — requires
+#'   `film_roll` and `frame_number` columns. Fixed values apply the same
+#'   rotation to every square-footprint photo. A non-square footprint
+#'   ignores this argument and uses the measured digital mapping (see
+#'   **Rotation**); a `rotation` column in `photos_sf` still overrides
+#'   per-photo, for both. Carrying a film-era `rotation` column into a
+#'   batch of digital frames therefore overrides the correct mapping with
+#'   the wrong one — drop the column, or set it to `NA` for those rows.
 #' @return A tibble with columns `airp_id`, `source`, `dest`, and `success`.
 #'
 #' @details
@@ -35,14 +40,15 @@
 #' translates the image with GCPs then warps to the target CRS using
 #' bilinear resampling.
 #'
-#' **Rotation:** Aerial photos may appear rotated in their footprints
-#' because the camera orientation relative to north varies by flight
-#' direction, camera mounting, and scanner orientation. The `rotation`
-#' parameter rotates the GCP corner mapping:
+#' **Rotation:** the corner mapping depends on the footprint's shape, because
+#' [fly_footprint()] builds the two shapes differently.
+#'
+#' A **square** footprint is axis-aligned, so the mapping carries the rotation.
+#' The `rotation` parameter rotates it:
 #' \itemize{
-#'   \item `0` — top of image maps to north edge of footprint (original behavior)
+#'   \item `0` — top of image maps to north edge of footprint
 #'   \item `90` — top of image maps to east edge (90° clockwise)
-#'   \item `180` — top of image maps to south edge (default, correct for most BC photos)
+#'   \item `180` — top of image maps to south edge (correct for most BC film)
 #'   \item `270` — top of image maps to west edge
 #' }
 #'
@@ -60,9 +66,40 @@
 #' ```
 #' photos$rotation <- dplyr::case_when(
 #'   photos$film_roll == "bc5282" ~ 270,
-#'   .default = NA  # fall through to auto
+#'   .default = NA  # non-square footprints fall through to the digital mapping;
+#'                  # square ones to `rotation`, which is 180 under "auto" —
+#'                  # NOT back to the per-photo bearing
 #' )
 #' ```
+#'
+#' Every non-`NA` value in that column must be 0, 90, 180 or 270; anything else
+#' is an error naming the value, rather than a rotation silently applied as
+#' something other than what was written.
+#'
+#' A **non-square** footprint — every digital frame — is already rotated onto
+#' its flight line by [fly_footprint()], so the ring carries the bearing and
+#' applying it again would count it twice. Those frames use a fixed mapping
+#' instead: the top-left pixel maps to the ring's rear-left corner, equivalently
+#' image columns run in the flight direction and image rows run flight-right.
+#' That was measured in fly#38 on both bundled cameras by three independent
+#' routes and is the same for each; see `inst/notes/georeferencing.md`.
+#'
+#' A frame whose delivered image aspect disagrees with its footprint's by more
+#' than 8% is **skipped with a warning** rather than written stretched — the
+#' failure a wrong mapping produces is a valid GeoTIFF over the right ground,
+#' squashed by the aspect ratio squared, which nothing downstream would report.
+#' The threshold sits between the largest disagreement a legitimate frame
+#' produces (a full-resolution 9-inch scan carrying the negative's rebate, about
+#' 6.7%) and the smallest that must be caught (a Leica DMC II frame sized through
+#' `format_size` onto a square footprint, 9.95%). It applies to square footprints
+#' too: a square one has no pairing to get wrong, but a digital frame sized
+#' through `format_size` lands on one, and that is the unknown-camera case — so
+#' gating on shape would switch the check off exactly where it is needed.
+#'
+#' A non-square footprint built without a flight bearing is drawn axis-aligned
+#' and is therefore georeferenced as though the flight line ran due north.
+#' [fly_bearing()] needs a neighbouring frame, so this is the ordinary result of
+#' georeferencing a single frame on its own, and it is warned about.
 #'
 #' **Nodata handling:** Two sources of unwanted black pixels are masked:
 #'
@@ -119,27 +156,29 @@ fly_georef <- function(fetch_result, photos_sf,
   footprints <- fly_footprint(photos_sf, dem = dem) |> sf::st_transform(3005)
   fly_warn_unsized(footprints, "georeferencing")
 
-  # `georef_one()` maps image corners onto footprint corners positionally and shifts
-  # that mapping by a 90-degree-quantized bearing — a scheme calibrated against north-up
-  # 9x9 negatives. A non-square footprint breaks it twice over: the footprint is already
-  # rotated onto its flight line so the bearing would be counted a second time, and a
-  # wrong-by-90 mapping that is harmless on a square maps a landscape image onto a
-  # portrait quad on a 1.76:1 rectangle.
-  #
-  # Skipped rather than guessed at. The right corner mapping for a pre-rotated
-  # rectangle depends on camera mounting relative to flight direction, which is what
-  # `bearing_to_rotation()` was empirically fitted to and cannot be re-derived without
-  # imagery to check against. Digital frames had no footprint at all before fly#32, so
-  # this is the same coverage as before rather than a regression — but explicit now
-  # instead of silent. See fly#38.
-  rotated <- !fly_is_square(footprints)
-  if (any(rotated)) {
-    warning(
-      sum(rotated), " of ", nrow(footprints), " frames have a non-square footprint ",
-      "and are excluded from georeferencing: the corner mapping is calibrated for ",
-      "square, axis-aligned footprints. See fly#38.",
-      call. = FALSE
-    )
+  # Classify every footprint once, before any per-row work, and three ways rather than
+  # two. `fly_is_square()` reports an EMPTY geometry as square — defensible, since a
+  # shapeless thing has no unequal sides — so squareness alone cannot stand in for
+  # "has ground control". Keeping empty separate means neither branch below inherits the
+  # other's answer, and `georef_one()` is never handed a ring it cannot index.
+  empty_fp   <- sf::st_is_empty(sf::st_geometry(footprints))
+  non_square <- !empty_fp & !fly_is_square(footprints)
+
+  # A non-square footprint that never got a bearing is drawn axis-aligned, so it is
+  # georeferenced as though the aircraft flew due north. `fly_bearing()` needs a
+  # neighbour, so this is the ordinary result of georeferencing one frame on its own —
+  # not an exotic case. Named rather than left to be discovered from a rotated image.
+  if ("width_source" %in% names(footprints)) {
+    no_bearing <- non_square & grepl("axis_aligned_no_bearing", footprints$width_source)
+    if (any(no_bearing)) {
+      warning(
+        sum(no_bearing), " of ", nrow(footprints), " frames have a non-square footprint ",
+        "but no flight bearing, so they are drawn and georeferenced as though the ",
+        "flight line ran due north. Pass neighbouring frames from the same roll so ",
+        "`fly_bearing()` can compute an azimuth.",
+        call. = FALSE
+      )
+    }
   }
 
   # Match fetch results to photos by airp_id
@@ -147,7 +186,40 @@ fly_georef <- function(fetch_result, photos_sf,
 
   # Per-photo rotation: column overrides auto/default
 
-  has_rotation_col <- "rotation" %in% names(photos_sf)
+  # `has_rotation_col` is set again by the auto path below, after which nothing can tell
+  # a user-supplied column from a bearing-derived one. Capture the distinction here,
+  # while it still exists: a user value overrides the measured digital rotation, a
+  # bearing-derived one must not.
+  user_rotation_col <- "rotation" %in% names(photos_sf)
+  has_rotation_col <- user_rotation_col
+
+  # The argument is checked above; the column never was, and this function now makes it
+  # the highest-precedence input for a digital frame. `rotation %/% 90` turns 360 into a
+  # five-element shift and `fly_georef_gcps()` then indexes out of bounds — swallowed by
+  # the per-frame `tryCatch` below into a message naming neither the column nor the
+  # value. 45 and -90 are worse: they shift by zero and georeference silently wrong.
+  # Normalised once, here, and read from this vector everywhere below. `as.character()`
+  # first because `as.integer()` on a factor returns its level code — a `rotation` column
+  # read from a CSV as a factor would otherwise validate as 180 and then be *applied* as
+  # 1. Converting in two places is how those come apart.
+  user_rot <- NULL
+  if (user_rotation_col) {
+    raw <- as.character(photos_sf[["rotation"]])
+    user_rot <- suppressWarnings(as.integer(raw))
+    # A value that was supplied but did not parse must be refused, not quietly turned
+    # into NA. `is.na(user_rot) & !is.na(raw)` is that case; excluding it from `bad`
+    # would let "ninety" through as "no preference", which is a different instruction.
+    bad <- (!is.na(user_rot) & !user_rot %in% c(0L, 90L, 180L, 270L)) |
+      (is.na(user_rot) & !is.na(raw))
+    if (any(bad)) {
+      stop("`photos_sf$rotation` must be NA or one of 0, 90, 180, 270. Got: ",
+           paste(unique(raw[bad]), collapse = ", "), ".", call. = FALSE)
+    }
+    # Written back so there is exactly ONE parse. Leaving the raw column in place and
+    # converting again at the read sites is how a factor validates as 180 and is then
+    # applied as its level code — the read below is not the only one.
+    photos_sf[["rotation"]] <- user_rot
+  }
 
   # Auto-compute bearing → rotation when needed
   if (auto_rotation && !has_rotation_col) {
@@ -186,20 +258,30 @@ fly_georef <- function(fetch_result, photos_sf,
     # Find matching footprint
     fp_idx <- which(photos_sf[["airp_id"]] == results$airp_id[i])
     if (length(fp_idx) == 0) next
-    # Warned about once, above, rather than per frame.
-    if (rotated[fp_idx[1]]) next
-    fp <- footprints[fp_idx[1], ]
+    j <- fp_idx[1]
 
-    # No footprint means no ground control to warp onto; leave success = FALSE
-    # rather than writing a GeoTIFF positioned by a format we could not resolve.
-    if (sf::st_is_empty(sf::st_geometry(fp))[1]) next
+    # No footprint means no ground control to warp onto; leave success = FALSE rather
+    # than writing a GeoTIFF positioned by a format we could not resolve. Checked before
+    # anything reads the ring.
+    if (empty_fp[j]) next
+    fp <- footprints[j, ]
 
-    # Per-photo rotation from column, or default
-    rot <- if (has_rotation_col) {
-      val <- as.integer(photos_sf[["rotation"]][fp_idx[1]])
+    # A user-supplied `rotation` column overrides everything, square or not — the
+    # documented escape hatch. Everything else depends on the footprint's shape:
+    # a non-square ring already carries its bearing (see `fly_rectangles()`), so
+    # applying `bearing_to_rotation()` on top would count it twice.
+    user_val <- if (user_rotation_col) user_rot[j] else NA_integer_
+    rot <- if (!is.na(user_val)) {
+      user_val
+    } else if (non_square[j]) {
+      fly_digital_rotation()
+    } else if (has_rotation_col) {
+      val <- as.integer(photos_sf[["rotation"]][j])
       if (is.na(val)) {
         if (auto_rotation) 180L else rotation
-      } else val
+      } else {
+        val
+      }
     } else {
       rotation
     }
@@ -221,10 +303,10 @@ fly_georef <- function(fetch_result, photos_sf,
 #' Georeference a single image to a footprint polygon
 #' @noRd
 georef_one <- function(src, fp, out_file, srcnodata = "0", rotation = 180) {
-  # Get footprint corner coordinates
-  # fly_footprint builds: BL, BR, TR, TL, BL (closing)
+  # Footprint ring, in the order `fly_rectangles()` guarantees: rows 1-4 are BL, BR, TR,
+  # TL **in the rectangle's own frame**. For a rotated (non-square) footprint that frame
+  # is the flight line's, so they are rear-left, rear-right, front-right, front-left.
   coords <- sf::st_coordinates(fp)[1:4, , drop = FALSE]
-  # coords: [1]=BL, [2]=BR, [3]=TR, [4]=TL
 
   # Read image dimensions and band count via GDAL
   info <- sf::gdal_utils("info", source = src, quiet = TRUE)
@@ -240,10 +322,46 @@ georef_one <- function(src, fp, out_file, srcnodata = "0", rotation = 180) {
 
   # Build GCP args from the pixel-to-ground correspondence.
   gcp <- fly_georef_gcps(ncol_px, nrow_px, coords, rotation)
+  # Refuse a mapping that pairs the image's axes with the wrong footprint edges. It
+  # would still produce a valid GeoTIFF, in the right CRS, over the right ground — just
+  # squashed by the aspect ratio squared, which nothing downstream would report. Catches
+  # a camera delivering an orientation this was not measured on, and a frame sized from
+  # an inferred format that does not match the camera that actually took it.
+  #
+  # The tolerance is what makes this safe on film, and it is set from measurements
+  # rather than picked. A square footprint has no pairing to get wrong, but a scan
+  # carrying the negative's rebate is genuinely a few percent off square, and a gate on
+  # shape would switch the check off for a digital frame sized through `format_size`
+  # into a square footprint — exactly the unknown-camera case this exists to catch.
+  #
+  #   |log| off isotropic     what it is
+  #   0.0000                  bundled film thumbnails, 1250 x 1250
+  #   0.0645                  a full-resolution 9-inch scan at 9600 x 9000
+  #   0.0770                  this tolerance
+  #   0.0949                  the TIGHTEST case that must be caught — a Leica DMC II
+  #                           frame sized through `format_size` onto a square footprint
+  #   0.1898                  the tightest mispairing on a frame's own footprint,
+  #                           the same DMC II at 1.0995 squared
+  #   0.4421                  a portrait UltraCam frame on a square footprint
+  #
+  # The admissible band is narrow — (1.0667, 1.0995) — because a square-footprint DMC II
+  # frame is only slightly more eccentric than a badly rebated film scan. Checked against
+  # every row of `camera_formats.csv`, fallback rows included, not just the two cameras
+  # the bundled fixture happens to carry.
+  aniso <- fly_gcp_anisotropy(gcp, ncol_px, nrow_px)
+  if (!is.finite(aniso) || abs(log(aniso)) > log(fly_gcp_stretch_max())) {
+    warning(basename(src), ": image is ", round(ncol_px / nrow_px, 3),
+            ":1 but the corner mapping would stretch it by ", round(aniso, 3),
+            "x. Skipped rather than written squashed. ",
+            "See `inst/notes/georeferencing.md`.",
+            call. = FALSE)
+    return(FALSE)
+  }
+
   # `unname()` matters: the ring arrives from `sf::st_coordinates()` carrying X/Y
   # dimnames, and without it the option vector handed to GDAL is named. Harmless to
-  # GDAL, but it makes the args unequal to a plain character vector under
-  # `identical()`, which is what the parity test compares.
+  # GDAL, but it makes the args unequal to a plain character vector under `identical()`,
+  # which is what the parity test compares.
   gcp_args <- character(0)
   for (j in seq_len(nrow(gcp))) {
     gcp_args <- c(gcp_args, "-gcp", as.character(unname(gcp[j, ])))
@@ -346,4 +464,51 @@ fly_georef_gcps <- function(ncol_px, nrow_px, coords, rotation) {
   out <- cbind(pixel, ground)
   dimnames(out) <- list(NULL, c("pixel_x", "pixel_y", "ground_x", "ground_y"))
   out
+}
+
+#' The rotation a digital frame's corner mapping needs
+#'
+#' 270 degrees: the top-left pixel maps to the footprint ring's rear-left corner, or
+#' equivalently image columns run in the flight direction and image rows run
+#' flight-right. Measured in fly#38 on both bundled cameras by three independent routes
+#' — published exterior orientation, adjacent-frame overlap correlation, and FWA lake
+#' darkness. They agree, so this is one constant rather than a per-camera column.
+#'
+#' Do not re-derive it by reasoning. See `inst/notes/georeferencing.md`, and
+#' `data-raw/georef_calibrate-corner_mapping.R` to reproduce the measurement.
+#' @noRd
+fly_digital_rotation <- function() 270L
+
+#' How far a corner mapping may stretch an image before it is refused
+#'
+#' Set between the largest stretch a legitimate frame produces and the smallest a wrong
+#' corner mapping can. A full-resolution 9-inch film scan carrying the negative's rebate
+#' runs about 6.7% off square; the tightest case that must be caught is a Leica DMC II
+#' frame sized through `format_size` onto a square footprint, at 9.95%. The admissible
+#' band is therefore (1.0667, 1.0995) and this sits near the middle of it. Checked
+#' against every row of `camera_formats.csv`. See `georef_one()` for the full table.
+#' @noRd
+fly_gcp_stretch_max <- function() 1.08
+
+#' How far a corner mapping stretches an image
+#'
+#' Metres per pixel along the image's width axis, divided by metres per pixel along its
+#' height axis. An isotropic mapping gives 1; a mapping that pairs the image's long axis
+#' with the footprint's short edge gives the footprint's aspect ratio squared.
+#'
+#' Computed from the correspondence itself rather than from the footprint, so it measures
+#' what GDAL will actually be asked to do.
+#' @param gcp A matrix from [fly_georef_gcps()].
+#' @param ncol_px,nrow_px Image dimensions in pixels.
+#' @return A single numeric ratio, or `NA_real_` if either dimension is degenerate.
+#' @noRd
+fly_gcp_anisotropy <- function(gcp, ncol_px, nrow_px) {
+  if (!is.finite(ncol_px) || !is.finite(nrow_px) || ncol_px <= 0 || nrow_px <= 0) {
+    return(NA_real_)
+  }
+  g <- gcp[, c("ground_x", "ground_y"), drop = FALSE]
+  w <- sqrt(sum((g[2, ] - g[1, ])^2)) / ncol_px
+  h <- sqrt(sum((g[3, ] - g[2, ])^2)) / nrow_px
+  if (!is.finite(w) || !is.finite(h) || h == 0) return(NA_real_)
+  w / h
 }
