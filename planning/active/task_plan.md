@@ -31,23 +31,50 @@ a tibble, discarding every trailing named column
 
 ## Phase 2: The fix
 
-- [ ] `R/fly_footprint.R:482` — assign the four columns onto the attribute frame,
+- [x] `R/fly_footprint.R:482` — assign the four columns onto the attribute frame,
       then one-arg `sf::st_sf(attrs, geometry = ...)`. Preserves the caller's
       class; chosen over `as.data.frame()`, which additionally downgrades a
       bcdata caller's tibble
-- [ ] Comment names the `st_sf()` branch and #35, so the next reader does not
+- [x] Comment names the `st_sf()` branch and #35, so the next reader does not
       "simplify" it back
-- [ ] Restore the bug and confirm the sweep goes red — patching **both**
+- [x] Restore the bug and confirm the sweep goes red — patching **both**
       `asNamespace("fly")` and `as.environment("package:fly")`, from
       `git show 8585fd5:R/fly_footprint.R` rather than from memory
-- [ ] Full suite green, PASS above the 225 baseline
+- [x] Full suite green, PASS above the 225 baseline
+
+## Phase 2b: Review findings folded in
+
+Both reviewers ran independently against the branch; every claim below was
+reproduced before acting on it.
+
+- [x] `@return` and the class test over-claimed — `identical(class(out), class(in))`
+      is FALSE for `bcdc_sf`, because `st_transform()` (not `st_sf()`) moves `sf`
+      to the front. Assert the class *set*, add the `bcdc` shape the fixture
+      lacked, and correct the `@return` and NEWS wording
+- [x] The non-terra sweep compared constants and all-`NA`, so only *absence* made
+      it fail. Sweep the mixed-media fixture too, where `footprint_basis` varies
+      and reaches `unknown_format`
+- [x] The collision behaviour was unguarded: the old code appended
+      `footprint_basis.1` and left the caller's value under the documented name,
+      so the prescribed filter read the wrong column. Now asserted
+- [x] 0-row input returned `footprint_basis`/`footprint_terrain` as `logical`
+      (`ifelse(logical(0), ...)`), so an empty result would not bind to a
+      populated one — the per-AOI ledger in the issue. Seeded with
+      `as.character()` and guarded
+- [x] Downstream test used `by = "photo_year"`, which is one group on this
+      fixture. Switched to `by = "scale"` (two), added non-degeneracy premises,
+      and added the `fly_select()` the checkbox claimed
+- [x] Cut a false NEWS claim: `fly_footprint(fly_footprint(x))` is **not**
+      idempotent — a plain 20-row sf returns 100 rows silently, because
+      `st_coordinates()` on polygons yields 5 rows per feature. Pre-existing and
+      unchanged, but the sentence invited the round trip
 
 ## Phase 3: Document the contract
 
-- [ ] `@return` in `R/fly_footprint.R` states the input's class is preserved
-- [ ] `devtools::document()` — read its output; an unexpected `Writing '<x>.Rd'`
+- [x] `@return` in `R/fly_footprint.R` states the input's class is preserved
+- [x] `devtools::document()` — read its output; an unexpected `Writing '<x>.Rd'`
       or a falling `grep -c "^export(" NAMESPACE` means a roxygen block rebound
-- [ ] `lintr::lint_package()` compared against the `HEAD` baseline per file
+- [x] `lintr::lint_package()` compared against the `HEAD` baseline per file
 
 ## Phase 4: DESCRIPTION Title (#31, folded in)
 

@@ -149,7 +149,11 @@ fly_rectangles <- function(coords, half_side) {
 #'   `height_agl` giving the metres above ground each footprint was sized from,
 #'   and `dem_coverage` giving the fraction of each footprint the DEM actually
 #'   covered (`0` where it covered none, `NA` only where there is no footprint).
-#'   Frames whose format could not be resolved get an empty geometry.
+#'   Frames whose format could not be resolved get an empty geometry. Every
+#'   class the input carries is carried through, so a tibble-backed sf — which
+#'   is what `bcdata::collect()` returns — comes back tibble-backed. The order
+#'   is not preserved: `sf::st_transform()` moves `sf` to the front, so a
+#'   `bcdc_sf` input returns `sf, bcdc_sf, ...`, as it always has.
 #'
 #' @details
 #' Ground coverage is computed as `negative_size * scale_number * 0.0254` metres
@@ -359,7 +363,12 @@ fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL,
   } else {
     media <- as.character(centroids_sf$media)
     width_in <- unname(formats[media])
-    basis <- ifelse(is.na(width_in), "unknown_format", media)
+    # `as.character()` is load-bearing on empty input: `ifelse(logical(0), ...)`
+    # returns `logical(0)`, so a query that matched no frames would report its
+    # basis as a logical column. Binding that to a populated result — the
+    # per-AOI ledger this reporting surface exists for — fails on the type
+    # rather than yielding an empty block of rows.
+    basis <- as.character(ifelse(is.na(width_in), "unknown_format", media))
   }
 
   unresolved <- is.na(width_in)
@@ -379,7 +388,7 @@ fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL,
   # Keyed on half_side, not width_in: an unparseable `scale` also leaves a frame
   # with no footprint, and a frame with no footprint has had no terrain
   # treatment to report.
-  terrain <- ifelse(is.na(half_side), NA_character_, "nominal_scale")
+  terrain <- as.character(ifelse(is.na(half_side), NA_character_, "nominal_scale"))
   height_agl <- rep(NA_real_, n)
   dem_coverage <- rep(NA_real_, n)
 
@@ -479,14 +488,20 @@ fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL,
     terrain[unusable] <- "nominal_scale"
   }
 
-  result <- sf::st_sf(
-    sf::st_drop_geometry(pts_3005),
-    footprint_basis = basis,
-    footprint_terrain = terrain,
-    height_agl = height_agl,
-    dem_coverage = dem_coverage,
-    geometry = fly_rectangles(coords, half_side)
-  )
+  # Assign the reporting columns onto the attribute frame rather than passing
+  # them to `st_sf()` as trailing arguments. `st_sf()` builds its attribute
+  # frame with `else if (inherits(x[[1]], c("tbl_df", "tbl"))) x[[1]]`, so a
+  # tibble first argument means every trailing named column is silently
+  # discarded — and `bcdata::collect()` returns a tibble, which is to say the
+  # package's own documented data source (#35). Inside `x[[1]]` they survive,
+  # and the caller keeps the class they passed in.
+  attrs <- sf::st_drop_geometry(pts_3005)
+  attrs$footprint_basis <- basis
+  attrs$footprint_terrain <- terrain
+  attrs$height_agl <- height_agl
+  attrs$dem_coverage <- dem_coverage
+
+  result <- sf::st_sf(attrs, geometry = fly_rectangles(coords, half_side))
 
   sf::st_transform(result, input_crs)
 }

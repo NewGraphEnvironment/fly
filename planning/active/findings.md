@@ -39,7 +39,11 @@ st_sf(df,  extra = "hello", geometry = g)  ->  "extra" present: TRUE
 
 ## Scope — one call site
 
-`grep -rn "st_sf(" R/` returns two hits. `R/fly_footprint.R:64` builds a bare
+`grep -rn "st_sf(" R/` returns two hits. The claim is specifically about columns
+attached **through `st_sf()`** — columns are attached to user-supplied data in
+four other places (`fly_coverage.R:34`, `fly_select.R:118,207-208`,
+`fly_bearing.R:66`, `fly_georef.R:133`), all via `$<-`, which is the very
+mechanism this fix adopts and none of which are affected. `R/fly_footprint.R:64` builds a bare
 geometry frame (`st_sf(geometry = rects[ok])`) and attaches nothing to
 user-supplied data. `R/fly_footprint.R:482` is the defect. Every other frame in
 the package is a `dplyr::tibble()` built from scratch — `fly_fetch.R:84,93,104`,
@@ -122,3 +126,58 @@ CI on `main` at session start: all recent runs green (pkgdown + pages).
 
 | Error | Resolution |
 |-------|------------|
+
+## A/B against `8585fd5` on the edge cases the fix could plausibly move
+
+Prior implementation extracted with `git show 8585fd5:R/fly_footprint.R` and run
+side by side with the new one (not reconstructed from memory):
+
+| input | names | nrow | row.names | geometry | `sf_column` |
+|---|---|---|---|---|---|
+| full 20-row plain sf | identical | 20/20 | identical | identical | `geometry`, last |
+| zero-row | identical | 0/0 | identical | identical | `geometry`, last |
+| non-sequential subset `[c(5,3,11), ]` | identical | 3/3 | identical | identical | `geometry`, last |
+| single row | identical | 1/1 | identical | identical | `geometry`, last |
+
+So `$<-` recycling, the `row.names` argument the old `st_sf()` path used, and
+column ordering are all non-issues.
+
+**One deliberate behaviour change, and it is wider than first measured.** When
+the input already carries a column named `footprint_basis`, the old path kept the
+caller's value and discarded the computed one. Corrected measurement — the first
+probe counted exact name matches and so missed the duplicate on the plain path:
+
+| input | old | new |
+|---|---|---|
+| plain sf | 22 cols: `footprint_basis`, `footprint_basis.1`; `$footprint_basis` = `"PRE"` | 21 cols: `footprint_basis` = `"Film - BW"` |
+| tibble sf | 18 cols: `footprint_basis` = `"PRE"` (four columns dropped) | 21 cols: `footprint_basis` = `"Film - BW"` |
+
+So a **plain-sf** caller with a colliding column — a shape #35 never broke — sees
+a column-count and value change too. The new direction is the correct one:
+`fly_footprint()` must report how *it* sized each frame, not echo back a
+same-named column it was handed, and `fly_footprint(fly_footprint(x))` is now
+idempotent rather than sticky. But it is a second fix landing alongside the
+first, so it gets its own test and its own NEWS line rather than riding in
+silently.
+
+## Restore-the-bug verification
+
+Prior function loaded from `8585fd5` into both `asNamespace("fly")` and
+`as.environment("package:fly")` — patching only the namespace gives a false green
+for anything test code calls directly. Proof-of-patch printed before asserting:
+
+```
+PATCH PROOF - footprint_basis on tbl input: NULL (broken code running)
+```
+
+The sweep then failed on the `tbl` and `grouped` shapes, naming the four missing
+columns. The guard is real.
+
+## Suite and lint after the fix
+
+- `devtools::test()`: **FAIL 0 | WARN 0 | SKIP 0 | PASS 275** (baseline 225)
+- `lintr` on `R/fly_footprint.R`: 0 at `8585fd5`, 0 on branch. Package total 16,
+  all pre-existing (`data-raw/`, `fly_fetch`, `fly_georef`, `test-fly_fetch`,
+  `test-fly_footprint.R:391`, vignette)
+- `devtools::document()` wrote only `fly_footprint.Rd`; `NAMESPACE` unchanged at
+  9 exports, so no roxygen block rebound

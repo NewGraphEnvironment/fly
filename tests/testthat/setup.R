@@ -73,15 +73,34 @@ centroid_shapes <- function() {
   p <- testdata_path("photo_centroids.gpkg")
   plain <- sf::st_read(p, quiet = TRUE)
   tbl <- sf::st_read(p, quiet = TRUE, as_tibble = TRUE)
+  grouped <- dplyr::group_by(tbl, .data$scale)
+  # `bcdc_sf` is set by hand rather than by querying: bcdata is not a dependency
+  # of fly, and #35 measured that `tbl_df` is what selects the failing branch —
+  # so this shape exists to pin the *class contract* for the documented caller,
+  # not to reach the bug. `st_transform()` moves `sf` to the front of the class
+  # vector, so this is the one shape that shows the order is not preserved.
+  bcdc <- tbl
+  class(bcdc) <- c("bcdc_sf", class(bcdc))
   stopifnot(
     !inherits(plain, "tbl_df"),
-    inherits(tbl, "tbl_df")
+    inherits(tbl, "tbl_df"),
+    inherits(grouped, "grouped_df"),
+    identical(class(bcdc)[1:2], c("bcdc_sf", "sf"))
   )
-  list(
-    plain = plain,
-    tbl = tbl,
-    grouped = dplyr::group_by(tbl, .data$scale)
-  )
+  list(plain = plain, tbl = tbl, grouped = grouped, bcdc = bcdc)
+}
+
+
+# The bundled centroids are one film stock at one terrain treatment, so with no
+# `dem` all four reporting columns are constant or all-`NA` — a value comparison
+# across class shapes there is nearly vacuous, and only their *absence* makes it
+# fail. The mixed-media fixture varies `footprint_basis` across four rows and
+# reaches the `unknown_format` branch, so the sweep compares something.
+mixed_media_shapes <- function() {
+  mm <- mixed_media_fixture()
+  tbl <- sf::st_as_sf(dplyr::as_tibble(mm))
+  stopifnot(!inherits(mm, "tbl_df"), inherits(tbl, "tbl_df"))
+  list(plain = mm, tbl = tbl)
 }
 
 # The columns #30 and #9 added, which #35 found were reaching no tibble caller.
