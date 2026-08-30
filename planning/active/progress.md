@@ -30,3 +30,22 @@
 - Golden values written into `tests/testthat/test-fly_georef_gcps.R` so the pin survives
   that sha becoming history
 - Full suite: 1181 passing, 0 failures
+
+### Phase 2 — aspect invariant pinned
+
+- `tests/testthat/test-fly_georef_aspect.R`: the GCP mapping must send the image's long
+  pixel axis onto the footprint's long ground edge, expressed as an anisotropy ratio
+  (m/px on the width axis over m/px on the height axis) that must be 1
+- Premise asserted beside it: the shipped `camera_formats.csv` aspect matches the
+  aspect of the thumbnails the catalogue actually serves, to 1e-3. A regenerated CSV
+  that disagreed would fail there, naming the cause, rather than here
+- Negative half pinned with numbers, not a threshold: rotations 0 and 180 squash by
+  ratio^2 — **1.21x** on the DMC II, **2.42x** on the UltraCam. The DMC II alone would
+  survive a loose tolerance; a fixture change dropping the UltraCam frames fails
+- Stated explicitly that the invariant is vacuous on square film, which is why the film
+  mapping needed imagery and why this cannot finish the digital job either
+- **Restore-the-bug check**: patched `fly_georef_gcps()` to ignore its rotation argument
+  (the pre-#38 behaviour — `bearing_to_rotation(271)` returns 0), in *both*
+  `asNamespace("fly")` and `as.environment("package:fly")`, with a printed ground
+  coordinate that can only come from the broken version. Result: **FAIL=2**, the two
+  isotropy assertions. The guard fires

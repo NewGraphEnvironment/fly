@@ -87,15 +87,15 @@ pulled from git, and fails if the extraction changed any coordinate.
 
 ## Phase 2: Pin the aspect invariant (the half needing no imagery)
 
-- [ ] Assert: the GCP mapping sends the image's long pixel axis onto the footprint's long
+- [x] Assert: the GCP mapping sends the image's long pixel axis onto the footprint's long
       ground edge. Concretely, ground distance between the width-pair GCPs divided by
       ground distance between the height-pair GCPs equals `ncol_px / nrow_px`.
-- [ ] Run it over the bundled digital frames, **both** cameras, from
+- [x] Run it over the bundled digital frames, **both** cameras, from
       `inst/testdata/photo_centroids_digital.gpkg` via `digital_fixture()` /
       `tests/testthat/setup.R`.
-- [ ] Assert the invariant **fails** at the rotations it must reject. A test that only
+- [x] Assert the invariant **fails** at the rotations it must reject. A test that only
       ever passes is decoration.
-- [ ] State in a comment that the invariant is vacuous on square film (ratio 1) and weak
+- [x] State in a comment that the invariant is vacuous on square film (ratio 1) and weak
       on the DMC II (1.21x) — the UltraCam frames are what makes it discriminating.
 
 **Verify:** the invariant passes for {90, 270} and fails for {0, 180}, both asserted; and
@@ -163,7 +163,7 @@ bearing rotation and digital the constant, asserted per row; no non-square warni
 - [ ] `/code-check` clean on each commit
 - [ ] No fly file names the private ortho repo, its endpoint, or its database:
       `git diff main --stat` reviewed, plus a grep of the branch diff for the repo name
-- [ ] Restore-the-bug check on the Phase 2 invariant: it goes red against the rejected
+- [x] Restore-the-bug check on the Phase 2 invariant: it goes red against the rejected
       rotations, patched in **both** `asNamespace("fly")` and
       `as.environment("package:fly")`, with a printed value proving the patch took
 - [ ] PWF checkboxes match landed work; `/planning-archive` on completion
