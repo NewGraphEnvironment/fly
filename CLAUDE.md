@@ -99,6 +99,26 @@ user-supplied data. Note the class *set* is carried but not its order: `st_trans
 - **`fly_footprint()` must not be handed its own output** (fly#37, open) — `st_coordinates()` on POLYGON returns one
 row per vertex, so 20 footprints in gives 100 rows out, silently. There is no guard yet
 
+## Working Conventions
+
+### This repo is public — do not name private sibling catalogues
+
+`fly` is a public repo. Some sibling catalogues in this org are private, and their own
+conventions forbid naming them, their endpoints or their databases from any public issue,
+PR, README or convention file. That constraint binds anything committed here, including
+`data-raw/` scripts and issue bodies.
+
+**Why:** the imagery those catalogues index is licence-restricted ("Access Only" and sold
+to the public), so it must never be bundled as test data regardless of reachability — and
+the catalogue itself is private even where the underlying data is not.
+
+**How to apply:** reference such a source obliquely ("a private sibling catalogue"), or
+better, check whether the question has a public instrument first. In fly#38 it did: the
+answer was assumed to need licence-restricted orthophotos and was settled from
+`patb_georef_url`, a column `fly_fetch()` already supported. Where a cross-repo tracking
+issue is needed, keep the reference one-directional — backtick `fly#N` on the private side
+so no cross-reference event lands on the public issue.
+
 <!-- BEGIN SOUL CONVENTIONS — DO NOT EDIT BELOW THIS LINE -->
 
 
