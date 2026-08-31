@@ -1,8 +1,8 @@
 Package: fly
 Title: Historic Airphoto Footprints, Selection and Georeferencing for
     British Columbia
-Version: 0.6.0
-Date: 2026-08-29
+Version: 0.7.0
+Date: 2026-08-30
 Authors@R: c(
     person("Allan", "Irvine", , "al@newgraphenvironment.com", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0002-3495-2128")),
@@ -32,7 +32,7 @@ Suggests:
     furrr,
     future,
     terra,
-    testthat (>= 3.0.0),
+    testthat (>= 3.2.0),
     knitr,
     rmarkdown
 Config/testthat/edition: 3

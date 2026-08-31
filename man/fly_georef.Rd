@@ -35,11 +35,16 @@ for thumbnails but may need adjustment for full-resolution scans.
 Set to \code{NULL} to disable source nodata detection entirely.}
 
 \item{rotation}{Image rotation in degrees clockwise. One of \code{"auto"},
-\code{0}, \code{90}, \code{180}, or \code{270}. \code{"auto"} (default) computes flight line
-bearing from consecutive centroids and derives rotation per-photo —
-requires \code{film_roll} and \code{frame_number} columns. Fixed values apply
-the same rotation to all photos. Overridden per-photo if \code{photos_sf}
-contains a \code{rotation} column.}
+\code{0}, \code{90}, \code{180}, or \code{270}. Applies to frames with a \strong{square}
+footprint only. \code{"auto"} (default) computes flight line bearing from
+consecutive centroids and derives rotation per-photo — requires
+\code{film_roll} and \code{frame_number} columns. Fixed values apply the same
+rotation to every square-footprint photo. A non-square footprint
+ignores this argument and uses the measured digital mapping (see
+\strong{Rotation}); a \code{rotation} column in \code{photos_sf} still overrides
+per-photo, for both. Carrying a film-era \code{rotation} column into a
+batch of digital frames therefore overrides the correct mapping with
+the wrong one — drop the column, or set it to \code{NA} for those rows.}
 
 \item{dem}{Optional elevation raster passed to \code{\link[=fly_footprint]{fly_footprint()}}, sizing each
 frame from its height above ground instead of the reported scale. See the
@@ -59,14 +64,15 @@ polygon corners computed by \code{\link[=fly_footprint]{fly_footprint()}} in BC 
 translates the image with GCPs then warps to the target CRS using
 bilinear resampling.
 
-\strong{Rotation:} Aerial photos may appear rotated in their footprints
-because the camera orientation relative to north varies by flight
-direction, camera mounting, and scanner orientation. The \code{rotation}
-parameter rotates the GCP corner mapping:
+\strong{Rotation:} the corner mapping depends on the footprint's shape, because
+\code{\link[=fly_footprint]{fly_footprint()}} builds the two shapes differently.
+
+A \strong{square} footprint is axis-aligned, so the mapping carries the rotation.
+The \code{rotation} parameter rotates it:
 \itemize{
-\item \code{0} — top of image maps to north edge of footprint (original behavior)
+\item \code{0} — top of image maps to north edge of footprint
 \item \code{90} — top of image maps to east edge (90° clockwise)
-\item \code{180} — top of image maps to south edge (default, correct for most BC photos)
+\item \code{180} — top of image maps to south edge (correct for most BC film)
 \item \code{270} — top of image maps to west edge
 }
 
@@ -84,9 +90,40 @@ not per-roll. To override, add a \code{rotation} column to \code{photos_sf}:
 
 \if{html}{\out{<div class="sourceCode">}}\preformatted{photos$rotation <- dplyr::case_when(
   photos$film_roll == "bc5282" ~ 270,
-  .default = NA  # fall through to auto
+  .default = NA  # non-square footprints fall through to the digital mapping;
+                 # square ones to `rotation`, which is 180 under "auto" —
+                 # NOT back to the per-photo bearing
 )
 }\if{html}{\out{</div>}}
+
+Every non-\code{NA} value in that column must be 0, 90, 180 or 270; anything else
+is an error naming the value, rather than a rotation silently applied as
+something other than what was written.
+
+A \strong{non-square} footprint — every digital frame — is already rotated onto
+its flight line by \code{\link[=fly_footprint]{fly_footprint()}}, so the ring carries the bearing and
+applying it again would count it twice. Those frames use a fixed mapping
+instead: the top-left pixel maps to the ring's rear-left corner, equivalently
+image columns run in the flight direction and image rows run flight-right.
+That was measured in fly#38 on both bundled cameras by three independent
+routes and is the same for each; see \code{inst/notes/georeferencing.md}.
+
+A frame whose delivered image aspect disagrees with its footprint's by more
+than 8\% is \strong{skipped with a warning} rather than written stretched — the
+failure a wrong mapping produces is a valid GeoTIFF over the right ground,
+squashed by the aspect ratio squared, which nothing downstream would report.
+The threshold sits between the largest disagreement a legitimate frame
+produces (a full-resolution 9-inch scan carrying the negative's rebate, about
+6.7\%) and the smallest that must be caught (a Leica DMC II frame sized through
+\code{format_size} onto a square footprint, 9.95\%). It applies to square footprints
+too: a square one has no pairing to get wrong, but a digital frame sized
+through \code{format_size} lands on one, and that is the unknown-camera case — so
+gating on shape would switch the check off exactly where it is needed.
+
+A non-square footprint built without a flight bearing is drawn axis-aligned
+and is therefore georeferenced as though the flight line ran due north.
+\code{\link[=fly_bearing]{fly_bearing()}} needs a neighbouring frame, so this is the ordinary result of
+georeferencing a single frame on its own, and it is warned about.
 
 \strong{Nodata handling:} Two sources of unwanted black pixels are masked:
 \enumerate{
