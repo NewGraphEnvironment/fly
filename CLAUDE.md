@@ -44,6 +44,9 @@ the images onto their estimated footprints.
 - `inst/notes/camera-formats.md` — why `SCALE` is unusable for digital
   frames, what each of the five QA checks can and cannot catch, and the
   PDF extraction traps these specific reports carry
+- `inst/notes/georeferencing.md` — the ring-order contract, the three
+  measurements that established the digital corner mapping, and the one
+  of them that was wrong while looking strongest
 - `mixed_media_fixture()` in `tests/testthat/setup.R` — synthesized
   frames whose format nothing resolves; `digital_fixture()` beside it
   covers every resolver branch, and `footprint_cases()` sweeps the 12
@@ -73,8 +76,22 @@ the images onto their estimated footprints.
   sizes each row from its `media` value, records the outcome in
   `footprint_basis`, and returns an **empty geometry** where the format
   is unknown. Downstream functions report how many frames they excluded.
-  Digital defaults are deliberately unshipped until sensor widths are
-  established (#32) — `format_size` is the slot they drop into
+  Sensor widths landed in \#32 and georeferencing in \#38, so
+  `footprint_basis` is now the record of *which* route sized a frame
+  rather than a list of what is missing
+
+- **The digital corner mapping is rotation 270, and it was measured, not
+  reasoned** (v0.7.0, \#38) — a non-square footprint is already rotated
+  onto its flight line by `fly_rectangles()`, so
+  [`fly_georef()`](https://newgraphenvironment.github.io/fly/reference/fly_georef.md)
+  must not apply `bearing_to_rotation()` on top; the top-left pixel maps
+  to the ring’s rear-left corner. Three independent public routes agree
+  (exterior orientation from `patb_georef_url`, adjacent-frame overlap
+  correlation, FWA lake darkness). **The geometry alone cannot get
+  there** — the aspect invariant narrows the answer to 270 or 90 and a
+  rectangle is symmetric under the 180 degrees between them, so anyone
+  re-deriving this from the ring will produce a plausible wrong answer.
+  Read `inst/notes/georeferencing.md`
 
 - **Terrain error is a datum offset, not slope** (v0.5.0, \#9) —
   `FLYING_HEIGHT` is metres **above sea level**, and reported scale is
@@ -90,10 +107,13 @@ the images onto their estimated footprints.
 
 - `.lintr` must be single-line DCF format — multi-line breaks newer
   lintr versions
+
 - `sf_use_s2(FALSE)` needed for spatial operations on complex geometries
+
 - `!!by := grp` in
   [`fly_coverage()`](https://newgraphenvironment.github.io/fly/reference/fly_coverage.md)
   requires `@importFrom rlang :=` in `fly-package.R`
+
 - **A green suite says little about the terrain code.** Six review
   rounds of fly#9 each found a real defect in the previous round’s fix,
   every time because the bundled DEM could not reach the failure mode —
@@ -102,6 +122,7 @@ the images onto their estimated footprints.
   `inst/notes/terrain-correction.md` and test at two resolutions, with
   anisotropic cells, in a geographic CRS, with a truncating extent, and
   with frames far apart
+
 - **Do not branch on `half_cross` / `half_along` in
   [`fly_footprint()`](https://newgraphenvironment.github.io/fly/reference/fly_footprint.md).**
   They are `NA` for every camera-table row until a sizing route fills
@@ -112,6 +133,7 @@ the images onto their estimated footprints.
   time the failure was total and silent for a whole class of frame.
   Branch on the recording format, which is known before any route runs.
   See `inst/notes/camera-formats.md`
+
 - **Before regenerating `inst/extdata/camera_formats.csv`, read
   `inst/notes/camera-formats.md`.** The catalogue’s `SCALE` is not the
   true image scale for a digital frame (it gives a third of true width),
@@ -119,6 +141,7 @@ the images onto their estimated footprints.
   the generator are not interchangeable — check B is the only one tight
   enough to catch a single wrong digit, and it is vacuous on rows where
   the report states only two of pixel count, pitch and millimetres
+
 - **Every fixture in this package is plain `sf, data.frame`** — the
   bundled GeoPackage reads back that way, and `mixed_media_fixture()` /
   `terrain_fixture()` are built by `st_sf()` on plain vectors.
@@ -134,6 +157,16 @@ the images onto their estimated footprints.
   tibble / grouped / `bcdc_sf` — for anything that attaches columns to
   user-supplied data. Note the class *set* is carried but not its order:
   `st_transform()` moves `sf` to the front
+
+- **`local_mocked_bindings(.env = )` is the cleanup environment, not the
+  target.** `.package` names the package to mock in; `.env` says what
+  the mock unwinds with. Passing `asNamespace("fly")` to `.env` installs
+  the stub correctly and then never removes it, because a namespace does
+  not exit — so every later test in the run keeps it. It leaks in the
+  direction that reads as success, since a stub returning `TRUE` makes
+  assertions pass. Caught in \#38 only because a later test asserted a
+  file existed that the stub never wrote
+
 - **[`fly_footprint()`](https://newgraphenvironment.github.io/fly/reference/fly_footprint.md)
   must not be handed its own output** (fly#37, open) —
   `st_coordinates()` on POLYGON returns one row per vertex, so 20

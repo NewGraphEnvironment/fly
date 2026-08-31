@@ -2,6 +2,50 @@
 
 ## fly (development version)
 
+### 0.7.0 (2026-08-30)
+
+- [`fly_georef()`](https://newgraphenvironment.github.io/fly/reference/fly_georef.md)
+  georeferences digital frames
+  ([\#38](https://github.com/NewGraphEnvironment/fly/issues/38)). v0.6.0
+  gave them footprints and then excluded them from georeferencing with a
+  warning; that exclusion is gone, so the whole post-2010 catalogue is
+  now georeferenceable rather than only sizeable
+- **The corner mapping for a non-square footprint is rotation 270 — the
+  top-left pixel maps to the ring’s rear-left corner, equivalently image
+  columns run in the flight direction and image rows run flight-right.**
+  It was measured, not reasoned: a digital footprint is already rotated
+  onto its flight line, so `bearing_to_rotation()` is not applied to it,
+  and the geometry that remains cannot distinguish 270 from 90
+- The measurement needed no licence-restricted imagery, which the issue
+  had assumed it would. Three independent public routes agree: the
+  per-frame exterior orientation the catalogue publishes through
+  `patb_georef_url` (the UltraCam Eagle’s mount is rigid to 0.18 degrees
+  over 6839 frames spanning the compass); adjacent-frame overlap
+  correlation, which needs no reference imagery at all because
+  consecutive frames check each other (+0.616 and +0.659 against at most
+  +0.43 for the alternatives); and FWA lake darkness.
+  `data-raw/georef_calibrate-corner_mapping.R` reproduces all three, and
+  `inst/notes/georeferencing.md` records them — including the one that
+  disagreed and was wrong
+- A frame whose delivered image aspect does not pair with its footprint
+  edges is now **skipped with a warning** rather than written stretched.
+  A wrong pairing produces a valid GeoTIFF in the right CRS over the
+  right ground, squashed by the aspect ratio squared, which nothing
+  downstream would report. This also catches a frame sized from an
+  inferred camera format that does not match the camera that took it
+- A non-square footprint built without a flight bearing is drawn
+  axis-aligned and so georeferences as though the flight line ran due
+  north.
+  [`fly_bearing()`](https://newgraphenvironment.github.io/fly/reference/fly_bearing.md)
+  needs a neighbouring frame, so this is the ordinary result of
+  georeferencing one frame on its own, and it is now warned about rather
+  than left to be noticed in the output
+- The `rotation` argument applies to square footprints only, and is
+  documented as such; a `rotation` column in `photos_sf` still overrides
+  per-photo for both. Carrying a film-era `rotation` column into a
+  digital batch therefore overrides the correct mapping — drop the
+  column, or set it to `NA` for those rows
+
 ### 0.6.0 (2026-08-30)
 
 - [`fly_footprint()`](https://newgraphenvironment.github.io/fly/reference/fly_footprint.md)

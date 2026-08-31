@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fly</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.6.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.7.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,17 @@
 
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="development version" id="fly-development-version">fly (development version)<a class="anchor" aria-label="anchor" href="#fly-development-version"></a></h2>
+<div class="section level3">
+<h3 id="id_070-development-version">0.7.0 (2026-08-30)<a class="anchor" aria-label="anchor" href="#id_070-development-version"></a></h3>
+<ul><li>
+<code><a href="../reference/fly_georef.html">fly_georef()</a></code> georeferences digital frames (<a href="https://github.com/NewGraphEnvironment/fly/issues/38" class="external-link">#38</a>). v0.6.0 gave them footprints and then excluded them from georeferencing with a warning; that exclusion is gone, so the whole post-2010 catalogue is now georeferenceable rather than only sizeable</li>
+<li>
+<strong>The corner mapping for a non-square footprint is rotation 270 — the top-left pixel maps to the ring’s rear-left corner, equivalently image columns run in the flight direction and image rows run flight-right.</strong> It was measured, not reasoned: a digital footprint is already rotated onto its flight line, so <code>bearing_to_rotation()</code> is not applied to it, and the geometry that remains cannot distinguish 270 from 90</li>
+<li>The measurement needed no licence-restricted imagery, which the issue had assumed it would. Three independent public routes agree: the per-frame exterior orientation the catalogue publishes through <code>patb_georef_url</code> (the UltraCam Eagle’s mount is rigid to 0.18 degrees over 6839 frames spanning the compass); adjacent-frame overlap correlation, which needs no reference imagery at all because consecutive frames check each other (+0.616 and +0.659 against at most +0.43 for the alternatives); and FWA lake darkness. <code>data-raw/georef_calibrate-corner_mapping.R</code> reproduces all three, and <code>inst/notes/georeferencing.md</code> records them — including the one that disagreed and was wrong</li>
+<li>A frame whose delivered image aspect does not pair with its footprint edges is now <strong>skipped with a warning</strong> rather than written stretched. A wrong pairing produces a valid GeoTIFF in the right CRS over the right ground, squashed by the aspect ratio squared, which nothing downstream would report. This also catches a frame sized from an inferred camera format that does not match the camera that took it</li>
+<li>A non-square footprint built without a flight bearing is drawn axis-aligned and so georeferences as though the flight line ran due north. <code><a href="../reference/fly_bearing.html">fly_bearing()</a></code> needs a neighbouring frame, so this is the ordinary result of georeferencing one frame on its own, and it is now warned about rather than left to be noticed in the output</li>
+<li>The <code>rotation</code> argument applies to square footprints only, and is documented as such; a <code>rotation</code> column in <code>photos_sf</code> still overrides per-photo for both. Carrying a film-era <code>rotation</code> column into a digital batch therefore overrides the correct mapping — drop the column, or set it to <code>NA</code> for those rows</li>
+</ul></div>
 <div class="section level3">
 <h3 id="id_060-development-version">0.6.0 (2026-08-30)<a class="anchor" aria-label="anchor" href="#id_060-development-version"></a></h3>
 <ul><li>

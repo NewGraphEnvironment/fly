@@ -431,9 +431,9 @@ georef[, c("airp_id", "dest", "success")]
 #> # A tibble: 3 × 3
 #>   airp_id dest                                 success
 #>     <int> <chr>                                <lgl>  
-#> 1  699370 /tmp/Rtmp3aI5e9/bc5282_176_thumb.tif TRUE   
-#> 2  699415 /tmp/Rtmp3aI5e9/bc5282_221_thumb.tif TRUE   
-#> 3  699426 /tmp/Rtmp3aI5e9/bc5282_232_thumb.tif TRUE
+#> 1  699370 /tmp/Rtmpy6y2kK/bc5282_176_thumb.tif TRUE   
+#> 2  699415 /tmp/Rtmpy6y2kK/bc5282_221_thumb.tif TRUE   
+#> 3  699426 /tmp/Rtmpy6y2kK/bc5282_232_thumb.tif TRUE
 ```
 
 The georeferenced TIFFs inherit whatever basis
@@ -444,6 +444,19 @@ takes the same `dem` argument. They are approximate either way, useful
 for visual context rather than survey-grade positioning. Metadata from
 the original centroid data (date, scale, focal length) links back via
 `airp_id`.
+
+Digital frames georeference too. Their footprints are not square and are
+already rotated onto the flight line, so they use a fixed corner mapping
+rather than the bearing rule film uses — see the **Rotation** section of
+[`?fly_georef`](https://newgraphenvironment.github.io/fly/reference/fly_georef.md).
+One consequence is worth knowing when experimenting: passing a single
+frame gives
+[`fly_bearing()`](https://newgraphenvironment.github.io/fly/reference/fly_bearing.md)
+no neighbour to work from, so its footprint is drawn axis-aligned and
+warps as though the flight line ran due north.
+[`fly_georef()`](https://newgraphenvironment.github.io/fly/reference/fly_georef.md)
+warns when that happens. Pass consecutive frames from the same roll to
+get the real azimuth.
 
 ## Terrain-adjusted footprints
 

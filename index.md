@@ -43,7 +43,8 @@ BC](reference/figures/readme-priority.png)
   (`fly_fetch`)
 - **Georeference** — warp the scanned images onto their estimated
   footprints as GeoTIFFs (BC Albers), with automatic flight-line
-  rotation (`fly_bearing`, `fly_georef`)
+  rotation, for film and digital frames alike (`fly_bearing`,
+  `fly_georef`)
 
 ## Installation
 
