@@ -66,17 +66,35 @@ jobs:
           # exists before checking what is in it.
           [ -f docs/index.html ] || { echo "docs/index.html missing — the build produced no site"; exit 1; }
 
-          # Both extensions. pkgdown writes a rendered .html AND a verbatim copy of the
-          # source .md for every root page, so checking only one leaves the other free
-          # to leak.
+          # Exact token match. `case " $allowed " in *" $b "*)` reads equivalent and is
+          # not: it matches a contiguous SUBSTRING of the list, so a page named
+          # "authors index" passes. That fails toward pass, which is the direction that
+          # matters in a guard.
+          is_allowed() {
+            for a in $allowed; do
+              if [ "$a" = "$1" ]; then return 0; fi
+            done
+            return 1
+          }
+
+          # Both extensions. pkgdown writes a rendered .html AND a markdown twin for
+          # every root page, so checking only one leaves the other free to leak. Strip
+          # the suffix that actually matched — stripping both unconditionally reduces
+          # "index.md.html" to "index".
           unexpected=""
           for f in docs/*.html docs/*.md; do
             [ -e "$f" ] || continue
-            b=$(basename "$f"); b="${b%.html}"; b="${b%.md}"
-            case " $allowed " in
-              *" $b "*) ;;
-              *) case " $unexpected " in *" $b "*) ;; *) unexpected="$unexpected $b" ;; esac ;;
+            b=$(basename "$f")
+            case "$f" in
+              *.html) b="${b%.html}" ;;
+              *.md)   b="${b%.md}"   ;;
             esac
+            if is_allowed "$b"; then continue; fi
+            seen=0
+            for u in $unexpected; do
+              if [ "$u" = "$b" ]; then seen=1; break; fi
+            done
+            if [ "$seen" = "0" ]; then unexpected="$unexpected $b"; fi
           done
 
           if [ -n "$unexpected" ]; then
