@@ -96,12 +96,6 @@ a tibble, so `footprint_basis`, `footprint_terrain`, `height_agl` and `dem_cover
 documented data source, with geometry and every downstream number still correct. Use `centroid_shapes()` in
 `tests/testthat/setup.R` — it sweeps plain / tibble / grouped / `bcdc_sf` — for anything that attaches columns to
 user-supplied data. Note the class *set* is carried but not its order: `st_transform()` moves `sf` to the front
-- **`local_mocked_bindings(.env = )` is the cleanup environment, not the target.** `.package` names the
-package to mock in; `.env` says what the mock unwinds with. Passing `asNamespace("fly")` to `.env` installs
-the stub correctly and then never removes it, because a namespace does not exit — so every later test in
-the run keeps it. It leaks in the direction that reads as success, since a stub returning `TRUE` makes
-assertions pass. Caught in #38 only because a later test asserted a file existed that the stub never wrote
-
 - **`fly_footprint()` must not be handed its own output** (fly#37, open) — `st_coordinates()` on POLYGON returns one
 row per vertex, so 20 footprints in gives 100 rows out, silently. There is no guard yet
 
