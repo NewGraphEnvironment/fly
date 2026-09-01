@@ -1,5 +1,9 @@
 # fly (development version)
 
+## 0.7.1 (2026-09-01)
+
+- `fly_footprint()`'s `@param dem` names the LidarBC STAC catalogue as `stac-elevation-bc`, its current name ([#46](https://github.com/NewGraphEnvironment/fly/pull/46)). Documentation only — `fly` never queries that catalogue, it takes a COG URL the caller already has, and the S3 bucket kept its old name, so no href in any example changes
+
 ## 0.7.0 (2026-08-30)
 
 - `fly_georef()` georeferences digital frames ([#38](https://github.com/NewGraphEnvironment/fly/issues/38)). v0.6.0 gave them footprints and then excluded them from georeferencing with a warning; that exclusion is gone, so the whole post-2010 catalogue is now georeferenceable rather than only sizeable
