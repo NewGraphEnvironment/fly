@@ -215,8 +215,8 @@ On this AOI that per-corner refinement is worth roughly 2%, against the
   from:
   `/vsicurl/https://canelevation-dem.s3.ca-central-1.amazonaws.com/mrdem-30/mrdem-30-dtm.tif`
 
-- **LidarBC** — sub-10 m where coverage exists; query the `stac-dem-bc`
-  STAC catalogue and pass an item's COG URL.
+- **LidarBC** — sub-10 m where coverage exists; query the
+  `stac-elevation-bc` STAC catalogue and pass an item's COG URL.
 
 - **BC TRIM** — 25 m provincial DEM via the `bcdata` CLI
   (`bcdata get-dem`).
