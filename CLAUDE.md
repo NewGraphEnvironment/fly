@@ -32,7 +32,9 @@ compute `dem_coverage` that each passed their own tests
 - `inst/notes/camera-formats.md` — why `SCALE` is unusable for digital frames, what each of the five QA
 checks can and cannot catch, and the PDF extraction traps these specific reports carry
 - `inst/notes/georeferencing.md` — the ring-order contract, the three measurements that established the
-digital corner mapping, and the one of them that was wrong while looking strongest
+digital corner mapping, and the one of them that was wrong while looking strongest.
+`data-raw/georef_calibrate-corner_mapping.R` reproduces all three from public data — exterior
+orientation via `patb_georef_url`, adjacent-frame overlap correlation, and FWA lake darkness
 - `mixed_media_fixture()` in `tests/testthat/setup.R` — synthesized frames whose format nothing resolves;
 `digital_fixture()` beside it covers every resolver branch, and `footprint_cases()` sweeps the 12 input
 shapes the invariant tests run over
