@@ -5,6 +5,93 @@ fly_film_media <- function() {
   c("Film - BW", "Film - Colour")
 }
 
+# Refuse anything that is not one point per frame.
+#
+# Every function that sizes ground coverage reads centroid positions with
+# `sf::st_coordinates()`, which returns one row per feature for POINT and one row
+# per *vertex* for everything else. Handed its own output, `fly_footprint()`
+# therefore built five geometries per closed rectangle and `st_sf()` recycled the
+# attribute frame up to match — 20 frames in, 100 rows out, no warning, and 80 of
+# them carrying another photo's attributes (fly#37). Three of the functions that
+# call it were quietly wrong rather than merely wrong-sized: `fly_overlap()`
+# reported pairs over the corrupted set, and `fly_select()` and
+# `fly_filter(method = "footprint")` indexed a 20-row frame with a length-100
+# logical. Only `fly_coverage()` errored, and only by accident of how it assigns.
+#
+# POINT is not a proxy for "one coordinate row per feature", it is exactly
+# equivalent to it: sf keeps an ALIGNED NA row for an empty POINT, so n features
+# always yield n rows and no separate row-count assertion is needed behind this
+# one. (Measured. The empty geometries `fly_footprint()` itself emits are empty
+# POLYGONs and are refused on type, so they are not an instance of this — an
+# earlier draft of this comment claimed they were.)
+#
+# An empty POINT is therefore ACCEPTED here and then fails further down with
+# `!anyNA(x) is not TRUE`, from `st_polygon()` on the all-NA ring. That is
+# pre-existing and deliberately left alone: this guard is about geometry *shape*,
+# and refusing the whole batch for one unlocatable frame would contradict the
+# per-frame reporting #30 established, where an unsizeable frame gets an empty
+# footprint and a `footprint_basis` rather than aborting its neighbours. Tracked
+# as fly#47; do not "fix" it by widening this guard.
+#
+# MULTIPOINT is excluded deliberately, against the suggestion in fly#37: it
+# expands one row per constituent point exactly as a POLYGON does, so admitting
+# it would reintroduce the bug. This is knowingly *stronger* than the invariant —
+# a MULTIPOINT holding one point each would be harmless — because a cardinality
+# check would admit a shape nothing downstream expects. Do not relax it to one.
+#
+# The type test is per *feature* rather than on the sfc's class, because a
+# GEOMETRY-typed column can hold a mix and only the per-feature view sees it. An
+# XYZ point passes and should — `st_coordinates()` gains a Z column but not a
+# row, and only columns 1:2 are ever read.
+#
+# But a `sfc_GEOMETRY` column is refused even when every feature in it is a
+# POINT, because `st_coordinates()` has no method for that class: measured, it
+# errors with "not implemented for objects of class sfc_GEOMETRY" and the caller
+# sees `Not compatible with STRSXP: [type=NULL]` several layers down, naming
+# neither the argument nor the package. That is the opaque failure this guard
+# exists to replace, so it is caught here and named. `st_cast(x, "POINT")`
+# resolves it. An earlier draft of this comment called such a column a
+# legitimate input on the strength of its per-feature types; that was asserted
+# rather than measured, and it is wrong.
+#
+# The `nrow()` clause keeps zero-row input legal: `st_sf(geometry = st_sfc())`
+# also carries an `sfc_GEOMETRY` column, and an empty query is a documented
+# input.
+#
+# An error rather than an `st_centroid()` coercion, because taking the centroid
+# of an estimated footprint and re-estimating from it is not a meaningful
+# operation; doing it quietly would hide the caller's real mistake. The message
+# names the offending types and the one-line fix, because this also guards an
+# assumption about the upstream catalogue — `bcdata::collect()` returns POINT
+# today, and if that ever changes the error should be ten seconds to resolve
+# rather than a wall.
+fly_check_points <- function(x, arg) {
+  if (!inherits(x, "sf")) {
+    stop("`", arg, "` must be an sf object.", call. = FALSE)
+  }
+  if (nrow(x) > 0 && inherits(sf::st_geometry(x), "sfc_GEOMETRY")) {
+    stop(
+      "`", arg, "` has a mixed-geometry (GEOMETRY) column, which ",
+      "`sf::st_coordinates()` cannot read even when every feature in it is a ",
+      "point. Use `sf::st_cast(", arg, ", \"POINT\")`.",
+      call. = FALSE
+    )
+  }
+  got <- as.character(sf::st_geometry_type(x))
+  if (!all(got == "POINT")) {
+    stop(
+      "`", arg, "` must be points, not ",
+      paste(unique(got[got != "POINT"]), collapse = "/"),
+      ". Ground coverage is estimated *from* a centroid; passing footprints ",
+      "back in silently multiplies the rows by the vertex count. If you meant ",
+      "to filter footprints against an area, use `sf::st_filter()`; if these ",
+      "really are centroids in another form, `sf::st_cast(x, \"POINT\")`.",
+      call. = FALSE
+    )
+  }
+  invisible(x)
+}
+
 # Report frames excluded from an operation because they have no footprint.
 #
 # An empty geometry fails every sf predicate quietly: st_intersects() returns
@@ -180,6 +267,10 @@ fly_is_square <- function(footprints) {
 #' @param centroids_sf An sf point object with a `scale` column (e.g. "1:31680").
 #'   A `media` column (e.g. `"Film - BW"`, `"Digital - Colour"`) selects the
 #'   recording format per frame when present.
+#'   Geometry must be POINT. `sf::st_coordinates()` returns one row per *vertex*
+#'   for anything else, so a POLYGON input silently multiplies the rows by the
+#'   vertex count; this is refused rather than coerced, because re-estimating a
+#'   footprint from the centroid of an estimated footprint is not meaningful.
 #' @param negative_size Negative dimension in inches (default 9 for standard
 #'   9" x 9"). Applies to film frames, and to every frame when there is no
 #'   `media` column. It never sizes a digital frame — see `format_size`.
@@ -394,6 +485,7 @@ fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL,
   if (!inherits(centroids_sf, "sf")) {
     stop("`centroids_sf` must be an sf object.", call. = FALSE)
   }
+  fly_check_points(centroids_sf, "centroids_sf")
   if (!"scale" %in% names(centroids_sf)) {
     stop("`centroids_sf` must have a `scale` column (e.g. '1:31680').", call. = FALSE)
   }

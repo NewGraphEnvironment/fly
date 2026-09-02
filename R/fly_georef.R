@@ -9,6 +9,8 @@
 #' @param photos_sf The same sf object passed to `fly_fetch()`, with a
 #'   `scale` column for footprint estimation. If a `rotation` column is
 #'   present, per-photo rotation values are used (see **Rotation** below).
+#'   Geometry must be POINT — the ground footprint is estimated *from* a
+#'   centroid, so passing footprints back in is refused rather than coerced.
 #' @param dest_dir Directory for output GeoTIFFs. Created if it does not
 #'   exist.
 #' @param overwrite If `FALSE` (default), skip files that already exist.
@@ -149,6 +151,11 @@ fly_georef <- function(fetch_result, photos_sf,
       stop("`rotation` must be one of \"auto\", 0, 90, 180, 270.", call. = FALSE)
     }
   }
+
+  # Before dir.create(), so a rejected input does not leave an empty output
+  # directory behind. Guarded here as well as inside fly_footprint() so the
+  # message names the argument this caller actually typed. See fly#37.
+  fly_check_points(photos_sf, "photos_sf")
 
   dir.create(dest_dir, recursive = TRUE, showWarnings = FALSE)
 

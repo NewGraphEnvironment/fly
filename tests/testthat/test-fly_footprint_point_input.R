@@ -22,13 +22,13 @@ test_that("fly_footprint refuses its own output", {
   centroids <- sf::st_read(testdata_path("photo_centroids.gpkg"), quiet = TRUE)
   fp <- fly_footprint(centroids)
   expect_equal(nrow(fp), nrow(centroids))
-  expect_error(fly_footprint(fp), "must be points")
+  expect_error(fly_footprint(fp), "`centroids_sf` must be points")
 })
 
 test_that("fly_footprint refuses every non-point geometry", {
   for (nm in names(non_point_cases())) {
-    expect_error(fly_footprint(non_point_cases()[[nm]]), "must be points",
-                 info = nm)
+    expect_error(fly_footprint(non_point_cases()[[nm]]),
+                 "`centroids_sf` must be points", info = nm)
   }
 })
 
@@ -39,7 +39,8 @@ test_that("fly_bearing refuses every non-point geometry", {
   # coordinate matrix with a permutation of 1:n. A wrong row count is detectable;
   # a wrong value at the right row count is not.
   for (nm in names(non_point_cases())) {
-    expect_error(fly_bearing(non_point_cases()[[nm]]), "must be points", info = nm)
+    expect_error(fly_bearing(non_point_cases()[[nm]]),
+                 "`photos_sf` must be points", info = nm)
   }
 })
 
@@ -52,36 +53,53 @@ test_that("fly_filter refuses non-point geometry under both methods", {
   cases <- non_point_cases()
   for (nm in names(cases)) {
     for (method in c("footprint", "centroid")) {
-      expect_error(fly_filter(cases[[nm]], aoi, method = method), "must be points",
-                   info = paste(nm, method))
+      expect_error(fly_filter(cases[[nm]], aoi, method = method),
+                   "`photos_sf` must be points", info = paste(nm, method))
     }
   }
 })
 
 test_that("every export that consumes centroids refuses non-point geometry", {
-  # The global invariant, rather than more examples of one. These four reach the
-  # guard through their own fly_footprint() call; asserting it here is what stops
-  # a future direct st_coordinates() in any of them from reopening the hole
-  # silently.
+  # The global invariant, rather than more examples of one. These four could have
+  # reached the guard through their own fly_footprint() call, but the error would
+  # then have named `centroids_sf` — an argument none of them has. Each is
+  # asserted against the name the caller actually typed, so a guard that reports
+  # the wrong parameter cannot ship green.
+  #
+  # Handed footprints, three of these four were silently WRONG rather than
+  # wrong-sized before the guard: fly_overlap() reported pairs over the corrupted
+  # set, and fly_select() in both modes indexed a 20-row frame with a length-100
+  # logical. Only fly_coverage() errored, and only by accident of how it assigns.
   sf::sf_use_s2(FALSE)
   on.exit(sf::sf_use_s2(TRUE), add = TRUE)
 
   poly <- non_point_cases()$POLYGON
   aoi <- sf::st_read(testdata_path("aoi.gpkg"), quiet = TRUE)
+
+  expect_error(fly_coverage(poly, aoi), "`photos_sf` must be points")
+  expect_error(fly_overlap(poly), "`photos_sf` must be points")
+  expect_error(fly_select(poly, aoi), "`photos_sf` must be points")
+  expect_error(fly_select(poly, aoi, mode = "all"), "`photos_sf` must be points")
+  expect_error(fly_footprint(poly), "`centroids_sf` must be points")
+})
+
+test_that("fly_georef refuses non-point geometry without creating its output dir", {
+  # The guard sits above dir.create() in fly_georef(), so a rejected input leaves
+  # nothing behind. Asserting the directory's absence is what pins that ordering:
+  # moved below dir.create(), the refusal still happens and only this fails.
+  poly <- non_point_cases()$POLYGON
   dest <- file.path(tempdir(), "fly37_georef_out")
   unlink(dest, recursive = TRUE)
   on.exit(unlink(dest, recursive = TRUE), add = TRUE)
+  expect_false(dir.exists(dest))
 
-  # A fetch_result is validated on its column names alone, so this reaches the
-  # geometry guard without any network.
   fake_fetch <- dplyr::tibble(
     airp_id = poly$airp_id[1], dest = NA_character_, success = FALSE
   )
 
-  expect_error(fly_coverage(poly, aoi), "must be points")
-  expect_error(fly_overlap(poly), "must be points")
-  expect_error(fly_select(poly, aoi), "must be points")
-  expect_error(fly_georef(fake_fetch, poly, dest_dir = dest), "must be points")
+  expect_error(fly_georef(fake_fetch, poly, dest_dir = dest),
+               "`photos_sf` must be points")
+  expect_false(dir.exists(dest))
 })
 
 test_that("zero-row input is still accepted", {
@@ -107,4 +125,35 @@ test_that("points still pass through unchanged", {
   sf::sf_use_s2(FALSE)
   on.exit(sf::sf_use_s2(TRUE), add = TRUE)
   expect_no_error(fly_filter(centroids, aoi, method = "centroid"))
+})
+
+
+test_that("a mixed-geometry column is refused even when every feature is a point", {
+  # st_coordinates() has no sfc_GEOMETRY method. Without this the guard passes on
+  # the per-feature types — all POINT — and the caller sees
+  # `Not compatible with STRSXP: [type=NULL]` several layers down, naming neither
+  # the argument nor the package. Measured, not predicted.
+  centroids <- sf::st_read(testdata_path("photo_centroids.gpkg"), quiet = TRUE)
+  gg <- sf::st_cast(centroids, "GEOMETRY")
+
+  # Premises: the column really is GEOMETRY, and every feature in it really is a
+  # POINT — so this is the case the per-feature test alone would wave through.
+  expect_true(inherits(sf::st_geometry(gg), "sfc_GEOMETRY"))
+  expect_true(all(as.character(sf::st_geometry_type(gg)) == "POINT"))
+  expect_error(sf::st_coordinates(gg), "sfc_GEOMETRY")
+
+  expect_error(fly_footprint(gg), "`centroids_sf` has a mixed-geometry")
+  expect_error(fly_bearing(gg), "`photos_sf` has a mixed-geometry")
+})
+
+test_that("a zero-row sf with a GEOMETRY column is still accepted", {
+  # `st_sf(geometry = st_sfc())` carries an sfc_GEOMETRY column, so the clause
+  # above has to be nrow-aware or an empty query — a documented input — starts
+  # erroring. This is the premise that makes the `nrow(x) > 0` guard load-bearing
+  # rather than defensive noise.
+  z <- sf::st_sf(scale = character(0), geometry = sf::st_sfc(crs = 4326))
+  expect_true(inherits(sf::st_geometry(z), "sfc_GEOMETRY"))
+  expect_equal(nrow(z), 0L)
+  expect_no_error(fp <- fly_footprint(z))
+  expect_equal(nrow(fp), 0L)
 })

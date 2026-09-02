@@ -6,6 +6,8 @@
 #'
 #' @param photos_sf An sf point object with a `scale` column
 #'   (pre-filtered to target year/scale).
+#'   Geometry must be POINT — the ground footprint is estimated *from* a
+#'   centroid, so passing footprints back in is refused rather than coerced.
 #' @param aoi_sf An sf polygon to cover.
 #' @param mode Either `"minimal"` (fewest photos to reach target) or `"all"`
 #'   (every photo touching the AOI).
@@ -41,6 +43,11 @@ fly_select <- function(photos_sf, aoi_sf, mode = "minimal",
                        target_coverage = 0.95,
                        component_ensure = FALSE, dem = NULL) {
   mode <- match.arg(mode, c("minimal", "all"))
+  # Guarded here as well as inside fly_footprint() so the message names the
+  # argument this caller actually typed, and once at the exported entry rather
+  # than in each mode. Handed footprints, both modes indexed a 20-row frame with
+  # a length-100 logical and returned a silently wrong subset. See fly#37.
+  fly_check_points(photos_sf, "photos_sf")
 
   if (mode == "all") {
     return(fly_select_all(photos_sf, aoi_sf, dem))

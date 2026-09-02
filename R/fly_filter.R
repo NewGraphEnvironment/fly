@@ -5,6 +5,8 @@
 #' but whose ground coverage overlaps it.
 #'
 #' @param photos_sf An sf point object with a `scale` column.
+#'   Geometry must be POINT — the ground footprint is estimated *from* a
+#'   centroid, so passing footprints back in is refused rather than coerced.
 #' @param aoi_sf An sf polygon defining the area of interest.
 #' @param method One of `"footprint"` (default) or `"centroid"`.
 #' @param buffer Buffer distance in metres added to the AOI before testing
@@ -26,6 +28,11 @@
 fly_filter <- function(photos_sf, aoi_sf, method = c("footprint", "centroid"),
                        buffer = 0, dem = NULL) {
   method <- match.arg(method)
+  # Repeated here rather than inherited: the "centroid" method is the only path
+  # in the package that reads photo geometry without going through
+  # fly_footprint(). Handed footprints it silently became a footprint filter -
+  # 20 rows selected on the bundled AOI where points give 7. See fly#37.
+  fly_check_points(photos_sf, "photos_sf")
 
   aoi_3005 <- sf::st_transform(aoi_sf, 3005) |>
     sf::st_union() |>

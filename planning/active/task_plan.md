@@ -63,34 +63,40 @@ Confirmed safe: `fly_georef()` passes *centroids* to both `fly_footprint()`
 
 ## Phase 2: The guard
 
-- [ ] Add `fly_check_points()` at the top of `R/fly_footprint.R`, beside the other
+- [x] Add `fly_check_points()` at the top of `R/fly_footprint.R`, beside the other
       internal helpers — never adjacent to an exported function's roxygen block,
       which would rebind its `@export`
-- [ ] Call from `fly_footprint()`, after the `inherits(x, "sf")` check and before
+- [x] Call from `fly_footprint()`, after the `inherits(x, "sf")` check and before
       `st_coordinates()`
-- [ ] Call from `fly_bearing()`, passing `"photos_sf"`
-- [ ] Call from `fly_filter()`, passing `"photos_sf"`, before the method branch
-- [ ] Full suite green — no regression in the 12 `footprint_cases()`
+- [x] Call from `fly_bearing()`, passing `"photos_sf"`
+- [x] Call from `fly_filter()`, passing `"photos_sf"`, before the method branch
+- [x] Full suite green — no regression in the 12 `footprint_cases()`
+- [x] Guard the four inheriting exports too, each naming its own argument —
+      the inherited error named `centroids_sf`, which none of them has
+- [x] Place `fly_georef()`'s guard above `dir.create()` so a refusal leaves no
+      empty output directory
 
 ## Phase 3: Documentation
 
-- [ ] `@param` on all three functions: points-only, and why an error rather than an
+- [x] `@param` on all three functions: points-only, and why an error rather than an
       `st_centroid()` coercion
-- [ ] `NEWS.md` entry under a development heading
-- [ ] `devtools::document()` — read the output, confirm `NAMESPACE` export count
+- [x] `NEWS.md` entry under a development heading
+- [x] `devtools::document()` — read the output, confirm `NAMESPACE` export count
       holds at 9
-- [ ] Edit the **issue body** to correct the MULTIPOINT recommendation and record
+- [x] Edit the **issue body** to correct the MULTIPOINT recommendation and record
       the `fly_bearing` / `fly_filter` measurements
 
 ## Phase 4: Verification
 
-- [ ] Restore the bug — remove the guard, confirm each new test goes red. Patch
+- [x] Restore the bug — remove the guard, confirm each new test goes red. Patch
       **both** `asNamespace("fly")` and `as.environment("package:fly")` if patching
       bindings; test code resolves through the search path
-- [ ] Confirm the MULTIPOINT test fails against the issue's
+- [x] Confirm the MULTIPOINT test fails against the issue's
       `c("POINT", "MULTIPOINT")` variant
-- [ ] `lintr::lint_package()` compared against the `HEAD` baseline
-- [ ] Fold in the background Plan-agent review findings
+- [x] `lintr::lint_package()` compared against the `HEAD` baseline
+- [x] Fold in the background Plan-agent review findings
+- [x] Fold in code-check round 1: refuse `sfc_GEOMETRY`, correct two comments
+      that asserted coverage without measuring it, file fly#47 for empty POINT
 
 ## Validation
 

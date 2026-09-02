@@ -161,9 +161,13 @@ fly_reported_cols <- function() {
 }
 
 
-# Every input shape `fly_footprint()` can be handed, for the invariant sweep in
-# test-fly_footprint_invariants.R. Lives here rather than in the test file so its
-# dependencies — the other fixtures and `testdata_path()` — are defined alongside it.
+# Every input shape `fly_footprint()` can be handed AND sizes, for the invariant
+# sweep in test-fly_footprint_invariants.R. Non-POINT geometry is refused rather
+# than sized, so those shapes live in `non_point_cases()` below and belong in
+# test-fly_footprint_point_input.R — adding one here makes the sweep error.
+#
+# Lives here rather than in the test file so its dependencies — the other
+# fixtures and `testdata_path()` — are defined alongside it.
 footprint_cases <- function() {
   dem <- testdata_path("dem.tif")
   film <- sf::st_read(testdata_path("photo_centroids.gpkg"), quiet = TRUE)
