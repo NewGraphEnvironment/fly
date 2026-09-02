@@ -86,13 +86,34 @@ fly_check_points <- function(x, arg) {
   }
   got <- as.character(sf::st_geometry_type(x))
   if (!all(got == "POINT")) {
+    # `st_cast(x, "POINT")` is offered ONLY where it provably keeps one row per
+    # feature, and this condition is the whole point of the clause rather than
+    # defensive noise. The guard tests *shape*, and `st_cast()` always produces
+    # the right shape — so recommending it unconditionally hands the caller a
+    # remedy that walks straight back through the guard. Measured on the bundled
+    # footprints: 20 rows in, `st_cast()`, 100 rows out, guard ACCEPTS, 80
+    # duplicated `airp_id`. That is fly#37 verbatim, reproduced by following the
+    # message written to prevent it. On a mixed column it instead moves each
+    # polygon to its first ring vertex — 1,940 m — with the row count unchanged.
+    #
+    # The test is the property itself, not a list of the types it holds for:
+    # cast is safe exactly when the coordinate count already equals the feature
+    # count. `st_coordinates()` throws on an unreadable column, which is a "no"
+    # rather than an error to propagate — we are already on the error path.
+    cast_keeps_rows <- isTRUE(tryCatch(
+      nrow(sf::st_coordinates(x)) == nrow(x),
+      error = function(e) FALSE
+    ))
     stop(
       "`", arg, "` must be points, not ",
       paste(unique(got[got != "POINT"]), collapse = "/"),
       ". Ground coverage is estimated *from* a centroid; passing footprints ",
       "back in silently multiplies the rows by the vertex count. If you meant ",
-      "to filter footprints against an area, use `sf::st_filter()`; if these ",
-      "really are centroids in another form, `sf::st_cast(x, \"POINT\")`.",
+      "to filter footprints against an area, use `sf::st_filter()`.",
+      if (cast_keeps_rows) {
+        paste0(" If these really are centroids in another form, `sf::st_cast(",
+               arg, ", \"POINT\")`.")
+      },
       call. = FALSE
     )
   }

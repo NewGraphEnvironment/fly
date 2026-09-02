@@ -129,10 +129,12 @@ test_that("points still pass through unchanged", {
 
 
 test_that("a mixed-geometry column is refused even when every feature is a point", {
-  # st_coordinates() has no sfc_GEOMETRY method. Without this the guard passes on
-  # the per-feature types — all POINT — and the caller sees
-  # `Not compatible with STRSXP: [type=NULL]` several layers down, naming neither
-  # the argument nor the package. Measured, not predicted.
+  # Nothing downstream can read an sfc_GEOMETRY column, and WHERE it fails depends
+  # on its contents: an all-POINT one dies in st_transform() with
+  # `Not compatible with STRSXP: [type=NULL]`, a mixed one transforms fine and
+  # dies later in st_coordinates(). Neither names the argument or the package.
+  # (The st_coordinates() premise below is a true fact about the class, not the
+  # path this caller takes — an earlier draft of this comment conflated the two.)
   centroids <- sf::st_read(testdata_path("photo_centroids.gpkg"), quiet = TRUE)
   gg <- sf::st_cast(centroids, "GEOMETRY")
 
@@ -185,11 +187,83 @@ test_that("a GEOMETRY column holding polygons is refused as polygons, not as GEO
 
   expect_error(fly_footprint(mixed), "must be points, not POLYGON")
 
-  # And the remedy the other message would have offered really is destructive,
-  # so this is pinned as a fact rather than left as an assertion about wording.
+  # And the destructive remedy must not be offered for it. st_cast() here moves
+  # each polygon to its first ring vertex — 1,940 m — while KEEPING the row
+  # count, so the guard would accept the result.
   recast <- suppressWarnings(sf::st_cast(mixed, "POINT"))
   moved <- as.numeric(sf::st_distance(sf::st_geometry(recast),
                                       sf::st_geometry(c3005), by_element = TRUE))
   expect_equal(nrow(recast), nrow(mixed))
   expect_gt(max(moved), 1000)
+  expect_no_match(tryCatch(fly_footprint(mixed), error = conditionMessage),
+                  "st_cast", fixed = TRUE)
+})
+
+test_that("the guard never recommends a cast that would defeat it", {
+  # The mechanism behind the two review rounds that each found a defect inside
+  # the previous round's fix. The guard tests *shape*, and `st_cast(x, "POINT")`
+  # always produces the right shape — so any message recommending it
+  # unconditionally hands the caller a remedy that walks straight back through
+  # the guard. Following it on the bundled footprints gave 100 rows from 20 with
+  # 80 duplicated airp_id: issue #37 verbatim, via the error written to stop it.
+  #
+  # Asserted as a global invariant over every non-point shape rather than as a
+  # list of the types it holds for: IF the message names st_cast, THEN casting
+  # must keep one row per feature. Reordering the guard's clauses cannot satisfy
+  # this, which is what makes it the right assertion — ordering only decides
+  # which sentence carries the advice.
+  centroids <- sf::st_read(testdata_path("photo_centroids.gpkg"), quiet = TRUE)
+  fp <- fly_footprint(centroids)
+
+  cases <- non_point_cases()
+  cases$`MULTIPOINT-of-one` <- suppressWarnings(sf::st_cast(centroids, "MULTIPOINT"))
+  # The GEOMETRY clause carries an st_cast recommendation too, so it belongs in
+  # the sweep. Covering only the shapes that reach the type clause would make
+  # this invariant's scope a coincidence of which clause answered first — the
+  # same mistake the ordering fix was about.
+  cases$`GEOMETRY-of-points` <- sf::st_cast(centroids, "GEOMETRY")
+  mixed <- sf::st_transform(centroids, 3005)
+  sf::st_geometry(mixed) <- c(
+    sf::st_geometry(sf::st_transform(fp, 3005))[1:10],
+    sf::st_geometry(sf::st_transform(centroids, 3005))[11:20]
+  )
+  cases$`GEOMETRY-mixed` <- mixed
+
+  # Premise: the sweep must contain at least one shape where casting IS safe and
+  # one where it is not, or the invariant holds vacuously in one direction.
+  keeps <- vapply(cases, function(x) {
+    isTRUE(tryCatch(nrow(sf::st_coordinates(x)) == nrow(x), error = function(e) FALSE))
+  }, logical(1))
+  expect_true(any(keeps))
+  expect_true(any(!keeps))
+
+  for (nm in names(cases)) {
+    msg <- tryCatch(fly_footprint(cases[[nm]]), error = conditionMessage)
+    if (grepl("st_cast", msg, fixed = TRUE)) {
+      recast <- suppressWarnings(sf::st_cast(cases[[nm]], "POINT"))
+      expect_equal(nrow(recast), nrow(cases[[nm]]), info = nm)
+    }
+  }
+
+  # And the case that motivated it: a homogeneous POLYGON column is refused with
+  # no cast advice at all.
+  expect_no_match(tryCatch(fly_footprint(fp), error = conditionMessage),
+                  "st_cast", fixed = TRUE)
+})
+
+test_that("a non-sf object is refused by name, not by an sf internal", {
+  # Clause A of fly_check_points(). No test reached it: fly_footprint() has its
+  # own duplicate `inherits()` check, so it answers there, and the six other
+  # exports had no non-sf test at all — for them clause A is the ONLY type check.
+  # Without it a caller gets sf's `no applicable method for st_geometry`, naming
+  # neither the argument nor the package, which is the failure this guard exists
+  # to replace. Clause A must also run FIRST: nrow() of a bare sfc is NULL, so
+  # the GEOMETRY clause alone would evaluate `logical(0) && ...` and abort with
+  # "missing value where TRUE/FALSE needed".
+  # fly_bearing() checks its required columns before the geometry guard, so its
+  # non-sf input has to carry them or the test passes on the column check instead.
+  expect_error(fly_bearing(data.frame(film_roll = "a", frame_number = 1)),
+               "`photos_sf` must be an sf object")
+  expect_error(fly_overlap(data.frame(x = 1)), "`photos_sf` must be an sf object")
+  expect_error(fly_select(data.frame(x = 1), 1), "`photos_sf` must be an sf object")
 })
