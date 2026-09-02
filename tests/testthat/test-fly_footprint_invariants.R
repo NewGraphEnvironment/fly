@@ -39,6 +39,9 @@ test_that("every frame gets a basis, and the reporting columns keep their types"
     expect_type(fp$width_source, "character")
     expect_type(fp$height_agl, "double")
     expect_type(fp$dem_coverage, "double")
+    # The invariant fly#37 violated: handed a POLYGON, fly_footprint() returned
+    # 5 rows per input row. This never fired because every case in the sweep is
+    # POINT — the guard, and non_point_cases(), are what cover that axis.
     expect_identical(nrow(fp), nrow(cs$x), info = nm)
   }
 })

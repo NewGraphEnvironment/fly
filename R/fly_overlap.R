@@ -12,6 +12,8 @@
 #' [fly_footprint()].
 #'
 #' @param photos_sf An sf point object with a `scale` column.
+#'   Geometry must be POINT — the ground footprint is estimated *from* a
+#'   centroid, so passing footprints back in is refused rather than coerced.
 #' @param dem Optional elevation raster passed to [fly_footprint()], sizing each
 #'   frame from its height above ground instead of the reported scale. See the
 #'   **Terrain** section of [fly_footprint()].
@@ -27,6 +29,10 @@
 #'
 #' @export
 fly_overlap <- function(photos_sf, dem = NULL) {
+  # Guarded here as well as inside fly_footprint() so the message names the
+  # argument this caller actually typed. Handed footprints this reported
+  # pairwise overlap across the corrupted set rather than erroring. See fly#37.
+  fly_check_points(photos_sf, "photos_sf")
   sf::sf_use_s2(FALSE)
   on.exit(sf::sf_use_s2(TRUE))
 

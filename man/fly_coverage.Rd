@@ -7,7 +7,9 @@
 fly_coverage(photos_sf, aoi_sf, by = "photo_year", dem = NULL)
 }
 \arguments{
-\item{photos_sf}{An sf point object with a \code{scale} column.}
+\item{photos_sf}{An sf point object with a \code{scale} column.
+Geometry must be POINT — the ground footprint is estimated \emph{from} a
+centroid, so passing footprints back in is refused rather than coerced.}
 
 \item{aoi_sf}{An sf polygon to check coverage against.}
 

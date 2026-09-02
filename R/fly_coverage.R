@@ -4,6 +4,8 @@
 #' reports percent coverage grouped by a column.
 #'
 #' @param photos_sf An sf point object with a `scale` column.
+#'   Geometry must be POINT — the ground footprint is estimated *from* a
+#'   centroid, so passing footprints back in is refused rather than coerced.
 #' @param aoi_sf An sf polygon to check coverage against.
 #' @param by Column name to group by (default `"photo_year"`).
 #' @param dem Optional elevation raster passed to [fly_footprint()], sizing each
@@ -19,6 +21,9 @@
 #'
 #' @export
 fly_coverage <- function(photos_sf, aoi_sf, by = "photo_year", dem = NULL) {
+  # Guarded here as well as inside fly_footprint() so the message names the
+  # argument this caller actually typed. See fly#37.
+  fly_check_points(photos_sf, "photos_sf")
   sf::sf_use_s2(FALSE)
   on.exit(sf::sf_use_s2(TRUE))
 

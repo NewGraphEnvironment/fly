@@ -9,7 +9,11 @@ fly_footprint(centroids_sf, negative_size = 9, format_size = NULL, dem = NULL)
 \arguments{
 \item{centroids_sf}{An sf point object with a \code{scale} column (e.g. "1:31680").
 A \code{media} column (e.g. \code{"Film - BW"}, \code{"Digital - Colour"}) selects the
-recording format per frame when present.}
+recording format per frame when present.
+Geometry must be POINT. \code{sf::st_coordinates()} returns one row per \emph{vertex}
+for anything else, so a POLYGON input silently multiplies the rows by the
+vertex count; this is refused rather than coerced, because re-estimating a
+footprint from the centroid of an estimated footprint is not meaningful.}
 
 \item{negative_size}{Negative dimension in inches (default 9 for standard
 9" x 9"). Applies to film frames, and to every frame when there is no

@@ -4,9 +4,11 @@
 #' between consecutive centroids on the same film roll, sorted by frame
 #' number. Useful for diagnosing image rotation issues in [fly_georef()].
 #'
-#' @param photos_sf An sf object with `film_roll` and `frame_number`
+#' @param photos_sf An sf point object with `film_roll` and `frame_number`
 #'   columns. Projected to BC Albers (EPSG:3005) internally for metric
 #'   bearing computation.
+#'   Geometry must be POINT. Handed footprints this returned the right *number*
+#'   of bearings with the wrong values, so it is refused rather than coerced.
 #' @return The input sf object with an added `bearing` column (degrees
 #'   clockwise from north, 0–360). Photos with no computable bearing
 #'   (single-frame rolls) get `NA`.
@@ -32,6 +34,10 @@ fly_bearing <- function(photos_sf) {
     stop("`photos_sf` must have `film_roll` and `frame_number` columns.",
          call. = FALSE)
   }
+  # Handed footprints this returned the right NUMBER of bearings with the wrong
+  # values - it indexes a 5n-row coordinate matrix with a permutation of 1:n - so
+  # nothing downstream could tell. See fly#37.
+  fly_check_points(photos_sf, "photos_sf")
 
   # Project to BC Albers for metric bearing
   proj <- sf::st_transform(photos_sf, 3005)

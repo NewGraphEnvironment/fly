@@ -7,7 +7,9 @@
 fly_overlap(photos_sf, dem = NULL)
 }
 \arguments{
-\item{photos_sf}{An sf point object with a \code{scale} column.}
+\item{photos_sf}{An sf point object with a \code{scale} column.
+Geometry must be POINT — the ground footprint is estimated \emph{from} a
+centroid, so passing footprints back in is refused rather than coerced.}
 
 \item{dem}{Optional elevation raster passed to \code{\link[=fly_footprint]{fly_footprint()}}, sizing each
 frame from its height above ground instead of the reported scale. See the

@@ -13,7 +13,9 @@ fly_filter(
 )
 }
 \arguments{
-\item{photos_sf}{An sf point object with a \code{scale} column.}
+\item{photos_sf}{An sf point object with a \code{scale} column.
+Geometry must be POINT — the ground footprint is estimated \emph{from} a
+centroid, so passing footprints back in is refused rather than coerced.}
 
 \item{aoi_sf}{An sf polygon defining the area of interest.}
 

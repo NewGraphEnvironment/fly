@@ -20,7 +20,9 @@ fly_georef(
 
 \item{photos_sf}{The same sf object passed to \code{fly_fetch()}, with a
 \code{scale} column for footprint estimation. If a \code{rotation} column is
-present, per-photo rotation values are used (see \strong{Rotation} below).}
+present, per-photo rotation values are used (see \strong{Rotation} below).
+Geometry must be POINT — the ground footprint is estimated \emph{from} a
+centroid, so passing footprints back in is refused rather than coerced.}
 
 \item{dest_dir}{Directory for output GeoTIFFs. Created if it does not
 exist.}

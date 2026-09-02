@@ -5,6 +5,146 @@ fly_film_media <- function() {
   c("Film - BW", "Film - Colour")
 }
 
+# Refuse anything that is not one point per frame.
+#
+# Every function that sizes ground coverage reads centroid positions with
+# `sf::st_coordinates()`, which returns one row per feature for POINT and one row
+# per *vertex* for everything else. Handed its own output, `fly_footprint()`
+# therefore built five geometries per closed rectangle and `st_sf()` recycled the
+# attribute frame up to match — 20 frames in, 100 rows out, no warning, and 80 of
+# them carrying another photo's attributes (fly#37). Three of the functions that
+# call it were quietly wrong rather than merely wrong-sized: `fly_overlap()`
+# reported pairs over the corrupted set, and `fly_select()` and
+# `fly_filter(method = "footprint")` indexed a 20-row frame with a length-100
+# logical. Only `fly_coverage()` errored, and only by accident of how it assigns.
+#
+# POINT is not a proxy for "one coordinate row per feature", it is exactly
+# equivalent to it: sf keeps an ALIGNED NA row for an empty POINT, so n features
+# always yield n rows and no separate row-count assertion is needed behind this
+# one. (Measured. The empty geometries `fly_footprint()` itself emits are empty
+# POLYGONs and are refused on type, so they are not an instance of this — an
+# earlier draft of this comment claimed they were.)
+#
+# An empty POINT is therefore ACCEPTED here and then fails further down with
+# `!anyNA(x) is not TRUE`, from `st_polygon()` on the all-NA ring. That is
+# pre-existing and deliberately left alone: this guard is about geometry *shape*,
+# and refusing the whole batch for one unlocatable frame would contradict the
+# per-frame reporting #30 established, where an unsizeable frame gets an empty
+# footprint and a `footprint_basis` rather than aborting its neighbours. Tracked
+# as fly#47; do not "fix" it by widening this guard.
+#
+# MULTIPOINT is excluded deliberately, against the suggestion in fly#37: it
+# expands one row per constituent point exactly as a POLYGON does, so admitting
+# it would reintroduce the bug. This is knowingly *stronger* than the invariant —
+# a MULTIPOINT holding one point each would be harmless — because a cardinality
+# check would admit a shape nothing downstream expects. Do not relax it to one.
+#
+# The type test is per *feature* rather than on the sfc's class, because a
+# GEOMETRY-typed column can hold a mix and only the per-feature view sees it. An
+# XYZ point passes and should — `st_coordinates()` gains a Z column but not a
+# row, and only columns 1:2 are ever read.
+#
+# A `sfc_GEOMETRY` column is refused even when every feature in it is a POINT,
+# because nothing downstream can read one. WHERE it fails depends on its
+# contents, which is why this is checked here rather than left to surface:
+#
+#   all-POINT GEOMETRY   st_transform()   -> Not compatible with STRSXP: [type=NULL]
+#   mixed GEOMETRY       st_transform()   -> works, then
+#                        st_coordinates() -> not implemented for class sfc_GEOMETRY
+#
+# Neither message names the argument, the function or the package. An earlier
+# draft of this comment blamed `st_coordinates()` alone; that is the *second*
+# failure and the all-POINT case never reaches it. Both facts were individually
+# true and the causal claim joining them was not — do not relax this clause on
+# the strength of sf gaining an `st_coordinates.sfc_GEOMETRY` method, because
+# `st_transform()` independently requires it.
+#
+# ORDER MATTERS, and this is the second bug in this clause rather than a style
+# point. Checked BEFORE the per-feature test, it also swallowed a GEOMETRY column
+# holding polygons, and told that caller to `st_cast(x, "POINT")` — which takes a
+# polygon's FIRST VERTEX, not its centroid. Measured on a half-footprint,
+# half-centroid column: 20 rows in, 20 rows out, guard then ACCEPTED, and ten
+# frames relocated 1,940 m. Following this guard's own advice reintroduced
+# exactly the silent corruption it exists to stop. The type test runs first so a
+# mixed column is told it "must be points, not POLYGON" instead.
+#
+# The `nrow()` clause keeps zero-row input legal: `st_sf(geometry = st_sfc())`
+# also carries an `sfc_GEOMETRY` column, and an empty query is a documented
+# input. `st_coordinates.sfc` returns early on length 0, so it is genuinely
+# readable.
+#
+# An error rather than an `st_centroid()` coercion, because taking the centroid
+# of an estimated footprint and re-estimating from it is not a meaningful
+# operation; doing it quietly would hide the caller's real mistake. The message
+# names the offending types and the one-line fix, because this also guards an
+# assumption about the upstream catalogue — `bcdata::collect()` returns POINT
+# today, and if that ever changes the error should be ten seconds to resolve
+# rather than a wall.
+fly_check_points <- function(x, arg) {
+  if (!inherits(x, "sf")) {
+    stop("`", arg, "` must be an sf object.", call. = FALSE)
+  }
+  got <- as.character(sf::st_geometry_type(x))
+  if (!all(got == "POINT")) {
+    # `st_cast(x, "POINT")` is offered ONLY where it provably keeps one row per
+    # feature, and this condition is the whole point of the clause rather than
+    # defensive noise. The guard tests *shape*, and `st_cast()` always produces
+    # the right shape — so recommending it unconditionally hands the caller a
+    # remedy that walks straight back through the guard. Measured on the bundled
+    # footprints: 20 rows in, `st_cast()`, 100 rows out, guard ACCEPTS, 80
+    # duplicated `airp_id`. That is fly#37 verbatim, reproduced by following the
+    # message written to prevent it. On a mixed column it instead moves each
+    # polygon to its first ring vertex — 1,940 m — with the row count unchanged.
+    #
+    # The property wanted is PER FEATURE — each feature holds exactly one
+    # coordinate — and the coordinate count alone tests it in aggregate, so it is
+    # blind to any redistribution that conserves the total. An earlier draft
+    # asserted the two were equivalent ("safe exactly when the counts match");
+    # they are not, and the counterexample is reachable: a MULTIPOINT column
+    # where one frame was digitised twice and one frame has no location recorded
+    # sums to n coordinates over n features, so the cast was offered, and taking
+    # it shifted every frame's geometry one place against its attributes — 18 of
+    # 19 wrong by up to 20.4 km, row count preserved, no duplicated `airp_id`,
+    # and the guard ACCEPTED the result. Both ingredients are in this package's
+    # own record: MULTIPOINT is what fly#37 proposed admitting, and an empty
+    # geometry is fly#47, seen from a GeoPackage round trip.
+    #
+    # The emptiness clause closes it by construction rather than by enumeration:
+    # a non-empty feature contributes at least one coordinate, so "no empties"
+    # plus "total equals the feature count" forces exactly one each.
+    #
+    # `st_coordinates()` throws on a column it cannot read, which is a "no"
+    # rather than an error to propagate — we are already on the error path, and
+    # every such throw means the cast cannot be reasoned about.
+    cast_keeps_rows <- isTRUE(tryCatch(
+      nrow(sf::st_coordinates(x)) == nrow(x) &&
+        !any(sf::st_is_empty(sf::st_geometry(x))),
+      error = function(e) FALSE
+    ))
+    stop(
+      "`", arg, "` must be points, not ",
+      paste(unique(got[got != "POINT"]), collapse = "/"),
+      ". Ground coverage is estimated *from* a centroid; passing footprints ",
+      "back in silently multiplies the rows by the vertex count. If you meant ",
+      "to filter footprints against an area, use `sf::st_filter()`.",
+      if (cast_keeps_rows) {
+        paste0(" If these really are centroids in another form, `sf::st_cast(",
+               arg, ", \"POINT\")`.")
+      },
+      call. = FALSE
+    )
+  }
+  if (nrow(x) > 0 && inherits(sf::st_geometry(x), "sfc_GEOMETRY")) {
+    stop(
+      "`", arg, "` stores its points in a mixed-geometry (GEOMETRY) column, ",
+      "which sf cannot read even though every feature in it is a point. ",
+      "Use `sf::st_cast(", arg, ", \"POINT\")`.",
+      call. = FALSE
+    )
+  }
+  invisible(x)
+}
+
 # Report frames excluded from an operation because they have no footprint.
 #
 # An empty geometry fails every sf predicate quietly: st_intersects() returns
@@ -180,6 +320,10 @@ fly_is_square <- function(footprints) {
 #' @param centroids_sf An sf point object with a `scale` column (e.g. "1:31680").
 #'   A `media` column (e.g. `"Film - BW"`, `"Digital - Colour"`) selects the
 #'   recording format per frame when present.
+#'   Geometry must be POINT. `sf::st_coordinates()` returns one row per *vertex*
+#'   for anything else, so a POLYGON input silently multiplies the rows by the
+#'   vertex count; this is refused rather than coerced, because re-estimating a
+#'   footprint from the centroid of an estimated footprint is not meaningful.
 #' @param negative_size Negative dimension in inches (default 9 for standard
 #'   9" x 9"). Applies to film frames, and to every frame when there is no
 #'   `media` column. It never sizes a digital frame — see `format_size`.
@@ -394,6 +538,7 @@ fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL,
   if (!inherits(centroids_sf, "sf")) {
     stop("`centroids_sf` must be an sf object.", call. = FALSE)
   }
+  fly_check_points(centroids_sf, "centroids_sf")
   if (!"scale" %in% names(centroids_sf)) {
     stop("`centroids_sf` must have a `scale` column (e.g. '1:31680').", call. = FALSE)
   }

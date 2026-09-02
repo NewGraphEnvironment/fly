@@ -7,9 +7,11 @@
 fly_bearing(photos_sf)
 }
 \arguments{
-\item{photos_sf}{An sf object with \code{film_roll} and \code{frame_number}
+\item{photos_sf}{An sf point object with \code{film_roll} and \code{frame_number}
 columns. Projected to BC Albers (EPSG:3005) internally for metric
-bearing computation.}
+bearing computation.
+Geometry must be POINT. Handed footprints this returned the right \emph{number}
+of bearings with the wrong values, so it is refused rather than coerced.}
 }
 \value{
 The input sf object with an added \code{bearing} column (degrees
