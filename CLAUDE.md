@@ -1590,6 +1590,103 @@ the premise fail.** A count threshold is the usual offender — 206 clears
   decide what to keep by looking at the first argument?* Same shape in any
   language where a variadic builder dispatches on an argument's type.
 
+### terra: `mask()` is `touches = TRUE`, so two "clip to the polygon" routines disagree by a cell ring
+
+Swapping one polygon clip for another looks like a refactor and is a **methodology
+change**. `terra::mask()` defaults to `touches = TRUE` — every cell the polygon
+touches is kept — while most other clips rasterize at **cell centre**:
+`terra::rasterize()` without `touches`, `gdalcubes::filter_geom()`, and
+`gdal_rasterize` without `-at`. Nothing errors, nothing warns, and the values
+agree exactly where both have data. Only the *footprint* moves.
+
+```r
+mask(r, v)                  # 150 cells   <- the default
+mask(r, v, touches = FALSE) # 122 cells
+# true polygon area: 123.4 cells
+```
+
+The magnitude is a perimeter-to-area ratio, so it is worst exactly where these
+clips get used — thin corridors, floodplains, riparian buffers. Measured
+2026-09-01 in drift#47 on a 3.3 km reach: **−15.5%** of the analysed footprint
+(49,244 → 41,608 cells) from a change whose entire stated purpose was to remove a
+redundant step. Against a parity tolerance of ±1 ha on 943 ha, that is 30–150×.
+
+- **Do not describe a clip without naming its rule.** drift's roxygen said "cells
+  whose centre falls outside become `NA`" for a `terra::mask()` call, and was
+  wrong for two releases. Anyone reasoning about boundary hectares from that doc
+  was off by a ring.
+- **An axis-aligned fixture cannot catch this.** A rectangle on a cell boundary
+  makes both rules agree, so the test passes for nothing. Use a polygon with
+  fractional coordinates and no edge parallel to the grid, and assert the premise
+  beside the property — `expect_gt(touch, centre)` — so a future terra default
+  change fails by naming the real cause.
+- **To swap in a cell-centre clip without moving the footprint**, buffer the
+  polygon by `>= res * sqrt(2)/2` first: if a polygon intersects a cell square,
+  that cell's centre is within a half-diagonal of it, so the buffered
+  cell-centre footprint is a guaranteed superset of `touches = TRUE`. Then keep
+  the `mask()` to trim back, and the output is byte-identical.
+
+Generalises past terra: whenever two libraries both offer "clip raster to
+polygon", assume they disagree at the boundary until measured. Count the cells.
+
+### terra: `sources()` on a derived raster is `""` or a random temp path, never the input
+
+- A raster that came out of `crop()`, `project()`, `mask()`, or arithmetic is **derived**, so it
+  has no source file. `terra::sources()` returns `""` when the result fits in memory — and a
+  **random per-process temp path** when terra spills to disk:
+  ```r
+  sources(rast(file))                      #> /…/dem.tif
+  sources(crop(...))                       #> ""    inMemory TRUE
+  sources(project(...))                    #> ""    inMemory TRUE
+  terraOptions(todisk = TRUE); sources(crop(...))
+                                           #> /private/tmp/RtmpFcjh9X/spat_ad2f168560ce_44335_Sskvi….tif
+  ```
+- The reach for it is provenance — *"what file did this raster come from?"* — and both branches
+  answer wrongly. The empty branch is survivable: it reads as absent and a fallback fires. **The
+  disk branch is the dangerous one**, because a temp path is a plausible-looking string that
+  differs on every run and every machine, so it silently destroys byte-stability in whatever
+  record it lands in, and nothing flags a value that *looks* like a path.
+- Worse, which branch you get depends on **size**: small AOIs stay in memory and large ones spill.
+  So a fixture proves the empty case and production hits the poisoned one.
+- If a function crops or reprojects before returning, `sources()` cannot answer this **at all** —
+  do not reach for it. Record the resolver plus the raster's measurable geometry (`crs`, `res`,
+  `ncell`, `ext`), or have the package expose what it resolved (`attr(out, "source") <- source`).
+- Caught 2026-09-01 in floodplains#33: `flooded::fl_dem_aoi()` builds its MRDEM-30 URL inside its
+  body, so `formals()` does not expose it either. `sources()` looked like the way to measure the
+  output instead of restating the input — the right instinct, applied to an object that cannot
+  carry the answer.
+
+### `$` on a list partial-matches, so a longer sibling key answers for a missing one
+
+- `x$foo` on a list returns `x$foo_bar` when `foo` is absent and `foo_bar` is the only key with
+  that prefix. `[[` does not — it matches exactly. This is base R behaviour on **lists**, not a
+  quirk of any package, and it fires on anything parsed from JSON or YAML.
+- It fails toward a **confident wrong answer**, and the damage lands on the `is.null()` guard
+  rather than on the read:
+  ```r
+  x <- list(link_log_note = "no log table in source schema")
+  is.null(x$link_log)     # FALSE  <- the NOTE answered
+  is.null(x[["link_log"]])# TRUE
+  ```
+  So "the row is absent, explain why" becomes "the row is present" and the code then reports every
+  field of it missing — an error message pointing nowhere near the cause.
+- The sibling-key shape is common precisely where it hurts: `x`/`x_note`, `id`/`ids`,
+  `item_ids`/`item_ids_complete`, `path`/`pathname`, `count`/`counts`. Two of those were live in
+  one 80-line file (floodplains#33, 2026-09-01), and the first cost a failure three checks away
+  from its cause.
+- **Rule: read parsed documents with `[[`.** Reserve `$` for objects whose key set you control and
+  that have no prefix pairs — and even then it is a habit worth not having, because the key set is
+  controlled until someone adds `_note`.
+- Where the convention matters, pin it with a **premise assertion** so it cannot be tidied away by
+  someone who does not know why:
+  ```r
+  expect_true(is.null(x[["link_log"]]) && !is.null(x$link_log))   # why this file uses `[[`
+  ```
+- `warnPartialMatchDollar = TRUE` surfaces it globally and is worth setting while debugging a
+  "this field is present when it should not be" symptom. It is off by default, so nothing tells
+  you otherwise.
+
+
 ### sf: `st_join(largest = TRUE)` ignores the join predicate
 - `sf::st_join(x, y, join = predicate, largest = TRUE)` does **not** use `predicate` to decide matches — with `largest = TRUE`, sf runs `st_intersection(x, y)` and keeps the feature of greatest overlap area, so matching is *always* intersection-based regardless of what `join =` is set to. A function that exposes a configurable predicate AND a largest-overlap mode therefore silently mis-attributes when both are combined: pass `st_within` expecting containment, get anything that merely *overlaps*. Verify against sf source, not the argument list — the `join` arg is accepted and ignored, not rejected. Fix: abort when a non-default predicate is combined with the largest-overlap mode, rather than honouring one and dropping the other. (drift#42)
 - Corollary: `largest = TRUE` also drops zero-area geometries from consideration — so a predicate join against **point** or **line** overlays cannot use largest mode at all (no area to compare). Point/line attribution must go through the plain (`largest = FALSE`) predicate path.
@@ -1613,6 +1710,50 @@ the premise fail.** A count threshold is the usual offender — 206 clears
 
 ### sf: reproject the polygon to get a lat/lon bbox, never transform the projected bbox corners
 - To hand a geographic (EPSG:4326) bounding box to a bbox-filtered query (WFS/OGC features, `?bbox=`), reproject the whole AOI **geometry** then take its bbox: `sf::st_bbox(sf::st_transform(aoi, 4326))`. Do **not** compute the bbox in the projected CRS and transform its two corner points — a projected rectangle's edges bow under reprojection, so the corner-transformed box is skewed and generally too short on one axis. The pre-filter then silently under-covers the true extent: features inside the AOI but outside the shrunken box are never fetched, and a downstream clip can only *remove*, never recover them. Symptom: counts a few percent low near the north/south extremes of an area, with no error. A native-CRS bbox filter (e.g. ogr2ogr `-spat <bounds> -spat_srs EPSG:3005`) is unaffected — only the reproject-the-corners step is the bug. (rfp#12)
+
+### A database driver's value is not a base R type — and it fails twice
+
+A column fetched through DBI does not arrive as the base type its SQL type suggests. RPostgres
+returns `text[]` as class **`pq__text`**, for which `is.list()` is **FALSE**, `length()` is **1**,
+and the single element is the **raw Postgres array literal** — `"{BT,CH,CO}"`, braces and all.
+
+That shape defeats a type-dispatching coercion twice over, and the second failure is the dangerous
+one:
+
+```r
+x <- row$species                    # class pq__text
+is.list(x)                          # FALSE  -> the list branch is skipped
+length(x)                           # 1      -> the vector branch is skipped
+                                    # falls through unchanged
+jsonlite::toJSON(x)                 # Error: No method asJSON S3 class: pq__text
+x[[1]]                              # "{BT,CH,CO}"  <- unwrapping is NOT enough
+jsonlite::toJSON(I(as.character(x[[1]])))
+                                    # ["{BT,CH,CO}"] <- valid JSON, wrong value, NO error
+```
+
+- **First it errors**, which is survivable. **Then the obvious fix stops the error and emits a
+  plausible wrong value** — one brace-wrapped string where an array was meant. Nothing downstream
+  can tell. The literal needs parsing, splitting on *unquoted* commas: an element containing a
+  comma is double-quoted, and a naive `strsplit` corrupts it silently.
+- **Subsetting drops the class.** `row$col[i]` returns a plain character; `as.list(row[1, ])`
+  preserves `pq__text`. So a probe written the first way exercises a **different branch** than the
+  code it is meant to be testing, and reports a pass the production path does not earn. Measure on
+  the exact expression the caller uses, and assert the class as a premise.
+- **No hand-built fixture contains one.** This is the fixture-cannot-reach-the-failure-mode rule
+  arriving through a *type* rather than through data: a guard can be thorough, exercised against
+  input built to break it, and still never construct a driver value. Build the driver shapes
+  explicitly — `structure(list("{A,B}"), class = "pq__text")` needs no database.
+
+Caught 2026-09-01 in floodplains#33: it would have aborted a pipeline step on its first real run,
+after the expensive work had completed. It reached `main` because the database was wrongly believed
+to be down (see `code-check-infra.md`, "The database is down is usually the probe"), so the only
+code path that touches a driver value was never executed.
+
+Generalises past Postgres arrays — `blob`, `json`/`jsonb`, `hstore`, `numeric` via `bit64`,
+and every driver's own vector classes. **Whenever a DBI row crosses into a serializer, print
+`class()` of each column once and write the coercion against what you see**, not against the SQL
+type. And give the serializer a guard that names the offending *path*: jsonlite reports the class
+with no location, which in a nested document is a scavenger hunt.
 
 ### arrow dplyr backend: no grouped slice — bridge to duckdb
 - arrow's dplyr backend errors on grouped `slice_max`/`slice_min` (`arrow_not_supported("Slicing grouped data")`). The working pattern for any "latest per group" over parquet/S3: `arrow::open_dataset(...) |> dplyr::filter(...) |> arrow::to_duckdb() |> dplyr::group_by(...) |> dplyr::slice_max(...)`.
@@ -2301,6 +2442,35 @@ genuine long-lived defect usually has a *reason* nobody noticed it (a guard that
 cannot see it, a code path nothing exercises), and you can name that reason. If
 you cannot say why it went unnoticed, you have not found it yet.
 
+
+#### And a probe reporting that EVERYTHING is broken is the same thing, louder
+
+The sibling case, and it is easier to catch because the failure rate gives it
+away: if a check reports *every* case failing while the printed values are
+visibly equal, the comparator is wrong, not the world.
+
+In R the usual cause is integer-versus-double, because `length()`, `nrow()` and
+`sum()` return integer while a bare literal is double:
+
+```r
+identical(length(x), 1)     # FALSE — `length()` is integer, `1` is double
+identical(length(x), 1L)    # TRUE
+length(x) == 1              # TRUE — `==` coerces, `identical()` does not
+```
+
+Measured 2026-09-01 in rfp#242: an attack matrix of 13 shapes printed
+`want=1 got=1` on every row and reported **13 of 13 mismatches**, because the
+comparison was `identical(got, want)` with `got` from `length()`. Nothing was
+wrong with the code under test.
+
+The reconciliation habit from the rule above works here too, pointed the other
+way: **a 100% failure rate is as implausible as a 50% one in long-shipped code.**
+Before writing up a finding, print one case you know is good and confirm the
+probe agrees; if it does not, the probe is the subject.
+
+Same shape outside R wherever equality is type-strict — JavaScript `===` across
+number and string, Python between `Decimal` and `float`.
+
 ### Restore the bug and confirm the test fails
 - The rule above says a fixture that cannot reach the failure mode is worthless. This is the thirty-second check that tells you which kind you just wrote: **put the defect back, run the test, watch it go red.** A test that stays green against the code it was written to reject is decoration, and reading it will not tell you that — every case below looked correct on the page.
 - Cheapest form when the fix is inside a package: patch the binding rather than editing the source back and forth. For a data-shaped bug, feed the function the input the fix was about and assert the old answer is gone.
@@ -2900,6 +3070,43 @@ Two habits that make this cheap:
   When a result is surprisingly clean, suspect the instrument before the world —
   the same prior the broken-probe rule applies to surprising *failures*.
 
+### A guard nothing corroborates has to count, not match
+
+The "empty result set is not a pass" rule above says a scan finding nothing must
+not read as a scan finding nothing wrong. How much that costs depends on what sits
+*downstream*: where a second, independent check would disagree later, a missed scan
+is survivable. Where the guard is the only opinion, a miss is silent and permanent.
+
+So ask what would notice if the guard matched nothing, and when the answer is
+"nothing would", make it **report how much it checked** and compare that against
+how much the caller went on to use. `all(grepl(ok, v))` is `TRUE` for
+`v = character(0)`; `length(v) < n_consumed` is not.
+
+```r
+checked <- scan_the_file(path)          # returns what it saw, not a verdict
+if (length(checked) < sum(!is.na(parsed$time))) {
+  abort("values were used without being checked")
+}
+```
+
+Measured 2026-09-01 in trap#18. The Mergin track reader carries `clock_delta`
+columns that would disagree if a bad timestamp got through; the GPX reader cannot
+— a GPX `<trk>` has no second clock — so its UTC-offset refusal is the only line
+of defence. It is written as a count, and that was not theoretical: the xpath it
+used needed `xml2::xml_ns_strip()` to see a default-namespaced document at all, and
+without that line it found **0 of 600**. The count turned every test in the file
+red. A `grepl()` over the empty set would have gone green.
+
+**Then check the direction the count does not cover: too little scanned aborts,
+too much scanned aborts for the wrong reason.** The same guard first scanned the
+whole file rather than the elements it protects, and refused a real file over a
+stray `<trk><time>2024/08/22 09:07:35+00</time>` that `sf` had written and nothing
+would ever parse. The abort was correct in outcome and wrong in message: it
+reported an ambiguous timezone and buried the actual defect, which was that the
+file had no per-point clock at all. Scope a scan to what is actually consumed —
+a wider one is not a stricter guard, it is a guard that misdiagnoses.
+
+
 ### A paged API's default `limit` reads as absence
 
 Asking a paged endpoint for "everything" and searching the response finds only
@@ -3270,6 +3477,229 @@ for a defect found in review, and the following round found all five of its find
 inside that one fix. **Review the fixes at least as hard as the original**, and when a
 fix expands scope into a new file, treat that file as unreviewed code rather than as
 an extension of the change you already checked.
+
+### A claim flagged as under-evidenced gets repaired by widening, and widening is what breaks
+
+The two rules above are about a claim's scope when it is *written*. This is about what
+happens to that scope when it is **repaired**, and it is the more expensive failure
+because it recurs inside its own fix.
+
+Told that a claim is not supported, the natural repair is to widen the stated
+evidential base — "on every run", "from either layer", "across the figures here",
+"which run from X to Y" — rather than to narrow the claim. Widening requires a
+population. The population gets asserted, from recall of an adjacent document, and the
+next round finds it does not hold.
+
+**Tell: the fix adds a quantifier the previous version did not have.** For each one,
+name the population, and say whether it is enumerable from the artifact in front of you.
+If it is not, you have replaced an under-evidenced claim with an unfalsifiable one.
+
+Measured 2026-09-01 in flooded#52 — a four-paragraph prose diff to a shipped reference
+memo took **six review rounds, 36 findings, 14 of them bugs**. Every round's finding was
+about a *number*; every round's fix was correct about the number and introduced a new
+quantifier. Across rounds 4–6, **every widening broke or was under-justified; every
+narrowing held** — including one round-5 fix that correctly narrowed a licence and, in
+the same sentence, asserted a fresh absolute ("do not move with the fix at all") that
+measurement then falsified.
+
+Root cause is worth naming because it predicts where this happens: the artifact's
+figures sat on a ragged dataset × resolution × lineage × clipped/raw grid that no
+dataset filled, so "across the figures here" quantified over holes as much as cells. Any
+document whose values come from several partial runs has this shape.
+
+**Terminate it by enumeration, not by another round.** The candidate set is closed — it
+is every quantifier in the passage — so sweep them mechanically and work each one.
+What ended it here was reproducing the old behaviour exactly on current code (the defect
+was a constant factor on one term, so setting that term to `4 × 3.5926` returned the
+historical cell count to the digit) and measuring every row of the consumer's own table,
+which turned an asserted population into a finite measured one.
+
+Then state the residual precisely. "The channel-buffer half of this clause is vacuous,
+because the consumer publishes no channel-buffer-derived row" is definitional and ends
+the sweep. A residual you can only call unlikely means there is another instance.
+
+### An in-place metadata write can break a format's layout contract, and nothing will say so
+
+Some formats are ordinary containers plus a **layout promise**: the same bytes in the wrong
+order are still valid, still readable, still hash-verifiable, and no longer do the one thing
+the format exists for. A Cloud-Optimized GeoTIFF is the clear case — its whole advantage is
+that a client reads a small header and then fetches only the tiles it needs, which depends on
+the main IFD sitting at the *front*.
+
+Writing metadata in place, after the file has been laid out, moves that header to the end.
+
+**The tell is a flag whose name contains `IGNORE`, `FORCE` or `BREAK`.** Those are not warning
+suppressors; they are the library telling you what it is about to do and asking you to sign for
+it. `rasterio.open(path, "r+", IGNORE_COG_LAYOUT_BREAK="YES")` reads as boilerplate and means
+*"yes, invalidate the optimization"*.
+
+Measured 2026-09-01 in stac_floodplains_bc#33, across an entire published catalogue:
+
+| asset | size | main IFD at | must fetch to read the header |
+|---|---|---|---|
+| classified raster | 602,582 B | 595,868 | **98.9%** |
+| transition raster | 1,335,328 B | 1,330,104 | **99.6%** |
+
+So the property was not degraded, it was gone — and the collection existed to be served by a
+dynamic tiler that depends on exactly it.
+
+**It survives because every other signal reads green.** The bytes are a valid GeoTIFF. The
+published `file:checksum` verifies, because the hash was taken *after* the metadata write and
+describes the broken layout faithfully. The files open correctly in a desktop GIS. Only the
+layout is wrong, and nothing looks at layout unless something is written to.
+
+Two habits:
+
+- **Order the pipeline so the layout-aware writer goes last.** Tag the input, then convert —
+  not convert, then tag. Verify the carry-through rather than assuming it: `terra::writeRaster(filetype = "COG")`
+  was measured to preserve arbitrary GDAL tags, a 256-entry colour table and the band
+  description, and to produce a valid COG, which is what made the reorder free.
+- **Assert the property, not the parse.** `cog_validate()`, or the format's equivalent. A
+  schema check cannot see it, and neither can a checksum.
+
+**The fix has a satisfying confirmation, and it is worth looking for.** Afterwards, the
+in-place open *fails*: GDAL refuses `r+` on a file that HAS cloud-optimized layout. The same
+call succeeded before. So the refusal is a second signal, independent of the validator, and it
+doubles as a tripwire if an upstream ever starts handing you already-optimized inputs.
+
+**Corollary — inserting a new party into a path silently narrows every partial guard on it.**
+In that same change, a tag-consistency check covered only the namespaced subset of tags. That
+was adequate while the writer and the reader were the same library call. Moving the conversion
+between them made *"the tags survive the conversion"* a claim nothing checked: had the
+converter dropped the unguarded tags, checksums would still verify and the layout validator
+would still pass. When you add a step to a pipeline, re-read what each existing guard covers
+against the path it now spans — partial coverage that was fine becomes a hole without changing
+a line of the guard.
+
+### A check's detect step and its explain step must use the same predicate
+
+A comparison guard usually has two halves: one decides *whether* something is wrong, the other
+describes *what*. Written at different times, or loosened in one place for a legitimate reason,
+they drift apart — and the failure mode is a guard that fires with nothing to report.
+
+```python
+if got != want:                                   # exact
+    changed = [... for k in keys if not _same(got[k], want[k])]   # numeric-tolerant
+    problems.append(f"{name}: disagree — {'; '.join(changed)}")   # -> "disagree — "
+```
+
+`'-738.20'` against a property of `-738.2` enters the block and produces an empty message. The
+release fails, the log says nothing, and the reader concludes the guard is broken rather than
+the tolerance being in the wrong place.
+
+**Compute the differences first, then gate on them.** One predicate, used once:
+
+```python
+changed = [... for k in keys if not _same(got.get(k), want.get(k))]
+if changed:
+    problems.append(...)
+```
+
+Caught 2026-09-01 in stac_floodplains_bc#33, in a guard being *widened* that same hour — the
+tolerant comparison was added deliberately, for the real reason that one side is `str(x)` from
+Python and the other a JSON number, and it went into only one of the two places. Found by
+running the guard against a restored defect, not by reading it: an empty-message failure looks
+like a passing guard in a diff.
+
+### A link to a repo-hosted artifact must be *tracked*, not merely present
+
+When the published site **is** the repository — GitHub Pages serving `docs/`, or a
+`raw.githubusercontent.com` URL — the question "does this file exist" is the wrong
+predicate. The right one is "is it in the repository", because that is what a reader
+gets. A file written by a script and never `git add`ed exists for exactly one person:
+whoever last ran the script.
+
+The failure is invisible from the inside. The build succeeds, the page renders, the
+link opens locally, and it 404s for everybody else. It surfaces only on a fresh clone
+or a real visit.
+
+```r
+in_git <- repo_path %in% system2("git", "ls-files", stdout = TRUE)
+```
+
+Three instances in one project, each with a different cause and the same symptom:
+
+- an interactive map written by a manual script, never committed — the appendix
+  linking it 404'd on the published site for months
+- 32 generated popup pages whose build script was in no build chain
+- photo URLs built from the wrong id column, pointing at directories that had been
+  renamed upstream
+
+Note this is the *inverse* of the deploy-predicate case above, where untracked
+outputs are noise and `--untracked-files=no` is right. The distinction is whether the
+repo is the input to a build or is itself the artifact being served. Both predicates
+are correct for their own subject and wrong for the other.
+
+**Corollary — the DOM is not the whole document.** Harvesting `href`/`src` with an
+HTML parser misses anything a script tag reconstructs at runtime. A leaflet map
+serialises its popups as JSON, so every link inside them is invisible to
+`xml2::xml_find_all(doc, "//@href")`. A DOM-only pass over a report with 51 dead links
+found 2. Scan the raw text as well, and be permissive about the shape: markup built by
+`paste0('<a href =', x, '.html ', 'target="_blank">')` emits `href =…` with a space
+and no quotes, which most href patterns skip. In PCRE, lookbehind must be fixed width,
+so `(?<=href *= *)` will not compile — match the attribute name and strip it after.
+
+Cheap enough to run on every build, and it belongs there rather than in a checklist: a
+check that must be remembered has the same failure mode as the script that had to be
+remembered.
+
+### A guard's error message must not recommend a remedy that walks back through it
+
+A guard refuses bad input and, if it is a good one, names the fix. That remedy is
+**code the caller will run**, and nothing checks it. So it is the one part of a
+guard that can reintroduce the exact defect the guard exists to stop — and it does
+so with the guard's own authority behind it.
+
+The shape: the guard tests some **property of the shape** of the input, and the
+recommended remedy *coerces to that shape*. Coercion always succeeds, so the
+second attempt passes. The caller did as they were told, the error is gone, and
+the data is wrong.
+
+Measured 2026-09-01 in fly#37, where `fly_footprint()` silently returned 100 rows
+from 20 because `sf::st_coordinates()` yields one row per *vertex* for non-POINT
+geometry. The guard refused non-POINT and suggested `sf::st_cast(x, "POINT")`:
+
+```
+following the guard's own advice on a POLYGON column
+  rows 20 -> 100      guard on result: ACCEPT      duplicated id: 80
+```
+
+That is the original bug, reproduced by obeying the error written to prevent it.
+On a mixed column the same advice instead moved each polygon to its first ring
+vertex — 1,940 m — with the row count unchanged, so nothing looked wrong at all.
+
+**Reordering the guard's clauses does not fix it.** Three review rounds were spent
+there: ordering decides *which sentence* carries the advice, and every sentence
+carried it. The fix is to make the recommendation conditional on the case where it
+is safe, which means computing that rather than reasoning about which types
+qualify.
+
+**And compute it per item, not in aggregate.** The obvious condition is a total —
+"the coordinate count already equals the feature count" — and a total is blind to
+a redistribution that conserves it. One frame digitised twice plus one frame with
+no location satisfies it exactly, and taking the offered cast then shifted every
+frame's geometry one place against its attributes: **18 of 19 wrong by up to
+20.4 km**, row count preserved, no duplicate ids, guard accepting. Prefer a
+condition with a closure argument over one with a list of cases — here, excluding
+empty features, since a non-empty feature contributes at least one coordinate, so
+"no empties" plus "total equals the count" forces exactly one each.
+
+Two checks, and the second is the one that was missing:
+
+- **Run the remedy.** For every input a clause can receive, execute the advice it
+  gives and assert the result is what the caller meant. A table of input against
+  what-the-advice-does is the whole test.
+- **Do not assert the guard's own predicate.** The natural assertion — the remedy
+  keeps the row count — is the condition the guard already checks, so it validates
+  the guard against itself and passes on the input that breaks it. Measured: the
+  row-count assertion passed the case above; a displacement assertion against
+  independent ground truth failed it at 20,374 m. Same family as *"a reference
+  generated by feeding your artifact to the consumer is circular"*, one level in.
+
+Generalises past geometry to any guard whose message names a fix: an encoding
+coercion, a `--force` flag, a schema migration, "re-run with `--fix`". Ask what
+the input looks like *after* the suggested fix, and whether the guard would still
+object.
 
 
 # NGE Feature Workflow
@@ -4265,6 +4695,25 @@ Close function issues via commit messages — see Closing Issues in newgraph con
   - Caught 2026-08 in gq#57 by self-review: a comment claiming "skipped off-CI"
     sat directly above code that did not skip off-CI. Read the guard, not the
     comment above it.
+
+- **`testthat::test_file()` does NOT set `NOT_CRAN`, so re-running one file to
+  diagnose a failure can execute none of it.** The mirror of the rule above, and
+  the more dangerous direction: `devtools::test()` sets `NOT_CRAN=true`, so a
+  `skip_on_cran()`-guarded test runs there and fails; re-running that same file
+  with `testthat::test_file()` to investigate reports `SKIP` and looks like
+  exoneration.
+
+  ```
+  devtools::test()                 -> [ FAIL 1 | PASS 4495 ]
+  testthat::test_file("that.R")    -> [ FAIL 0 | SKIP 6 ]   Reason: On CRAN
+  NOT_CRAN=true testthat::test_file("that.R") -> [ FAIL 0 | PASS 259 ]
+  ```
+
+  Only the third line is evidence. Measured twice on 2026-09-01 in rfp, both
+  times while confirming whether a Docker-gated failure was a real regression —
+  which is exactly when a false "it passes now" is most expensive. Prefix
+  `NOT_CRAN=true` on any single-file re-run, or read the SKIP count rather than
+  the FAIL count.
 
 - **`local_mocked_bindings(.package = )` needs testthat >= 3.2.0.** A package
   pinned at `testthat (>= 3.0.0)` errors rather than skipping on an older
