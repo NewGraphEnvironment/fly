@@ -96,12 +96,29 @@ fly_check_points <- function(x, arg) {
     # message written to prevent it. On a mixed column it instead moves each
     # polygon to its first ring vertex — 1,940 m — with the row count unchanged.
     #
-    # The test is the property itself, not a list of the types it holds for:
-    # cast is safe exactly when the coordinate count already equals the feature
-    # count. `st_coordinates()` throws on an unreadable column, which is a "no"
-    # rather than an error to propagate — we are already on the error path.
+    # The property wanted is PER FEATURE — each feature holds exactly one
+    # coordinate — and the coordinate count alone tests it in aggregate, so it is
+    # blind to any redistribution that conserves the total. An earlier draft
+    # asserted the two were equivalent ("safe exactly when the counts match");
+    # they are not, and the counterexample is reachable: a MULTIPOINT column
+    # where one frame was digitised twice and one frame has no location recorded
+    # sums to n coordinates over n features, so the cast was offered, and taking
+    # it shifted every frame's geometry one place against its attributes — 18 of
+    # 19 wrong by up to 20.4 km, row count preserved, no duplicated `airp_id`,
+    # and the guard ACCEPTED the result. Both ingredients are in this package's
+    # own record: MULTIPOINT is what fly#37 proposed admitting, and an empty
+    # geometry is fly#47, seen from a GeoPackage round trip.
+    #
+    # The emptiness clause closes it by construction rather than by enumeration:
+    # a non-empty feature contributes at least one coordinate, so "no empties"
+    # plus "total equals the feature count" forces exactly one each.
+    #
+    # `st_coordinates()` throws on a column it cannot read, which is a "no"
+    # rather than an error to propagate — we are already on the error path, and
+    # every such throw means the cast cannot be reasoned about.
     cast_keeps_rows <- isTRUE(tryCatch(
-      nrow(sf::st_coordinates(x)) == nrow(x),
+      nrow(sf::st_coordinates(x)) == nrow(x) &&
+        !any(sf::st_is_empty(sf::st_geometry(x))),
       error = function(e) FALSE
     ))
     stop(

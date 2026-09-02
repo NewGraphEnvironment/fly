@@ -169,3 +169,53 @@ ordering fix was about. Sweep widened; verified non-vacuous, with advice withhel
 on all three destructive shapes and checked on both safe ones.
 
 Suite 1309 passing, 0 failures.
+
+### code-check round 4 — a real bug in round 3's fix
+
+Round 3's condition `nrow(st_coordinates(x)) == nrow(x)` is a **sum**, and a sum
+cannot see a redistribution that conserves the total.
+
+Reproduced: a MULTIPOINT column where one frame was digitised twice and one frame
+has no location recorded sums to 20 coordinates over 20 features. The guard
+offered the cast; taking it shifted every frame's geometry one place against its
+attributes — **18 of 19 wrong, up to 20.4 km** — with the row count preserved, no
+duplicated `airp_id`, and the guard ACCEPTING the result. Both ingredients are in
+this package's own record: MULTIPOINT is what #37 proposed admitting, and an
+empty geometry is #47.
+
+Two fixes, and the second matters as much as the first:
+
+- **The condition is now per-feature-sound**, by adding `!any(st_is_empty(...))`.
+  The closure is a construction proof rather than an enumeration: a non-empty
+  feature contributes at least one coordinate, so "no empties" plus "total equals
+  the feature count" forces exactly one each.
+- **The sweep's assertion was circular.** It asserted the row count — which is the
+  guard's own predicate — so it validated the guard against itself and *passed*
+  on the breaking input. It now asserts displacement against the fixture's own
+  ground truth, which is what "non-destructive" actually means. Verified: the old
+  assertion passes the break, the new one fails it at 20,374 m.
+
+My comment had again stated a proxy as an equivalence ("safe exactly when the
+counts match") — the third such claim on this PR, and the one that would have
+stopped the next reader looking.
+
+Round 4 also confirmed the three-of-seven coverage for the sf clause is harmless
+*checkably*: `fly_filter()` and `fly_coverage()` take the identical path with no
+intervening logic, `fly_footprint()` is masked by a duplicate check emitting the
+same string, and `fly_georef()` stops on its `fly_fetch` contract.
+
+Suite 1311 passing, 0 failures.
+
+### Where the review stopped, and why
+
+Stopped at five subagents (one plan review, four code-check rounds), the working
+bound in the conventions. Not stopped because a reviewer called it terminal —
+rounds 2, 3 and 4 each found a defect inside the previous round's fix, so that
+claim has a poor record here.
+
+Stopped because the residual is now stateable as a proof rather than as an
+enumeration: the condition can only be defeated by a feature contributing zero
+coordinates, only an empty geometry does that, and empties are now excluded. And
+the assertion guarding it tests the property (displacement from ground truth)
+rather than the guard's own predicate, so the next instance of this class cannot
+pass it the way the last one did.

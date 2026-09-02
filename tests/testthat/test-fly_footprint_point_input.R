@@ -212,8 +212,15 @@ test_that("the guard never recommends a cast that would defeat it", {
   # must keep one row per feature. Reordering the guard's clauses cannot satisfy
   # this, which is what makes it the right assertion — ordering only decides
   # which sentence carries the advice.
+  # st_centroid() on a GEOMETRY column dispatches into s2 and fails there.
+  sf::sf_use_s2(FALSE)
+  on.exit(sf::sf_use_s2(TRUE), add = TRUE)
+
   centroids <- sf::st_read(testdata_path("photo_centroids.gpkg"), quiet = TRUE)
   fp <- fly_footprint(centroids)
+  # Every case below is built from `centroids` row for row, so this is where each
+  # frame belongs.
+  truth <- sf::st_transform(sf::st_geometry(centroids), 3005)
 
   cases <- non_point_cases()
   cases$`MULTIPOINT-of-one` <- suppressWarnings(sf::st_cast(centroids, "MULTIPOINT"))
@@ -228,6 +235,25 @@ test_that("the guard never recommends a cast that would defeat it", {
     sf::st_geometry(sf::st_transform(centroids, 3005))[11:20]
   )
   cases$`GEOMETRY-mixed` <- mixed
+  # One frame digitised twice, one frame with no location recorded. This sums to
+  # 20 coordinates over 20 features, so a guard testing the coordinate count in
+  # AGGREGATE offers the cast — and taking it shifts every frame's geometry one
+  # place against its attributes, 18 of 19 wrong by up to 20.4 km, with the row
+  # count preserved and no duplicated airp_id. Both ingredients are in this
+  # package's record: MULTIPOINT is what #37 proposed admitting, and an empty
+  # geometry is #47, seen from a GeoPackage round trip.
+  pts <- sf::st_geometry(sf::st_transform(centroids, 3005))
+  shifted <- sf::st_transform(centroids, 3005)
+  sf::st_geometry(shifted) <- sf::st_sfc(lapply(seq_len(20), function(i) {
+    if (i == 1) {
+      sf::st_multipoint(rbind(sf::st_coordinates(pts[[1]]), sf::st_coordinates(pts[[2]])))
+    } else if (i == 20) {
+      sf::st_multipoint()
+    } else {
+      sf::st_multipoint(rbind(sf::st_coordinates(pts[[i]])))
+    }
+  }), crs = 3005)
+  cases$`MULTIPOINT-redistributed` <- shifted
 
   # Premise: the sweep must contain at least one shape where casting IS safe and
   # one where it is not, or the invariant holds vacuously in one direction.
@@ -241,7 +267,20 @@ test_that("the guard never recommends a cast that would defeat it", {
     msg <- tryCatch(fly_footprint(cases[[nm]]), error = conditionMessage)
     if (grepl("st_cast", msg, fixed = TRUE)) {
       recast <- suppressWarnings(sf::st_cast(cases[[nm]], "POINT"))
+      # Assert DISPLACEMENT, not the row count. The row count is the guard's own
+      # predicate, so asserting it validates the guard against itself and passes
+      # on the redistributed case above — measured. What "non-destructive"
+      # actually means is that every frame keeps its own position, and comparing
+      # against st_centroid() of the original feature is independent of the cast.
       expect_equal(nrow(recast), nrow(cases[[nm]]), info = nm)
+      # Ground truth is the fixture the case was built from, row for row — not
+      # anything derived from the input, which is what makes this independent of
+      # the cast. (A GEOMETRY column cannot even be st_transform()ed, which is
+      # the whole reason clause C exists.)
+      moved <- as.numeric(sf::st_distance(
+        sf::st_transform(sf::st_geometry(recast), 3005), truth, by_element = TRUE
+      ))
+      expect_true(all(moved < 1), info = nm)
     }
   }
 
