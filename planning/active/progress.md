@@ -96,3 +96,31 @@ mode CLAUDE.md names:
   it gets its own NEWS line rather than being left for someone to discover.
 
 Suite 1295 passing, 0 failures.
+
+### code-check round 2 — a blocker inside round 1's fix
+
+Exactly the pattern the conventions predict: the second pass found its best
+finding *inside* the first pass's fix.
+
+- **Round 1's `sfc_GEOMETRY` clause ran before the per-feature type test**, so it
+  also swallowed a GEOMETRY column holding polygons and told that caller to
+  `sf::st_cast(x, "POINT")`. On a polygon `st_cast()` takes the **first vertex**,
+  not the centroid. Reproduced on a half-footprint/half-centroid column: 20 rows
+  in, 20 rows out, the guard then **accepted** the result, and ten frames had
+  moved **1,940 m**. Following the guard's own advice reintroduced the silent
+  corruption #37 exists to stop. Fixed by running the type test first, so a mixed
+  column is told it "must be points, not POLYGON", whose advice leads with
+  `st_filter()`.
+- **The comment and message blamed `st_coordinates()`**, and measurement says
+  where it fails depends on the column's contents: an all-POINT GEOMETRY column
+  dies in `st_transform()` with `Not compatible with STRSXP`, while a mixed one
+  transforms fine and dies later in `st_coordinates()`. Each fact was true and
+  the causal claim joining them was not — the third comment in this guard
+  corrected for asserting rather than measuring.
+- Added the ordering test, which round 2 noted nothing distinguished. Verified it
+  discriminates: under the old ordering the assertion
+  `must be points, not POLYGON` does not match, so the test goes red.
+
+Round 2 also re-measured every remaining claim in the guard's comment and every
+number in NEWS, and broke three assertions deliberately to prove they can fail.
+Suite 1300 passing, 0 failures.

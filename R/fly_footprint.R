@@ -44,19 +44,34 @@ fly_film_media <- function() {
 # XYZ point passes and should — `st_coordinates()` gains a Z column but not a
 # row, and only columns 1:2 are ever read.
 #
-# But a `sfc_GEOMETRY` column is refused even when every feature in it is a
-# POINT, because `st_coordinates()` has no method for that class: measured, it
-# errors with "not implemented for objects of class sfc_GEOMETRY" and the caller
-# sees `Not compatible with STRSXP: [type=NULL]` several layers down, naming
-# neither the argument nor the package. That is the opaque failure this guard
-# exists to replace, so it is caught here and named. `st_cast(x, "POINT")`
-# resolves it. An earlier draft of this comment called such a column a
-# legitimate input on the strength of its per-feature types; that was asserted
-# rather than measured, and it is wrong.
+# A `sfc_GEOMETRY` column is refused even when every feature in it is a POINT,
+# because nothing downstream can read one. WHERE it fails depends on its
+# contents, which is why this is checked here rather than left to surface:
+#
+#   all-POINT GEOMETRY   st_transform()   -> Not compatible with STRSXP: [type=NULL]
+#   mixed GEOMETRY       st_transform()   -> works, then
+#                        st_coordinates() -> not implemented for class sfc_GEOMETRY
+#
+# Neither message names the argument, the function or the package. An earlier
+# draft of this comment blamed `st_coordinates()` alone; that is the *second*
+# failure and the all-POINT case never reaches it. Both facts were individually
+# true and the causal claim joining them was not — do not relax this clause on
+# the strength of sf gaining an `st_coordinates.sfc_GEOMETRY` method, because
+# `st_transform()` independently requires it.
+#
+# ORDER MATTERS, and this is the second bug in this clause rather than a style
+# point. Checked BEFORE the per-feature test, it also swallowed a GEOMETRY column
+# holding polygons, and told that caller to `st_cast(x, "POINT")` — which takes a
+# polygon's FIRST VERTEX, not its centroid. Measured on a half-footprint,
+# half-centroid column: 20 rows in, 20 rows out, guard then ACCEPTED, and ten
+# frames relocated 1,940 m. Following this guard's own advice reintroduced
+# exactly the silent corruption it exists to stop. The type test runs first so a
+# mixed column is told it "must be points, not POLYGON" instead.
 #
 # The `nrow()` clause keeps zero-row input legal: `st_sf(geometry = st_sfc())`
 # also carries an `sfc_GEOMETRY` column, and an empty query is a documented
-# input.
+# input. `st_coordinates.sfc` returns early on length 0, so it is genuinely
+# readable.
 #
 # An error rather than an `st_centroid()` coercion, because taking the centroid
 # of an estimated footprint and re-estimating from it is not a meaningful
@@ -69,14 +84,6 @@ fly_check_points <- function(x, arg) {
   if (!inherits(x, "sf")) {
     stop("`", arg, "` must be an sf object.", call. = FALSE)
   }
-  if (nrow(x) > 0 && inherits(sf::st_geometry(x), "sfc_GEOMETRY")) {
-    stop(
-      "`", arg, "` has a mixed-geometry (GEOMETRY) column, which ",
-      "`sf::st_coordinates()` cannot read even when every feature in it is a ",
-      "point. Use `sf::st_cast(", arg, ", \"POINT\")`.",
-      call. = FALSE
-    )
-  }
   got <- as.character(sf::st_geometry_type(x))
   if (!all(got == "POINT")) {
     stop(
@@ -86,6 +93,14 @@ fly_check_points <- function(x, arg) {
       "back in silently multiplies the rows by the vertex count. If you meant ",
       "to filter footprints against an area, use `sf::st_filter()`; if these ",
       "really are centroids in another form, `sf::st_cast(x, \"POINT\")`.",
+      call. = FALSE
+    )
+  }
+  if (nrow(x) > 0 && inherits(sf::st_geometry(x), "sfc_GEOMETRY")) {
+    stop(
+      "`", arg, "` stores its points in a mixed-geometry (GEOMETRY) column, ",
+      "which sf cannot read even though every feature in it is a point. ",
+      "Use `sf::st_cast(", arg, ", \"POINT\")`.",
       call. = FALSE
     )
   }

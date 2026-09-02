@@ -142,8 +142,8 @@ test_that("a mixed-geometry column is refused even when every feature is a point
   expect_true(all(as.character(sf::st_geometry_type(gg)) == "POINT"))
   expect_error(sf::st_coordinates(gg), "sfc_GEOMETRY")
 
-  expect_error(fly_footprint(gg), "`centroids_sf` has a mixed-geometry")
-  expect_error(fly_bearing(gg), "`photos_sf` has a mixed-geometry")
+  expect_error(fly_footprint(gg), "`centroids_sf` stores its points in a mixed-geometry")
+  expect_error(fly_bearing(gg), "`photos_sf` stores its points in a mixed-geometry")
 })
 
 test_that("a zero-row sf with a GEOMETRY column is still accepted", {
@@ -156,4 +156,40 @@ test_that("a zero-row sf with a GEOMETRY column is still accepted", {
   expect_equal(nrow(z), 0L)
   expect_no_error(fp <- fly_footprint(z))
   expect_equal(nrow(fp), 0L)
+})
+
+test_that("a GEOMETRY column holding polygons is refused as polygons, not as GEOMETRY", {
+  # Ordering test, and the only thing that distinguishes the two arrangements of
+  # fly_check_points()'s two clauses.
+  #
+  # With the GEOMETRY clause checked FIRST, this input was told to
+  # `st_cast(x, "POINT")` — which takes a polygon's FIRST VERTEX, not its
+  # centroid. Measured on this exact fixture: 20 rows in, 20 rows out, the guard
+  # then ACCEPTED the result, and ten frames had moved 1,940 m. Following the
+  # guard's own advice reintroduced the silent corruption #37 is about.
+  #
+  # So the per-feature type test must run first, and this asserts the message the
+  # caller gets names POLYGON — whose advice leads with `st_filter()`.
+  centroids <- sf::st_read(testdata_path("photo_centroids.gpkg"), quiet = TRUE)
+  c3005 <- sf::st_transform(centroids, 3005)
+  fp <- sf::st_transform(fly_footprint(centroids), 3005)
+
+  mixed <- c3005
+  sf::st_geometry(mixed) <- c(sf::st_geometry(fp)[1:10],
+                              sf::st_geometry(c3005)[11:20])
+
+  # Premises: the column really is GEOMETRY, and it really does hold both types —
+  # so it is reachable by BOTH clauses and the order decides which one answers.
+  expect_true(inherits(sf::st_geometry(mixed), "sfc_GEOMETRY"))
+  expect_setequal(as.character(sf::st_geometry_type(mixed)), c("POINT", "POLYGON"))
+
+  expect_error(fly_footprint(mixed), "must be points, not POLYGON")
+
+  # And the remedy the other message would have offered really is destructive,
+  # so this is pinned as a fact rather than left as an assertion about wording.
+  recast <- suppressWarnings(sf::st_cast(mixed, "POINT"))
+  moved <- as.numeric(sf::st_distance(sf::st_geometry(recast),
+                                      sf::st_geometry(c3005), by_element = TRUE))
+  expect_equal(nrow(recast), nrow(mixed))
+  expect_gt(max(moved), 1000)
 })
