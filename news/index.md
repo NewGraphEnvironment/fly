@@ -2,6 +2,8 @@
 
 ## fly (development version)
 
+### 0.8.0 (2026-09-01)
+
 - **Every function that takes photo centroids now refuses non-POINT
   geometry**
   ([\#37](https://github.com/NewGraphEnvironment/fly/issues/37)).
