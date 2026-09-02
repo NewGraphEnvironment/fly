@@ -49,17 +49,17 @@ Confirmed safe: `fly_georef()` passes *centroids* to both `fly_footprint()`
 
 ## Phase 1: Failing tests
 
-- [ ] Add `non_point_cases()` to `tests/testthat/setup.R` beside
+- [x] Add `non_point_cases()` to `tests/testthat/setup.R` beside
       `footprint_cases()` — POLYGON, MULTIPOINT, LINESTRING
-- [ ] New `tests/testthat/test-fly_footprint_point_input.R`
-- [ ] Premise assertion: `nrow(fly_footprint(centroids)) == nrow(centroids)`
-- [ ] `fly_footprint()` rejects all three shapes, matching "must be points"
-- [ ] `fly_bearing()` rejects all three
-- [ ] `fly_filter()` rejects all three, under **both** `method` values
-- [ ] Sweep the inheriting exports — `fly_coverage`, `fly_overlap`,
+- [x] New `tests/testthat/test-fly_footprint_point_input.R`
+- [x] Premise assertion: `nrow(fly_footprint(centroids)) == nrow(centroids)`
+- [x] `fly_footprint()` rejects all three shapes, matching "must be points"
+- [x] `fly_bearing()` rejects all three
+- [x] `fly_filter()` rejects all three, under **both** `method` values
+- [x] Sweep the inheriting exports — `fly_coverage`, `fly_overlap`,
       `fly_select`, `fly_georef` each reject rather than corrupt
-- [ ] Assert zero-row input is still accepted, so nobody "fixes" the vacuous pass
-- [ ] Confirm the new tests fail against current `main`
+- [x] Assert zero-row input is still accepted, so nobody "fixes" the vacuous pass
+- [x] Confirm the new tests fail against current `main`
 
 ## Phase 2: The guard
 

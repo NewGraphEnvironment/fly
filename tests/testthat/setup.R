@@ -185,3 +185,51 @@ footprint_cases <- function() {
     "empty input"               = list(x = digital_fixture()[0, ], dem = NULL)
   )
 }
+
+
+# Non-POINT inputs, for the geometry guard in test-fly_footprint_point_input.R.
+#
+# The suite is otherwise points-only, so nothing else in it can reach the guard —
+# the same fixture blind spot as #35 on a different axis.
+#
+# All three shapes are built from the bundled centroids and keep every attribute
+# column, `film_roll` and `frame_number` included. That matters: `fly_bearing()`
+# checks for those columns BEFORE it touches geometry, so a fixture without them
+# would error on the column check and the test would pass for the wrong reason.
+#
+# MULTIPOINT is the load-bearing case rather than a third example of the same
+# thing. #37's suggested fix was `%in% c("POINT", "MULTIPOINT")`, and
+# `st_coordinates()` expands a MULTIPOINT one row per constituent point exactly
+# as it expands a POLYGON — so that guard reintroduces the bug it was written to
+# stop. A fixture carrying only POLYGON passes against both the correct guard and
+# the wrong one, and cannot tell them apart.
+#
+# `st_cast()` from the footprint polygons is what makes each case genuinely
+# expanding (5 vertices per closed rectangle) rather than nominally non-POINT: a
+# MULTIPOINT built by casting the centroids themselves holds one point each and
+# would not multiply any rows.
+non_point_cases <- function() {
+  centroids <- sf::st_read(testdata_path("photo_centroids.gpkg"), quiet = TRUE)
+  polygon <- suppressWarnings(fly_footprint(centroids))
+  cases <- list(
+    POLYGON    = polygon,
+    # `st_cast()` warns that it repeats attributes across sub-geometries. That is
+    # exactly what is wanted here — one non-POINT feature per original row — so
+    # the warning is noise rather than signal.
+    MULTIPOINT = suppressWarnings(sf::st_cast(polygon, "MULTIPOINT")),
+    LINESTRING = suppressWarnings(sf::st_cast(polygon, "LINESTRING"))
+  )
+  # Premise, asserted rather than assumed: every case must actually expand, or it
+  # is not reaching the failure the guard exists to prevent. Checked here so a
+  # future sf that changes a cast fails naming the real cause.
+  for (nm in names(cases)) {
+    x <- cases[[nm]]
+    stopifnot(
+      nrow(x) == nrow(centroids),
+      all(as.character(sf::st_geometry_type(x)) == nm),
+      nrow(sf::st_coordinates(x)) > nrow(x),
+      all(c("scale", "film_roll", "frame_number") %in% names(x))
+    )
+  }
+  cases
+}

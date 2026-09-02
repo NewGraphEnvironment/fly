@@ -12,3 +12,16 @@
 - Created branch `37-fly-footprint-silently-returns-5x-the-ro` off main
 - Spawned a Plan agent to review the design concurrently (not blocking)
 - Next: Phase 1, failing tests
+
+### Phase 1 — failing tests
+
+- `non_point_cases()` added to `setup.R`: POLYGON, MULTIPOINT, LINESTRING, all
+  built by casting the bundled footprints so each genuinely expands 20 features
+  to 100 coordinate rows. Premises asserted inside the helper.
+- MULTIPOINT is deliberate, not a third example: it is the case that fails
+  against the issue's own suggested `c("POINT", "MULTIPOINT")` guard.
+- Fixtures keep `film_roll` / `frame_number`, because `fly_bearing()` checks
+  those columns before it touches geometry — without them the test would have
+  passed for the wrong reason.
+- Confirmed red against `main`: all rejection assertions fail, hitting testthat's
+  10-failure cap.
