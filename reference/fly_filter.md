@@ -20,7 +20,9 @@ fly_filter(
 
 - photos_sf:
 
-  An sf point object with a `scale` column.
+  An sf point object with a `scale` column. Geometry must be POINT — the
+  ground footprint is estimated *from* a centroid, so passing footprints
+  back in is refused rather than coerced.
 
 - aoi_sf:
 

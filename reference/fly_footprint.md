@@ -16,7 +16,12 @@ fly_footprint(centroids_sf, negative_size = 9, format_size = NULL, dem = NULL)
 
   An sf point object with a `scale` column (e.g. "1:31680"). A `media`
   column (e.g. `"Film - BW"`, `"Digital - Colour"`) selects the
-  recording format per frame when present.
+  recording format per frame when present. Geometry must be POINT.
+  [`sf::st_coordinates()`](https://r-spatial.github.io/sf/reference/st_coordinates.html)
+  returns one row per *vertex* for anything else, so a POLYGON input
+  silently multiplies the rows by the vertex count; this is refused
+  rather than coerced, because re-estimating a footprint from the
+  centroid of an estimated footprint is not meaningful.
 
 - negative_size:
 

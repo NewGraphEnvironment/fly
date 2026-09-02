@@ -15,8 +15,11 @@ fly_bearing(photos_sf)
 
 - photos_sf:
 
-  An sf object with `film_roll` and `frame_number` columns. Projected to
-  BC Albers (EPSG:3005) internally for metric bearing computation.
+  An sf point object with `film_roll` and `frame_number` columns.
+  Projected to BC Albers (EPSG:3005) internally for metric bearing
+  computation. Geometry must be POINT. Handed footprints this returned
+  the right *number* of bearings with the wrong values, so it is refused
+  rather than coerced.
 
 ## Value
 

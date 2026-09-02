@@ -2,6 +2,59 @@
 
 ## fly (development version)
 
+- **Every function that takes photo centroids now refuses non-POINT
+  geometry**
+  ([\#37](https://github.com/NewGraphEnvironment/fly/issues/37)).
+  [`sf::st_coordinates()`](https://r-spatial.github.io/sf/reference/st_coordinates.html)
+  returns one row per feature for a POINT and one row per *vertex* for
+  anything else, so
+  [`fly_footprint()`](https://newgraphenvironment.github.io/fly/reference/fly_footprint.md)
+  handed its own output built five geometries per closed rectangle while
+  the attribute frame stayed at 20 rows, and
+  [`st_sf()`](https://r-spatial.github.io/sf/reference/sf.html) recycled
+  it up to match: **20 frames in, 100 rows out**, no error and no
+  warning, 80 of them carrying another photo’s attributes
+- The reported symptom was the row count, which is the detectable half.
+  Measured on the bundled fixtures, three functions were quietly
+  **wrong** rather than wrong-sized:
+  [`fly_bearing()`](https://newgraphenvironment.github.io/fly/reference/fly_bearing.md)
+  returned the right number of bearings with values up to **272
+  degrees** out, because it indexes a 5n-row coordinate matrix with a
+  permutation of `1:n`;
+  [`fly_overlap()`](https://newgraphenvironment.github.io/fly/reference/fly_overlap.md)
+  reported pairwise overlap across the corrupted set; and
+  [`fly_select()`](https://newgraphenvironment.github.io/fly/reference/fly_select.md)
+  in both modes indexed a 20-row frame with a length-100 logical.
+  `fly_filter(method = "centroid")` never reached
+  [`fly_footprint()`](https://newgraphenvironment.github.io/fly/reference/fly_footprint.md)
+  at all and silently became a footprint filter, selecting 20 rows on
+  the bundled AOI where points give 7. Only
+  [`fly_coverage()`](https://newgraphenvironment.github.io/fly/reference/fly_coverage.md)
+  errored, and only by accident of how it assigns
+- The guard is **POINT only, not `c("POINT", "MULTIPOINT")`** as the
+  issue proposed. A MULTIPOINT expands one row per constituent point
+  exactly as a POLYGON does — measured: under the suggested guard the
+  same footprints cast to MULTIPOINT still returned 100 rows from 20.
+  POINT is not a proxy for “one coordinate row per feature” but exactly
+  equivalent to it, since `sf` keeps an aligned `NA` row for an empty
+  POINT; zero-row input stays legal
+- The error names the argument the caller actually typed rather than
+  [`fly_footprint()`](https://newgraphenvironment.github.io/fly/reference/fly_footprint.md)’s,
+  names the offending geometry type, and names the one-line fix —
+  [`sf::st_filter()`](https://r-spatial.github.io/sf/reference/st_join.html)
+  for someone who meant to filter footprints against an area,
+  [`sf::st_cast()`](https://r-spatial.github.io/sf/reference/st_cast.html)
+  for centroids that arrived in another form
+- **Breaking for two input shapes that previously worked.** Centroids
+  arriving as MULTIPOINT-of-one — from a PostGIS `MULTIPOINT` column, or
+  an OGR driver that promotes to multi — were sized correctly before and
+  are now refused; so is a mixed-geometry (`GEOMETRY`) column, even when
+  every feature in it is a point, because
+  [`sf::st_coordinates()`](https://r-spatial.github.io/sf/reference/st_coordinates.html)
+  has no method for that class and the caller otherwise saw
+  `Not compatible with STRSXP: [type=NULL]` several layers down. Both
+  are one call to fix, which the error names: `sf::st_cast(x, "POINT")`
+
 ### 0.7.1 (2026-09-01)
 
 - [`fly_footprint()`](https://newgraphenvironment.github.io/fly/reference/fly_footprint.md)’s

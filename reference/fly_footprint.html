@@ -55,7 +55,11 @@ of each airphoto, based on film negative dimensions and the reported scale.</p>
 <dl><dt id="arg-centroids-sf">centroids_sf<a class="anchor" aria-label="anchor" href="#arg-centroids-sf"></a></dt>
 <dd><p>An sf point object with a <code>scale</code> column (e.g. "1:31680").
 A <code>media</code> column (e.g. <code>"Film - BW"</code>, <code>"Digital - Colour"</code>) selects the
-recording format per frame when present.</p></dd>
+recording format per frame when present.
+Geometry must be POINT. <code><a href="https://r-spatial.github.io/sf/reference/st_coordinates.html" class="external-link">sf::st_coordinates()</a></code> returns one row per <em>vertex</em>
+for anything else, so a POLYGON input silently multiplies the rows by the
+vertex count; this is refused rather than coerced, because re-estimating a
+footprint from the centroid of an estimated footprint is not meaningful.</p></dd>
 
 
 <dt id="arg-negative-size">negative_size<a class="anchor" aria-label="anchor" href="#arg-negative-size"></a></dt>

@@ -56,7 +56,9 @@ Most useful on same-scale photos from the same flight.</p>
 
 
 <dl><dt id="arg-photos-sf">photos_sf<a class="anchor" aria-label="anchor" href="#arg-photos-sf"></a></dt>
-<dd><p>An sf point object with a <code>scale</code> column.</p></dd>
+<dd><p>An sf point object with a <code>scale</code> column.
+Geometry must be POINT — the ground footprint is estimated <em>from</em> a
+centroid, so passing footprints back in is refused rather than coerced.</p></dd>
 
 
 <dt id="arg-dem">dem<a class="anchor" aria-label="anchor" href="#arg-dem"></a></dt>

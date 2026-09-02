@@ -71,7 +71,9 @@ BC Albers (EPSG:3005). Works with thumbnails and full-resolution scans.</p>
 <dt id="arg-photos-sf">photos_sf<a class="anchor" aria-label="anchor" href="#arg-photos-sf"></a></dt>
 <dd><p>The same sf object passed to <code><a href="fly_fetch.html">fly_fetch()</a></code>, with a
 <code>scale</code> column for footprint estimation. If a <code>rotation</code> column is
-present, per-photo rotation values are used (see <strong>Rotation</strong> below).</p></dd>
+present, per-photo rotation values are used (see <strong>Rotation</strong> below).
+Geometry must be POINT — the ground footprint is estimated <em>from</em> a
+centroid, so passing footprints back in is refused rather than coerced.</p></dd>
 
 
 <dt id="arg-dest-dir">dest_dir<a class="anchor" aria-label="anchor" href="#arg-dest-dir"></a></dt>
@@ -213,8 +215,8 @@ of <code><a href="fly_footprint.html">fly_footprint()</a></code>.</p>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;"># A tibble: 2 × 4</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   airp_id source                               dest                      success</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>     <span style="color: #949494; font-style: italic;">&lt;int&gt;</span> <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>                                <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>                     <span style="color: #949494; font-style: italic;">&lt;lgl&gt;</span>  </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">1</span>  <span style="text-decoration: underline;">699</span>370 /tmp/RtmpkIk797/bc5282_176_thumb.jpg /tmp/RtmpkIk797/bc5282_1… TRUE   </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">2</span>  <span style="text-decoration: underline;">699</span>415 /tmp/RtmpkIk797/bc5282_221_thumb.jpg /tmp/RtmpkIk797/bc5282_2… TRUE   </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">1</span>  <span style="text-decoration: underline;">699</span>370 /tmp/RtmpVCGdle/bc5282_176_thumb.jpg /tmp/RtmpVCGdle/bc5282_1… TRUE   </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">2</span>  <span style="text-decoration: underline;">699</span>415 /tmp/RtmpVCGdle/bc5282_221_thumb.jpg /tmp/RtmpVCGdle/bc5282_2… TRUE   </span>
 <span class="r-in"><span></span></span>
 </code></pre></div>
     </div>
