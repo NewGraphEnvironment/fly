@@ -69,6 +69,18 @@ area by a median 13.8% *always in the same direction*. `fly_footprint(dem =)` si
 would push both ways and is much smaller; per-corner ray-casting is worth ~2% against this 14% and is deferred
 (#10). Do not rebuild this as a slope model
 
+- **Every function taking centroids refuses non-POINT geometry, and the error's own remedy is conditional**
+(v0.8.0, #37) — `st_coordinates()` returns one row per *vertex* for anything but a POINT, so `fly_footprint()`
+handed its own output returned **100 rows from 20** with 80 carrying another photo's attributes. `fly_check_points()`
+guards all seven entry points, each naming its own argument. Three things were measured rather than reasoned and
+each is load-bearing: the guard is **POINT only** — the issue's suggested `c("POINT", "MULTIPOINT")` still returned
+100 rows from 20, since a MULTIPOINT expands exactly as a POLYGON does; a `sfc_GEOMETRY` column is refused even when
+every feature is a POINT, because nothing downstream can read one; and the `st_cast()` the error recommends is offered
+**only where it provably keeps one point per feature**, because the guard tests *shape* and `st_cast()` always
+produces the right shape — following it unconditionally reproduced #37 exactly. That last test must be per feature,
+not a total: a column with one frame digitised twice and one frame empty sums correctly and shifts every frame
+against its attributes by up to 20.4 km. See `planning/archive/2026-09-issue-37-non-point-geometry-guard/`
+
 ## Gotchas
 
 - `.lintr` must be single-line DCF format — multi-line breaks newer lintr versions
@@ -98,8 +110,9 @@ a tibble, so `footprint_basis`, `footprint_terrain`, `height_agl` and `dem_cover
 documented data source, with geometry and every downstream number still correct. Use `centroid_shapes()` in
 `tests/testthat/setup.R` — it sweeps plain / tibble / grouped / `bcdc_sf` — for anything that attaches columns to
 user-supplied data. Note the class *set* is carried but not its order: `st_transform()` moves `sf` to the front
-- **`fly_footprint()` must not be handed its own output** (fly#37, open) — `st_coordinates()` on POLYGON returns one
-row per vertex, so 20 footprints in gives 100 rows out, silently. There is no guard yet
+- **An empty POINT centroid aborts the whole batch** (fly#47, open) — it is a POINT, so it passes the geometry
+guard by design, and then fails in `st_polygon()` with `!anyNA(x) is not TRUE`. Left open deliberately: refusing
+20 frames over one unlocatable centroid would contradict the per-frame reporting #30 established
 
 ## Working Conventions
 
