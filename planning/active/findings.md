@@ -7,12 +7,17 @@
 `inst/testdata/photo_centroids.gpkg` — 20 frames, all 1968 film — contains the roll the
 issue names:
 
-| roll | frames | bearings |
+| roll | frames | bearings, pre-guard |
 |---|---|---|
-| bc5282 | 10 | 224.9, 226.5, 228.1, 230.0 x3, 231.6, ... |
-| bc5306 | 8 | mixed, incl. 50.5, 59.8, 69.3 |
+| bc5282 | 10 | 226.5, 318.2, 59.8, 50.5, 69.3, 231.6, 230.0 x4 |
+| bc5306 | 8 | 180.4, 180.0, 228.1, 359.9 x2, 0.1, 224.9 x2 |
 | bc5300 | 1 | NA (single-frame roll) |
 | bc5301 | 1 | NA (single-frame roll) |
+
+**Corrected 2026-09-02** — an earlier version of this table had the two rolls swapped,
+which mattered because Phase 1 picks a roll to measure on. Caught by the plan review
+(G9) and re-measured. The real split is that bc5282 carries the diagonals *and* the
+sparse overlap, while bc5306 carries the overlap *and* the cardinal headings.
 
 So the diagonal film case is reproducible from bundled data plus public thumbnails.
 `bc5300` / `bc5301` are single-frame rolls, which means the no-bearing fallback path is

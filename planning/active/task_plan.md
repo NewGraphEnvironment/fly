@@ -58,14 +58,24 @@ into an average.
 
 ## Phase 2: Rotate film footprints
 
-- [ ] `fly_rectangles()` — drop the `!isTRUE(all.equal(hc, ha))` gate so a finite
+- [x] `fly_rectangles()` — drop the `!isTRUE(all.equal(hc, ha))` gate so a finite
       bearing rotates a square too. Leave the NA / non-finite / zero guards alone
-- [ ] `fly_footprint()` — compute `bearing` for every frame, not only where
-      `non_square`, and tag `axis_aligned_no_bearing` on any frame without one
-- [ ] Add a `footprint_bearing` column, assigned onto `attrs` alongside
+- [x] `fly_footprint()` — compute `bearing` for every frame, not only where
+      `non_square`, and tag `axis_aligned_no_bearing` on any frame without one.
+      Tag applied after `no_geom` is known, so an unsized frame does not claim an
+      alignment it never had (review B2, and the `ifelse` for `NA_character_`)
+- [x] Add a `footprint_bearing` column, assigned onto `attrs` alongside
       `footprint_basis` — never as a trailing argument to `st_sf()` (#35). Add it to
       `fly_reported_cols()` in `tests/testthat/setup.R`
-- [ ] Update the `@details` text that states "Film stays square and is unaffected"
+- [x] NA `footprint_bearing` in the `no_geom` block, so `is.finite()` means "was
+      rotated" by construction rather than by `fly_georef()` happening to skip empty
+      footprints first (review B1)
+- [x] Delete the now-dead `non_square` local and its comment (review G8)
+- [x] **`fly_bearing()` refuses a non-adjacent neighbour** (review B3, user decision
+      2026-09-02). A gap of more than one frame number yields NA. Without it, film
+      rotates onto cross-leg azimuths and footprint geometry becomes batch-dependent:
+      `centroids[1:2, ]` gave 51.5 where the full batch gave 318.2 / 231.6
+- [x] Update the `@details` text that states "Film stays square and is unaffected"
 
 ## Phase 3: Route georef on rotation, not on shape
 
