@@ -107,11 +107,15 @@ test_that("fly_georef passes dem through to the GCP footprints", {
     dest = file.path(tempdir(), paste0(centroids$airp_id, ".jpg")),
     success = c(FALSE, FALSE)
   )
-  res <- suppressMessages(
+  # `suppressWarnings` as well as `suppressMessages`: these two centroids are not
+  # adjacent frames, so neither gets a bearing and `fly_georef()` correctly says it is
+  # georeferencing them as though the flight line ran due north. That warning is
+  # asserted in test-fly_georef.R; this test is about `dem` arriving.
+  res <- suppressWarnings(suppressMessages(
     fly_georef(fetch_result, centroids,
                dest_dir = file.path(tempdir(), "georef-dem"),
                dem = testdata_path("dem.tif"))
-  )
+  ))
   expect_equal(nrow(res), 2)
 
   # The assertion above tolerates the argument; it does not prove it arrived,

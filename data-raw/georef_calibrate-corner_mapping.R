@@ -118,15 +118,17 @@ for (u in dmc_urls) {
 # because the centres differ the overlap then shows different ground. Needs no reference
 # imagery of any kind: the frames check each other.
 
-georef_at <- function(idx, tag, rot) {
-  th <- fly_fetch(photos[idx, ], type = "thumbnail",
+# `pts` / `polys` are passed rather than closed over, so the film section below reuses
+# this rather than carrying a second copy that could drift from it.
+georef_at <- function(idx, tag, rot, pts = photos, polys = fp) {
+  th <- fly_fetch(pts[idx, ], type = "thumbnail",
                   dest_dir = file.path(work, tag, "thumb"))
   stopifnot(all(th$success))
   d <- file.path(work, tag, paste0("r", rot))
   dir.create(d, recursive = TRUE, showWarnings = FALSE)
   vapply(seq_along(idx), function(k) {
     o <- file.path(d, paste0(k, ".tif"))
-    ok <- georef_one(th$dest[k], fp[idx[k], ], o, srcnodata = "0", rotation = rot)
+    ok <- georef_one(th$dest[k], polys[idx[k], ], o, srcnodata = "0", rotation = rot)
     if (isTRUE(ok)) o else NA_character_
   }, character(1))
 }
@@ -196,4 +198,124 @@ for (i in c(1, 2)) {
                     rot, mean(inw, na.rm = TRUE), mean(all, na.rm = TRUE),
                     mean(inw, na.rm = TRUE) - mean(all, na.rm = TRUE)))
   }
+}
+
+
+# ---------------------------------------------------------------------------
+# 4. Film — the same measurement, and it does NOT yield a constant (fly#26)
+# ---------------------------------------------------------------------------
+# Until fly#26 film was drawn axis-aligned, so `fly_georef()` could only shuffle corners
+# by a 90-degree-quantized bearing and a diagonal flight line had no correct answer.
+# Film is now rotated onto its bearing like everything else, which needs its own corner
+# mapping. The digital constant cannot be assumed to carry over: it was measured on
+# digital sensors, and a scanned negative is a different system.
+#
+# WHY THIS CANNOT BE SETTLED FROM THE GEOMETRY, and it is worse than the digital case.
+# The aspect invariant rejects a mapping that pairs the image's long axis with the
+# footprint's short edge. A square footprint has no long axis, so the invariant is
+# vacuous against ALL FOUR rotations rather than merely unable to separate two of them.
+# Nothing in the test suite can catch a wrong film mapping. Only this can.
+#
+# On a square the answer is also not free-standing: with `hc == ha` nothing
+# distinguishes the along-track axis from the cross-track one, so rotating by `b` and
+# mapping with shift `r` is indistinguishable from rotating by `b ± 90` and mapping with
+# `r ∓ 90`. What is measured is a COMPOSITE of the mapping and `fly_rectangles()`'s
+# vertex order and rotation sign. `test-fly_camera_format.R` pins that convention as
+# "ring vertex 1 sits at bearing + 225 from the centroid". If that assertion is ever
+# changed, everything below is void and must be re-run.
+#
+# The quantity to read off is the TOP-EDGE AZIMUTH, `bearing + rotation`, derived from
+# `fly_georef_gcps()` rather than reasoned about. It is where the top of the image
+# points on the ground.
+#
+# RESULT, and it is a negative one. Four legs, two rolls, two eras:
+#
+#   roll      year  bearing   best rot   margin   top-edge azimuth
+#   bc5282    1968    230        0        0.089        230
+#   bc83062   1983    150       90        0.135        240
+#   bc83062   1983     93       90        0.196        183
+#   bc83062   1983     62       90        0.152        152
+#
+# Two things follow, and they point opposite ways:
+#
+# 1. The mapping IS flight-relative. bc83062 returns 90 at three widely separated
+#    bearings, which a geographic convention could not do. This is what justifies
+#    rotating the footprint onto the bearing at all.
+# 2. It is NOT a constant. bc5282 returns 0 where bc83062 returns 90 — a whole quarter
+#    turn apart, on the two eras the issue itself named. There is no `fly_film_rotation()`
+#    to be written, and pooling these into one number would be averaging a real
+#    difference into a wrong answer for both rolls.
+#
+# A fixed-geographic alternative was tested and FALSIFIED rather than left as a loose
+# end: the first two rows above agree to within 10 degrees of azimuth (230, 240), which
+# looked like a scanner delivering a constant orientation. It predicts 180 for the
+# 93- and 62-degree legs. Both measured 90.
+#
+# So `fly_georef()` refuses a rotated square footprint unless the caller supplies the
+# roll's rotation, rather than georeferencing it against a guess. See fly#26.
+#
+# POSITIVE CONTROL. Run this first and confirm it before believing anything above — a
+# harness that cannot reproduce a known answer is not evidence. Digital, where #38
+# measured 270: this returns 270 at +0.713 against 90 at +0.425. Rotations 0 and 180 do
+# not appear because the stretch guard REFUSES them on a non-square footprint, which is
+# a refusal rather than a low score and must not compete for `which.max()`.
+#
+# Detrending was tried (subtract a 9-cell local mean before correlating) and is NOT used:
+# it collapses the digital control to +0.091 against +0.005. `fly`'s footprints are
+# estimates, so fine detail does not align between frames and a high-pass filter removes
+# the broad tone that carries the whole signal. #38 correlated raw at 25 m for the same
+# reason.
+
+message("\n\n=== 4. FILM ===")
+
+film_leg <- function(roll, frames) {
+  r <- bcdata::collect(bcdata::filter(
+    bcdata::bcdc_query_geodata("WHSE_IMAGERY_AND_BASE_MAPS.AIMG_PHOTO_CENTROIDS_SP"),
+    FILM_ROLL == roll
+  ))
+  names(r) <- tolower(names(r))
+  r <- r[order(r$frame_number), ]
+  r[r$frame_number %in% frames, ]
+}
+
+# The bundled fixture is a SAMPLE of two rolls, and after fly#26's adjacency guard only
+# one true frame-to-frame diagonal pair survives in it (bc5282 231->232). One pair is not
+# a measurement, so contiguous legs are pulled from the catalogue. All of it is public.
+film_cases <- list(
+  list(label = "bc5282  1968 b=230", roll = "bc5282",  frames = 226:236),
+  list(label = "bc83062 1983 b=150", roll = "bc83062", frames =  63:73),
+  list(label = "bc83062 1983 b=93",  roll = "bc83062", frames = 108:118),
+  list(label = "bc83062 1983 b=62",  roll = "bc83062", frames = 152:162)
+)
+
+for (case in film_cases) {
+  pts <- film_leg(case$roll, case$frames)
+  fpf <- st_transform(suppressWarnings(fly_footprint(pts)), 3005)
+  b <- fpf$footprint_bearing
+  # Premises. A leg with a bearingless frame is measuring something else, and a cardinal
+  # leg cannot discriminate at all — every rotation is a quarter turn of the same square,
+  # so it would report a winner drawn from noise.
+  if (!all(is.finite(b))) { message(case$label, ": not every frame rotated, skipped"); next }
+  if (median(abs(((b + 45) %% 90) - 45)) < 15) { message(case$label, ": cardinal, skipped"); next }
+
+  tag <- gsub("[^a-z0-9]", "", tolower(case$label))
+  sc <- vapply(c(0, 90, 180, 270), function(rot) {
+    o <- suppressWarnings(georef_at(seq_len(nrow(pts)), tag, rot, pts = pts, polys = fpf))
+    if (any(is.na(o))) return(NaN)          # refused by the stretch guard, not a score
+    mean(vapply(seq_len(length(o) - 1), function(k) pair_r(o[k], o[k + 1]), numeric(1)),
+         na.rm = TRUE)
+  }, numeric(1))
+
+  ok <- is.finite(sc)
+  w <- which.max(replace(sc, !ok, -Inf))
+  rest <- sc[-w][is.finite(sc[-w])]
+  message(sprintf("%-20s b=%5.1f  0:%s 90:%s 180:%s 270:%s  best %3d  margin %s  top-az %5.1f",
+                  case$label, median(b),
+                  ifelse(ok[1], sprintf("%+.3f", sc[1]), "  skip"),
+                  ifelse(ok[2], sprintf("%+.3f", sc[2]), "  skip"),
+                  ifelse(ok[3], sprintf("%+.3f", sc[3]), "  skip"),
+                  ifelse(ok[4], sprintf("%+.3f", sc[4]), "  skip"),
+                  c(0, 90, 180, 270)[w],
+                  if (length(rest)) sprintf("%.3f", sc[w] - max(rest)) else "n/a",
+                  (median(b) + c(0, 90, 180, 270)[w]) %% 360))
 }

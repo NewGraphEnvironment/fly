@@ -39,18 +39,31 @@ footprint makes the aspect invariant in `test-fly_georef_aspect.R` **vacuous** (
 four rotations pair the axes admissibly), so no test in the suite can catch a wrong
 film constant.
 
-- [ ] Extend `data-raw/georef_calibrate-corner_mapping.R` with a film section, reusing
+- [x] Extend `data-raw/georef_calibrate-corner_mapping.R` with a film section, reusing
       its existing `georef_at()` / `grey()` / `pair_r()` helpers rather than
-      re-deriving them
-- [ ] Adjacent-frame overlap correlation — the route that decided #38 and the only one
+      re-deriving them (`georef_at()` parameterised rather than copied)
+- [x] Adjacent-frame overlap correlation — the route that decided #38 and the only one
       available here (1968 film has no `patb_georef_url` exterior orientation). Score
       all four rotations on bc5282 with a bearing-rotated square footprint
+- [x] Repeat on a second era — bc83062 (1983), three separate legs. bc5306 was NOT
+      used: its well-overlapped pairs are cardinal, where every rotation is a quarter
+      turn of the same square and the measurement cannot discriminate
 - [ ] Repeat on bc5306, and on a second era if the catalogue has film near the AOI
       from another decade
-- [ ] FWA lake darkness as the outside opinion, reporting the water's off-centre
-      offset beside each result
+- [x] Positive control FIRST — digital through the same harness returns 270 at +0.713
+      against 90 at +0.425, reproducing #38. A harness that cannot find a known answer
+      is not evidence
+- [ ] FWA lake darkness as the outside opinion (not needed: the overlap result is
+      decisive in the negative direction, and a weak third route cannot rescue a
+      per-roll answer)
 - [ ] Record every number in `inst/notes/georeferencing.md`, including which rotations
       the measurement could *not* separate
+
+**STOP CONDITION FIRED.** bc5282 (1968) = 0; bc83062 (1983) = 90, consistently across
+three bearings. The mapping is flight-relative but per-roll. There is no
+`fly_film_rotation()` to write. A fixed-geographic alternative was tested and
+falsified. User decision 2026-09-02: `fly_georef()` refuses a rotated film frame and
+names the fix, rather than georeferencing on a guess.
 
 **Stop condition, stated up front:** if rolls or eras disagree, the answer is a
 per-roll or per-era column, not a constant — stop and re-scope rather than pooling
@@ -79,14 +92,17 @@ into an average.
 
 ## Phase 3: Route georef on rotation, not on shape
 
-- [ ] `fly_georef()` — replace the `fly_is_square()` branch with
+- [x] `fly_georef()` — replace the `fly_is_square()` branch with
       `is.finite(footprint_bearing)`. A rotated ring gets the fixed mapping; an
       unrotated one keeps the legacy `rotation` / `bearing_to_rotation()` path
-- [ ] Where film's measured constant differs from `fly_digital_rotation()`, add
-      `fly_film_rotation()` beside it and key on the **recording format**, known
-      before any sizing route runs — never on `half_cross`/`half_along` (#32 gotcha)
-- [ ] Keep the user `rotation` column at highest precedence, and keep `fly_is_square()`
-- [ ] Verify the stretch guard still passes rotated film
+- [x] ~~add `fly_film_rotation()`~~ — **not buildable**, see the Phase 1 stop
+      condition. Rotated film is refused unless the caller supplies the roll's value
+- [x] Keep the user `rotation` column at highest precedence, and keep `fly_is_square()`
+- [x] Re-gate and re-word the no-bearing warning, which was gated on `non_square` and
+      so never fired for film (review G1)
+- [x] Rewrite `@param rotation` and the whole Rotation section; update the example to
+      one that does not warn (review G3)
+- [x] Verify the stretch guard still passes rotated film
 
 ## Phase 4: Reconcile downstream numbers and tests
 
