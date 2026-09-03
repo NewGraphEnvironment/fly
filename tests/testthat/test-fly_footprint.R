@@ -493,14 +493,22 @@ test_that("fly_footprint iterates the sampling window, not just the elevation", 
   fp <- fly_footprint(centroids, dem = dem)
 
   # Reproduce pass one alone: the mean under the NOMINAL rectangle.
+  #
+  # `endCapStyle = "SQUARE"` builds an AXIS-ALIGNED square, which since fly#26 only
+  # reproduces `fly_footprint()`'s first pass for a frame that was NOT rotated onto a
+  # bearing. Comparing the rotated ones too would still pass — by a wider margin, for
+  # a reason that has nothing to do with the two-pass iteration this test exists to
+  # measure. So the comparison is restricted, and the restriction is asserted.
+  unrotated <- !is.finite(fp$footprint_bearing)
+  expect_gt(sum(unrotated), 0)                                       # premise
   nominal_half <- 9 * as.numeric(sub("1:", "", centroids$scale)) * 0.0254 / 2
   pts <- sf::st_transform(centroids, 3005)
-  one_pass <- vapply(seq_len(nrow(centroids)), function(i) {
+  one_pass <- vapply(which(unrotated), function(i) {
     rect <- sf::st_buffer(pts[i, ], nominal_half[i], endCapStyle = "SQUARE")
     mean(terra::extract(dem, terra::vect(rect))[, 2], na.rm = TRUE)
   }, numeric(1))
 
-  two_pass_elev <- centroids$flying_height - fp$height_agl
+  two_pass_elev <- (centroids$flying_height - fp$height_agl)[unrotated]
   expect_false(isTRUE(all.equal(two_pass_elev, one_pass)))
   expect_gt(max(abs(two_pass_elev - one_pass)), 5)
 })
@@ -807,4 +815,54 @@ test_that("a tibble-backed footprint still flows through the consumers", {
     expect_equal(nrow(suppressMessages(fly_select(x, aoi))), nrow(ref_select),
                  info = nm)
   }
+})
+
+
+test_that("a rotated ring is exactly closed at every bearing", {
+  # `sf::st_polygon()` requires EXACT closure and raises an error, not a warning, so an
+  # unclosed ring aborts the whole batch rather than losing one frame.
+  #
+  # The hazard is not obvious: the ring is built closed, and rotation is a linear map,
+  # so the fifth vertex "should" land on the first. But `%*%` computes rows
+  # independently and an optimised BLAS may block or vectorise them differently — at
+  # bearing 230 with a 1000 m half-side, rows 1 and 5 came back 2.8e-14 apart. Whether
+  # it bites depends on the bearing and the half-dimensions, which is why the bundled
+  # fixture never showed it and 1338 tests passed over it.
+  #
+  # Swept rather than sampled: a handful of chosen bearings is exactly the fixture that
+  # missed it in the first place. The premise below asserts the sweep would in fact
+  # catch a regression, since `fly_rectangles()` closing by copy makes the property
+  # true by construction and an unswept test would look identical.
+  co <- matrix(c(500000, 1000000), ncol = 2)
+  bearings <- seq(0, 359.5, by = 0.5)
+  closed <- vapply(bearings, function(b) {
+    g <- tryCatch(fly_rectangles(co, 1000, 1000, b), error = function(e) NULL)
+    if (is.null(g)) return(NA)
+    xy <- sf::st_coordinates(g)[, 1:2]
+    identical(xy[1, ], xy[5, ])
+  }, logical(1))
+  expect_true(all(!is.na(closed)), info = "st_polygon() rejected an unclosed ring")
+  expect_true(all(closed))
+
+  # Non-square too, which is the shape that has been rotated since #32.
+  closed_rect <- vapply(bearings, function(b) {
+    g <- tryCatch(fly_rectangles(co, 1200, 700, b), error = function(e) NULL)
+    if (is.null(g)) return(NA)
+    xy <- sf::st_coordinates(g)[, 1:2]
+    identical(xy[1, ], xy[5, ])
+  }, logical(1))
+  expect_true(all(!is.na(closed_rect)))
+  expect_true(all(closed_rect))
+
+  # Premise: closing by copy is what makes this hold. Recomputing the fifth vertex the
+  # way the pre-fly#26 code did fails somewhere in this sweep — if it ever stops
+  # failing, this test has become decoration and the comment above is wrong.
+  recomputed_ok <- vapply(bearings, function(b) {
+    xy <- matrix(c(-1000,-1000, 1000,-1000, 1000,1000, -1000,1000, -1000,-1000),
+                 ncol = 2, byrow = TRUE)
+    rad <- b * pi / 180
+    r <- xy %*% matrix(c(cos(rad), sin(rad), -sin(rad), cos(rad)), nrow = 2)
+    identical(r[1, ], r[5, ])
+  }, logical(1))
+  expect_false(all(recomputed_ok))
 })

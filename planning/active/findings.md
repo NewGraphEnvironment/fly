@@ -107,3 +107,85 @@ photos$rotation <- dplyr::case_when(
 Discovered while calibrating auto-rotation (#25). Affects ~diagonal flights which are a minority of the dataset.
 
 
+
+## Phase 1 measurement — the film corner mapping (2026-09-02)
+
+### Positive control, run first
+
+Digital through the same harness: **270 at +0.713**, against 90 at +0.425. That
+reproduces #38's finding, so the harness can find a known answer. Rotations 0 and 180
+do not appear because `georef_one()`'s stretch guard *refuses* them on a non-square
+footprint — a refusal is not a low score, and letting it compete for `which.max()`
+cost one debugging round.
+
+### Result — four legs, two rolls, two eras
+
+| roll | year | bearing | best rotation | margin | top-edge azimuth |
+|---|---|---|---|---|---|
+| bc5282 | 1968 | 230° | **0** | 0.089 | 230 |
+| bc83062 | 1983 | 150° | **90** | 0.135 | 240 |
+| bc83062 | 1983 | 93° | **90** | 0.196 | 183 |
+| bc83062 | 1983 | 62° | **90** | 0.152 | 152 |
+
+The quantity read off is the **top-edge azimuth**, `bearing + rotation`, derived from
+`fly_georef_gcps()` rather than reasoned about.
+
+Two conclusions, pointing opposite ways:
+
+1. **The mapping is flight-relative.** bc83062 returns 90 at three widely separated
+   bearings, which a geographic convention could not do. This independently justifies
+   rotating the footprint onto the bearing at all — it is the strongest evidence in the
+   issue for the architecture, and it arrived as a by-product.
+2. **It is not a constant.** A quarter turn separates the two eras. The stop condition
+   in the plan fired.
+
+### A rival hypothesis, tested and falsified
+
+The first two rows agree to within 10° of geographic azimuth (230, 240), which looked
+like a scanner delivering a fixed orientation regardless of heading. That model
+predicts rotation 180 for the 93° and 62° legs. Both measured 90. Falsified, and
+recorded rather than left as a loose end.
+
+### Detrending — tried, rejected, and why
+
+Subtracting a 9-cell local mean before correlating collapses the **digital control** to
++0.091 against +0.005. `fly`'s footprints are estimates, so fine detail does not align
+between adjacent frames and a high-pass filter removes the broad tone carrying the
+whole signal. #38 correlated raw at 25 m for the same reason. The detrended film run
+picked 180 by a margin of 0.010, which is noise, not a contradiction.
+
+### Why bc5306 was not used
+
+Its well-overlapped consecutive pairs sit at bearings 180.4, 359.9 and 0.1. On a
+cardinal heading every rotation is a whole quarter turn of the same square, so the
+measurement is degenerate and would report a winner drawn from noise. The calibration
+script asserts this as a premise and skips such a leg rather than scoring it.
+
+## Downstream movement, bundled AOI (Upper Bulkley, 20 frames, 7 rotated)
+
+| | main | this branch |
+|---|---|---|
+| `fly_coverage(by="scale")` 1:12000 | 15.1 km², 60.7% | 14.8 km², **59.5%** |
+| same, 1:31680 | 24.8 km², 100% | 24.8 km², 100% |
+| `fly_overlap()` pairs | 61 | **63** |
+| `fly_filter()` rows | 20 of 20 | 20 of 20 |
+| `fly_select(minimal, 0.95)` | 10 | 10 |
+| DEM area ratio (median) | 1.1377 | 1.1372 |
+| `dem_coverage` range | 0.9996–1 | 0.9996–1 |
+
+Small, and **downward**, which is the point: the axis-aligned square was claiming
+ground the frame does not photograph. Only 7 of 20 frames rotate under the adjacency
+guard, so this understates the effect on a contiguous roll — a fact about this
+fixture, not about the change.
+
+The DEM path is unmoved: all 20 frames still take `dem_agl`, `dem_coverage` is
+unchanged to four figures, and the median terrain enlargement stays at the documented
+~14%. Rotating the sampling rectangle did not disturb it.
+
+## Errors Encountered
+
+| Error | Resolution |
+|-------|------------|
+| `rast()` on NA path in the calibration harness | A rotation the stretch guard refuses returns NA files. That is a refusal, not a low score — return `NaN` so it cannot win `which.max()` |
+| Digital control appeared broken after the `fly_bearing()` guard | It was not: all 24 digital fixture frames are contiguous runs and keep their bearings. Probed before concluding |
+| `expect_warning()` leaked a second warning | One warning per refused frame; collect them with `withCallingHandlers()` and assert the count |

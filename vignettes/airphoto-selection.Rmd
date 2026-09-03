@@ -79,6 +79,29 @@ everything if you know your camera:
 The photos used throughout the rest of this vignette are 1968 film, so every
 footprint below is sized from the 9-inch negative.
 
+## Rotation onto the flight line
+
+A footprint is a rectangle on the ground, and the aircraft was not necessarily
+flying north. `fly_footprint()` rotates each rectangle onto the flight line,
+taking the azimuth from `fly_bearing()`, and records it in `footprint_bearing`.
+An axis-aligned square is only correct on a cardinal heading — at 45 degrees it
+overlaps the true footprint by about 83%, so leaving it unrotated claims ground
+the frame does not photograph.
+
+The bearing comes from a frame that is **adjacent by `frame_number`** on the
+same roll. That is deliberately strict: a roll flies several legs, so two frames
+that merely sit next to each other in a *sample* of a roll can be on different
+legs, and the azimuth between those is not a heading. Where no adjacent
+neighbour is present, `footprint_bearing` is `NA` and the rectangle is drawn
+axis-aligned as before.
+
+This has a consequence worth knowing when reading the figures below: the
+bundled centroids are a sample, so only 7 of the 20 frames have an adjacent
+neighbour, and a *subset* has fewer still. A selection re-run through
+`fly_footprint()` can therefore show axis-aligned rectangles where the
+all-photos figure showed rotated ones. To keep bearings across a subset, call
+`fly_bearing()` on the contiguous roll first and carry the column.
+
 By default footprints are sized from the reported scale, which assumes flat
 ground at whatever elevation that scale was computed for. Supplying a DEM
 removes that assumption — worth about 14% of footprint area here, and shown at

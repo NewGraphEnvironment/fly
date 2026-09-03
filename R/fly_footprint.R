@@ -275,8 +275,21 @@ fly_rectangles <- function(coords, half_cross, half_along = half_cross, bearing 
     }
     cx <- coords[i, 1]
     cy <- coords[i, 2]
+    # FOUR vertices. The closing fifth is appended below as a COPY of the first, after
+    # any rotation, rather than carried through the arithmetic as a fifth row.
+    #
+    # `xy %*% rot` computes each row independently, and an optimised BLAS does not
+    # guarantee bit-identical results for identical rows — it may block or vectorise
+    # them differently. Measured at bearing 230 on a 1000 m half-side: rows 1 and 5 came
+    # back 2.8e-14 apart in y. `sf::st_polygon()` requires EXACT closure and raises
+    # "polygons not (all) closed", which is an error rather than a warning, so a single
+    # unlucky frame aborts the whole batch.
+    #
+    # Data-dependent, and therefore invisible to a fixture that happens not to hit it:
+    # the bundled centroids do not, and 1338 tests passed over this. Closing by copy
+    # removes the possibility rather than narrowing it.
     xy <- matrix(
-      c(-hc, -ha, hc, -ha, hc, ha, -hc, ha, -hc, -ha),
+      c(-hc, -ha, hc, -ha, hc, ha, -hc, ha),
       ncol = 2, byrow = TRUE
     )
 
@@ -295,6 +308,7 @@ fly_rectangles <- function(coords, half_cross, half_along = half_cross, bearing 
       xy <- xy %*% rot
     }
 
+    xy <- rbind(xy, xy[1, , drop = FALSE])
     sf::st_polygon(list(cbind(xy[, 1] + cx, xy[, 2] + cy)))
   }), crs = 3005)
 }

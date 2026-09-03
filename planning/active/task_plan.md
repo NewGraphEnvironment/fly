@@ -106,14 +106,24 @@ into an average.
 
 ## Phase 4: Reconcile downstream numbers and tests
 
-- [ ] Measure how far the bundled AOI's coverage and selection actually move
-- [ ] Restore the pre-change behaviour and confirm the new tests fail, patching **both**
-      `asNamespace("fly")` and `as.environment("package:fly")`
-- [ ] Update tests whose premise was film-is-axis-aligned
-- [ ] Sweep `centroid_shapes()` for `footprint_bearing`
-- [ ] New test: a diagonal film footprint is **not** axis-aligned, and its ring order
-      still means rear-left / rear-right / front-right / front-left
-- [ ] Vignette `airphoto-selection.Rmd` — re-knit and check any stated numbers
+- [x] Measure how far the bundled AOI's coverage and selection actually move
+- [x] Re-check the DEM interaction (review G7) — unmoved
+- [x] Restore the pre-change behaviour and confirm the new tests fail, patching **both**
+      `asNamespace("fly")` and `as.environment("package:fly")` — the exact prior bytes
+      via `git show`, not a rewrite. All three new assertions fail against it. This is
+      also what surfaced the ring-closure bug below
+- [x] Update tests whose premise was film-is-axis-aligned (review G4, G5, G6) — the
+      mixed-batch test was passing vacuously, with no rotated film frame in it at all
+- [x] Sweep `centroid_shapes()` for `footprint_bearing` (via `fly_reported_cols()`)
+- [x] New test: vertex-1 azimuth == `bearing + 225`, and bbox stretch ==
+      `|cos b| + |sin b|` exactly. Not the bbox-aspect check originally planned, which
+      is invariant under rotation and would have passed vacuously (review G4/AC3)
+- [x] **Ring closure swept over 720 bearings** — found a real latent bug: rotation
+      recomputed the closing vertex, and BLAS returns it a few ulps off the first, so
+      `st_polygon()` errors and aborts the batch. Data-dependent; present on `main` for
+      digital since #32
+- [x] Vignette `airphoto-selection.Rmd` — new "Rotation onto the flight line" section;
+      renders clean
 
 ## Phase 5: Document and release
 
