@@ -64,6 +64,6 @@ fly_coverage(centroids, aoi, by = "scale")
 #> # A tibble: 2 × 4
 #>   scale   n_photos covered_km2 coverage_pct
 #>   <chr>      <int>       <dbl>        <dbl>
-#> 1 1:12000       10        15.1         60.7
+#> 1 1:12000       10        14.8         59.5
 #> 2 1:31680       10        24.8        100  
 ```

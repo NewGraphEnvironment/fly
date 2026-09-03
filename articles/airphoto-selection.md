@@ -68,6 +68,35 @@ everything if you know your camera:
 The photos used throughout the rest of this vignette are 1968 film, so
 every footprint below is sized from the 9-inch negative.
 
+### Rotation onto the flight line
+
+A footprint is a rectangle on the ground, and the aircraft was not
+necessarily flying north.
+[`fly_footprint()`](https://newgraphenvironment.github.io/fly/reference/fly_footprint.md)
+rotates each rectangle onto the flight line, taking the azimuth from
+[`fly_bearing()`](https://newgraphenvironment.github.io/fly/reference/fly_bearing.md),
+and records it in `footprint_bearing`. An axis-aligned square is only
+correct on a cardinal heading — at 45 degrees it overlaps the true
+footprint by about 83%, so leaving it unrotated claims ground the frame
+does not photograph.
+
+The bearing comes from a frame that is **adjacent by `frame_number`** on
+the same roll. That is deliberately strict: a roll flies several legs,
+so two frames that merely sit next to each other in a *sample* of a roll
+can be on different legs, and the azimuth between those is not a
+heading. Where no adjacent neighbour is present, `footprint_bearing` is
+`NA` and the rectangle is drawn axis-aligned as before.
+
+This has a consequence worth knowing when reading the figures below: the
+bundled centroids are a sample, so only 7 of the 20 frames have an
+adjacent neighbour, and a *subset* has fewer still. A selection re-run
+through
+[`fly_footprint()`](https://newgraphenvironment.github.io/fly/reference/fly_footprint.md)
+can therefore show axis-aligned rectangles where the all-photos figure
+showed rotated ones. To keep bearings across a subset, call
+[`fly_bearing()`](https://newgraphenvironment.github.io/fly/reference/fly_bearing.md)
+on the contiguous roll first and carry the column.
+
 By default footprints are sized from the reported scale, which assumes
 flat ground at whatever elevation that scale was computed for. Supplying
 a DEM removes that assumption — worth about 14% of footprint area here,
@@ -142,7 +171,7 @@ fly_coverage(centroids, aoi, by = "scale")
 #> # A tibble: 2 × 4
 #>   scale   n_photos covered_km2 coverage_pct
 #>   <chr>      <int>       <dbl>        <dbl>
-#> 1 1:12000       10        15.1         60.7
+#> 1 1:12000       10        14.8         59.5
 #> 2 1:31680       10        24.8        100
 ```
 
@@ -212,11 +241,10 @@ cat("AOI has", n_components, "polygon components\n")
 selected_ec <- fly_select(centroids, aoi, mode = "minimal",
                           target_coverage = 0.80, component_ensure = TRUE)
 #> Spherical geometry (s2) switched off
-#> Seeding 9 photos for component coverage...
-#>   9 seed photos -> 78% coverage
+#> Seeding 10 photos for component coverage...
+#>   10 seed photos -> 80.1% coverage
 #> Selecting photos (target: 80% coverage)...
-#>   10 photos -> 90.1% coverage
-#> Selected 10 of 20 photos for 90.1% coverage
+#> Selected 10 of 20 photos for 80.1% coverage
 #> Spherical geometry (s2) switched on
 cat("Without component_ensure:", nrow(selected), "photos\n")
 #> Without component_ensure: 3 photos
@@ -274,16 +302,17 @@ overlap_12k <- fly_overlap(photos_12k)
 #> Spherical geometry (s2) switched off
 #> Spherical geometry (s2) switched on
 overlap_12k
-#> # A tibble: 7 × 5
+#> # A tibble: 8 × 5
 #>   photo_a photo_b overlap_km2 pct_of_a pct_of_b
 #>     <int>   <int>       <dbl>    <dbl>    <dbl>
 #> 1  699370  699365       2.05      27.2     27.2
 #> 2  699370  699373       0.134      1.8      1.8
-#> 3  699426  699425       3.92      52.1     52.1
-#> 4  699396  699393       0.246      3.3      3.3
-#> 5  699396  699421       1.5       19.9     19.9
-#> 6  699419  699421       1.46      19.4     19.4
-#> 7  699425  699393       0.676      9        9
+#> 3  699426  699425       4.56      60.6     60.6
+#> 4  699426  699393       0.027      0.4      0.4
+#> 5  699396  699393       0.246      3.3      3.3
+#> 6  699396  699421       1.5       19.9     19.9
+#> 7  699419  699421       1.46      19.4     19.4
+#> 8  699425  699393       0.747      9.9      9.9
 ```
 
 ``` r
@@ -293,7 +322,7 @@ if (nrow(overlap_12k) > 0) {
       round(min(overlap_12k$pct_of_a), 1), "% -",
       round(max(overlap_12k$pct_of_a), 1), "%\n")
 }
-#> 1:12000 overlap range: 1.8 % - 52.1 %
+#> 1:12000 overlap range: 0.4 % - 60.6 %
 
 photos_31k <- centroids[centroids$scale == "1:31680", ]
 overlap_31k <- fly_overlap(photos_31k)
@@ -304,7 +333,7 @@ if (nrow(overlap_31k) > 0) {
       round(min(overlap_31k$pct_of_a), 1), "% -",
       round(max(overlap_31k$pct_of_a), 1), "%\n")
 }
-#> 1:31680 overlap range: 1.9 % - 61.7 %
+#> 1:31680 overlap range: 1.8 % - 61.9 %
 ```
 
 ## Multi-scale workflow: best resolution first
@@ -364,7 +393,7 @@ for (sc_num in scales) {
 #> are planar
 #> Selected 10 of 10 photos intersecting the AOI
 #> Spherical geometry (s2) switched on
-#> 1:12000 : 10 photos (cumulative coverage: 60.7 %)
+#> 1:12000 : 10 photos (cumulative coverage: 59.5 %)
 #> Spherical geometry (s2) switched off
 #> although coordinates are longitude/latitude, st_union assumes that they are
 #> planar
@@ -426,14 +455,18 @@ fetched <- fly_fetch(centroids[1:3, ], type = "thumbnail",
 #> Downloaded 3 of 3 files
 georef <- fly_georef(fetched, centroids[1:3, ],
                            dest_dir = tempdir())
+#> Warning: 3 of 3 frames have a footprint but no flight bearing, so they are
+#> drawn axis-aligned and georeferenced as though the flight line ran due north.
+#> `fly_bearing()` needs a frame whose `frame_number` is ADJACENT on the same
+#> roll, so pass neighbouring frames rather than a sample.
 #> Georeferenced 3 of 3 images
 georef[, c("airp_id", "dest", "success")]
 #> # A tibble: 3 × 3
 #>   airp_id dest                                 success
 #>     <int> <chr>                                <lgl>  
-#> 1  699370 /tmp/RtmpWCfyBe/bc5282_176_thumb.tif TRUE   
-#> 2  699415 /tmp/RtmpWCfyBe/bc5282_221_thumb.tif TRUE   
-#> 3  699426 /tmp/RtmpWCfyBe/bc5282_232_thumb.tif TRUE
+#> 1  699370 /tmp/RtmpAdZoL2/bc5282_176_thumb.tif TRUE   
+#> 2  699415 /tmp/RtmpAdZoL2/bc5282_221_thumb.tif TRUE   
+#> 3  699426 /tmp/RtmpAdZoL2/bc5282_232_thumb.tif TRUE
 ```
 
 The georeferenced TIFFs inherit whatever basis

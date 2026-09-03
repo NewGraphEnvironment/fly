@@ -58,16 +58,20 @@ fly_georef(
 - rotation:
 
   Image rotation in degrees clockwise. One of `"auto"`, `0`, `90`,
-  `180`, or `270`. Applies to frames with a **square** footprint only.
-  `"auto"` (default) computes flight line bearing from consecutive
-  centroids and derives rotation per-photo — requires `film_roll` and
-  `frame_number` columns. Fixed values apply the same rotation to every
-  square-footprint photo. A non-square footprint ignores this argument
-  and uses the measured digital mapping (see **Rotation**); a `rotation`
-  column in `photos_sf` still overrides per-photo, for both. Carrying a
-  film-era `rotation` column into a batch of digital frames therefore
-  overrides the correct mapping with the wrong one — drop the column, or
-  set it to `NA` for those rows.
+  `180`, or `270`. **Applies only to frames whose footprint was drawn
+  axis-aligned**, which since v0.9.0 means only frames for which no
+  flight bearing could be computed — a single frame, or one whose
+  neighbours are not adjacent by `frame_number`. Every frame that *was*
+  rotated onto a bearing takes its mapping from the ring instead, so
+  this argument does not reach it. `"auto"` (default) derives a
+  90°-quantized rotation from the bearing; with the bearing now carried
+  by the geometry, that formula only ever sees bearingless frames and
+  returns its `NA` default of 180. A `rotation` column in `photos_sf`
+  overrides everything, rotated or not — which is the supported way to
+  georeference film (see **Rotation**). Carrying a film-era `rotation`
+  column into a batch of digital frames overrides the correct mapping
+  with the wrong one — drop the column, or set it to `NA` for those
+  rows.
 
 - dem:
 
@@ -89,54 +93,65 @@ polygon corners computed by
 in BC Albers. GDAL translates the image with GCPs then warps to the
 target CRS using bilinear resampling.
 
-**Rotation:** the corner mapping depends on the footprint's shape,
-because
+**Rotation:** the corner mapping depends on whether
 [`fly_footprint()`](https://newgraphenvironment.github.io/fly/reference/fly_footprint.md)
-builds the two shapes differently.
+rotated the ring onto a flight bearing, which `footprint_bearing`
+records. It is not decidable from the geometry — a rectangle rotated
+onto a due-north heading is still axis-parallel, and a square gives
+nothing away at any bearing.
 
-A **square** footprint is axis-aligned, so the mapping carries the
-rotation. The `rotation` parameter rotates it:
+A **rotated non-square** footprint — a digital frame with a bearing —
+uses a fixed mapping: the top-left pixel maps to the ring's rear-left
+corner, so the top of the image points 270° round from the heading.
+Measured in fly#38 on both bundled cameras by three independent routes,
+which agree.
 
-- `0` — top of image maps to north edge of footprint
+A **rotated square** footprint — a film frame with a bearing — is
+**skipped with a warning** unless `photos_sf` carries a `rotation` value
+for it. There is no constant to apply, and that is a measurement rather
+than an omission. fly#26 scored all four rotations by adjacent-frame
+overlap over four contiguous legs:
 
-- `90` — top of image maps to east edge (90° clockwise)
+|         |      |         |               |        |
+|---------|------|---------|---------------|--------|
+| roll    | year | bearing | best rotation | margin |
+| bc5282  | 1968 | 230°    | 0             | 0.089  |
+| bc83062 | 1983 | 150°    | 90            | 0.135  |
+| bc83062 | 1983 | 93°     | 90            | 0.196  |
+| bc83062 | 1983 | 62°     | 90            | 0.152  |
 
-- `180` — top of image maps to south edge (correct for most BC film)
+bc83062 returns the same answer at three widely separated bearings, so
+the mapping is genuinely flight-relative — but it is a quarter turn from
+bc5282's, on the two eras fly#26 named at the outset. Applying either as
+a global constant would be wrong for the other roll, and the failure it
+produces is a valid GeoTIFF over the right ground with the picture
+turned 90°, which nothing downstream would report. So the frame is
+refused instead, as fly refuses an unknown recording format in
+[`fly_footprint()`](https://newgraphenvironment.github.io/fly/reference/fly_footprint.md).
 
-- `270` — top of image maps to west edge
-
-When `rotation = "auto"`, the bearing-to-rotation formula is:
-`floor((bearing + 91) / 90) * 90 %% 360`. This was calibrated on BC
-aerial photos spanning 1968–2019 across multiple camera systems and
-scanners. Photos on diagonal flight lines (~45° off cardinal) may be
-imperfect — check visually and override with a `rotation` column if
-needed.
-
-Within a film roll, consecutive flight legs alternate direction
-(back-and-forth pattern), so different frames on the same roll may need
-different rotations. This is why `"auto"` computes per-photo, not
-per-roll. To override, add a `rotation` column to `photos_sf`:
+To georeference film, check one frame of the roll against known ground
+and set the column:
 
     photos$rotation <- dplyr::case_when(
-      photos$film_roll == "bc5282" ~ 270,
-      .default = NA  # non-square footprints fall through to the digital mapping;
-                     # square ones to `rotation`, which is 180 under "auto" —
-                     # NOT back to the per-photo bearing
+      photos$film_roll == "bc5282"  ~ 0L,    # measured, fly#26
+      photos$film_roll == "bc83062" ~ 90L,   # measured, fly#26
+      .default = NA                          # refused rather than guessed
     )
 
 Every non-`NA` value in that column must be 0, 90, 180 or 270; anything
 else is an error naming the value, rather than a rotation silently
-applied as something other than what was written.
+applied as something other than what was written. **The column's meaning
+changed in v0.9.0**: it used to shift corners on an axis-aligned square,
+and now shifts them on a ring already rotated onto the bearing, so a
+value calibrated by eye against an older release no longer means the
+same thing and must be re-checked.
 
-A **non-square** footprint — every digital frame — is already rotated
-onto its flight line by
-[`fly_footprint()`](https://newgraphenvironment.github.io/fly/reference/fly_footprint.md),
-so the ring carries the bearing and applying it again would count it
-twice. Those frames use a fixed mapping instead: the top-left pixel maps
-to the ring's rear-left corner, equivalently image columns run in the
-flight direction and image rows run flight-right. That was measured in
-fly#38 on both bundled cameras by three independent routes and is the
-same for each; see `inst/notes/georeferencing.md`.
+An **unrotated** footprint — no bearing could be computed — keeps the
+old behaviour: axis-aligned, with `rotation` (or its `"auto"` default of
+180) choosing which edge the top of the image maps to. `0` is north,
+`90` east, `180` south, `270` west. It is warned about, because an
+axis-aligned footprint is only correct if the flight line happened to
+run cardinally.
 
 A frame whose delivered image aspect disagrees with its footprint's by
 more than 8% is **skipped with a warning** rather than written stretched
@@ -151,12 +166,13 @@ to get wrong, but a digital frame sized through `format_size` lands on
 one, and that is the unknown-camera case — so gating on shape would
 switch the check off exactly where it is needed.
 
-A non-square footprint built without a flight bearing is drawn
-axis-aligned and is therefore georeferenced as though the flight line
-ran due north.
+A footprint built without a flight bearing is drawn axis-aligned and is
+therefore georeferenced as though the flight line ran due north.
 [`fly_bearing()`](https://newgraphenvironment.github.io/fly/reference/fly_bearing.md)
-needs a neighbouring frame, so this is the ordinary result of
-georeferencing a single frame on its own, and it is warned about.
+needs a frame that is **adjacent by `frame_number`** on the same roll,
+so this is the ordinary result of georeferencing a single frame on its
+own, or a sample of a roll rather than a contiguous run. It is warned
+about, for film as well as digital.
 
 **Nodata handling:** Two sources of unwanted black pixels are masked:
 
@@ -196,17 +212,21 @@ centroids <- sf::st_read(system.file("testdata/photo_centroids.gpkg", package = 
 #> Bounding box:  xmin: -126.7631 ymin: 54.34512 xmax: -126.449 ymax: 54.47635
 #> Geodetic CRS:  WGS 84
 
-# Fetch and georeference with auto rotation (uses bearing from centroids)
-fetched <- fly_fetch(centroids[1:2, ], type = "thumbnail",
-                     dest_dir = tempdir())
+# Frames 231 and 232 of bc5282 are adjacent, so they get a flight bearing and
+# their footprints are rotated onto it. Film needs the roll's measured rotation
+# supplied; without it the frames are refused rather than turned a quarter turn.
+pair <- centroids[centroids$film_roll == "bc5282" &
+                    centroids$frame_number %in% c(231, 232), ]
+pair$rotation <- 0L   # measured for bc5282 in fly#26
+
+fetched <- fly_fetch(pair, type = "thumbnail", dest_dir = tempdir())
 #> Downloaded 2 of 2 files
-georef <- fly_georef(fetched, centroids[1:2, ],
-                     dest_dir = tempdir())
+georef <- fly_georef(fetched, pair, dest_dir = tempdir())
 #> Georeferenced 2 of 2 images
 georef
 #> # A tibble: 2 × 4
 #>   airp_id source                               dest                      success
 #>     <int> <chr>                                <chr>                     <lgl>  
-#> 1  699370 /tmp/RtmpharOLk/bc5282_176_thumb.jpg /tmp/RtmpharOLk/bc5282_1… TRUE   
-#> 2  699415 /tmp/RtmpharOLk/bc5282_221_thumb.jpg /tmp/RtmpharOLk/bc5282_2… TRUE   
+#> 1  699426 /tmp/Rtmp9zh1EE/bc5282_232_thumb.jpg /tmp/Rtmp9zh1EE/bc5282_2… TRUE   
+#> 2  699425 /tmp/Rtmp9zh1EE/bc5282_231_thumb.jpg /tmp/Rtmp9zh1EE/bc5282_2… TRUE   
 ```

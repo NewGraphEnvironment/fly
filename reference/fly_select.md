@@ -123,11 +123,10 @@ fly_select(centroids, aoi, mode = "minimal", target_coverage = 0.80)
 fly_select(centroids, aoi, mode = "minimal", target_coverage = 0.80,
            component_ensure = TRUE)
 #> Spherical geometry (s2) switched off
-#> Seeding 9 photos for component coverage...
-#>   9 seed photos -> 78% coverage
+#> Seeding 10 photos for component coverage...
+#>   10 seed photos -> 80.1% coverage
 #> Selecting photos (target: 80% coverage)...
-#>   10 photos -> 90.1% coverage
-#> Selected 10 of 20 photos for 90.1% coverage
+#> Selected 10 of 20 photos for 80.1% coverage
 #> Spherical geometry (s2) switched on
 #> Simple feature collection with 10 features and 18 fields
 #> Geometry type: POINT
@@ -137,6 +136,7 @@ fly_select(centroids, aoi, mode = "minimal", target_coverage = 0.80,
 #>    airp_id photo_year photo_date   scale film_roll frame_number     media
 #> 18  697326       1968 1968-07-31 1:31680    bc5306           57 Film - BW
 #> 11  697358       1968 1968-07-31 1:31680    bc5306           89 Film - BW
+#> 3   699426       1968 1968-05-10 1:12000    bc5282          232 Film - BW
 #> 13  697293       1968 1968-07-31 1:31680    bc5306           24 Film - BW
 #> 10  699421       1968 1968-05-10 1:12000    bc5282          227 Film - BW
 #> 4   699396       1968 1968-05-10 1:12000    bc5282          202 Film - BW
@@ -144,10 +144,10 @@ fly_select(centroids, aoi, mode = "minimal", target_coverage = 0.80,
 #> 15  696206       1968 1968-07-31 1:31680    bc5300          236 Film - BW
 #> 12  697292       1968 1968-07-31 1:31680    bc5306           23 Film - BW
 #> 6   699419       1968 1968-05-10 1:12000    bc5282          225 Film - BW
-#> 20  697329       1968 1968-07-31 1:31680    bc5306           60 Film - BW
 #>     photo_tag nts_tile focal_length flying_height ground_sample_distance
 #> 18 bc5306_057   093L07          153          5944                     NA
 #> 11 bc5306_089   093L07          153          5944                     NA
+#> 3  bc5282_232   093L07          153          2591                     NA
 #> 13 bc5306_024   093L07          153          5944                     NA
 #> 10 bc5282_227   093L07          153          2591                     NA
 #> 4  bc5282_202   093L07          153          2591                     NA
@@ -155,10 +155,10 @@ fly_select(centroids, aoi, mode = "minimal", target_coverage = 0.80,
 #> 15 bc5300_236   093L08          153          5944                     NA
 #> 12 bc5306_023   093L07          153          5944                     NA
 #> 6  bc5282_225   093L07          153          2591                     NA
-#> 20 bc5306_060   093L07          153          5944                     NA
 #>                                                   thumbnail_image_url
 #> 18 https://openmaps.gov.bc.ca/thumbs/1968/bc5306/bc5306_057_thumb.jpg
 #> 11 https://openmaps.gov.bc.ca/thumbs/1968/bc5306/bc5306_089_thumb.jpg
+#> 3  https://openmaps.gov.bc.ca/thumbs/1968/bc5282/bc5282_232_thumb.jpg
 #> 13 https://openmaps.gov.bc.ca/thumbs/1968/bc5306/bc5306_024_thumb.jpg
 #> 10 https://openmaps.gov.bc.ca/thumbs/1968/bc5282/bc5282_227_thumb.jpg
 #> 4  https://openmaps.gov.bc.ca/thumbs/1968/bc5282/bc5282_202_thumb.jpg
@@ -166,10 +166,10 @@ fly_select(centroids, aoi, mode = "minimal", target_coverage = 0.80,
 #> 15 https://openmaps.gov.bc.ca/thumbs/1968/bc5300/bc5300_236_thumb.jpg
 #> 12 https://openmaps.gov.bc.ca/thumbs/1968/bc5306/bc5306_023_thumb.jpg
 #> 6  https://openmaps.gov.bc.ca/thumbs/1968/bc5282/bc5282_225_thumb.jpg
-#> 20 https://openmaps.gov.bc.ca/thumbs/1968/bc5306/bc5306_060_thumb.jpg
 #>                                                             flight_log_url
 #> 18 https://openmaps.gov.bc.ca/thumbs/logbooks/1968/roll_pages/bc5306_1.jpg
 #> 11 https://openmaps.gov.bc.ca/thumbs/logbooks/1968/roll_pages/bc5306_1.jpg
+#> 3  https://openmaps.gov.bc.ca/thumbs/logbooks/1968/roll_pages/bc5282_1.jpg
 #> 13 https://openmaps.gov.bc.ca/thumbs/logbooks/1968/roll_pages/bc5306_1.jpg
 #> 10 https://openmaps.gov.bc.ca/thumbs/logbooks/1968/roll_pages/bc5282_1.jpg
 #> 4  https://openmaps.gov.bc.ca/thumbs/logbooks/1968/roll_pages/bc5282_1.jpg
@@ -177,10 +177,10 @@ fly_select(centroids, aoi, mode = "minimal", target_coverage = 0.80,
 #> 15 https://openmaps.gov.bc.ca/thumbs/logbooks/1968/roll_pages/bc5300_2.jpg
 #> 12 https://openmaps.gov.bc.ca/thumbs/logbooks/1968/roll_pages/bc5306_1.jpg
 #> 6  https://openmaps.gov.bc.ca/thumbs/logbooks/1968/roll_pages/bc5282_1.jpg
-#> 20 https://openmaps.gov.bc.ca/thumbs/logbooks/1968/roll_pages/bc5306_1.jpg
 #>    camera_calibration_url patb_georef_url                       geom
 #> 18                   <NA>            <NA> POINT (-126.6025 54.34512)
 #> 11                   <NA>            <NA> POINT (-126.6796 54.41035)
+#> 3                    <NA>            <NA> POINT (-126.6292 54.40794)
 #> 13                   <NA>            <NA> POINT (-126.5269 54.43578)
 #> 10                   <NA>            <NA> POINT (-126.5655 54.43945)
 #> 4                    <NA>            <NA> POINT (-126.5869 54.45413)
@@ -188,18 +188,17 @@ fly_select(centroids, aoi, mode = "minimal", target_coverage = 0.80,
 #> 15                   <NA>            <NA>  POINT (-126.449 54.41519)
 #> 12                   <NA>            <NA> POINT (-126.5269 54.46049)
 #> 6                    <NA>            <NA>   POINT (-126.54 54.45206)
-#> 20                   <NA>            <NA> POINT (-126.6039 54.42617)
 #>    selection_order cumulative_coverage_pct
 #> 18               1                     3.6
 #> 11               2                    44.6
-#> 13               3                    68.9
-#> 10               4                    70.3
-#> 4                5                    72.2
-#> 17               6                    74.8
-#> 15               7                    76.6
-#> 12               8                    78.0
-#> 6                9                    78.0
-#> 20              10                    90.1
+#> 3                3                    46.8
+#> 13               4                    71.0
+#> 10               5                    72.4
+#> 4                6                    74.3
+#> 17               7                    76.9
+#> 15               8                    78.7
+#> 12               9                    80.1
+#> 6               10                    80.1
 
 # All photos touching the AOI
 fly_select(centroids, aoi, mode = "all")

@@ -24,19 +24,36 @@ fly_bearing(photos_sf)
 ## Value
 
 The input sf object with an added `bearing` column (degrees clockwise
-from north, 0–360). Photos with no computable bearing (single-frame
-rolls) get `NA`.
+from north, 0–360). Photos with no **adjacent** frame on the same roll
+get `NA` — a single-frame roll, and any frame whose neighbours in the
+supplied object are more than one frame number away.
 
 ## Details
 
 Within each roll, frames are sorted by `frame_number`. The bearing for
-each frame is the azimuth to the next frame on the same roll. The last
-frame on each roll gets the bearing from the previous frame.
+each frame is the azimuth to the next frame on the same roll, and the
+last frame of an adjacent run takes the bearing from the previous one.
 
-Aerial survey flights follow back-and-forth patterns, so bearings
-alternate between ~opposite directions (e.g., 90° and 270°) on
-consecutive legs. Large frame number gaps may indicate a new flight line
-within the same roll.
+**The neighbour must be adjacent by frame number.** Aerial survey
+flights follow back-and-forth patterns, so a roll holds several legs;
+two frames that merely sit next to each other in a *sample* of a roll
+may be on different legs, and the azimuth between those is a cross-leg
+artefact rather than a heading. In the bundled test data, bc5282 frames
+179 and 199 are 20 apart and 3.3 footprint-sides apart, and pairing them
+gives 59.8° on a roll that flies about 230°.
+
+So a gap of more than one frame yields `NA`. This is deliberately
+strict: adjacency is demonstrable, whereas "close enough to be on the
+same line" needs a threshold in footprint-sides that this function
+cannot measure. Since
+[`fly_footprint()`](https://newgraphenvironment.github.io/fly/reference/fly_footprint.md)
+rotates a footprint onto this bearing, an `NA` costs an axis-aligned
+rectangle while a wrong azimuth costs a rectangle confidently rotated
+onto ground the frame does not cover.
+
+To keep bearings across a subset, call `fly_bearing()` on the contiguous
+roll first and carry the column: subsetting removes neighbours, and a
+frame whose neighbour was dropped has no adjacent one left.
 
 ## Examples
 
@@ -58,15 +75,15 @@ with_bearing[, c("film_roll", "frame_number", "bearing")]
 #> Bounding box:  xmin: -126.7631 ymin: 54.34512 xmax: -126.449 ymax: 54.47635
 #> Geodetic CRS:  WGS 84
 #> First 10 features:
-#>    film_roll frame_number   bearing                       geom
-#> 1     bc5282          176 318.20176  POINT (-126.7091 54.3727)
-#> 2     bc5282          221 231.59103 POINT (-126.4879 54.47635)
-#> 3     bc5282          232 229.96917 POINT (-126.6292 54.40794)
-#> 4     bc5282          202  69.25748 POINT (-126.5869 54.45413)
-#> 5     bc5282          171 226.53892 POINT (-126.6885 54.38426)
-#> 6     bc5282          225 229.97709   POINT (-126.54 54.45206)
-#> 7     bc5282          231 229.96917 POINT (-126.6165 54.41424)
-#> 8     bc5282          199  50.54281  POINT (-126.624 54.43612)
-#> 9     bc5282          179  59.79819 POINT (-126.7438 54.39477)
-#> 10    bc5282          227 230.03240 POINT (-126.5655 54.43945)
+#>    film_roll frame_number  bearing                       geom
+#> 1     bc5282          176       NA  POINT (-126.7091 54.3727)
+#> 2     bc5282          221       NA POINT (-126.4879 54.47635)
+#> 3     bc5282          232 229.9692 POINT (-126.6292 54.40794)
+#> 4     bc5282          202       NA POINT (-126.5869 54.45413)
+#> 5     bc5282          171       NA POINT (-126.6885 54.38426)
+#> 6     bc5282          225       NA   POINT (-126.54 54.45206)
+#> 7     bc5282          231 229.9692 POINT (-126.6165 54.41424)
+#> 8     bc5282          199       NA  POINT (-126.624 54.43612)
+#> 9     bc5282          179       NA POINT (-126.7438 54.39477)
+#> 10    bc5282          227       NA POINT (-126.5655 54.43945)
 ```

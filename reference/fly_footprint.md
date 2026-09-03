@@ -51,13 +51,15 @@ fly_footprint(centroids_sf, negative_size = 9, format_size = NULL, dem = NULL)
 An sf polygon object in the same CRS as input, with footprint
 rectangles, a `footprint_basis` column recording how each was sized, a
 `footprint_terrain` column recording which terrain treatment was
-applied, `height_agl` giving the metres above ground each footprint was
-sized from, and `dem_coverage` giving the fraction of each footprint the
-DEM actually covered (`0` where it covered none, `NA` only where there
-is no footprint). Frames whose format could not be resolved get an empty
-geometry. Every class the input carries is carried through, so a
-tibble-backed sf — which is what `bcdata::collect()` returns — comes
-back tibble-backed. The order is not preserved:
+applied, `footprint_bearing` giving the flight azimuth each rectangle
+was rotated onto (`NA` where it was drawn axis-aligned because no
+bearing could be computed), `height_agl` giving the metres above ground
+each was sized from, and `dem_coverage` giving the fraction of each
+footprint the DEM actually covered (`0` where it covered none, `NA` only
+where there is no footprint). Frames whose format could not be resolved
+get an empty geometry. Every class the input carries is carried through,
+so a tibble-backed sf — which is what `bcdata::collect()` returns —
+comes back tibble-backed. The order is not preserved:
 [`sf::st_transform()`](https://r-spatial.github.io/sf/reference/st_transform.html)
 moves `sf` to the front, so a `bcdc_sf` input returns
 `sf, bcdc_sf, ...`, as it always has.
@@ -131,12 +133,20 @@ every footprint traces back to a source. Calibrations that could not be
 corroborated are listed in `inst/extdata/camera_formats_excluded.csv`
 with the reason, and frames naming one are refused rather than inferred.
 
-**Digital footprints are not square** — sensors run from 1.10:1 (Leica
-DMC II) to 1.80:1 (Intergraph DMC) — so they are rotated onto the flight
-line using
-[`fly_bearing()`](https://newgraphenvironment.github.io/fly/reference/fly_bearing.md).
-Where no bearing can be computed the rectangle stays axis-aligned and
-`width_source` says so. Film stays square and is unaffected.
+**Every footprint is rotated onto the flight line** using
+[`fly_bearing()`](https://newgraphenvironment.github.io/fly/reference/fly_bearing.md),
+and `footprint_bearing` records the azimuth each was rotated onto. Where
+no bearing can be computed — a single-frame roll, or absent `film_roll`
+/ `frame_number` columns — the rectangle stays axis-aligned,
+`footprint_bearing` is `NA` and `width_source` says so.
+
+Digital sensors are not square, running from 1.10:1 (Leica DMC II) to
+1.80:1 (Intergraph DMC), so rotating them is visibly load-bearing. Film
+is square, which is why rotating it was deferred until fly#26 — but a
+square rotated 45 degrees overlaps its axis-aligned self by only about
+83%, so leaving film alone was not neutral. It was reporting coverage of
+ground the frame does not photograph. Film footprints on off-cardinal
+headings therefore **move** as of v0.9.0.
 
 Supply `format_size` to size a frame `fly` cannot, or to override it:
 
@@ -287,8 +297,8 @@ if (requireNamespace("terra", quietly = TRUE)) {
     as.numeric(sf::st_area(sf::st_transform(footprints, 3005))) - 1), 1))
   print(table(terrain$footprint_terrain))
 }
-#>  [1] 16.9 11.1 15.4  4.9  0.5 13.4 14.1  2.1 18.1 12.8 16.1 16.0 15.0 11.0  9.0
-#> [16] 26.4  6.2  9.1 16.4 15.5
+#>  [1] 16.9 11.1 15.3  4.9  0.5 13.4 14.0  2.1 18.1 12.8 16.1 16.0 15.0 11.0  9.0
+#> [16] 26.4  6.2  9.1 16.3 15.5
 #> 
 #> dem_agl 
 #>      20 

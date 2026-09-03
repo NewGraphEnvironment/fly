@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fly</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.8.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.9.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,21 @@
 
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="development version" id="fly-development-version">fly (development version)<a class="anchor" aria-label="anchor" href="#fly-development-version"></a></h2>
+<div class="section level3">
+<h3 id="id_090-development-version">0.9.0 (2026-09-02)<a class="anchor" aria-label="anchor" href="#id_090-development-version"></a></h3>
+<ul><li>
+<strong>Every footprint is now rotated onto its flight line, so diagonal film footprints move</strong> (<a href="https://github.com/NewGraphEnvironment/fly/issues/26" class="external-link">#26</a>). v0.6.0 built continuous rotation and gated it on the recording format being non-square, which kept film byte-identical. That gate was wrong about the ground: a film camera is mounted square-on to the flight line just as a digital one is, so the real footprint is a square <em>rotated</em> onto the bearing. An axis-aligned square is correct only on a cardinal heading, and at 45 degrees it overlaps the true footprint by <code>2(sqrt(2)-1)</code> = <strong>83%</strong> — <code><a href="../reference/fly_coverage.html">fly_coverage()</a></code> was reporting that missing sixth as covered ground. A new <code>footprint_bearing</code> column records the azimuth each ring was rotated onto, or <code>NA</code> where it was drawn axis-aligned</li>
+<li>
+<strong><code><a href="../reference/fly_bearing.html">fly_bearing()</a></code> now refuses a neighbour that is not adjacent by <code>frame_number</code>, which is breaking for sampled input.</strong> It used to take the azimuth to the next frame <em>present in the object handed to it</em>, with no test on gap or distance. A roll flies several legs, so in a sample that pairs frames across a turn: bundled frames bc5282 179 and 199 are 20 apart and 3.3 footprint-sides apart, and give 59.8 degrees on a roll flying about 230. That was survivable while nothing consumed the bearing and largely invisible when v0.6.0 applied it to digital only; rotating film makes it rotate a footprint bodily. It also made geometry <strong>batch-dependent</strong> — <code>centroids[1:2, ]</code> returned 51.5 for both frames where the full 20-row batch returns 318.2 and 231.6, so the same photo covered different ground depending on the subset it was passed in. Seven of the twenty bundled frames keep a bearing. To hold bearings across a subset, call <code><a href="../reference/fly_bearing.html">fly_bearing()</a></code> on the contiguous roll first and carry the column</li>
+<li>
+<strong><code><a href="../reference/fly_georef.html">fly_georef()</a></code> refuses a rotated film frame unless you supply the roll’s rotation, and this is a measurement rather than an omission.</strong> Adjacent-frame overlap correlation over four contiguous legs gives <strong>0 for bc5282 (1968)</strong> and <strong>90 for bc83062 (1983)</strong>, the latter consistently at three widely separated bearings. So the mapping is genuinely flight-relative — a geographic convention could not return one answer across three bearings, and a fixed-geographic rival was tested and falsified — but it differs by a quarter turn between eras, which is what <a href="https://github.com/NewGraphEnvironment/fly/issues/26" class="external-link">#26</a> said at the outset. There is no film equivalent of the digital constant to write. A wrong mapping here yields a valid GeoTIFF over the right ground with the picture turned 90 degrees, which nothing downstream would report, so the frame is skipped with a warning naming the roll and the fix. Set a <code>rotation</code> column on <code>photos_sf</code> once you have checked one frame of the roll against known ground</li>
+<li>
+<strong>The <code>rotation</code> column’s meaning changed.</strong> It used to shift corners on an axis-aligned square; it now shifts them on a ring already rotated onto the bearing. A value calibrated by eye against an earlier release no longer means the same thing and must be re-checked. The <code>rotation</code> <em>argument</em> likewise now only ever reaches frames for which no bearing could be computed</li>
+<li>
+<code><a href="../reference/fly_georef.html">fly_georef()</a></code> routes on <code>is.finite(footprint_bearing)</code> rather than on <code>fly_is_square()</code>. Squareness stood in for “was this ring rotated” and the two have come apart now that film is rotated too</li>
+<li>Fixed a latent defect in <code>fly_rectangles()</code> present since v0.6.0 for every rotated digital frame: the closing ring vertex was recomputed by the rotation rather than copied, and <code>%*%</code> computes rows independently, so an optimised BLAS can return it a few ulps off the first (measured 2.8e-14 at bearing 230). <code><a href="https://r-spatial.github.io/sf/reference/st.html" class="external-link">sf::st_polygon()</a></code> requires exact closure and <strong>errors</strong>, so one unlucky frame aborted the whole batch. Data-dependent, which is why the bundled fixture never triggered it</li>
+<li>The no-bearing warning was gated on the footprint being non-square and so never fired for film, which needs it as much as digital does</li>
+</ul></div>
 <div class="section level3">
 <h3 id="id_080-development-version">0.8.0 (2026-09-01)<a class="anchor" aria-label="anchor" href="#id_080-development-version"></a></h3>
 <ul><li>

@@ -9,7 +9,7 @@ of each airphoto, based on film negative dimensions and the reported scale."><me
 
     <a class="navbar-brand me-2" href="../index.html">fly</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.8.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.9.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -89,7 +89,9 @@ flat-terrain behaviour — see <strong>Terrain</strong> below.</p></dd>
     <p>An sf polygon object in the same CRS as input, with footprint
 rectangles, a <code>footprint_basis</code> column recording how each was sized, a
 <code>footprint_terrain</code> column recording which terrain treatment was applied,
-<code>height_agl</code> giving the metres above ground each footprint was sized from,
+<code>footprint_bearing</code> giving the flight azimuth each rectangle was rotated
+onto (<code>NA</code> where it was drawn axis-aligned because no bearing could be
+computed), <code>height_agl</code> giving the metres above ground each was sized from,
 and <code>dem_coverage</code> giving the fraction of each footprint the DEM actually
 covered (<code>0</code> where it covered none, <code>NA</code> only where there is no footprint).
 Frames whose format could not be resolved get an empty geometry. Every
@@ -157,10 +159,17 @@ pixel count spreads 32-83%, so an inferred frame can only be sized through a DEM
 footprint traces back to a source. Calibrations that could not be corroborated are
 listed in <code>inst/extdata/camera_formats_excluded.csv</code> with the reason, and frames
 naming one are refused rather than inferred.</p>
-<p><strong>Digital footprints are not square</strong> — sensors run from 1.10:1 (Leica DMC II) to
-1.80:1 (Intergraph DMC) — so they are rotated onto the flight line using
-<code><a href="fly_bearing.html">fly_bearing()</a></code>. Where no bearing can be computed the rectangle stays axis-aligned
-and <code>width_source</code> says so. Film stays square and is unaffected.</p>
+<p><strong>Every footprint is rotated onto the flight line</strong> using <code><a href="fly_bearing.html">fly_bearing()</a></code>, and
+<code>footprint_bearing</code> records the azimuth each was rotated onto. Where no bearing can
+be computed — a single-frame roll, or absent <code>film_roll</code> / <code>frame_number</code> columns —
+the rectangle stays axis-aligned, <code>footprint_bearing</code> is <code>NA</code> and <code>width_source</code>
+says so.</p>
+<p>Digital sensors are not square, running from 1.10:1 (Leica DMC II) to 1.80:1
+(Intergraph DMC), so rotating them is visibly load-bearing. Film is square, which is
+why rotating it was deferred until fly#26 — but a square rotated 45 degrees overlaps
+its axis-aligned self by only about 83%, so leaving film alone was not neutral. It
+was reporting coverage of ground the frame does not photograph. Film footprints on
+off-cardinal headings therefore <strong>move</strong> as of v0.9.0.</p>
 <p>Supply <code>format_size</code> to size a frame <code>fly</code> cannot, or to override it:</p>
 <p></p><div class="sourceCode r"><pre><code><span><span class="fu"><a href="../reference/fly_footprint.html">fly_footprint</a></span><span class="op">(</span><span class="va">photos</span>, format_size <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Digital - Colour"</span> <span class="op">=</span> <span class="fl">3.54</span><span class="op">)</span><span class="op">)</span></span></code></pre><p></p></div>
 <p>Filter on <code>footprint_basis</code> to keep only frames sized from a known format.</p>
@@ -288,8 +297,8 @@ accept the same <code>dem</code> argument and inherit whichever basis you give t
 <span class="r-in"><span>    <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="fu">sf</span><span class="fu">::</span><span class="fu"><a href="https://r-spatial.github.io/sf/reference/geos_measures.html" class="external-link">st_area</a></span><span class="op">(</span><span class="fu">sf</span><span class="fu">::</span><span class="fu"><a href="https://r-spatial.github.io/sf/reference/st_transform.html" class="external-link">st_transform</a></span><span class="op">(</span><span class="va">footprints</span>, <span class="fl">3005</span><span class="op">)</span><span class="op">)</span><span class="op">)</span> <span class="op">-</span> <span class="fl">1</span><span class="op">)</span>, <span class="fl">1</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-in"><span>  <span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/table.html" class="external-link">table</a></span><span class="op">(</span><span class="va">terrain</span><span class="op">$</span><span class="va">footprint_terrain</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  [1] 16.9 11.1 15.4  4.9  0.5 13.4 14.1  2.1 18.1 12.8 16.1 16.0 15.0 11.0  9.0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [16] 26.4  6.2  9.1 16.4 15.5</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  [1] 16.9 11.1 15.3  4.9  0.5 13.4 14.0  2.1 18.1 12.8 16.1 16.0 15.0 11.0  9.0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [16] 26.4  6.2  9.1 16.3 15.5</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> dem_agl </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>      20 </span>

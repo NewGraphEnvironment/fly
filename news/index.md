@@ -2,6 +2,77 @@
 
 ## fly (development version)
 
+### 0.9.0 (2026-09-02)
+
+- **Every footprint is now rotated onto its flight line, so diagonal
+  film footprints move**
+  ([\#26](https://github.com/NewGraphEnvironment/fly/issues/26)). v0.6.0
+  built continuous rotation and gated it on the recording format being
+  non-square, which kept film byte-identical. That gate was wrong about
+  the ground: a film camera is mounted square-on to the flight line just
+  as a digital one is, so the real footprint is a square *rotated* onto
+  the bearing. An axis-aligned square is correct only on a cardinal
+  heading, and at 45 degrees it overlaps the true footprint by
+  `2(sqrt(2)-1)` = **83%** —
+  [`fly_coverage()`](https://newgraphenvironment.github.io/fly/reference/fly_coverage.md)
+  was reporting that missing sixth as covered ground. A new
+  `footprint_bearing` column records the azimuth each ring was rotated
+  onto, or `NA` where it was drawn axis-aligned
+- **[`fly_bearing()`](https://newgraphenvironment.github.io/fly/reference/fly_bearing.md)
+  now refuses a neighbour that is not adjacent by `frame_number`, which
+  is breaking for sampled input.** It used to take the azimuth to the
+  next frame *present in the object handed to it*, with no test on gap
+  or distance. A roll flies several legs, so in a sample that pairs
+  frames across a turn: bundled frames bc5282 179 and 199 are 20 apart
+  and 3.3 footprint-sides apart, and give 59.8 degrees on a roll flying
+  about 230. That was survivable while nothing consumed the bearing and
+  largely invisible when v0.6.0 applied it to digital only; rotating
+  film makes it rotate a footprint bodily. It also made geometry
+  **batch-dependent** — `centroids[1:2, ]` returned 51.5 for both frames
+  where the full 20-row batch returns 318.2 and 231.6, so the same photo
+  covered different ground depending on the subset it was passed in.
+  Seven of the twenty bundled frames keep a bearing. To hold bearings
+  across a subset, call
+  [`fly_bearing()`](https://newgraphenvironment.github.io/fly/reference/fly_bearing.md)
+  on the contiguous roll first and carry the column
+- **[`fly_georef()`](https://newgraphenvironment.github.io/fly/reference/fly_georef.md)
+  refuses a rotated film frame unless you supply the roll’s rotation,
+  and this is a measurement rather than an omission.** Adjacent-frame
+  overlap correlation over four contiguous legs gives **0 for bc5282
+  (1968)** and **90 for bc83062 (1983)**, the latter consistently at
+  three widely separated bearings. So the mapping is genuinely
+  flight-relative — a geographic convention could not return one answer
+  across three bearings, and a fixed-geographic rival was tested and
+  falsified — but it differs by a quarter turn between eras, which is
+  what [\#26](https://github.com/NewGraphEnvironment/fly/issues/26) said
+  at the outset. There is no film equivalent of the digital constant to
+  write. A wrong mapping here yields a valid GeoTIFF over the right
+  ground with the picture turned 90 degrees, which nothing downstream
+  would report, so the frame is skipped with a warning naming the roll
+  and the fix. Set a `rotation` column on `photos_sf` once you have
+  checked one frame of the roll against known ground
+- **The `rotation` column’s meaning changed.** It used to shift corners
+  on an axis-aligned square; it now shifts them on a ring already
+  rotated onto the bearing. A value calibrated by eye against an earlier
+  release no longer means the same thing and must be re-checked. The
+  `rotation` *argument* likewise now only ever reaches frames for which
+  no bearing could be computed
+- [`fly_georef()`](https://newgraphenvironment.github.io/fly/reference/fly_georef.md)
+  routes on `is.finite(footprint_bearing)` rather than on
+  `fly_is_square()`. Squareness stood in for “was this ring rotated” and
+  the two have come apart now that film is rotated too
+- Fixed a latent defect in `fly_rectangles()` present since v0.6.0 for
+  every rotated digital frame: the closing ring vertex was recomputed by
+  the rotation rather than copied, and `%*%` computes rows
+  independently, so an optimised BLAS can return it a few ulps off the
+  first (measured 2.8e-14 at bearing 230).
+  [`sf::st_polygon()`](https://r-spatial.github.io/sf/reference/st.html)
+  requires exact closure and **errors**, so one unlucky frame aborted
+  the whole batch. Data-dependent, which is why the bundled fixture
+  never triggered it
+- The no-bearing warning was gated on the footprint being non-square and
+  so never fired for film, which needs it as much as digital does
+
 ### 0.8.0 (2026-09-01)
 
 - **Every function that takes photo centroids now refuses non-POINT

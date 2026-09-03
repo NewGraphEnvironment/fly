@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fly</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.8.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.9.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -121,6 +121,31 @@ everything if you know your camera:
 <code>fly_footprint(photos, format_size = c("Digital - Colour" = 3.54))</code>.</p>
 <p>The photos used throughout the rest of this vignette are 1968 film,
 so every footprint below is sized from the 9-inch negative.</p>
+<div class="section level3">
+<h3 id="rotation-onto-the-flight-line">Rotation onto the flight line<a class="anchor" aria-label="anchor" href="#rotation-onto-the-flight-line"></a>
+</h3>
+<p>A footprint is a rectangle on the ground, and the aircraft was not
+necessarily flying north. <code><a href="../reference/fly_footprint.html">fly_footprint()</a></code> rotates each
+rectangle onto the flight line, taking the azimuth from
+<code><a href="../reference/fly_bearing.html">fly_bearing()</a></code>, and records it in
+<code>footprint_bearing</code>. An axis-aligned square is only correct
+on a cardinal heading — at 45 degrees it overlaps the true footprint by
+about 83%, so leaving it unrotated claims ground the frame does not
+photograph.</p>
+<p>The bearing comes from a frame that is <strong>adjacent by
+<code>frame_number</code></strong> on the same roll. That is
+deliberately strict: a roll flies several legs, so two frames that
+merely sit next to each other in a <em>sample</em> of a roll can be on
+different legs, and the azimuth between those is not a heading. Where no
+adjacent neighbour is present, <code>footprint_bearing</code> is
+<code>NA</code> and the rectangle is drawn axis-aligned as before.</p>
+<p>This has a consequence worth knowing when reading the figures below:
+the bundled centroids are a sample, so only 7 of the 20 frames have an
+adjacent neighbour, and a <em>subset</em> has fewer still. A selection
+re-run through <code><a href="../reference/fly_footprint.html">fly_footprint()</a></code> can therefore show
+axis-aligned rectangles where the all-photos figure showed rotated ones.
+To keep bearings across a subset, call <code><a href="../reference/fly_bearing.html">fly_bearing()</a></code> on the
+contiguous roll first and carry the column.</p>
 <p>By default footprints are sized from the reported scale, which
 assumes flat ground at whatever elevation that scale was computed for.
 Supplying a DEM removes that assumption — worth about 14% of footprint
@@ -171,6 +196,7 @@ overlaid on the Upper Bulkley River floodplain AOI.
 </tbody>
 </table>
 </div>
+</div>
 <div class="section level2">
 <h2 id="summary-statistics">Summary statistics<a class="anchor" aria-label="anchor" href="#summary-statistics"></a>
 </h2>
@@ -196,7 +222,7 @@ covered by photo footprints, grouped by any column.</p>
 <span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 2 × 4</span></span></span>
 <span><span class="co">#&gt;   scale   n_photos covered_km2 coverage_pct</span></span>
 <span><span class="co">#&gt;   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>      <span style="color: #949494; font-style: italic;">&lt;int&gt;</span>       <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>        <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> 1:12000       10        15.1         60.7</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> 1:12000       10        14.8         59.5</span></span>
 <span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span> 1:31680       10        24.8        100</span></span></code></pre></div>
 </div>
 <div class="section level2">
@@ -265,11 +291,10 @@ component before running greedy selection:</p>
 <span><span class="va">selected_ec</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fly_select.html">fly_select</a></span><span class="op">(</span><span class="va">centroids</span>, <span class="va">aoi</span>, mode <span class="op">=</span> <span class="st">"minimal"</span>,</span>
 <span>                          target_coverage <span class="op">=</span> <span class="fl">0.80</span>, component_ensure <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Spherical geometry (s2) switched off</span></span>
-<span><span class="co">#&gt; Seeding 9 photos for component coverage...</span></span>
-<span><span class="co">#&gt;   9 seed photos -&gt; 78% coverage</span></span>
+<span><span class="co">#&gt; Seeding 10 photos for component coverage...</span></span>
+<span><span class="co">#&gt;   10 seed photos -&gt; 80.1% coverage</span></span>
 <span><span class="co">#&gt; Selecting photos (target: 80% coverage)...</span></span>
-<span><span class="co">#&gt;   10 photos -&gt; 90.1% coverage</span></span>
-<span><span class="co">#&gt; Selected 10 of 20 photos for 90.1% coverage</span></span>
+<span><span class="co">#&gt; Selected 10 of 20 photos for 80.1% coverage</span></span>
 <span><span class="co">#&gt; Spherical geometry (s2) switched on</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Without component_ensure:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">selected</span><span class="op">)</span>, <span class="st">"photos\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Without component_ensure: 3 photos</span></span>
@@ -320,23 +345,24 @@ quality.</p>
 <span><span class="co">#&gt; Spherical geometry (s2) switched off</span></span>
 <span><span class="co">#&gt; Spherical geometry (s2) switched on</span></span>
 <span><span class="va">overlap_12k</span></span>
-<span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 7 × 5</span></span></span>
+<span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 8 × 5</span></span></span>
 <span><span class="co">#&gt;   photo_a photo_b overlap_km2 pct_of_a pct_of_b</span></span>
 <span><span class="co">#&gt;     <span style="color: #949494; font-style: italic;">&lt;int&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;int&gt;</span>       <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span></span>
 <span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span>  <span style="text-decoration: underline;">699</span>370  <span style="text-decoration: underline;">699</span>365       2.05      27.2     27.2</span></span>
 <span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span>  <span style="text-decoration: underline;">699</span>370  <span style="text-decoration: underline;">699</span>373       0.134      1.8      1.8</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">3</span>  <span style="text-decoration: underline;">699</span>426  <span style="text-decoration: underline;">699</span>425       3.92      52.1     52.1</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">4</span>  <span style="text-decoration: underline;">699</span>396  <span style="text-decoration: underline;">699</span>393       0.246      3.3      3.3</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">5</span>  <span style="text-decoration: underline;">699</span>396  <span style="text-decoration: underline;">699</span>421       1.5       19.9     19.9</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">6</span>  <span style="text-decoration: underline;">699</span>419  <span style="text-decoration: underline;">699</span>421       1.46      19.4     19.4</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">7</span>  <span style="text-decoration: underline;">699</span>425  <span style="text-decoration: underline;">699</span>393       0.676      9        9</span></span></code></pre></div>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">3</span>  <span style="text-decoration: underline;">699</span>426  <span style="text-decoration: underline;">699</span>425       4.56      60.6     60.6</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">4</span>  <span style="text-decoration: underline;">699</span>426  <span style="text-decoration: underline;">699</span>393       0.027      0.4      0.4</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">5</span>  <span style="text-decoration: underline;">699</span>396  <span style="text-decoration: underline;">699</span>393       0.246      3.3      3.3</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">6</span>  <span style="text-decoration: underline;">699</span>396  <span style="text-decoration: underline;">699</span>421       1.5       19.9     19.9</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">7</span>  <span style="text-decoration: underline;">699</span>419  <span style="text-decoration: underline;">699</span>421       1.46      19.4     19.4</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">8</span>  <span style="text-decoration: underline;">699</span>425  <span style="text-decoration: underline;">699</span>393       0.747      9.9      9.9</span></span></code></pre></div>
 <div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">overlap_12k</span><span class="op">)</span> <span class="op">&gt;</span> <span class="fl">0</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"1:12000 overlap range:"</span>,</span>
 <span>      <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">min</a></span><span class="op">(</span><span class="va">overlap_12k</span><span class="op">$</span><span class="va">pct_of_a</span><span class="op">)</span>, <span class="fl">1</span><span class="op">)</span>, <span class="st">"% -"</span>,</span>
 <span>      <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="va">overlap_12k</span><span class="op">$</span><span class="va">pct_of_a</span><span class="op">)</span>, <span class="fl">1</span><span class="op">)</span>, <span class="st">"%\n"</span><span class="op">)</span></span>
 <span><span class="op">}</span></span>
-<span><span class="co">#&gt; 1:12000 overlap range: 1.8 % - 52.1 %</span></span>
+<span><span class="co">#&gt; 1:12000 overlap range: 0.4 % - 60.6 %</span></span>
 <span></span>
 <span><span class="va">photos_31k</span> <span class="op">&lt;-</span> <span class="va">centroids</span><span class="op">[</span><span class="va">centroids</span><span class="op">$</span><span class="va">scale</span> <span class="op">==</span> <span class="st">"1:31680"</span>, <span class="op">]</span></span>
 <span><span class="va">overlap_31k</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fly_overlap.html">fly_overlap</a></span><span class="op">(</span><span class="va">photos_31k</span><span class="op">)</span></span>
@@ -347,7 +373,7 @@ quality.</p>
 <span>      <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">min</a></span><span class="op">(</span><span class="va">overlap_31k</span><span class="op">$</span><span class="va">pct_of_a</span><span class="op">)</span>, <span class="fl">1</span><span class="op">)</span>, <span class="st">"% -"</span>,</span>
 <span>      <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="va">overlap_31k</span><span class="op">$</span><span class="va">pct_of_a</span><span class="op">)</span>, <span class="fl">1</span><span class="op">)</span>, <span class="st">"%\n"</span><span class="op">)</span></span>
 <span><span class="op">}</span></span>
-<span><span class="co">#&gt; 1:31680 overlap range: 1.9 % - 61.7 %</span></span></code></pre></div>
+<span><span class="co">#&gt; 1:31680 overlap range: 1.8 % - 61.9 %</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="multi-scale-workflow-best-resolution-first">Multi-scale workflow: best resolution first<a class="anchor" aria-label="anchor" href="#multi-scale-workflow-best-resolution-first"></a>
@@ -405,7 +431,7 @@ denominator:</p>
 <span><span class="co">#&gt; are planar</span></span>
 <span><span class="co">#&gt; Selected 10 of 10 photos intersecting the AOI</span></span>
 <span><span class="co">#&gt; Spherical geometry (s2) switched on</span></span>
-<span><span class="co">#&gt; 1:12000 : 10 photos (cumulative coverage: 60.7 %)</span></span>
+<span><span class="co">#&gt; 1:12000 : 10 photos (cumulative coverage: 59.5 %)</span></span>
 <span><span class="co">#&gt; Spherical geometry (s2) switched off</span></span>
 <span><span class="co">#&gt; although coordinates are longitude/latitude, st_union assumes that they are</span></span>
 <span><span class="co">#&gt; planar</span></span>
@@ -459,14 +485,18 @@ Albers.</p>
 <span><span class="co">#&gt; Downloaded 3 of 3 files</span></span>
 <span><span class="va">georef</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fly_georef.html">fly_georef</a></span><span class="op">(</span><span class="va">fetched</span>, <span class="va">centroids</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">3</span>, <span class="op">]</span>,</span>
 <span>                           dest_dir <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Warning: 3 of 3 frames have a footprint but no flight bearing, so they are</span></span>
+<span><span class="co">#&gt; drawn axis-aligned and georeferenced as though the flight line ran due north.</span></span>
+<span><span class="co">#&gt; `fly_bearing()` needs a frame whose `frame_number` is ADJACENT on the same</span></span>
+<span><span class="co">#&gt; roll, so pass neighbouring frames rather than a sample.</span></span>
 <span><span class="co">#&gt; Georeferenced 3 of 3 images</span></span>
 <span><span class="va">georef</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"airp_id"</span>, <span class="st">"dest"</span>, <span class="st">"success"</span><span class="op">)</span><span class="op">]</span></span>
 <span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 3 × 3</span></span></span>
 <span><span class="co">#&gt;   airp_id dest                                 success</span></span>
 <span><span class="co">#&gt;     <span style="color: #949494; font-style: italic;">&lt;int&gt;</span> <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>                                <span style="color: #949494; font-style: italic;">&lt;lgl&gt;</span>  </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span>  <span style="text-decoration: underline;">699</span>370 /tmp/RtmpWCfyBe/bc5282_176_thumb.tif TRUE   </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span>  <span style="text-decoration: underline;">699</span>415 /tmp/RtmpWCfyBe/bc5282_221_thumb.tif TRUE   </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">3</span>  <span style="text-decoration: underline;">699</span>426 /tmp/RtmpWCfyBe/bc5282_232_thumb.tif TRUE</span></span></code></pre></div>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span>  <span style="text-decoration: underline;">699</span>370 /tmp/RtmpAdZoL2/bc5282_176_thumb.tif TRUE   </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span>  <span style="text-decoration: underline;">699</span>415 /tmp/RtmpAdZoL2/bc5282_221_thumb.tif TRUE   </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">3</span>  <span style="text-decoration: underline;">699</span>426 /tmp/RtmpAdZoL2/bc5282_232_thumb.tif TRUE</span></span></code></pre></div>
 <p>The georeferenced TIFFs inherit whatever basis
 <code><a href="../reference/fly_footprint.html">fly_footprint()</a></code> was given, plus its nadir-camera assumption
 — <code><a href="../reference/fly_georef.html">fly_georef()</a></code> takes the same <code>dem</code> argument.
