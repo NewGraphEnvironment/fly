@@ -62,6 +62,37 @@ correlation, FWA lake darkness). **The geometry alone cannot get there** — the
 the answer to 270 or 90 and a rectangle is symmetric under the 180 degrees between them, so anyone
 re-deriving this from the ring will produce a plausible wrong answer. Read `inst/notes/georeferencing.md`
 
+- **Every footprint is rotated onto its flight line, and film has no corner-mapping
+constant** (v0.9.0, #26) — #32 built continuous rotation and gated it on the format being
+non-square, so film stayed axis-aligned. That gate was wrong about the ground: a film
+camera is mounted square-on to the flight line too, so the real footprint is a square
+*rotated* onto the bearing, and at 45 degrees an axis-aligned square overlaps it by only
+83% — `fly_coverage()` was reporting that missing sixth as covered. `footprint_bearing`
+records the azimuth each ring was rotated onto, and `fly_georef()` routes on
+`is.finite()` of it rather than on `fly_is_square()`, because squareness stood in for
+"was it rotated" and the two have come apart.
+
+  **The film mapping was measured and there is no constant.** Adjacent-frame overlap over
+four contiguous legs: bc5282 (1968) gives 0, bc83062 (1983) gives 90 at three separate
+bearings. So the mapping is genuinely flight-relative — a geographic convention could not
+produce one answer across three bearings — but it differs by a quarter turn between eras,
+exactly as #26 said at the outset. A fixed-geographic rival was tested and falsified. So
+`fly_georef()` **refuses** a rotated film frame unless the caller supplies the roll's
+`rotation`, rather than writing a valid GeoTIFF over the right ground with the picture
+turned 90 degrees. Do not "finish" this by picking one of the two numbers. Read
+`inst/notes/georeferencing.md`
+
+- **`fly_bearing()` refuses a neighbour that is not adjacent by frame number** (v0.9.0,
+#26) — it used to take the azimuth to the next frame *present in the object handed to it*.
+A roll flies several legs, so in a sample that pairs frames across a turn: bc5282 179 and
+199 are 20 apart and 3.3 footprint-sides apart, giving 59.8 degrees on a roll flying 230.
+Harmless while nothing consumed it, and it made geometry **batch-dependent** —
+`centroids[1:2, ]` returned 51.5 where the full batch returned 318.2 and 231.6, so the
+same photo covered different ground depending on the subset. Adjacency is demonstrable;
+"close enough to be on one line" needs a threshold in footprint-sides that nothing here
+can measure. Seven of the twenty bundled frames keep a bearing. To hold bearings across a
+subset, call `fly_bearing()` on the contiguous roll and carry the column
+
 - **Terrain error is a datum offset, not slope** (v0.5.0, #9) — `FLYING_HEIGHT` is metres **above sea level**,
 and reported scale is referenced to an elevation above the ground the photos cover, so it understates footprint
 area by a median 13.8% *always in the same direction*. `fly_footprint(dem =)` sizes each frame from
@@ -110,6 +141,23 @@ a tibble, so `footprint_basis`, `footprint_terrain`, `height_agl` and `dem_cover
 documented data source, with geometry and every downstream number still correct. Use `centroid_shapes()` in
 `tests/testthat/setup.R` — it sweeps plain / tibble / grouped / `bcdc_sf` — for anything that attaches columns to
 user-supplied data. Note the class *set* is carried but not its order: `st_transform()` moves `sf` to the front
+- **Close a rotated ring by copying the first vertex, never by recomputing it** (#26) —
+`xy %*% rot` computes rows independently and an optimised BLAS may block or vectorise them
+differently, so a five-row ring carried through the rotation comes back a few ulps
+unclosed (measured: 2.8e-14 at bearing 230, 1000 m half-side). `sf::st_polygon()` demands
+exact closure and **errors**, so one unlucky frame aborts the batch. Data-dependent, so
+the bundled fixture never showed it and 1338 tests passed over it — it was on `main` for
+every rotated digital frame from #32 until #26 found it. `test-fly_footprint.R` sweeps 720
+bearings and asserts the recomputed form still fails somewhere in that sweep
+- **A film footprint is square, so every shape assertion about it is a candidate for
+vacuity** (#26) — area is invariant under rotation, and a rotated square's bounding box is
+still a square, so the film regression net's two shape checks both stayed green while
+their stated premise ("Square, so unrotated") died. What discriminates is vertex 1's
+azimuth from the centroid, `bearing + 225`, which pins the angle, the sign and the vertex
+order together — on a square `hc == ha`, so nothing else separates rotating by `b` with
+shift `r` from rotating by `b ± 90` with shift `r ∓ 90`. The film mapping in
+`inst/notes/georeferencing.md` is only meaningful against that convention; change the
+assertion and the measurement is void
 - **An empty POINT centroid aborts the whole batch** (fly#47, open) — it is a POINT, so it passes the geometry
 guard by design, and then fails in `st_polygon()` with `!anyNA(x) is not TRUE`. Left open deliberately: refusing
 20 frames over one unlocatable centroid would contradict the per-frame reporting #30 established

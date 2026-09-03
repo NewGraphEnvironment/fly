@@ -48,16 +48,13 @@ film constant.
 - [x] Repeat on a second era — bc83062 (1983), three separate legs. bc5306 was NOT
       used: its well-overlapped pairs are cardinal, where every rotation is a quarter
       turn of the same square and the measurement cannot discriminate
-- [ ] Repeat on bc5306, and on a second era if the catalogue has film near the AOI
-      from another decade
 - [x] Positive control FIRST — digital through the same harness returns 270 at +0.713
       against 90 at +0.425, reproducing #38. A harness that cannot find a known answer
       is not evidence
-- [ ] FWA lake darkness as the outside opinion (not needed: the overlap result is
-      decisive in the negative direction, and a weak third route cannot rescue a
-      per-roll answer)
-- [ ] Record every number in `inst/notes/georeferencing.md`, including which rotations
-      the measurement could *not* separate
+- [x] FWA lake darkness — NOT run. The overlap result is decisive in the negative
+      direction, and a weak third route cannot rescue a per-roll answer
+- [x] Record every number in `inst/notes/georeferencing.md`, including what the
+      measurement could *not* separate
 
 **STOP CONDITION FIRED.** bc5282 (1968) = 0; bc83062 (1983) = 90, consistently across
 three bearings. The mapping is flight-relative but per-roll. There is no
@@ -127,14 +124,16 @@ into an average.
 
 ## Phase 5: Document and release
 
-- [ ] `inst/notes/georeferencing.md` — film section with the Phase 1 tables
-- [ ] CLAUDE.md Key Decisions entry
-- [ ] NEWS.md + version bump to 0.9.0 as the final commit
-- [ ] Close #26 with `Fixes #26`
+- [x] `inst/notes/georeferencing.md` — film section with the Phase 1 tables, the
+      falsified rival, the closure rule, and a correction to its opening
+- [x] CLAUDE.md Key Decisions entry, plus two Gotchas (ring closure, square-footprint
+      assertion vacuity)
+- [x] NEWS.md + version bump to 0.9.0
+- [ ] Close #26 on merge
 
 ## Validation
 
-- [ ] Tests pass
-- [ ] `/code-check` clean on each commit
-- [ ] PWF checkboxes match landed work
-- [ ] `/planning-archive` on completion
+- [x] Tests pass (1343, 0 failures, 0 warnings)
+- [x] Lint checked against the `HEAD` baseline on the three changed files: 9 -> 6
+- [x] PWF checkboxes match landed work
+- [x] `/planning-archive` on completion
