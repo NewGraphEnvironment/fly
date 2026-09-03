@@ -48,23 +48,57 @@ test_that("a non-square footprint gets the measured digital rotation, not the be
 })
 
 
-test_that("a mixed batch rotates film by bearing and digital by the constant", {
+test_that("a mixed batch routes on rotation, not on shape", {
+  # Three populations, and fly#26 made them three rather than two:
+  #   rotated non-square (digital)  -> the measured constant
+  #   rotated square     (film)     -> REFUSED, the mapping is per-roll
+  #   unrotated          (either)   -> the pre-existing `rotation` path
+  #
+  # The fixture must reach all three. Rows 1-4 of the film file are frames 176, 221,
+  # 232 and 202 — no two adjacent — so they are unrotated, and an earlier version of
+  # this test used only those while claiming to check "film rotated by bearing". It
+  # passed vacuously. bc5282 231/232 are the one adjacent pair in the bundled sample
+  # and are what reaches the rotated-square branch.
   film <- sf::st_transform(sf::st_read(testdata_path("photo_centroids.gpkg"), quiet = TRUE), 3005)
   dig  <- sf::st_transform(digital_photos(), 3005)
   cols <- intersect(names(film), names(dig))
-  mix  <- rbind(film[1:4, cols], dig[1:3, cols])
+  pair <- film[film$film_roll == "bc5282" & film$frame_number %in% c(231, 232), cols]
+  lone <- film[film$film_roll == "bc5306" & film$frame_number %in% c(26, 89), cols]
+  mix  <- rbind(pair, lone, dig[1:3, cols])
 
   fp <- suppressWarnings(fly_footprint(mix))
-  expect_equal(fly_is_square(fp), c(rep(TRUE, 4), rep(FALSE, 3)))   # premise
+  rotated <- is.finite(fp$footprint_bearing)
+  # Premises, one per population, so a fixture change fails by naming the real cause.
+  expect_equal(rotated,            c(TRUE, TRUE, FALSE, FALSE, TRUE, TRUE, TRUE))
+  expect_equal(fly_is_square(fp),  c(TRUE, TRUE, TRUE,  TRUE,  FALSE, FALSE, FALSE))
 
   seen <- capture_rotations(
     suppressWarnings(fly_georef(fake_fetch(mix), mix, dest_dir = tempfile()))
   )
   got <- unlist(seen)[paste0("f", mix$airp_id, ".jpg")]
 
+  # Rotated film reached `georef_one()` not at all — that is the refusal.
+  expect_true(all(is.na(got[1:2])))
+  # Unrotated film keeps the pre-existing rule exactly, whatever it returns.
+  expect_equal(unname(got[3:4]), bearing_to_rotation(fly_bearing(mix)$bearing[3:4]))
+  # Rotated digital takes the measured constant.
   expect_equal(unname(got[5:7]), rep(fly_digital_rotation(), 3))
-  # Film keeps the pre-existing rule exactly, whatever it returns for these bearings.
-  expect_equal(unname(got[1:4]), bearing_to_rotation(fly_bearing(mix)$bearing[1:4]))
+})
+
+
+test_that("a user rotation column overrides the film refusal", {
+  # The documented escape hatch, and the only supported way to georeference rotated
+  # film. Asserted here on the same fixture as the refusal above so the two cannot
+  # drift apart.
+  film <- sf::st_transform(sf::st_read(testdata_path("photo_centroids.gpkg"), quiet = TRUE), 3005)
+  pair <- film[film$film_roll == "bc5282" & film$frame_number %in% c(231, 232), ]
+  expect_true(all(is.finite(suppressWarnings(fly_footprint(pair))$footprint_bearing)))
+
+  pair$rotation <- 0L
+  seen <- capture_rotations(
+    suppressWarnings(fly_georef(fake_fetch(pair), pair, dest_dir = tempfile()))
+  )
+  expect_equal(unname(unlist(seen)[paste0("f", pair$airp_id, ".jpg")]), c(0L, 0L))
 })
 
 

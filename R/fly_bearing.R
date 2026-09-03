@@ -10,18 +10,33 @@
 #'   Geometry must be POINT. Handed footprints this returned the right *number*
 #'   of bearings with the wrong values, so it is refused rather than coerced.
 #' @return The input sf object with an added `bearing` column (degrees
-#'   clockwise from north, 0–360). Photos with no computable bearing
-#'   (single-frame rolls) get `NA`.
+#'   clockwise from north, 0–360). Photos with no **adjacent** frame on the
+#'   same roll get `NA` — a single-frame roll, and any frame whose
+#'   neighbours in the supplied object are more than one frame number away.
 #'
 #' @details
-#' Within each roll, frames are sorted by `frame_number`. The bearing
-#' for each frame is the azimuth to the next frame on the same roll.
-#' The last frame on each roll gets the bearing from the previous frame.
+#' Within each roll, frames are sorted by `frame_number`. The bearing for each
+#' frame is the azimuth to the next frame on the same roll, and the last frame
+#' of an adjacent run takes the bearing from the previous one.
 #'
-#' Aerial survey flights follow back-and-forth patterns, so bearings
-#' alternate between ~opposite directions (e.g., 90° and 270°) on
-#' consecutive legs. Large frame number gaps may indicate a new flight
-#' line within the same roll.
+#' **The neighbour must be adjacent by frame number.** Aerial survey flights
+#' follow back-and-forth patterns, so a roll holds several legs; two frames that
+#' merely sit next to each other in a *sample* of a roll may be on different
+#' legs, and the azimuth between those is a cross-leg artefact rather than a
+#' heading. In the bundled test data, bc5282 frames 179 and 199 are 20 apart and
+#' 3.3 footprint-sides apart, and pairing them gives 59.8° on a roll that flies
+#' about 230°.
+#'
+#' So a gap of more than one frame yields `NA`. This is deliberately strict:
+#' adjacency is demonstrable, whereas "close enough to be on the same line"
+#' needs a threshold in footprint-sides that this function cannot measure. Since
+#' [fly_footprint()] rotates a footprint onto this bearing, an `NA` costs an
+#' axis-aligned rectangle while a wrong azimuth costs a rectangle confidently
+#' rotated onto ground the frame does not cover.
+#'
+#' To keep bearings across a subset, call `fly_bearing()` on the contiguous roll
+#' first and carry the column: subsetting removes neighbours, and a frame whose
+#' neighbour was dropped has no adjacent one left.
 #'
 #' @examples
 #' centroids <- sf::st_read(system.file("testdata/photo_centroids.gpkg", package = "fly"))
@@ -54,22 +69,40 @@ fly_bearing <- function(photos_sf) {
   bearing <- rep(NA_real_, nrow(photos_sf))
 
   rolls <- photos_sf$film_roll[ord]
+  frames <- suppressWarnings(as.numeric(photos_sf$frame_number))[ord]
   x <- coords[ord, 1]
   y <- coords[ord, 2]
 
+  # A neighbour is only usable if its frame number is ADJACENT. Two frames that merely
+  # sit next to each other in the supplied object may be on different legs of the same
+  # roll, and the azimuth between those is a cross-leg artefact, not a heading. In the
+  # bundled sample bc5282 frames 179 and 199 are 20 apart and 3.3 footprint-sides apart,
+  # and pairing them yields 59.8 degrees on a roll that flies about 230.
+  #
+  # This used to be harmless: nothing consumed `bearing` until #32, and #32 applied it
+  # only to digital frames. fly#26 rotates film onto it too, so a wrong azimuth now
+  # rotates a footprint bodily. Refusing is the same choice #30 made for an unknown
+  # recording format — an NA that reports itself beats a plausible number that does not.
+  #
+  # Adjacency is *demonstrable*; "close enough to be on one line" would need a threshold
+  # in footprint-sides that nothing here can measure. So a gap of more than one frame
+  # yields NA, and the frame is drawn axis-aligned exactly as before.
+  adjacent <- function(a, b) isTRUE(rolls[a] == rolls[b]) &&
+    isTRUE(abs(frames[b] - frames[a]) == 1)
+
   for (i in seq_along(ord)) {
-    if (i < length(ord) && isTRUE(rolls[i] == rolls[i + 1])) {
+    if (i < length(ord) && adjacent(i, i + 1)) {
       # Forward bearing to next frame on same roll
       dx <- x[i + 1] - x[i]
       dy <- y[i + 1] - y[i]
       bearing[ord[i]] <- (atan2(dx, dy) * 180 / pi) %% 360
-    } else if (i > 1 && isTRUE(rolls[i] == rolls[i - 1])) {
-      # Last frame on roll: use bearing from previous
+    } else if (i > 1 && adjacent(i, i - 1)) {
+      # Last frame of an adjacent run: use the bearing from the previous frame
       dx <- x[i] - x[i - 1]
       dy <- y[i] - y[i - 1]
       bearing[ord[i]] <- (atan2(dx, dy) * 180 / pi) %% 360
     }
-    # else: single-frame roll, stays NA
+    # else: no adjacent neighbour on this roll, stays NA
   }
 
   photos_sf$bearing <- bearing

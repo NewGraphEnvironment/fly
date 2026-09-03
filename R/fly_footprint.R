@@ -254,9 +254,14 @@ fly_dem_sample <- function(dem, rects) {
 # nothing downstream. That is strictly worse than the empty geometry #30 chose, and it
 # is reachable — `ground_sample_distance` is 0 on every frame of some digital rolls.
 #
-# `bearing` rotates the rectangle to the flight line, and is applied only where the two
-# half-dimensions differ. A square is unchanged by rotation up to vertex order, so
-# leaving film alone keeps its output identical rather than merely equivalent.
+# `bearing` rotates the rectangle to the flight line, wherever one is finite. Until
+# fly#26 this was gated on the two half-dimensions differing, which left film
+# axis-aligned and its output byte-identical. That gate was wrong about the ground: a
+# film camera is mounted square-on to the flight line just as a digital one is, so the
+# frame's real footprint is a square ROTATED onto the bearing. An axis-aligned square is
+# only correct on a cardinal heading, and at 45 degrees it overlaps the true footprint by
+# about 83% — which `fly_coverage()` was reporting as covered ground. Removing the gate
+# moves every diagonal film footprint, deliberately.
 #
 # Vertex order is preserved as BL, BR, TR, TL, BL in the rectangle's own frame, because
 # `fly_georef()` maps image corners onto footprint corners positionally and that order
@@ -270,22 +275,40 @@ fly_rectangles <- function(coords, half_cross, half_along = half_cross, bearing 
     }
     cx <- coords[i, 1]
     cy <- coords[i, 2]
+    # FOUR vertices. The closing fifth is appended below as a COPY of the first, after
+    # any rotation, rather than carried through the arithmetic as a fifth row.
+    #
+    # `xy %*% rot` computes each row independently, and an optimised BLAS does not
+    # guarantee bit-identical results for identical rows — it may block or vectorise
+    # them differently. Measured at bearing 230 on a 1000 m half-side: rows 1 and 5 came
+    # back 2.8e-14 apart in y. `sf::st_polygon()` requires EXACT closure and raises
+    # "polygons not (all) closed", which is an error rather than a warning, so a single
+    # unlucky frame aborts the whole batch.
+    #
+    # Data-dependent, and therefore invisible to a fixture that happens not to hit it:
+    # the bundled centroids do not, and 1338 tests passed over this. Closing by copy
+    # removes the possibility rather than narrowing it.
     xy <- matrix(
-      c(-hc, -ha, hc, -ha, hc, ha, -hc, ha, -hc, -ha),
+      c(-hc, -ha, hc, -ha, hc, ha, -hc, ha),
       ncol = 2, byrow = TRUE
     )
 
     b <- if (is.null(bearing)) NA_real_ else bearing[i]
-    if (!isTRUE(all.equal(hc, ha)) && is.finite(b)) {
+    if (is.finite(b)) {
       # `bearing` is degrees clockwise from north, so the along-track axis is the local
       # +y. Rotating (x, y) by b clockwise sends (0, 1) to (sin b, cos b) — the heading
       # itself — which is what puts the long axis across the flight line rather than
       # along it.
+      #
+      # The whole vertex matrix is rotated at once, so row k means the same
+      # flight-relative corner before and after. That is what keeps the ring-order
+      # contract intact for a square as it already was for a rectangle.
       rad <- b * pi / 180
       rot <- matrix(c(cos(rad), sin(rad), -sin(rad), cos(rad)), nrow = 2)
       xy <- xy %*% rot
     }
 
+    xy <- rbind(xy, xy[1, , drop = FALSE])
     sf::st_polygon(list(cbind(xy[, 1] + cx, xy[, 2] + cy)))
   }), crs = 3005)
 }
@@ -340,7 +363,9 @@ fly_is_square <- function(footprints) {
 #' @return An sf polygon object in the same CRS as input, with footprint
 #'   rectangles, a `footprint_basis` column recording how each was sized, a
 #'   `footprint_terrain` column recording which terrain treatment was applied,
-#'   `height_agl` giving the metres above ground each footprint was sized from,
+#'   `footprint_bearing` giving the flight azimuth each rectangle was rotated
+#'   onto (`NA` where it was drawn axis-aligned because no bearing could be
+#'   computed), `height_agl` giving the metres above ground each was sized from,
 #'   and `dem_coverage` giving the fraction of each footprint the DEM actually
 #'   covered (`0` where it covered none, `NA` only where there is no footprint).
 #'   Frames whose format could not be resolved get an empty geometry. Every
@@ -405,10 +430,18 @@ fly_is_square <- function(footprints) {
 #' listed in `inst/extdata/camera_formats_excluded.csv` with the reason, and frames
 #' naming one are refused rather than inferred.
 #'
-#' **Digital footprints are not square** — sensors run from 1.10:1 (Leica DMC II) to
-#' 1.80:1 (Intergraph DMC) — so they are rotated onto the flight line using
-#' [fly_bearing()]. Where no bearing can be computed the rectangle stays axis-aligned
-#' and `width_source` says so. Film stays square and is unaffected.
+#' **Every footprint is rotated onto the flight line** using [fly_bearing()], and
+#' `footprint_bearing` records the azimuth each was rotated onto. Where no bearing can
+#' be computed — a single-frame roll, or absent `film_roll` / `frame_number` columns —
+#' the rectangle stays axis-aligned, `footprint_bearing` is `NA` and `width_source`
+#' says so.
+#'
+#' Digital sensors are not square, running from 1.10:1 (Leica DMC II) to 1.80:1
+#' (Intergraph DMC), so rotating them is visibly load-bearing. Film is square, which is
+#' why rotating it was deferred until fly#26 — but a square rotated 45 degrees overlaps
+#' its axis-aligned self by only about 83%, so leaving film alone was not neutral. It
+#' was reporting coverage of ground the frame does not photograph. Film footprints on
+#' off-cardinal headings therefore **move** as of v0.9.0.
 #'
 #' Supply `format_size` to size a frame `fly` cannot, or to override it:
 #'
@@ -659,36 +692,26 @@ fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL,
   half_cross[by_gsd] <- fmt$px_cross[by_gsd] * gsd_m[by_gsd] / 2
   half_along[by_gsd] <- fmt$px_along[by_gsd] * gsd_m[by_gsd] / 2
 
-  # Flight-line azimuth, for rotating a non-square footprint onto the flight line.
+  # Flight-line azimuth, for rotating the footprint onto the flight line.
   #
-  # Decided from the FORMAT's aspect ratio, not from the half-dimensions. The
+  # Computed for EVERY frame since fly#26. Until then it was gated on the format being
+  # non-square, and that gate carried a `non_square` local computed here from the
+  # FORMAT's aspect ratio rather than from the half-dimensions — because the
   # half-dimensions are NA for every camera-table row until a sizing route fills them,
-  # and the DEM route fills them *after* this point — so keying on them would leave
-  # `non_square` FALSE for exactly the frames the DEM exists to size, drawing them
-  # axis-aligned while `fly_bearing()` had a perfectly good azimuth for them. It would
-  # also make the answer depend on what else was in the batch. The aspect ratio is known
-  # before any route runs, which is what makes it the right thing to key on.
+  # and the DEM route fills them after this point. That reasoning is preserved in
+  # `fly_rectangles()`, which is where the rotation now happens unconditionally; the
+  # local itself is gone rather than left computed and unread.
   #
-  # This is the same NA-by-construction fact that has now bitten three separate
-  # conditions in this function; a value that only some routes populate is not a safe
-  # thing to branch on.
-  fmt_aspect_cross <- ifelse(is.na(width_in), fmt$width_mm, width_in * 25.4)
-  fmt_aspect_along <- ifelse(is.na(width_in), fmt$height_mm, width_in * 25.4)
-  non_square <- !is.na(fmt_aspect_cross) & !is.na(fmt_aspect_along) &
-    abs(fmt_aspect_cross - fmt_aspect_along) >
-      sqrt(.Machine$double.eps) * pmax(fmt_aspect_cross, fmt_aspect_along)
-
   # `fly_bearing()` stops rather than returning NA when its columns are absent, and
   # `fly_footprint()` requires only `scale`, so the guard belongs here.
   bearing <- rep(NA_real_, n)
-  if (any(non_square) && all(c("film_roll", "frame_number") %in% names(centroids_sf))) {
+  if (all(c("film_roll", "frame_number") %in% names(centroids_sf))) {
     bearing <- fly_bearing(centroids_sf)$bearing
   }
-  if (any(non_square & !is.finite(bearing))) {
-    width_source[non_square & !is.finite(bearing)] <- paste0(
-      width_source[non_square & !is.finite(bearing)], "; axis_aligned_no_bearing"
-    )
-  }
+  # The `axis_aligned_no_bearing` tag is applied further down, once `no_geom` is known.
+  # It describes a rectangle that was drawn, so a frame that got no rectangle must not
+  # carry it — and whether a frame gets one is not decidable here, because the DEM route
+  # fills the half-dimensions after this point.
 
   # Keyed on the half-dimensions, not on width_in: an unparseable `scale` also leaves a
   # frame with no footprint, and a frame with no footprint has had no terrain treatment
@@ -851,9 +874,34 @@ fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL,
   # failed to produce one. Keeping the invariant "footprint_terrain is NA exactly where
   # the geometry is empty" is what lets a caller read the column at all.
   no_geom <- is.na(half_cross) | is.na(half_along) | half_cross <= 0 | half_along <= 0
+
+  # Now, not up beside `bearing`: the tag describes a rectangle that was actually drawn
+  # axis-aligned, and only here is it known which frames got a rectangle at all. Tagging
+  # earlier put "; axis_aligned_no_bearing" on withheld and unsizeable frames, which have
+  # no footprint to be aligned with anything. `bearing` itself was final up there; what
+  # was not was `no_geom`, since the DEM route fills the half-dimensions in between.
+  drawn_no_bearing <- !no_geom & !is.finite(bearing)
+  if (any(drawn_no_bearing)) {
+    # `ifelse()`, not `paste0()`: film never touches the camera table, so its
+    # `width_source` is `NA_character_`, and `paste0(NA_character_, "; x")` returns the
+    # literal string "NA; x" rather than NA. That would ship the four characters "NA; "
+    # in a user-facing column on every bearingless film frame.
+    width_source[drawn_no_bearing] <- ifelse(
+      is.na(width_source[drawn_no_bearing]),
+      "axis_aligned_no_bearing",
+      paste0(width_source[drawn_no_bearing], "; axis_aligned_no_bearing")
+    )
+  }
+
   terrain[no_geom] <- NA_character_
   height_agl[no_geom] <- NA_real_
   dem_coverage[no_geom] <- NA_real_
+  # And the bearing, for the same reason #30 gave for the other three: a frame that was
+  # never placed has no rotation to report. Without this, `is.finite(footprint_bearing)`
+  # — which `fly_georef()` uses to mean "this ring was rotated" — is TRUE for a frame
+  # that has no ring at all, and is correct only because `fly_georef()` happens to skip
+  # empty footprints first. Make the predicate true by construction, not by luck.
+  bearing[no_geom] <- NA_real_
 
   # A frame whose format resolved but which could not be sized is the quiet case: its
   # `footprint_basis` names a real format and `width_source` names a calibration, so
@@ -892,6 +940,11 @@ fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL,
   attrs$footprint_basis <- basis
   attrs$footprint_terrain <- terrain
   attrs$width_source <- width_source
+  # The azimuth the ring was rotated onto, or NA where it was drawn axis-aligned. This
+  # is the fact `fly_georef()` needs, and it is not derivable from the geometry: a
+  # rectangle rotated onto a due-north heading is still axis-parallel, and a square gives
+  # nothing away at all. Recorded rather than re-inferred.
+  attrs$footprint_bearing <- bearing
   attrs$height_agl <- height_agl
   attrs$dem_coverage <- dem_coverage
 

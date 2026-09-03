@@ -37,16 +37,19 @@ for thumbnails but may need adjustment for full-resolution scans.
 Set to \code{NULL} to disable source nodata detection entirely.}
 
 \item{rotation}{Image rotation in degrees clockwise. One of \code{"auto"},
-\code{0}, \code{90}, \code{180}, or \code{270}. Applies to frames with a \strong{square}
-footprint only. \code{"auto"} (default) computes flight line bearing from
-consecutive centroids and derives rotation per-photo — requires
-\code{film_roll} and \code{frame_number} columns. Fixed values apply the same
-rotation to every square-footprint photo. A non-square footprint
-ignores this argument and uses the measured digital mapping (see
-\strong{Rotation}); a \code{rotation} column in \code{photos_sf} still overrides
-per-photo, for both. Carrying a film-era \code{rotation} column into a
-batch of digital frames therefore overrides the correct mapping with
-the wrong one — drop the column, or set it to \code{NA} for those rows.}
+\code{0}, \code{90}, \code{180}, or \code{270}. \strong{Applies only to frames whose footprint was
+drawn axis-aligned}, which since v0.9.0 means only frames for which no
+flight bearing could be computed — a single frame, or one whose
+neighbours are not adjacent by \code{frame_number}. Every frame that \emph{was}
+rotated onto a bearing takes its mapping from the ring instead, so this
+argument does not reach it. \code{"auto"} (default) derives a 90°-quantized
+rotation from the bearing; with the bearing now carried by the geometry,
+that formula only ever sees bearingless frames and returns its \code{NA}
+default of 180. A \code{rotation} column in \code{photos_sf} overrides everything,
+rotated or not — which is the supported way to georeference film (see
+\strong{Rotation}). Carrying a film-era \code{rotation} column into a batch of
+digital frames overrides the correct mapping with the wrong one — drop
+the column, or set it to \code{NA} for those rows.}
 
 \item{dem}{Optional elevation raster passed to \code{\link[=fly_footprint]{fly_footprint()}}, sizing each
 frame from its height above ground instead of the reported scale. See the
@@ -66,49 +69,60 @@ polygon corners computed by \code{\link[=fly_footprint]{fly_footprint()}} in BC 
 translates the image with GCPs then warps to the target CRS using
 bilinear resampling.
 
-\strong{Rotation:} the corner mapping depends on the footprint's shape, because
-\code{\link[=fly_footprint]{fly_footprint()}} builds the two shapes differently.
+\strong{Rotation:} the corner mapping depends on whether \code{\link[=fly_footprint]{fly_footprint()}} rotated
+the ring onto a flight bearing, which \code{footprint_bearing} records. It is not
+decidable from the geometry — a rectangle rotated onto a due-north heading is
+still axis-parallel, and a square gives nothing away at any bearing.
 
-A \strong{square} footprint is axis-aligned, so the mapping carries the rotation.
-The \code{rotation} parameter rotates it:
-\itemize{
-\item \code{0} — top of image maps to north edge of footprint
-\item \code{90} — top of image maps to east edge (90° clockwise)
-\item \code{180} — top of image maps to south edge (correct for most BC film)
-\item \code{270} — top of image maps to west edge
+A \strong{rotated non-square} footprint — a digital frame with a bearing — uses a
+fixed mapping: the top-left pixel maps to the ring's rear-left corner, so the
+top of the image points 270° round from the heading. Measured in fly#38 on
+both bundled cameras by three independent routes, which agree.
+
+A \strong{rotated square} footprint — a film frame with a bearing — is \strong{skipped
+with a warning} unless \code{photos_sf} carries a \code{rotation} value for it. There
+is no constant to apply, and that is a measurement rather than an omission.
+fly#26 scored all four rotations by adjacent-frame overlap over four
+contiguous legs:\tabular{lllll}{
+   roll \tab year \tab bearing \tab best rotation \tab margin \cr
+   bc5282 \tab 1968 \tab 230° \tab 0 \tab 0.089 \cr
+   bc83062 \tab 1983 \tab 150° \tab 90 \tab 0.135 \cr
+   bc83062 \tab 1983 \tab 93° \tab 90 \tab 0.196 \cr
+   bc83062 \tab 1983 \tab 62° \tab 90 \tab 0.152 \cr
 }
 
-When \code{rotation = "auto"}, the bearing-to-rotation formula is:
-\code{floor((bearing + 91) / 90) * 90 \%\% 360}. This was calibrated on
-BC aerial photos spanning 1968–2019 across multiple camera systems
-and scanners. Photos on diagonal flight lines (~45° off cardinal)
-may be imperfect — check visually and override with a \code{rotation}
-column if needed.
 
-Within a film roll, consecutive flight legs alternate direction
-(back-and-forth pattern), so different frames on the same roll may
-need different rotations. This is why \code{"auto"} computes per-photo,
-not per-roll. To override, add a \code{rotation} column to \code{photos_sf}:
+bc83062 returns the same answer at three widely separated bearings, so the
+mapping is genuinely flight-relative — but it is a quarter turn from
+bc5282's, on the two eras fly#26 named at the outset. Applying either as a
+global constant would be wrong for the other roll, and the failure it
+produces is a valid GeoTIFF over the right ground with the picture turned 90°,
+which nothing downstream would report. So the frame is refused instead, as
+fly refuses an unknown recording format in \code{\link[=fly_footprint]{fly_footprint()}}.
+
+To georeference film, check one frame of the roll against known ground and
+set the column:
 
 \if{html}{\out{<div class="sourceCode">}}\preformatted{photos$rotation <- dplyr::case_when(
-  photos$film_roll == "bc5282" ~ 270,
-  .default = NA  # non-square footprints fall through to the digital mapping;
-                 # square ones to `rotation`, which is 180 under "auto" —
-                 # NOT back to the per-photo bearing
+  photos$film_roll == "bc5282"  ~ 0L,    # measured, fly#26
+  photos$film_roll == "bc83062" ~ 90L,   # measured, fly#26
+  .default = NA                          # refused rather than guessed
 )
 }\if{html}{\out{</div>}}
 
 Every non-\code{NA} value in that column must be 0, 90, 180 or 270; anything else
 is an error naming the value, rather than a rotation silently applied as
-something other than what was written.
+something other than what was written. \strong{The column's meaning changed in
+v0.9.0}: it used to shift corners on an axis-aligned square, and now shifts
+them on a ring already rotated onto the bearing, so a value calibrated by eye
+against an older release no longer means the same thing and must be
+re-checked.
 
-A \strong{non-square} footprint — every digital frame — is already rotated onto
-its flight line by \code{\link[=fly_footprint]{fly_footprint()}}, so the ring carries the bearing and
-applying it again would count it twice. Those frames use a fixed mapping
-instead: the top-left pixel maps to the ring's rear-left corner, equivalently
-image columns run in the flight direction and image rows run flight-right.
-That was measured in fly#38 on both bundled cameras by three independent
-routes and is the same for each; see \code{inst/notes/georeferencing.md}.
+An \strong{unrotated} footprint — no bearing could be computed — keeps the old
+behaviour: axis-aligned, with \code{rotation} (or its \code{"auto"} default of 180)
+choosing which edge the top of the image maps to. \code{0} is north, \code{90} east,
+\code{180} south, \code{270} west. It is warned about, because an axis-aligned
+footprint is only correct if the flight line happened to run cardinally.
 
 A frame whose delivered image aspect disagrees with its footprint's by more
 than 8\% is \strong{skipped with a warning} rather than written stretched — the
@@ -122,10 +136,12 @@ too: a square one has no pairing to get wrong, but a digital frame sized
 through \code{format_size} lands on one, and that is the unknown-camera case — so
 gating on shape would switch the check off exactly where it is needed.
 
-A non-square footprint built without a flight bearing is drawn axis-aligned
-and is therefore georeferenced as though the flight line ran due north.
-\code{\link[=fly_bearing]{fly_bearing()}} needs a neighbouring frame, so this is the ordinary result of
-georeferencing a single frame on its own, and it is warned about.
+A footprint built without a flight bearing is drawn axis-aligned and is
+therefore georeferenced as though the flight line ran due north.
+\code{\link[=fly_bearing]{fly_bearing()}} needs a frame that is \strong{adjacent by \code{frame_number}} on the
+same roll, so this is the ordinary result of georeferencing a single frame on
+its own, or a sample of a roll rather than a contiguous run. It is warned
+about, for film as well as digital.
 
 \strong{Nodata handling:} Two sources of unwanted black pixels are masked:
 \enumerate{
@@ -154,11 +170,15 @@ of \code{\link[=fly_footprint]{fly_footprint()}}.
 \examples{
 centroids <- sf::st_read(system.file("testdata/photo_centroids.gpkg", package = "fly"))
 
-# Fetch and georeference with auto rotation (uses bearing from centroids)
-fetched <- fly_fetch(centroids[1:2, ], type = "thumbnail",
-                     dest_dir = tempdir())
-georef <- fly_georef(fetched, centroids[1:2, ],
-                     dest_dir = tempdir())
+# Frames 231 and 232 of bc5282 are adjacent, so they get a flight bearing and
+# their footprints are rotated onto it. Film needs the roll's measured rotation
+# supplied; without it the frames are refused rather than turned a quarter turn.
+pair <- centroids[centroids$film_roll == "bc5282" &
+                    centroids$frame_number \%in\% c(231, 232), ]
+pair$rotation <- 0L   # measured for bc5282 in fly#26
+
+fetched <- fly_fetch(pair, type = "thumbnail", dest_dir = tempdir())
+georef <- fly_georef(fetched, pair, dest_dir = tempdir())
 georef
 
 }

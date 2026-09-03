@@ -157,7 +157,8 @@ mixed_media_shapes <- function() {
 
 # The columns #30 and #9 added, which #35 found were reaching no tibble caller.
 fly_reported_cols <- function() {
-  c("footprint_basis", "footprint_terrain", "height_agl", "dem_coverage")
+  c("footprint_basis", "footprint_terrain", "footprint_bearing", "height_agl",
+    "dem_coverage")
 }
 
 

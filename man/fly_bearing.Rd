@@ -15,8 +15,9 @@ of bearings with the wrong values, so it is refused rather than coerced.}
 }
 \value{
 The input sf object with an added \code{bearing} column (degrees
-clockwise from north, 0–360). Photos with no computable bearing
-(single-frame rolls) get \code{NA}.
+clockwise from north, 0–360). Photos with no \strong{adjacent} frame on the
+same roll get \code{NA} — a single-frame roll, and any frame whose
+neighbours in the supplied object are more than one frame number away.
 }
 \description{
 Estimates the flight direction for each photo by computing the azimuth
@@ -24,14 +25,28 @@ between consecutive centroids on the same film roll, sorted by frame
 number. Useful for diagnosing image rotation issues in \code{\link[=fly_georef]{fly_georef()}}.
 }
 \details{
-Within each roll, frames are sorted by \code{frame_number}. The bearing
-for each frame is the azimuth to the next frame on the same roll.
-The last frame on each roll gets the bearing from the previous frame.
+Within each roll, frames are sorted by \code{frame_number}. The bearing for each
+frame is the azimuth to the next frame on the same roll, and the last frame
+of an adjacent run takes the bearing from the previous one.
 
-Aerial survey flights follow back-and-forth patterns, so bearings
-alternate between ~opposite directions (e.g., 90° and 270°) on
-consecutive legs. Large frame number gaps may indicate a new flight
-line within the same roll.
+\strong{The neighbour must be adjacent by frame number.} Aerial survey flights
+follow back-and-forth patterns, so a roll holds several legs; two frames that
+merely sit next to each other in a \emph{sample} of a roll may be on different
+legs, and the azimuth between those is a cross-leg artefact rather than a
+heading. In the bundled test data, bc5282 frames 179 and 199 are 20 apart and
+3.3 footprint-sides apart, and pairing them gives 59.8° on a roll that flies
+about 230°.
+
+So a gap of more than one frame yields \code{NA}. This is deliberately strict:
+adjacency is demonstrable, whereas "close enough to be on the same line"
+needs a threshold in footprint-sides that this function cannot measure. Since
+\code{\link[=fly_footprint]{fly_footprint()}} rotates a footprint onto this bearing, an \code{NA} costs an
+axis-aligned rectangle while a wrong azimuth costs a rectangle confidently
+rotated onto ground the frame does not cover.
+
+To keep bearings across a subset, call \code{fly_bearing()} on the contiguous roll
+first and carry the column: subsetting removes neighbours, and a frame whose
+neighbour was dropped has no adjacent one left.
 }
 \examples{
 centroids <- sf::st_read(system.file("testdata/photo_centroids.gpkg", package = "fly"))

@@ -94,25 +94,83 @@ test_that("a zero ground sample distance yields an empty geometry, not a degener
 })
 
 
-test_that("film is sized and shaped exactly as before", {
+test_that("film is sized as before and rotated onto its flight line", {
   # The regression net. Explicit assertions rather than a snapshot, which skips on CRAN
   # and therefore in CI — the run where it would matter.
+  #
+  # Sizing is unchanged by fly#26; SHAPE is not. Film is rotated onto its bearing now,
+  # so the two assertions this test used to make about shape were retired rather than
+  # relaxed — both are invariant under rotation and would have stayed green while
+  # measuring nothing:
+  #
+  #   area            rotation preserves it exactly
+  #   bbox aspect     a rotated square's bbox is still a square, w = h = s(|cos|+|sin|)
+  #
+  # Area is kept below because it still pins SIZING. The bbox-aspect check is replaced
+  # by the two properties that do discriminate — see the vertex-azimuth block.
   centroids <- sf::st_read(testdata_path("photo_centroids.gpkg"), quiet = TRUE)
   fp <- fly_footprint(centroids)
 
   expect_true(all(fp$footprint_basis == "Film - BW"))
-  expect_true(all(is.na(fp$width_source)))
+
+  # `width_source` names a camera calibration, and film never touches the camera table,
+  # so it stays NA except for the `axis_aligned_no_bearing` tag. Asserted as a set
+  # rather than as all-NA, so a stray calibration string would still fail. The literal
+  # "NA; axis_aligned_no_bearing" a `paste0()` onto NA_character_ produces is what this
+  # form catches.
+  expect_setequal(unique(fp$width_source), c(NA_character_, "axis_aligned_no_bearing"))
 
   side <- 9 * as.numeric(sub("1:", "", centroids$scale)) * 0.0254
   expect_equal(as.numeric(sf::st_area(sf::st_transform(fp, 3005))), side^2,
                tolerance = 1e-6)
 
-  # Square, so unrotated: every footprint's bounding box is as wide as it is tall.
-  bb <- vapply(sf::st_geometry(sf::st_transform(fp, 3005)), function(g) {
-    b <- sf::st_bbox(g)
-    unname((b["xmax"] - b["xmin"]) / (b["ymax"] - b["ymin"]))
+  # Every film footprint is still a square — rotation must not shear it.
+  expect_true(all(fly_is_square(fp)))
+
+  # The premise: the fixture reaches BOTH branches. Without this, a change that stopped
+  # rotating film entirely would leave the rotated assertions vacuous and green.
+  rotated <- is.finite(fp$footprint_bearing)
+  expect_gt(sum(rotated), 0)
+  expect_gt(sum(!rotated), 0)
+
+  # What actually discriminates, and it is a composite claim: ring vertex 1 sits at
+  # `bearing + 225` from the centroid. 225 because vertex 1 is the rectangle's own
+  # (-hc, -ha) — rear-LEFT in flight-relative terms — which on an unrotated square is
+  # the SW corner at azimuth 225.
+  #
+  # This pins the rotation ANGLE, its SIGN and the ring's VERTEX ORDER together, which
+  # on a square is the only way to pin any of them: with hc == ha nothing distinguishes
+  # the along-track axis from the cross-track one, so rotating by b and mapping with
+  # shift r is indistinguishable from rotating by b±90 and mapping with r∓90. A
+  # mod-180 or unsigned form would admit a sign flip. `fly_georef()`'s film corner
+  # mapping is only meaningful against this convention — see `inst/notes/georeferencing.md`.
+  g <- sf::st_transform(fp, 3005)
+  v1_az <- vapply(which(rotated), function(i) {
+    xy <- sf::st_coordinates(g[i, ])[1, 1:2]
+    ct <- sf::st_coordinates(sf::st_centroid(sf::st_geometry(g[i, ])))[1, 1:2]
+    (atan2(xy[[1]] - ct[[1]], xy[[2]] - ct[[2]]) * 180 / pi) %% 360
   }, numeric(1))
-  expect_equal(bb, rep(1, nrow(fp)), tolerance = 1e-8)
+  expect_equal(unname((v1_az - fp$footprint_bearing[rotated]) %% 360),
+               rep(225, sum(rotated)), tolerance = 1e-6)
+
+  # And the visible consequence, asserted as an exact identity rather than against a
+  # threshold: a square of side s rotated by b has bbox width s(|cos b| + |sin b|).
+  # That is 1 on a cardinal heading and sqrt(2) at 45 degrees, and it holds for every
+  # frame with no tolerance band to choose — which matters, because the bundled data
+  # includes headings 0.4 degrees off cardinal whose 1.0074 stretch is real and would
+  # be indistinguishable from noise under any band wide enough to call them cardinal.
+  stretch <- vapply(seq_len(nrow(fp)), function(i) {
+    bb <- sf::st_bbox(g[i, ])
+    unname((bb[["xmax"]] - bb[["xmin"]]) / side[i])
+  }, numeric(1))
+  rad <- fp$footprint_bearing * pi / 180
+  want <- ifelse(rotated, abs(cos(rad)) + abs(sin(rad)), 1)
+  expect_equal(stretch, want, tolerance = 1e-6)
+
+  # Premise: the fixture actually contains a frame far enough off cardinal for the
+  # identity above to be doing work. Without it, a fixture that happened to be all
+  # cardinal would satisfy `want == 1` everywhere and prove nothing about rotation.
+  expect_gt(max(stretch), 1.2)
 })
 
 

@@ -35,7 +35,9 @@ flat-terrain behaviour — see \strong{Terrain} below.}
 An sf polygon object in the same CRS as input, with footprint
 rectangles, a \code{footprint_basis} column recording how each was sized, a
 \code{footprint_terrain} column recording which terrain treatment was applied,
-\code{height_agl} giving the metres above ground each footprint was sized from,
+\code{footprint_bearing} giving the flight azimuth each rectangle was rotated
+onto (\code{NA} where it was drawn axis-aligned because no bearing could be
+computed), \code{height_agl} giving the metres above ground each was sized from,
 and \code{dem_coverage} giving the fraction of each footprint the DEM actually
 covered (\code{0} where it covered none, \code{NA} only where there is no footprint).
 Frames whose format could not be resolved get an empty geometry. Every
@@ -105,10 +107,18 @@ footprint traces back to a source. Calibrations that could not be corroborated a
 listed in \code{inst/extdata/camera_formats_excluded.csv} with the reason, and frames
 naming one are refused rather than inferred.
 
-\strong{Digital footprints are not square} — sensors run from 1.10:1 (Leica DMC II) to
-1.80:1 (Intergraph DMC) — so they are rotated onto the flight line using
-\code{\link[=fly_bearing]{fly_bearing()}}. Where no bearing can be computed the rectangle stays axis-aligned
-and \code{width_source} says so. Film stays square and is unaffected.
+\strong{Every footprint is rotated onto the flight line} using \code{\link[=fly_bearing]{fly_bearing()}}, and
+\code{footprint_bearing} records the azimuth each was rotated onto. Where no bearing can
+be computed — a single-frame roll, or absent \code{film_roll} / \code{frame_number} columns —
+the rectangle stays axis-aligned, \code{footprint_bearing} is \code{NA} and \code{width_source}
+says so.
+
+Digital sensors are not square, running from 1.10:1 (Leica DMC II) to 1.80:1
+(Intergraph DMC), so rotating them is visibly load-bearing. Film is square, which is
+why rotating it was deferred until fly#26 — but a square rotated 45 degrees overlaps
+its axis-aligned self by only about 83\%, so leaving film alone was not neutral. It
+was reporting coverage of ground the frame does not photograph. Film footprints on
+off-cardinal headings therefore \strong{move} as of v0.9.0.
 
 Supply \code{format_size} to size a frame \code{fly} cannot, or to override it:
 

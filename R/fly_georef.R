@@ -24,16 +24,19 @@
 #'   frame from its height above ground instead of the reported scale. See the
 #'   **Terrain** section of [fly_footprint()].
 #' @param rotation Image rotation in degrees clockwise. One of `"auto"`,
-#'   `0`, `90`, `180`, or `270`. Applies to frames with a **square**
-#'   footprint only. `"auto"` (default) computes flight line bearing from
-#'   consecutive centroids and derives rotation per-photo — requires
-#'   `film_roll` and `frame_number` columns. Fixed values apply the same
-#'   rotation to every square-footprint photo. A non-square footprint
-#'   ignores this argument and uses the measured digital mapping (see
-#'   **Rotation**); a `rotation` column in `photos_sf` still overrides
-#'   per-photo, for both. Carrying a film-era `rotation` column into a
-#'   batch of digital frames therefore overrides the correct mapping with
-#'   the wrong one — drop the column, or set it to `NA` for those rows.
+#'   `0`, `90`, `180`, or `270`. **Applies only to frames whose footprint was
+#'   drawn axis-aligned**, which since v0.9.0 means only frames for which no
+#'   flight bearing could be computed — a single frame, or one whose
+#'   neighbours are not adjacent by `frame_number`. Every frame that *was*
+#'   rotated onto a bearing takes its mapping from the ring instead, so this
+#'   argument does not reach it. `"auto"` (default) derives a 90°-quantized
+#'   rotation from the bearing; with the bearing now carried by the geometry,
+#'   that formula only ever sees bearingless frames and returns its `NA`
+#'   default of 180. A `rotation` column in `photos_sf` overrides everything,
+#'   rotated or not — which is the supported way to georeference film (see
+#'   **Rotation**). Carrying a film-era `rotation` column into a batch of
+#'   digital frames overrides the correct mapping with the wrong one — drop
+#'   the column, or set it to `NA` for those rows.
 #' @return A tibble with columns `airp_id`, `source`, `dest`, and `success`.
 #'
 #' @details
@@ -42,49 +45,60 @@
 #' translates the image with GCPs then warps to the target CRS using
 #' bilinear resampling.
 #'
-#' **Rotation:** the corner mapping depends on the footprint's shape, because
-#' [fly_footprint()] builds the two shapes differently.
+#' **Rotation:** the corner mapping depends on whether [fly_footprint()] rotated
+#' the ring onto a flight bearing, which `footprint_bearing` records. It is not
+#' decidable from the geometry — a rectangle rotated onto a due-north heading is
+#' still axis-parallel, and a square gives nothing away at any bearing.
 #'
-#' A **square** footprint is axis-aligned, so the mapping carries the rotation.
-#' The `rotation` parameter rotates it:
-#' \itemize{
-#'   \item `0` — top of image maps to north edge of footprint
-#'   \item `90` — top of image maps to east edge (90° clockwise)
-#'   \item `180` — top of image maps to south edge (correct for most BC film)
-#'   \item `270` — top of image maps to west edge
-#' }
+#' A **rotated non-square** footprint — a digital frame with a bearing — uses a
+#' fixed mapping: the top-left pixel maps to the ring's rear-left corner, so the
+#' top of the image points 270° round from the heading. Measured in fly#38 on
+#' both bundled cameras by three independent routes, which agree.
 #'
-#' When `rotation = "auto"`, the bearing-to-rotation formula is:
-#' `floor((bearing + 91) / 90) * 90 %% 360`. This was calibrated on
-#' BC aerial photos spanning 1968–2019 across multiple camera systems
-#' and scanners. Photos on diagonal flight lines (~45° off cardinal)
-#' may be imperfect — check visually and override with a `rotation`
-#' column if needed.
+#' A **rotated square** footprint — a film frame with a bearing — is **skipped
+#' with a warning** unless `photos_sf` carries a `rotation` value for it. There
+#' is no constant to apply, and that is a measurement rather than an omission.
+#' fly#26 scored all four rotations by adjacent-frame overlap over four
+#' contiguous legs:
 #'
-#' Within a film roll, consecutive flight legs alternate direction
-#' (back-and-forth pattern), so different frames on the same roll may
-#' need different rotations. This is why `"auto"` computes per-photo,
-#' not per-roll. To override, add a `rotation` column to `photos_sf`:
+#' | roll | year | bearing | best rotation | margin |
+#' | --- | --- | --- | --- | --- |
+#' | bc5282 | 1968 | 230° | 0 | 0.089 |
+#' | bc83062 | 1983 | 150° | 90 | 0.135 |
+#' | bc83062 | 1983 | 93° | 90 | 0.196 |
+#' | bc83062 | 1983 | 62° | 90 | 0.152 |
+#'
+#' bc83062 returns the same answer at three widely separated bearings, so the
+#' mapping is genuinely flight-relative — but it is a quarter turn from
+#' bc5282's, on the two eras fly#26 named at the outset. Applying either as a
+#' global constant would be wrong for the other roll, and the failure it
+#' produces is a valid GeoTIFF over the right ground with the picture turned 90°,
+#' which nothing downstream would report. So the frame is refused instead, as
+#' fly refuses an unknown recording format in [fly_footprint()].
+#'
+#' To georeference film, check one frame of the roll against known ground and
+#' set the column:
 #' ```
 #' photos$rotation <- dplyr::case_when(
-#'   photos$film_roll == "bc5282" ~ 270,
-#'   .default = NA  # non-square footprints fall through to the digital mapping;
-#'                  # square ones to `rotation`, which is 180 under "auto" —
-#'                  # NOT back to the per-photo bearing
+#'   photos$film_roll == "bc5282"  ~ 0L,    # measured, fly#26
+#'   photos$film_roll == "bc83062" ~ 90L,   # measured, fly#26
+#'   .default = NA                          # refused rather than guessed
 #' )
 #' ```
 #'
 #' Every non-`NA` value in that column must be 0, 90, 180 or 270; anything else
 #' is an error naming the value, rather than a rotation silently applied as
-#' something other than what was written.
+#' something other than what was written. **The column's meaning changed in
+#' v0.9.0**: it used to shift corners on an axis-aligned square, and now shifts
+#' them on a ring already rotated onto the bearing, so a value calibrated by eye
+#' against an older release no longer means the same thing and must be
+#' re-checked.
 #'
-#' A **non-square** footprint — every digital frame — is already rotated onto
-#' its flight line by [fly_footprint()], so the ring carries the bearing and
-#' applying it again would count it twice. Those frames use a fixed mapping
-#' instead: the top-left pixel maps to the ring's rear-left corner, equivalently
-#' image columns run in the flight direction and image rows run flight-right.
-#' That was measured in fly#38 on both bundled cameras by three independent
-#' routes and is the same for each; see `inst/notes/georeferencing.md`.
+#' An **unrotated** footprint — no bearing could be computed — keeps the old
+#' behaviour: axis-aligned, with `rotation` (or its `"auto"` default of 180)
+#' choosing which edge the top of the image maps to. `0` is north, `90` east,
+#' `180` south, `270` west. It is warned about, because an axis-aligned
+#' footprint is only correct if the flight line happened to run cardinally.
 #'
 #' A frame whose delivered image aspect disagrees with its footprint's by more
 #' than 8% is **skipped with a warning** rather than written stretched — the
@@ -98,10 +112,12 @@
 #' through `format_size` lands on one, and that is the unknown-camera case — so
 #' gating on shape would switch the check off exactly where it is needed.
 #'
-#' A non-square footprint built without a flight bearing is drawn axis-aligned
-#' and is therefore georeferenced as though the flight line ran due north.
-#' [fly_bearing()] needs a neighbouring frame, so this is the ordinary result of
-#' georeferencing a single frame on its own, and it is warned about.
+#' A footprint built without a flight bearing is drawn axis-aligned and is
+#' therefore georeferenced as though the flight line ran due north.
+#' [fly_bearing()] needs a frame that is **adjacent by `frame_number`** on the
+#' same roll, so this is the ordinary result of georeferencing a single frame on
+#' its own, or a sample of a roll rather than a contiguous run. It is warned
+#' about, for film as well as digital.
 #'
 #' **Nodata handling:** Two sources of unwanted black pixels are masked:
 #'
@@ -129,11 +145,15 @@
 #' @examples
 #' centroids <- sf::st_read(system.file("testdata/photo_centroids.gpkg", package = "fly"))
 #'
-#' # Fetch and georeference with auto rotation (uses bearing from centroids)
-#' fetched <- fly_fetch(centroids[1:2, ], type = "thumbnail",
-#'                      dest_dir = tempdir())
-#' georef <- fly_georef(fetched, centroids[1:2, ],
-#'                      dest_dir = tempdir())
+#' # Frames 231 and 232 of bc5282 are adjacent, so they get a flight bearing and
+#' # their footprints are rotated onto it. Film needs the roll's measured rotation
+#' # supplied; without it the frames are refused rather than turned a quarter turn.
+#' pair <- centroids[centroids$film_roll == "bc5282" &
+#'                     centroids$frame_number %in% c(231, 232), ]
+#' pair$rotation <- 0L   # measured for bc5282 in fly#26
+#'
+#' fetched <- fly_fetch(pair, type = "thumbnail", dest_dir = tempdir())
+#' georef <- fly_georef(fetched, pair, dest_dir = tempdir())
 #' georef
 #'
 #' @export
@@ -171,21 +191,37 @@ fly_georef <- function(fetch_result, photos_sf,
   empty_fp   <- sf::st_is_empty(sf::st_geometry(footprints))
   non_square <- !empty_fp & !fly_is_square(footprints)
 
+  # Whether the ring was rotated onto a flight bearing, which since fly#26 is the fact
+  # the corner mapping turns on. Squareness used to stand in for it and no longer can:
+  # film is rotated too now, so square and unrotated have come apart.
+  #
+  # Read from the column rather than re-inferred from the geometry, because the geometry
+  # cannot answer it — a rectangle rotated onto a due-north heading is still
+  # axis-parallel, and a square gives nothing away at any bearing. `fly_footprint()` NAs
+  # this wherever it drew no ring, so `is.finite()` means "was rotated" by construction.
+  rotated <- if ("footprint_bearing" %in% names(footprints)) {
+    is.finite(footprints$footprint_bearing)
+  } else {
+    rep(FALSE, nrow(footprints))
+  }
+
   # A non-square footprint that never got a bearing is drawn axis-aligned, so it is
   # georeferenced as though the aircraft flew due north. `fly_bearing()` needs a
   # neighbour, so this is the ordinary result of georeferencing one frame on its own —
   # not an exotic case. Named rather than left to be discovered from a rotated image.
-  if ("width_source" %in% names(footprints)) {
-    no_bearing <- non_square & grepl("axis_aligned_no_bearing", footprints$width_source)
-    if (any(no_bearing)) {
-      warning(
-        sum(no_bearing), " of ", nrow(footprints), " frames have a non-square footprint ",
-        "but no flight bearing, so they are drawn and georeferenced as though the ",
-        "flight line ran due north. Pass neighbouring frames from the same roll so ",
-        "`fly_bearing()` can compute an azimuth.",
-        call. = FALSE
-      )
-    }
+  # Read from `rotated` and `empty_fp` rather than by grepping `width_source`, which was
+  # gated on `non_square` and so never fired for film — and film is now rotated, so it
+  # needs the warning as much as digital does. A frame with no ring is not mentioned:
+  # it is covered by `fly_warn_unsized()` above and has no orientation to be wrong about.
+  no_bearing <- !rotated & !empty_fp
+  if (any(no_bearing)) {
+    warning(
+      sum(no_bearing), " of ", nrow(footprints), " frames have a footprint but no ",
+      "flight bearing, so they are drawn axis-aligned and georeferenced as though the ",
+      "flight line ran due north. `fly_bearing()` needs a frame whose `frame_number` is ",
+      "ADJACENT on the same roll, so pass neighbouring frames rather than a sample.",
+      call. = FALSE
+    )
   }
 
   # Match fetch results to photos by airp_id
@@ -278,9 +314,33 @@ fly_georef <- function(fetch_result, photos_sf,
     # a non-square ring already carries its bearing (see `fly_rectangles()`), so
     # applying `bearing_to_rotation()` on top would count it twice.
     user_val <- if (user_rotation_col) user_rot[j] else NA_integer_
+
+    # A rotated SQUARE footprint — film — is refused unless the caller supplied the
+    # roll's rotation. Handled here as its own statement rather than as a branch of the
+    # `rot <-` chain below, because it does not produce a rotation: it skips the frame,
+    # and a `next` buried inside an assigned `if` reads as though it returned one.
+    if (is.na(user_val) && rotated[j] && !non_square[j]) {
+      roll_lab <- if ("film_roll" %in% names(photos_sf)) {
+        paste0("roll ", photos_sf[["film_roll"]][j])
+      } else {
+        "this roll"
+      }
+      warning(
+        basename(src), ": film frame on a flight line bearing ",
+        round(footprints$footprint_bearing[j], 1), " degrees. Its footprint is rotated ",
+        "onto that bearing, but the image's corner mapping is a per-roll property that ",
+        "`fly` cannot derive \u2014 measured 0 for bc5282 (1968) and 90 for bc83062 ",
+        "(1983). Skipped rather than written a quarter turn out. Set a `rotation` ",
+        "column on `photos_sf` for ", roll_lab, " once you have checked one frame ",
+        "against known ground. See `inst/notes/georeferencing.md`.",
+        call. = FALSE
+      )
+      next
+    }
+
     rot <- if (!is.na(user_val)) {
       user_val
-    } else if (non_square[j]) {
+    } else if (rotated[j] && non_square[j]) {
       fly_digital_rotation()
     } else if (has_rotation_col) {
       val <- as.integer(photos_sf[["rotation"]][j])
