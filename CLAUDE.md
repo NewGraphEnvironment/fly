@@ -1430,6 +1430,146 @@ appears at the consumer, far from the producer that legitimately emitted nothing
 `x$col <- rep(value, nrow(x))` is 0-row-safe.
 
 
+### `deparse(body(f))` excludes formal defaults, so a body scan cannot see a default
+
+A guard that scans function bodies for a forbidden literal is blind to that literal in a
+**signature**. Measured on R 4.5:
+
+```r
+f <- function(image = "qgis/qgis:latest") { x <- 1; x }
+grepl("qgis/qgis:latest", paste(deparse(body(f)), collapse = ""))   # FALSE
+grepl("qgis/qgis:latest", paste(deparse(f),       collapse = ""))   # TRUE
+```
+
+That matters because **a formal default is how a package-wide constant is usually
+expressed** — `image =`, `path =`, a URL, a schema name. So the shape most likely to
+carry the thing you are forbidding is the one shape the scan cannot reach, and the guard
+reports clean against the exact regression it names.
+
+Caught 2026-09-06 in rfp#282: a test asserting no rolling docker tag remained in `R/`
+reported **FAIL 0** with the pre-fix default restored on both entry points. `deparse(o)`
+instead of `deparse(body(o))` — one word, 0 hits as shipped and 2 with the bug restored.
+
+Two things worth knowing before switching:
+
+- **`deparse()` walks the AST, not the srcref**, so a comment mentioning the literal does
+  **not** false-positive. Verified against two legitimate mentions in the same package.
+- **Choose per guard, not globally.** A scan for something that can only appear in a body
+  — a re-inlined argument vector, a direct `system2()` call — is correctly `body()`, and
+  widening it to `deparse(o)` only adds surface. The question is whether the thing being
+  forbidden could be written as a default.
+
+The entry above, "Under `R CMD check`, tests run from a temp dir against the INSTALLED
+package", prescribes `deparse(body(get(nm, envir = asNamespace("pkg"))))`. That snippet is
+right about the half it is teaching — read the installed bodies, never `../../R/*.R` — and
+carries this blind spot for any guard whose literal could sit in a signature. Reconciling
+the two is soul#208.
+
+**Anti-vacuity, since this guard's premise is easy to get wrong:** asserting the namespace
+has objects proves the scan *ran*, not that the predicate can *fire*. Plant the shape:
+
+```r
+planted <- function(image = "forbidden") NULL
+expect_true(grepl("forbidden", paste(deparse(planted), collapse = "\n"), fixed = TRUE))
+expect_false(grepl("forbidden", paste(deparse(body(planted)), collapse = "\n"), fixed = TRUE))
+```
+
+
+### `tryCatch(warning = )` DISCARDS the value the expression produced
+
+A `warning =` handler is not a filter — it replaces the whole expression, so a call that
+**succeeded** and merely warned returns the handler's value and the result is thrown away.
+The entry above covers a `warning =` that unwinds too early to see a status; this is the
+opposite direction, and it is worse because the call worked.
+
+`read.table` is the routine way to meet it. It warns `incomplete final line found by
+readTableHeader` whenever a small file has no trailing newline and `readTableHead` reaches
+EOF, so a table that parsed perfectly is refused:
+
+```r
+d <- tryCatch(read.csv(path),
+              error   = function(e) structure(list(), msg = conditionMessage(e)),
+              warning = function(w) structure(list(), msg = conditionMessage(w)))  # WRONG
+# 1-4 data rows, no trailing newline -> refused as "could not be parsed"
+# 5+ data rows                       -> parses
+d <- tryCatch(suppressWarnings(read.csv(path)),                                    # right
+              error = function(e) structure(list(), msg = conditionMessage(e)))
+```
+
+The row-count threshold is what makes it invisible: measured on R 4.5, files of 1-4 data
+rows were refused and 5+ parsed. Any fixture of a realistic size passes, and a small real
+input — a 3-frame archive, a 2-row config — fails in production.
+
+**Suppress the warnings you do not want; never handle them, unless the warning genuinely
+means the value is unusable.** And note the two are separable: a binary file read through
+`read.csv` warns about embedded nulls *and* returns a garbage frame, which the next
+validation step rejects on its own. Letting it through the parse loses nothing.
+
+Caught 2026-09-06 in fly#50 (review round 4), inside the fix for a different instance of
+the same mechanism — two states given one representation while the fact that separates
+them (`d` *is* a data.frame) sits computed and unread.
+
+### `match()` treats NA as a matchable VALUE, so two unknowns join to each other
+
+`match(NA, c("1", NA))` is **2**. So an `NA` on the left matches an `NA` on the right, and
+a lookup keyed on a column that may be blank silently attributes one record's data to
+another:
+
+```r
+m <- match(id_frame, tab$id)   # id_frame all-NA (the caller has no such column)
+                               # tab$id has one NA (the source left it blank)
+                               # -> every unmatched record gets that row
+```
+
+It fails toward a **confident wrong answer** rather than a miss, and downstream code has
+no way to tell. Guard both sides explicitly — the left because the caller may not carry
+the key at all, the right because the source may leave it blank:
+
+```r
+m <- match(a, b)
+m[is.na(a) | is.na(b[m])] <- NA_integer_
+```
+
+**And a key built with `paste0()` defeats the guard before it runs.** `paste0("r_", NA)`
+is the three-character string `"r_NA"`, so both sides become a real value that matches:
+by the time `match()` sees it there is no `NA` left to test. Return `NA_character_` from
+the key builder instead, and then guard the `match()` as above — the two fixes are not
+alternatives, they close the same hole one step apart.
+
+```r
+key <- function(a, b) { out <- paste0(a, "_", b); out[is.na(a) | is.na(b)] <- NA_character_; out }
+```
+
+Worst form: an identifier scheme the parser cannot read at all — an alphanumeric frame
+number where an integer was assumed — collapses *every* record onto one key on both sides.
+
+Measured 2026-09-06 in fly#50: a photo frame present in no source file was handed another
+frame's camera, with the "this was resolved exactly" flag set. Same family as
+`nzchar(NA)` being `TRUE` above — a value meaning "absent" that a predicate reads as
+present.
+
+### `expect_message(expr, regexp)` checks only the FIRST condition, so a progress line hides the message under test
+
+testthat 3e captures the first message the expression emits and matches the regexp
+against **that one**. A function that prints progress before the thing you are asserting
+therefore fails the expectation, and the real message escapes to the console — where you
+can see it, printed a few lines above a failure saying no such message was thrown. The
+output contradicts the verdict, which sends you looking at the function rather than at
+the assertion.
+
+```r
+expect_message(f(x), "could not be unpacked")   # f() prints "Downloaded 1 of 1 files" first
+#> Error: `f(x)` did not throw the expected message.
+#> (and the expected message is right there in the console output)
+
+expect_true(any(grepl("could not be unpacked", testthat::capture_messages(f(x)))))   # right
+```
+
+`capture_messages()` returns all of them and the assertion says what it means. Use it for
+anything that emits more than one message, which in practice is anything that reports
+progress. Caught 2026-09-06 in fly#50, where the same call also cost a detour into
+whether a temporary fixture directory was being deleted early — it was not.
+
 
 # Code Check — Shell
 
@@ -2998,6 +3138,69 @@ library that validates closure by exact equality. The rule is the same: a closin
 is a **copy**, never a computation.
 
 
+### terra: `plot(type = "classes", levels =, col =)` maps colours by POSITION, per layer
+
+A `levels`/`col` pair is not a value-to-colour mapping. `terra::plot()` matches the vectors
+against **that layer's own sorted unique values**, so a layer missing a class shifts every class
+after it — and each panel of a multi-panel figure is mapped independently.
+
+Measured 2026-09-06 in drift#66 on a 7-layer IO LULC stack carrying codes 1, 2, 5, 9, 11. Five of
+the seven years contain no code 9 (Snow/Ice), so their four values took the first four colours and
+**Rangeland drew in Snow/Ice's blue** — 705 cells, in the panel the figure existed to show,
+contradicting the legend printed beneath it from the same vectors:
+
+```r
+present <- sort(unique(values(stack)))          # 1 2 5 9 11 across the STACK
+ct <- ct[match(present, ct$code), ]
+terra::plot(stack[[i]], type = "classes", levels = ct$class_name, col = ct$color)
+#> layer i has 1 2 5 11 -> code 11 draws ct$color[4], not ct$color[5]
+```
+
+Computing the class set over the whole stack is exactly the instinct that produces it: it is the
+right way to build a **legend**, and the wrong way to build a per-layer `col`.
+
+Use a colour table, which is keyed by cell value and cannot desynchronise:
+
+```r
+for (i in seq_len(terra::nlyr(x))) terra::coltab(x, layer = i) <- data.frame(value = , col = )
+terra::plot(x[[i]], legend = FALSE)
+```
+
+- **A single-layer fixture cannot reach this**, and neither can a stack whose layers happen to
+  carry every class. The trigger is a *missing* class in *some* layer.
+- **Reading the code will not find it** — the vectors are correct and the legend built from them
+  is correct. Read the rendered image and check one cell of a known class against the legend.
+- Same shape for any renderer taking parallel `breaks`/`labels`/`col` vectors and re-deriving the
+  domain per facet.
+
+### terra: `wrap()` carries the tempfile basename in `varnames`, so a committed artifact churns
+
+`sources()` on a derived raster (above) is the well-known half. `varnames` is the quiet one:
+terra keeps the **basename of whatever `filename =` produced**, and `wrap()` serialises it, so an
+`app()`/`focal()` written to `tempfile()` puts a per-process random string into the saved object.
+
+```r
+r <- terra::app(x, fun = f, filename = tempfile(fileext = ".tif"))
+terra::varnames(r)                       #> "file178092823716a"
+saveRDS(terra::wrap(r), "committed.rds") #> different bytes on every run
+```
+
+Measured 2026-09-06 in drift#66. Values, extent and CRS all round-trip **identically** — the
+diff is entirely `@attributes$varnames` — so every content check agrees while the file changes on
+each regeneration and a real change becomes invisible in the noise. Pin it, with `longnames`,
+before wrapping or writing:
+
+```r
+terra::varnames(y) <- rep("<a stable name>", terra::nlyr(y))
+terra::longnames(y) <- rep("", terra::nlyr(y))
+```
+
+The check is a byte comparison of two consecutive regenerations, not an inspection of the object:
+`cmp` on the two `.rds` files is what found it, after `identical(values(a), values(b))` had said
+they matched. Note this pins only the **per-process** variation — a `date` field in the same
+artifact still churns daily, which is a deliberate provenance choice rather than a defect, so say
+which one the artifact is making.
+
 
 # Code Check Conventions
 
@@ -3125,6 +3328,7 @@ name it and observe it. Measure the sign of a correlation before trusting it.
 | 2026-08-30 | fly#32 | **Do not branch on a value only some code paths populate** — `sized <- !is.na(half_side)` is a property of which route ran first; three conditions in one function each broke on the same `NA`-by-construction fact; batch-dependence is the confirming symptom; the remedy is distinct from the proxy's — derive the predicate from inputs known before any route runs, not a truer measurement |
 | 2026-08-31 | gq#76 | **A premise check satisfied by the happy path's own structure is decoration** — `any(dir.exists(paths))` is TRUE whether or not the sweep recursed, because top-level dirs are always present; restore the defect and watch the premise fail |
 | 2026-09-01 | link#250 | **Asserting a proxy instead of the property passes on the defect** — a pool's width asserted through its job count; 3 jobs at width 8 and at width 10 both write 3 result files and exit 0, so the assertion passed against an octal bug that halved the width — the proxy was blind to it, not merely compressing it; derive the property exactly: each job appends `+` on start and `-` on end (single small appends, atomic under `O_APPEND`), then `awk '$0=="+"{n++; if(n>m)m=n} $0=="-"{n--} END{print m+0}' events` is the width actually used, and with the bug restored it reports `ran 8-wide, expected 10`; ask whether your assertion could tell the property from a neighbouring value — if two widths produce identical observations, it is about something else |
+| 2026-09-07 | drift#72 | **A combined evidence score is a proxy for its parts, and it is wrong in opposite directions depending on whether they are independent — so measure that first** — merging independent legs discards what each knew, and merging dependent ones counts the same measurement twice; both surface as one plausible number with no way to tell which happened. drift had both, measured, in the same dataset: #62 Q4 found the geometric and temporal legs independent to nearly independent (clean-break share 0.494 vs 0.575, 0.490 vs 0.621, 0.518 vs 0.515) and concluded *"neither leg predicts the other well enough to stand in for it — a patch needs both tags"*, while #67 found date agreement and the sustained/endpoint split are **one measurement read two ways** (*"the split is `break_year` thresholded … do not report them as two corroborating legs"*). Keep one named column per axis and let the consumer rank; where a strength already exists as a number (`pmin(n_before, n_after)`, 1-3 here), publish it rather than its threshold — a boolean derived from it is the lossy form, and nothing downstream can recover what it dropped. Corollary on **grain**: an aggregate row is not a place, so a spatial attribution cannot attach to one however the vocabulary grows — `Trees -> Rangeland, break, 2019, 13,480 cells` spans a whole floodplain, and asking which fire it was has no answer at that row. Check the grain before designing the column |
 
 ### Verification that reads its own output
 
@@ -3361,6 +3565,7 @@ every widening broke and every narrowing held.
 | 2026-09-01 | flooded#52 | **A claim flagged as under-evidenced gets repaired by widening, and widening is what breaks** — six review rounds, 36 findings; every fix added a quantifier over a ragged dataset×resolution×lineage grid; terminated by reproducing the old behaviour to the digit and measuring every row |
 | 2026-09-03 | rtj#243 | **A defect rate is a claim about the population filter first, and the subject second** — a photo-reference audit reported 142 of 290 references (49%) dangling on the server, which flipped a design conclusion and was one command from being written into another repo's issue as fact. The filter for the *reference* side was right; the filter for the *server* side required the path to contain a `photos/` directory, so every image stored elsewhere was invisible and counted as missing. Re-run on all image extensions, case-insensitive: **6 of 290, 2%** — and those six reconciled exactly to an already-filed issue about bare filenames. A 49% failure rate in a shipped project was the tell, and the reconciliation that catches it is cheap: **count both sides of a ratio with independently-justified filters, and re-run the denominator's filter one notch looser before believing a rate**. Sibling of the positive control above — here the control is a *second, more lenient* population, not a known-good item |
 | 2026-09-05 | rfp#275 | **A differential baseline stops being one the moment the parent moves** — a branch suite was compared against a baseline measured earlier the same session, at a commit that had since stopped being the branch point: another session shipped a release into `main` in between. The comparison still *ran*, still produced two numbers, and would have attributed six failures on a parent that no longer existed. Re-run at the real branch point the counts moved 4409 → 4711 on the baseline side alone. **A baseline is only valid against `git merge-base HEAD origin/main`**, so in a shared checkout re-derive it at push time rather than reusing the one taken at branch time — and note the failure direction: the stale baseline was *lower*, which flatters the branch. Sibling of "a measurement carries the time it was taken", where what expired is the reference rather than the reading |
+| 2026-09-06 | rfp#282 | **An instrument that is not stable within one version cannot speak to the difference between two — and it reads as a regression or as equivalence with equal confidence.** Smoke-testing two container versions before pinning one, the written style differed on a colour and read as a version regression; the same image run twice differed identically, because the renderer mints a symbol with a random colour. Then the *other* script's PNG came out byte-identical across the two versions and that was written into the findings file as the gate's evidence — also luck, since two runs at one image are not byte-identical either. **Both directions in one session**, on one gate. Re-measured on painted-pixel count, which is stable within a version: 7779 across three runs at each. The discriminating test is one command and precedes every A/B: **run the same image twice before comparing two of them.** Distinct from the stale-baseline row above — there the reference expired, here the *ruler* is noisy — and from a proxy, which is stable but measures the wrong thing. The tell is a difference you cannot explain mechanically, or an agreement too clean for something with a random component in it |
 | 2026-09-04 | rtj#282/#283/#284 | **And the filter can be right while the *predicate* is wrong** — the refinement of the row above, met three times in one session on one number. A photo manifest reported 142 of 290 present; the count then moved to 35, to 11, to **0 genuinely lost**, and no step was an arithmetic error. First the resolver named three directories photos were known to live in and the project also had a fourth. Then the denominator included **form-template placeholders** — six dummy filenames on a worked-example record, which is why three different projects reported *exactly six* missing, a tell sitting in my own summary table unexamined. Then the predicate itself: `exists in the project directory` was standing in for *is this photo safe*, while photos are **deliberately moved off** to control project size — so the check penalised the housekeeping it should encourage, on the gate that precedes destroying a generation. **Ask what the predicate is a proxy for before trusting the rate**, and when several independent subjects report an identical count, that equality is the finding. Each correction came from workflow knowledge no amount of re-measuring would have supplied — so when a rate survives one correction, ask who else knows what the number means |
 | 2026-09-05 | rfp#268/#271 | **When you cannot list, read the PRODUCER — "unlistable" is not "unknowable"** — a bucket answered `403 AccessDenied` to a list (correct for a `s3:GetObject`-only policy), so the artifact was reported as unconfirmable and a shipped feature was documented as blocked on it, with a follow-up issue filed saying so. The job that writes the object recorded the exact key in its own source; one `HEAD` on it returned **200, 66,635,819 bytes, staged the previous day**. The reasoning was "guessing a key is the construct-the-sibling-path antipattern" — true of a key *derived from a pattern*, and the opposite of true for one *read from the code that writes it*, which is that rule's own remedy. **Before concluding an artifact's presence is unknowable, grep the producer for the path it writes**; and treat a self-filed "blocked on X" as a claim to check rather than a conclusion, since nothing downstream will ever re-test it |
 | 2026-09-04 | rfp | **An error naming its own remedy, mapped onto a remembered failure instead of read** — a memory note said `op read` "times out on authorization"; the actual error was `couldn't connect to the 1Password desktop app… update to the latest version and restart the app`, and the app was running with `--just-updated --should-restart`. Not a timeout, not an authorization problem, and the fix was in the text. Cost: the *preferred* documented route was abandoned for the last-rank fallback, the user was escalated to, and then the credential's **name** was doubted — it had been right all along. Two tells, both cheap: the error prescribed an action nobody took, and the remembered failure mode had a different **shape** (a hang) than the one observed (an immediate error). **Read the error's own words before matching it to a prior**, and when a convention ranks routes, confirm the preferred route's prerequisite is genuinely absent rather than merely erroring once |
@@ -4881,6 +5086,33 @@ nothing.
 `gh-pages` history is not a problem the way normal git history is: on a private
 repo the branch is not publicly browsable, and only the currently-served content
 is public. Deleting the file genuinely ends the exposure — no history rewriting.
+
+## pkgdown drops a footnote's body and keeps its marker
+
+A pandoc footnote — `text[^k]` with a `[^k]: …` block — renders in an article as a
+**superscript marker with no footnote section under it**. The marker is emitted
+(`class="footnote-ref"`), the content is not, and nothing warns.
+
+So the failure is silent and lands on exactly the material a footnote is for: the caveat, the
+definition, the reconciliation. Measured 2026-09-06 in drift#66, where a footnote carrying the
+reconciliation of two circulating hectare totals — the sentence that stops a reader treating them
+as a disagreement — was absent from the published page while `rmarkdown::render()` of the same
+source showed it fine.
+
+- **Do not write footnotes in a pkgdown article.** Promote the content to a block quote, a
+  parenthetical, or its own short paragraph. If it is worth a footnote it is usually worth being
+  visible.
+- **Check the rendered HTML, not the source.** The tell is a marker with nothing to jump to:
+
+  ```bash
+  grep -c 'footnote-ref' docs/articles/<name>.html     # markers emitted
+  grep -c 'class="footnotes' docs/articles/<name>.html # section emitted — expect these to agree
+  ```
+
+Same family as the cross-reference gotcha already noted for vignettes (`\@ref(fig:…)` compiling
+to a literal): bookdown output formats do not carry all of bookdown's machinery through pkgdown,
+and each missing piece fails quietly in its own way. Verify anything structural — footnotes,
+cross-references, numbered captions — against the built page the first time you use it.
 
 
 # Planning Conventions
