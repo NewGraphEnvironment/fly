@@ -65,35 +65,35 @@ Three findings change the design below, all recorded in `findings.md`:
       non-shadowing guarantee where the trailing hyphen is what does it, and a count
       of four that is five
 
-## Phase 3: Serial resolution inside `fly_camera_format()`
+## Phase 3: Serial resolution inside `fly_camera_format()` — DONE
 
-- [ ] Build the serial index from the `calib_file` rows **only** (review B4 — a short
+- [x] Build the serial index from the `calib_file` rows **only** (review B4 — a short
       serial hitting a `focal_length` row gives a confident basis and no footprint), as
       **two passes**: `report_serial` tokens first, `key` tokens as a fallback. Tokenise
       on non-digits and take the longest run (B2); strip the `_YYYY` suffix from `key`
       first (B3)
-- [ ] Resolve a `camera_serial` column through that index —
+- [x] Resolve a `camera_serial` column through that index —
       `width_source = "patb_serial=<serial>"`, `resolved = TRUE`, `inferred = FALSE`.
       Gate on the existing `matched`, not a fresh predicate, so a **withheld** calibration
       cannot fall through (review O1)
-- [ ] Resolve a `camera_name` column through the label **only where no serial is present**,
+- [x] Resolve a `camera_name` column through the label **only where no serial is present**,
       by **exact** equality against a normalised label — a prefix match would size a
       `DMC II 250` from the `DMC II 230` row (review G5)
-- [ ] Refuse rather than guess, three ways, each with its own `width_source` tag in the
+- [x] Refuse rather than guess, three ways, each with its own `width_source` tag in the
       shape of the existing `"withheld:"` refusal: rows that disagree on
       `(px_cross, px_along)`; a serial present but unknown; an unrecognised name
-- [ ] **Carry every refusal tag through `fly_footprint()`** — generalise its `withheld`
+- [x] **Carry every refusal tag through `fly_footprint()`** — generalise its `withheld`
       block to `!from_table & !is.na(fmt$width_source)`, or the tag is computed and
       dropped (review B5)
-- [ ] `fly_footprint()` uses `patb_gsd` where `ground_sample_distance` is absent or 0,
+- [x] `fly_footprint()` uses `patb_gsd` where `ground_sample_distance` is absent or 0,
       never overwriting the catalogue column, and records that in `width_source`
-- [ ] Tests: resolves by serial, resolves by name where no serial, ambiguous, unknown
+- [x] Tests: resolves by serial, resolves by name where no serial, ambiguous, unknown
       serial refuses rather than reading the name, unrecognised name refused
       (`DMC II 250`), withheld key + serial + name all present still refused, serial and
       calibration URL both present (URL wins), serial on a film frame (ignored),
       `patb_gsd` used only where the catalogue GSD is 0, refusal tags reaching
       `fly_footprint()$width_source`, zero-row input keeping column types
-- [ ] **The decisive offline check** (review AC2): every frame in
+- [x] **The decisive offline check** (review AC2): every frame in
       `photo_centroids_digital.gpkg` has both a calibration URL and a PAT-B identity, over
       two cameras and two schemas — assert both routes resolve to the same
       `(px_cross, px_along)`

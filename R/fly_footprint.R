@@ -647,12 +647,16 @@ fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL,
 
   width_source <- rep(NA_character_, n)
   width_source[from_table] <- fmt$width_source[from_table]
-  # A frame naming a withheld calibration is not `from_table` — it resolved to nothing —
-  # so without this the refusal is computed and then dropped, and the frame is
-  # indistinguishable from one whose media was simply unknown.
-  withheld <- is.na(width_in) & !is.na(fmt$width_source) &
-    startsWith(fmt$width_source, "withheld:")
-  width_source[withheld] <- fmt$width_source[withheld]
+  # A frame that resolved to nothing is not `from_table`, so without this its refusal is
+  # computed and then dropped, and the frame is indistinguishable from one whose media
+  # was simply unknown.
+  #
+  # Written as "any row the format table declined to size, whichever way it declined"
+  # rather than as a list of prefixes. A second `startsWith` would have been the obvious
+  # shape when fly#50 added `unknown_serial:` and `ambiguous_serial:`, and it is the shape
+  # that loses the third one.
+  refused <- is.na(width_in) & !from_table & !is.na(fmt$width_source)
+  width_source[refused] <- fmt$width_source[refused]
   basis[from_table] <- ifelse(fmt$inferred[from_table], "inferred_format",
                               as.character(centroids_sf$media)[from_table])
 
@@ -687,8 +691,36 @@ fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL,
   if ("ground_sample_distance" %in% names(centroids_sf)) {
     gsd_m <- fly_gsd_m(as.numeric(centroids_sf$ground_sample_distance))
   }
+
+  # The catalogue's own GSD is 0 on whole years of digital imagery — measured, all 24,742
+  # frames of 2011 and 2012 — so resolving the camera for those frames still leaves them
+  # unsizeable. Their PAT-B files carry the number, and `fly_camera_patb()` returns it as
+  # `patb_gsd`.
+  #
+  # Used ONLY where the catalogue has nothing. The catalogue column is never overwritten:
+  # where both are present they agree (25 on every 2015-2016 frame), and preferring the
+  # PAT-B value would make the footprint depend on whether the caller happened to have run
+  # `fly_camera_patb()`. Same units — centimetres — see `fly_gsd_m()`.
+  gsd_from_patb <- rep(FALSE, n)
+  if ("patb_gsd" %in% names(centroids_sf)) {
+    pg <- fly_gsd_m(suppressWarnings(as.numeric(centroids_sf$patb_gsd)))
+    use_pg <- (is.na(gsd_m) | gsd_m <= 0) & !is.na(pg) & pg > 0
+    gsd_m[use_pg] <- pg[use_pg]
+    gsd_from_patb[use_pg] <- TRUE
+  }
+
   by_gsd <- from_table & !is.na(fmt$px_cross) & !is.na(fmt$px_along) &
     !is.na(gsd_m) & gsd_m > 0
+  # Only where it was actually used to size the frame — a `patb_gsd` on a row that took
+  # another route says nothing about that row's footprint.
+  gsd_from_patb <- gsd_from_patb & by_gsd
+  if (any(gsd_from_patb)) {
+    width_source[gsd_from_patb] <- ifelse(
+      is.na(width_source[gsd_from_patb]),
+      "gsd=patb",
+      paste0(width_source[gsd_from_patb], "; gsd=patb")
+    )
+  }
   half_cross[by_gsd] <- fmt$px_cross[by_gsd] * gsd_m[by_gsd] / 2
   half_along[by_gsd] <- fmt$px_along[by_gsd] * gsd_m[by_gsd] / 2
 
