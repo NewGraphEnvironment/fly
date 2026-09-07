@@ -227,6 +227,6 @@ georef
 #> # A tibble: 2 × 4
 #>   airp_id source                               dest                      success
 #>     <int> <chr>                                <chr>                     <lgl>  
-#> 1  699426 /tmp/Rtmp9zh1EE/bc5282_232_thumb.jpg /tmp/Rtmp9zh1EE/bc5282_2… TRUE   
-#> 2  699425 /tmp/Rtmp9zh1EE/bc5282_231_thumb.jpg /tmp/Rtmp9zh1EE/bc5282_2… TRUE   
+#> 1  699426 /tmp/RtmpATzfHS/bc5282_232_thumb.jpg /tmp/RtmpATzfHS/bc5282_2… TRUE   
+#> 2  699425 /tmp/RtmpATzfHS/bc5282_231_thumb.jpg /tmp/RtmpATzfHS/bc5282_2… TRUE   
 ```
