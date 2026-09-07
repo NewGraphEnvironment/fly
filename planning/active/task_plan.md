@@ -47,18 +47,23 @@ Three findings change the design below, all recorded in `findings.md`:
 3. **The serial index needs two passes**, `report_serial` then `key`, not a union — a
    union makes `20814295` ambiguous and refuses 14,717 correct frames.
 
-## Phase 2: Fix the camera label and pin the invariant
+## Phase 2: Fix the camera label and pin the invariant — DONE
 
-- [ ] `camera_name()` in `data-raw/make_camera_formats.R`: derive the label from
+- [x] `camera_name()` in `data-raw/make_camera_formats.R`: derive the label from
       `report_serial`'s family where a serial is present (`UC-SX-` → UltraCam X,
       `UC-SXp-` → UltraCam Xp), falling back to the text scan; QA check that the two agree
-- [ ] Patch `inst/extdata/camera_formats.csv` row `70912643_2015` → `UltraCam X`
-- [ ] `tests/testthat/test-camera_formats.R`: every distinct `camera` label maps to
+- [x] Patch `inst/extdata/camera_formats.csv` row `70912643_2015` → `UltraCam X`
+- [x] `tests/testthat/test-camera_formats.R`: every distinct `camera` label maps to
       exactly one `(px_cross, px_along)` — restricted to `key_type == "calib_file"`, since
       the four fallback rows have `px_cross = NA` and three share one label across three
       widths, so an unrestricted test agrees trivially (review). Assert the premise that
       at least one label spans more than one row, or it is a per-row tautology
-- [ ] Restore the wrong label and confirm the test fails, as an executed check
+- [x] Restore the wrong label and confirm the test fails, as an executed check
+- [x] Review round 1: three findings, all fixed — the disagreement diagnostic was
+      blind to the risky branch (where `serial_family()` returns NA the label IS the
+      text scan, so no disagreement can ever print), a comment named anchoring as the
+      non-shadowing guarantee where the trailing hyphen is what does it, and a count
+      of four that is five
 
 ## Phase 3: Serial resolution inside `fly_camera_format()`
 

@@ -276,13 +276,61 @@ report_serial <- function(lines) {
   if (length(m)) m[1] else NA_character_
 }
 
-camera_name <- function(lines) {
+# The model family a Vexcel serial names, which is not the same question as which model
+# name appears somewhere in the report text.
+#
+# `UC-SX-` is an UltraCam X and `UC-SXp-` an UltraCam Xp: 14430 x 9420 @ 7.2 um against
+# 17310 x 11310 @ 6.0 um, a 20% difference in ground width. Read from the serial, the
+# distinction is a single character in a fixed position; read from the prose, it is not
+# there at all, because a report for an X can and does mention "UltraCamXp" in passing.
+#
+# The TRAILING HYPHEN is what separates `UC-SX-` from `UC-SXp-`, not the leading anchor:
+# `UC-SXp-1-20910461` contains no `UC-SX-` substring either way. Keep it. Without it the
+# answer would depend on declaration order, since `serial_family()` takes the first hit
+# rather than the longest match.
+SERIAL_FAMILY <- c(
+  "^UC-SXp-"   = "UltraCamXp",
+  "^UC-SX-"    = "UltraCam X",
+  "^UC-Fp-"    = "UltraCam Falcon M2",
+  "^UC-EpII-"  = "UltraCam Eagle M3",
+  "^UC-Eagle-" = "UltraCam Eagle",
+  "^UC-E-"     = "UltraCam Eagle"
+)
+
+serial_family <- function(serial) {
+  if (is.na(serial)) return(NA_character_)
+  hit <- vapply(names(SERIAL_FAMILY), function(p) grepl(p, serial), logical(1))
+  if (any(hit)) unname(SERIAL_FAMILY[which(hit)[1]]) else NA_character_
+}
+
+# The model as named by the text, ordered longest-first so a longer name is not shadowed
+# by a shorter one it contains.
+#
+# The order alone is not enough, which is what `serial_family()` above is for: this scans
+# the WHOLE report, so a single stray mention anywhere in an UltraCam X document returns
+# `UltraCamXp` from six entries higher up the list. That is exactly what shipped for
+# `70912643_2015` (serial `UC-SX-1-70912643`, UltraCam X dimensions, labelled
+# `UltraCamXp`), and it is not a hypothetical class: the province makes the same mistake
+# in its own `d_001_fi_16_georef.txt`, which labels that very body `UltraCam XP`.
+#
+# Nothing joined on this column when the mislabel shipped, so nothing was sized wrongly
+# by it. fly#50 makes it a join key, which is why it is fixed now. See
+# `inst/notes/camera-formats.md`.
+camera_name_text <- function(lines) {
   txt <- paste(lines, collapse = " ")
   pats <- c("UltraCam Eagle Prime II", "UltraCam Eagle-M3", "UltraCam Eagle M3",
             "UltraCam Falcon M2", "UltraCamXp", "UltraCam Xp", "UltraCam Eagle",
             "UltraCamEagle", "UltraCam X", "DMC III", "DMC II", "DMC")
   for (p in pats) if (grepl(p, txt, fixed = TRUE)) return(p)
   NA_character_
+}
+
+# The serial is authoritative where it names a family; the text fills in the rest, which
+# today is every Intergraph/Z-I body (`DMC01 - 0039`, `DMC III 27542`) whose serial
+# format carries no model code.
+camera_name <- function(lines) {
+  from_serial <- serial_family(report_serial(lines))
+  if (!is.na(from_serial)) from_serial else camera_name_text(lines)
 }
 
 # --- 4. Parse every report ---------------------------------------------------------
@@ -319,6 +367,46 @@ keys <- sort(unique(stats::na.omit(frames$key)))
 parsed <- dplyr::bind_rows(lapply(keys, parse_one))
 unparsed <- setdiff(keys, parsed$key)
 message("  parsed ", nrow(parsed), " of ", length(keys), " calibration files")
+
+# Report where the serial and the prose disagree about the model, rather than resolving
+# it silently. `camera_name()` prefers the serial and is right to, but a disagreement is
+# a fact about the report worth seeing on every regenerate — it is how the `70912643`
+# mislabel would have been caught the first time.
+disagree <- vapply(seq_len(nrow(parsed)), function(i) {
+  k <- parsed$key[i]
+  dir <- fs::path(CACHE, "pdf", k)
+  pdfs <- fs::dir_ls(dir, regexp = "\\.pdf$", recurse = TRUE, type = "file")
+  hit <- pdfs[fs::path_file(pdfs) == parsed$source_pdf[i]]
+  if (!length(hit)) return(NA_character_)
+  lines <- tryCatch(pdf_lines(hit[1]), error = function(e) character(0))
+  from_text <- camera_name_text(lines)
+  if (!is.na(from_text) && !identical(from_text, parsed$camera[i])) from_text else NA_character_
+}, character(1))
+if (any(!is.na(disagree))) {
+  i <- which(!is.na(disagree))
+  message("  serial overrides the report text on ", length(i), " row(s):")
+  for (j in i) {
+    message("    ", parsed$key[j], "  serial ", parsed$report_serial[j],
+            " -> ", parsed$camera[j], "   text said ", disagree[j])
+  }
+}
+
+# And the case the block above is structurally blind to. Where `serial_family()` returns
+# NA the label IS the text scan, so `camera_name()` and `camera_name_text()` agree by
+# construction and no disagreement can ever be reported — precisely on the rows where the
+# unreliable route is the one in use. Every Vexcel prefix outside SERIAL_FAMILY lands here
+# (`UC-Ep-`, `UC-F-`, `UC-Xp-`, `UC-Osprey-` all return NA), which is the shape of the next
+# camera the province buys.
+unmapped <- !is.na(parsed$report_serial) & grepl("^UC-", parsed$report_serial) &
+  vapply(parsed$report_serial, function(s) is.na(serial_family(s)), logical(1))
+if (any(unmapped)) {
+  message("  Vexcel serial with no SERIAL_FAMILY entry - label came from the report TEXT, ",
+          "which is the route that mislabelled 70912643_2015. Add the prefix:")
+  for (j in which(unmapped)) {
+    message("    ", parsed$key[j], "  serial ", parsed$report_serial[j],
+            " -> ", parsed$camera[j])
+  }
+}
 
 
 # --- 5. QA ------------------------------------------------------------------------
