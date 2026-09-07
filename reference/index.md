@@ -4,6 +4,8 @@
 
 - [`fly_bearing()`](https://newgraphenvironment.github.io/fly/reference/fly_bearing.md)
   : Compute flight line bearing from consecutive airphoto centroids
+- [`fly_camera_patb()`](https://newgraphenvironment.github.io/fly/reference/fly_camera_patb.md)
+  : Read the camera a frame's PAT-B file names
 - [`fly_coverage()`](https://newgraphenvironment.github.io/fly/reference/fly_coverage.md)
   : Check photo coverage of an AOI by group
 - [`fly_fetch()`](https://newgraphenvironment.github.io/fly/reference/fly_fetch.md)

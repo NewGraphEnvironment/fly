@@ -61,8 +61,24 @@ real width. **Footprints are not square** — sensors run from 1.10:1 to
 
 `width_source` names the calibration file behind each footprint, or the
 fallback rule where a frame carries no calibration; those are marked
-`"inferred_format"` in `footprint_basis`. `format_size` still overrides
-everything if you know your camera:
+`"inferred_format"` in `footprint_basis`.
+
+A frame with no calibration report often still has a camera, published
+in the per-frame georeferencing file the catalogue links through
+`patb_georef_url`.
+[`fly_camera_patb()`](https://newgraphenvironment.github.io/fly/reference/fly_camera_patb.md)
+fetches those and attaches the camera identity, and
+[`fly_footprint()`](https://newgraphenvironment.github.io/fly/reference/fly_footprint.md)
+then sizes the frame from the named sensor rather than refusing it — no
+DEM needed:
+
+``` r
+
+photos <- fly_camera_patb(photos, dest_dir = "georef")
+fly_footprint(photos)
+```
+
+`format_size` still overrides everything if you know your camera:
 `fly_footprint(photos, format_size = c("Digital - Colour" = 3.54))`.
 
 The photos used throughout the rest of this vignette are 1968 film, so
@@ -464,9 +480,9 @@ georef[, c("airp_id", "dest", "success")]
 #> # A tibble: 3 × 3
 #>   airp_id dest                                 success
 #>     <int> <chr>                                <lgl>  
-#> 1  699370 /tmp/RtmpQoqafV/bc5282_176_thumb.tif TRUE   
-#> 2  699415 /tmp/RtmpQoqafV/bc5282_221_thumb.tif TRUE   
-#> 3  699426 /tmp/RtmpQoqafV/bc5282_232_thumb.tif TRUE
+#> 1  699370 /tmp/RtmpGf9uHn/bc5282_176_thumb.tif TRUE   
+#> 2  699415 /tmp/RtmpGf9uHn/bc5282_221_thumb.tif TRUE   
+#> 3  699426 /tmp/RtmpGf9uHn/bc5282_232_thumb.tif TRUE
 ```
 
 The georeferenced TIFFs inherit whatever basis

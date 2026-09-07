@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fly</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.9.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.10.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,28 @@
 
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="development version" id="fly-development-version">fly (development version)<a class="anchor" aria-label="anchor" href="#fly-development-version"></a></h2>
+<div class="section level3">
+<h3 id="id_0100-development-version">0.10.0 (2026-09-06)<a class="anchor" aria-label="anchor" href="#id_0100-development-version"></a></h3>
+<ul><li>
+<strong>A digital frame with no calibration report can now be sized from the camera the province names in its PAT-B file</strong> (<a href="https://github.com/NewGraphEnvironment/fly/issues/50" class="external-link">#50</a>). 41,249 frames across 2011, 2012, 2015 and 2016 carry a <code>patb_georef_url</code> and no <code>camera_calibration_url</code>; until now they were sized only from <code>focal_length</code>, which fixes sensor <em>width</em> to a few percent and says nothing about <em>pixel count</em>, so <code>footprint_basis</code> read <code>inferred_format</code> and the frame got <strong>no footprint at all</strong> without a DEM. New exported <code><a href="../reference/fly_camera_patb.html">fly_camera_patb()</a></code> fetches and parses those georeferencing files and attaches <code>camera_serial</code>, <code>camera_name</code>, <code>patb_gsd</code> and <code>patb_source</code>; <code><a href="../reference/fly_footprint.html">fly_footprint()</a></code> picks the columns up and sizes the frame on the ordinary <code>pixel count x GSD</code> route, needing no DEM. <strong>22,366 of the 41,249 resolve</strong> — 4,822 UltraCam Xp at 5,193 m, 2,827 UltraCam X at 4,329 m, 14,717 UltraCam Eagle at 5,002 m — and the other 18,883 are refused with a reason in <code>width_source</code> rather than guessed at</li>
+<li>
+<code><a href="../reference/fly_camera_patb.html">fly_camera_patb()</a></code> is the only function in the package that reaches the network on the sizing path. <code><a href="../reference/fly_footprint.html">fly_footprint()</a></code> still fetches nothing, so a batch is resolved once and reused across <code><a href="../reference/fly_coverage.html">fly_coverage()</a></code>, <code><a href="../reference/fly_select.html">fly_select()</a></code>, <code><a href="../reference/fly_overlap.html">fly_overlap()</a></code> and <code><a href="../reference/fly_georef.html">fly_georef()</a></code>
+</li>
+<li>
+<strong>The catalogue’s <code>ground_sample_distance</code> is 0 for whole years of digital imagery</strong> — measured, all 24,742 frames of 2011 and 2012 — so resolving the camera alone would have left this issue’s own headline case unsizeable. The PAT-B files carry the number, and <code>patb_gsd</code> is used <strong>only</strong> where the catalogue has nothing; where both are present they agree, and preferring the file would make a footprint depend on whether the caller had run the fetch</li>
+<li>
+<strong>A camera identity the shipped table does not recognise is refused, not resolved from the model string beside it.</strong> One published archive labels <em>both</em> its cameras <code>UltraCam XP</code> and one of them is serial <code>70912643</code> — a <code>UC-SX</code> UltraCam <strong>X</strong>, 14430 px against the Xp’s 17310 — so a name fallback would size 1,790 frames 20% wide. The model string is read only where the file carries no serial at all (<code>lens_no</code> is 0 on every row of both 2012 archives), and then only on exact equality: the published <code>DMC II 230</code> must not be prefix-matched to the shipped <code>DMC II</code> row, which would also size a DMC II 250 or 140 from it</li>
+<li>
+<strong><code>camera_formats.csv</code> shipped <code>70912643_2015</code> mislabelled.</strong> Its serial is <code>UC-SX-1-70912643</code> and its dimensions are an UltraCam X; the <code>camera</code> field said <code>UltraCamXp</code>. Only the label was wrong and nothing joined on it, which is why it survived — this release makes it a join key. The generator now reads the model from the serial prefix rather than scanning the report prose, where <code>UltraCamXp</code> sat six entries above <code>UltraCam X</code> in the pattern list, and a test asserts every calibration-row label maps to exactly one sensor size</li>
+<li>
+<strong>Behaviour change for <code>dem</code> callers, and it is a small one.</strong> A newly resolved frame becomes GSD-sized, and the DEM route is <code>!by_gsd</code>, so passing a <code>dem</code> now returns the GSD footprint where it used to return a terrain-corrected one. Measured against the exterior orientation the province publishes per frame (<code>sensor width x agl / focal</code>) over every row of the three archives — 4,822 UltraCam Xp, 2,827 UltraCam X, 15,592 UltraCam Eagle: <strong>5,193 m against 5,220 m</strong>, <strong>4,329 m against 4,337 m</strong> and <strong>5,002 m against 5,000 m</strong>, ratios of 0.995, 0.998 and 1.001. The stated GSD is nominal but the implied one differs from it by 0.2 cm at most on these frames, so the GSD-beats-DEM precedence set in 0.6.0 stands and the residual is under 0.5%</li>
+<li>A frame can now <strong>gain a footprint and still gain no GeoTIFF</strong>. <code><a href="../reference/fly_georef.html">fly_georef()</a></code> skips a frame whose delivered image aspect does not pair with its footprint edges, and its constant was measured on the two cameras in the bundled fixture only. All three newly reachable bodies were measured against the live thumbnails for this release and deliver portrait exactly as those two — UltraCam Xp and X at 784 x 1200, UltraCam Eagle at 818 x 1251, matching their shipped aspects to 0.2% — so they pass the gate. The quarter turn remains geometrically unsettleable; see <code>inst/notes/georeferencing.md</code>
+</li>
+<li>
+<code><a href="../reference/fly_fetch.html">fly_fetch()</a></code> no longer treats a <strong>zero-byte</strong> file already in <code>dest_dir</code> as a completed download. <code><a href="https://rdrr.io/r/utils/download.file.html" class="external-link">download.file()</a></code> truncates its target before it runs, so an interrupted fetch left a 0-byte file that the existence check then blessed forever, and a caller reading it saw an absence rather than a failure. <code>data-raw/make_camera_formats.R</code> has carried this guard since 0.6.0; <code><a href="../reference/fly_fetch.html">fly_fetch()</a></code> did not</li>
+<li>
+<code>inst/notes/camera-formats.md</code> records the three PAT-B schemas, why the serial index runs two passes rather than one union (a union makes serial <code>20814295</code> ambiguous and refuses 14,717 correct frames), and why the <code>20814295</code> / <code>22814295</code> gap in the table is the catalogue’s own filing rather than a typo</li>
+</ul></div>
 <div class="section level3">
 <h3 id="id_090-development-version">0.9.0 (2026-09-02)<a class="anchor" aria-label="anchor" href="#id_090-development-version"></a></h3>
 <ul><li>
