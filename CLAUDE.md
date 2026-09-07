@@ -93,6 +93,35 @@ same photo covered different ground depending on the subset. Adjacency is demons
 can measure. Seven of the twenty bundled frames keep a bearing. To hold bearings across a
 subset, call `fly_bearing()` on the contiguous roll and carry the column
 
+- **A frame with no calibration is sized from the camera the province names, and an
+unknown serial refuses rather than reading the name beside it** (v0.10.0, #50) —
+41,249 digital frames carry a `patb_georef_url` and no `camera_calibration_url`, and
+were sized only from `focal_length`, which fixes width to a few percent and says
+nothing about pixel count. `fly_camera_patb()` reads the camera identity out of those
+files; `fly_camera_format()` resolves it against the shipped table, between the
+calibration URL and the focal fallback. 22,366 resolve.
+
+  **Four things here were measured and each is load-bearing.** The serial index runs
+two passes — `report_serial` tokens, then `key` tokens — never a union: serial
+`20814295` reaches four UltraCam Eagles *and* the 2018 body the catalogue files under
+that number while its own report says `22814295`, so a union calls it ambiguous and
+refuses 14,717 correct frames. Tokens are split on non-digits, not concatenated. The
+`_YYYY` suffix comes off keys first, or token `2014` reaches two rows that *agree* and
+any four-digit identity equal to 2014 resolves confidently to an Eagle. And **a serial
+that is present but unknown refuses**: `d_001_fi_16_georef.txt` labels both its cameras
+`UltraCam XP` and one is a `UC-SX` UltraCam X, so falling through to the name sizes
+1,790 frames 20% wide. The name is read only where no serial is present at all, and
+then only on exact equality — a prefix match resolves the published `DMC II 230` from
+the shipped `DMC II` row. Read `inst/notes/camera-formats.md`
+
+  The catalogue's `ground_sample_distance` is **0** on all 24,742 frames of 2011-2012,
+so `patb_gsd` supplies it — only where the catalogue has nothing, or a footprint would
+depend on whether the caller ran the fetch. A newly resolved frame becomes `by_gsd` and
+so leaves the DEM route, which costs a `dem` caller **at most 0.5%**: measured against
+the exterior orientation the province publishes per frame, over every row of the three
+archives, the GSD route gives 5,193 / 4,329 / 5,002 m against 5,220 / 4,337 / 5,000 m.
+The precedence set in #32 is unchanged
+
 - **Terrain error is a datum offset, not slope** (v0.5.0, #9) — `FLYING_HEIGHT` is metres **above sea level**,
 and reported scale is referenced to an elevation above the ground the photos cover, so it understates footprint
 area by a median 13.8% *always in the same direction*. `fly_footprint(dem =)` sizes each frame from

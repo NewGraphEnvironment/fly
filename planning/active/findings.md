@@ -24,10 +24,16 @@ returned 7,649 rows, which is what separated a broken probe from an empty world.
 
 ## The archives, measured
 
-Seven distinct `patb_georef_url` values over those frames. **Two are 404s**, and they
-download as a 196-byte HTML body under a `.csv` name — `utils::download.file()` reports
-success, so this must be detected by content, not by exit status. See `code-check-r.md`,
-"`download.file(quiet = TRUE)` never tells you the HTTP status".
+Seven distinct `patb_georef_url` values over those frames. **Two are 404s**, answered with
+a 196-byte HTML body under a `.csv` name.
+
+**Corrected 2026-09-06:** an earlier version of this line said `utils::download.file()`
+reports those as successful downloads. It does not — it sets FAILONERROR and raises,
+leaving no file at all (measured; the 196-byte body was obtained with `curl`, which does
+not). So `fly_fetch()` already reports them as failures. The content check is still
+warranted, because FAILONERROR is a property of one client and a copy already cached by
+another reaches the parser as HTML. See `code-check-r.md`, "`download.file(quiet = TRUE)`
+never tells you the HTTP status".
 
 | archive | catalogue frames | file inside | schema | identity | GSD |
 |---|---|---|---|---|---|
@@ -167,22 +173,35 @@ returns the first hit, so a report mentioning `UltraCamXp` anywhere beats the co
 `UltraCam X`. A regenerate reintroduces it. The province makes the same mistake in
 `d_001_fi_16_georef.txt`, which is corroboration rather than coincidence.
 
-## The stated GSD is nominal, and the two sizing routes disagree by 7% on one camera
+## The stated GSD is nominal, and the two routes agree to within 0.5%
 
-`agl x pitch / focal` against the stated GSD, from the 2012 files' own first rows:
+**Corrected 2026-09-06 after review round 3.** An earlier version of this section read
+`agl x pitch / focal` off the **first row** of each 2012 archive and concluded the
+UltraCam X was 7% out. Over every row of the three archives it is not.
 
-| archive | camera | agl | implied GSD | stated GSD |
-|---|---|---|---|---|
-| `d_001_fi_12` | UltraCam Xp (6.0 µm, f100.5) | 5086.5 | 30.4 cm | 30 |
-| `d_002_fi_12` | UltraCam X (7.2 µm, f100.5) | 4481.6 | 32.1 cm | 30 |
+**`n` here is archive rows, not catalogue frames**, and the two differ. An archive holds a
+row for every frame of its project, including the frames that already carry a calibration
+URL and so never take this route — which is why the Eagle's 15,592 is larger than the
+14,717 catalogue frames the resolve table above counts for the same archive. The resolve
+totals (4,822 + 2,827 + 14,717 = 22,366) are catalogue frames; this table is the
+measurement, taken over the file. Produced by reading `agl`, `gsd`/`seg_gsd` and the
+shipped `width_mm` / `focal_mm` / `pitch_um` straight out of the cached archives — the
+median over each file, not row one:
 
-The Xp agrees to 1.2%. The X is 7% out, which is more than the ±1.7% that integer-centimetre
-quantization alone can explain. It is not evidence against the camera identity — reading
-`d_002` as an Xp instead gives 26.8 cm, an 11% error in the other direction, so UltraCam X
-remains the better fit and the `UC-SX` serial in the sibling 2016 archive agrees. The
-stated GSD is used regardless, which is what the existing digital route already does; the
-disagreement is recorded so that a footprint 7% narrow on those 2,827 frames is a known
-quantity rather than a surprise.
+| camera | n | GSD route | exterior orientation | ratio | implied GSD vs stated |
+|---|---|---|---|---|---|
+| UltraCam Xp | 4,822 | 5,193 m | 5,220 m | 0.995 | 30.2 against 30 cm |
+| UltraCam X | 2,827 | 4,329 m | 4,337 m | 0.998 | 30.1 against 30 cm |
+| UltraCam Eagle | 15,592 | 5,002 m | 5,000 m | 1.001 | 25.0 against 25 cm |
+
+Row one of `d_002_fi_12_georef.csv` has an `agl` of 4,481.6 m where the roll's median is
+about 4,200; the 32.1 cm it implies is that one frame, not the camera. The issue body's
+4,066 m and 4,073 m came from a different AOI subset again and are not reproducible from
+anything measured here, so nothing shipped quotes them.
+
+**The lesson is the one already in the conventions**: a single row is not a population,
+and it was quoted into three shipped artifacts before a reviewer noticed the two halves of
+the sentence contradicting each other.
 
 ## Errors Encountered
 
