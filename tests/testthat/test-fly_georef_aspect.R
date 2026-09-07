@@ -120,3 +120,32 @@ test_that("square film is isotropic at every rotation, so the invariant is vacuo
                  info = paste("rotation =", rot))
   }
 })
+
+
+test_that("the shipped sensor aspect matches the thumbnail for the cameras fly#50 reaches", {
+  # The premise above covers the two cameras in the bundled fixture. fly#50 makes three
+  # more sizeable — the frames with no calibration report — and they reach `fly_georef()`
+  # for the first time, where a frame whose delivered image aspect does not pair with its
+  # footprint edges is SKIPPED rather than written. So the pairing is measured for them
+  # too, or the new footprints would arrive with no way to tell a correct refusal from a
+  # wrong sensor.
+  #
+  # Measured 2026-09-06 against the live thumbnails at openmaps.gov.bc.ca. All three
+  # deliver PORTRAIT, exactly as the two already pinned — image width is the along-track
+  # pixel count and image height the across-track one:
+  #
+  #   UltraCam Xp     bcd12001_001_30_thumb.jpg           784 x 1200 px
+  #   UltraCam X      bcd12008_001_rgb_30_thumb.jpg       784 x 1200 px
+  #   UltraCam Eagle  bcd15101_001_25_8bit_rgb_thumb.jpg  818 x 1251 px
+  measured <- c("UltraCamXp" = 1200 / 784, "UltraCam X" = 1200 / 784,
+                "UltraCam Eagle" = 1251 / 818)
+
+  tbl <- fly_camera_table()
+  calib <- tbl[tbl$key_type == "calib_file", ]
+  for (cam in names(measured)) {
+    row <- calib[calib$camera == cam, ][1, ]
+    expect_false(is.na(row$px_cross), info = cam)                    # premise: still shipped
+    expect_equal(row$px_cross / row$px_along, unname(measured[[cam]]),
+                 tolerance = 2e-3, info = cam)
+  }
+})

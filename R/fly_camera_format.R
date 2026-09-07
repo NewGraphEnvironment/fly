@@ -14,6 +14,11 @@
 #   `focal_length` — keyed on the catalogue's `focal_length`, for the ~20% of digital
 #                    frames carrying no calibration URL. Inferred, and carrying
 #                    `width_spread_pct` so the room for error travels with the number.
+#
+# `calib_file` rows are reached a second way since fly#50: by the camera serial or model
+# the province publishes in a frame's PAT-B georeferencing file, which is how a frame with
+# no calibration URL gets an exact format rather than an inference. Same rows, a different
+# key — see "Resolving a camera the province named" below, and `fly_camera_patb()`.
 
 fly_camera_cache <- new.env(parent = emptyenv())
 
@@ -145,14 +150,31 @@ fly_camera_resolve_identity <- function(serial, name, idx = fly_camera_serial_in
   # two-digit token cannot identify a camera body.
   s <- s[nchar(s) >= 3 & !grepl("^0+$", s)]
   if (length(s)) {
-    tok <- s[1]
-    for (pass in c("report", "key")) {
-      rows <- idx[[pass]][[tok]]
-      if (is.null(rows)) next
-      if (agree(rows)) return(list(row = rows[1], note = NA_character_, via = "serial"))
-      return(list(row = NA_integer_, note = paste0("ambiguous_serial:", tok), via = "serial"))
+    # EVERY longest-equal token is resolved, not just the first. `fly_serial_tokens()`
+    # keeps ties on purpose, and reading `s[1]` would pick by position in arbitrary
+    # provincial text: measured, `"100039-327542"` gives a 13824 px DMC and
+    # `"327542-100039"` a 25728 px DMC III — the same identity, two sensors, decided by
+    # digit order. That is exactly what `ambiguous_serial:` exists to refuse.
+    #
+    # A token that matches nothing is ignored rather than fatal; what refuses is two
+    # tokens reaching formats that disagree. With one token — every real value measured —
+    # this is the single-token behaviour unchanged.
+    rows <- integer(0)
+    for (tok in s) {
+      for (pass in c("report", "key")) {
+        hit <- idx[[pass]][[tok]]
+        if (is.null(hit)) next
+        rows <- c(rows, hit)
+        break
+      }
     }
-    return(list(row = NA_integer_, note = paste0("unknown_serial:", tok), via = "serial"))
+    if (length(rows)) {
+      if (agree(rows)) return(list(row = rows[1], note = NA_character_, via = "serial"))
+      return(list(row = NA_integer_,
+                  note = paste0("ambiguous_serial:", paste(s, collapse = "/")),
+                  via = "serial"))
+    }
+    return(list(row = NA_integer_, note = paste0("unknown_serial:", s[1]), via = "serial"))
   }
 
   if (!is.na(name) && nzchar(as.character(name))) {

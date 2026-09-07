@@ -223,3 +223,123 @@ st_write(keep, file.path(outdir, "photo_centroids_digital.gpkg"),
          delete_dsn = TRUE, quiet = TRUE)
 message("photo_centroids_digital.gpkg: ", nrow(keep), " frames, cameras ",
         paste(sort(unique(basename(keep$camera_calibration_url))), collapse = ", "))
+
+
+# --- PAT-B georeferencing fixtures (fly#50) -----------------------------------------
+#
+# `fly_camera_patb()` reads the camera identity out of the per-frame georeferencing files
+# the catalogue publishes through `patb_georef_url`. Three schemas are in circulation and
+# they are dispatched on the columns present, so the suite needs one of each, offline.
+#
+# These are TRIMMED COPIES of the real published archives, not synthesised: every column
+# name, every quirk of spelling (`Ultracm Eagle`, `DMC II 230`) and the 404 body are the
+# province's own. A hand-built fixture would agree with whatever the parser expects.
+#
+# Kept small by dropping every row that no bundled frame joins to. The full archives are
+# 0.3-2.5 MB each; these are a few kilobytes.
+
+message("Building PAT-B fixtures (network step) ...")
+patb_dir <- file.path(outdir, "patb")
+fs::dir_create(patb_dir)
+
+# Member timestamps are what a zip stores, so pin them or the archive's bytes churn on
+# every regenerate and a real change disappears into the noise. Same reasoning as
+# `OGR_CURRENT_DATE` for GeoPackages.
+patb_epoch <- as.POSIXct("2000-01-01 00:00:00", tz = "UTC")
+
+# Guard on non-empty, not existence - `download.file()` truncates its target before it
+# runs, so an interrupted fetch leaves a short file that `file.exists()` blesses forever
+# and the fixture regenerates silently trimmed. Same guard `fly_fetch()` carries.
+patb_get <- function(url) {
+  dest <- file.path(tempdir(), basename(url))
+  if (!file.exists(dest) || file.size(dest) == 0) {
+    utils::download.file(url, dest, mode = "wb", quiet = TRUE)
+  }
+  stopifnot(file.exists(dest), file.size(dest) > 0)
+  dest
+}
+
+# Keys of the frames the bundled digital centroids actually hold, so the trim keeps
+# exactly what a test can join to.
+# Through the package's own key builder rather than a restatement of it: `paste0()`
+# stringifies NA, so a restated version turns an unusable roll or frame into the literal
+# key `"..._NA"` on BOTH sides and trims the fixture to the wrong rows. That is the defect
+# `fly_patb_key()` was fixed for in fly#50; one copy of it is enough.
+bundled_keys <- fly:::fly_patb_key(keep$film_roll, keep$frame_number)
+patb_keys <- function(x) {
+  fly:::fly_patb_key(sub("_[^_]*$", "", x), sub(".*_", "", x))
+}
+
+trim_zip <- function(url, member, key_col, out_name, extra_member = NULL) {
+  src <- patb_get(url)
+  ex <- file.path(tempdir(), paste0(basename(url), "_x"))
+  utils::unzip(src, exdir = ex)
+  d <- utils::read.csv(file.path(ex, member), stringsAsFactors = FALSE)
+  d <- d[patb_keys(d[[key_col]]) %in% bundled_keys, , drop = FALSE]
+  stopifnot(nrow(d) > 0)
+
+  stage <- file.path(tempdir(), paste0(out_name, "_stage"))
+  if (fs::dir_exists(stage)) fs::dir_delete(stage)
+  fs::dir_create(stage)
+  utils::write.csv(d, file.path(stage, member), row.names = FALSE)
+  # A stub `.ori` member, because every real archive of this schema carries one and it
+  # holds no camera identity. Its presence is what proves the parser skips it by failing
+  # to DISPATCH rather than by matching a filename — `fly_patb_tables()` offers every
+  # member to the reader with no extension filter, so an `.ori` reaching it and matching
+  # no schema is the operative guard. (An earlier version of this generator was paired
+  # with an allowlist that dropped `.ori` before dispatch, which made this comment false
+  # and the fixture decorative; fly#50 review round 3.)
+  if (!is.null(extra_member)) {
+    writeLines(c("  301_10-Sep_001    0.0   665603.663  6165236.006  6256.742",
+                 "  0.993216684179 -0.087397384555  0.076696254418"),
+               file.path(stage, extra_member))
+  }
+  files <- fs::dir_ls(stage, type = "file")
+  Sys.setFileTime(files, patb_epoch)
+  out <- file.path(normalizePath(patb_dir), out_name)
+  if (file.exists(out)) unlink(out)
+  withr::with_dir(stage, utils::zip(out, fs::path_file(files), flags = "-Xq"))
+  message("  ", out_name, ": ", nrow(d), " rows")
+}
+
+# `gr_*` / `ccre_*` schema, with an `.ori` sibling. Camera identity is
+# `ccre_lens_number` = 121201, which is the key of the shipped `121201_2011` calibration;
+# its `ccre_camera_type` is "DMC II 230", the string the shipped label "DMC II" must NOT
+# be prefix-matched from.
+trim_zip("https://openmaps.gov.bc.ca/thumbs/patb_files/d_003_fi_13_georef.zip",
+         "d_003_fi_13_georef.txt", "frm_roll_frame", "d_003_fi_13_georef.zip",
+         extra_member = "2013-093EKLMN_103HI.ori")
+
+# `eop_*` schema. `cam_s_no` = 22814295, the serial the camera's own calibration report
+# gives itself while the catalogue files that calibration under 20814295 — so this
+# fixture is what proves the index reads `report_serial` and not only `key`.
+trim_zip("https://openmaps.gov.bc.ca/thumbs/patb_files/d_005_emn_19_georef.zip",
+         "D_005_EMN_19_georef.csv", "roll_frame", "d_005_emn_19_georef.zip")
+
+# Bare CSV, the 2012 schema: `lens_no` is 0, so the model string is the only identity
+# there is, and `gsd` is the only place the ground sample distance appears at all — the
+# catalogue's own is 0 on all 7,649 frames of that year. No bundled centroid joins to it,
+# so it is trimmed by row count and the tests supply their own frames.
+bare <- patb_get("https://openmaps.gov.bc.ca/thumbs/patb_files/d_001_fi_12_georef.csv")
+bare_d <- utils::read.csv(bare, stringsAsFactors = FALSE)[1:6, ]
+utils::write.csv(bare_d, file.path(patb_dir, "d_001_fi_12_georef.csv"), row.names = FALSE)
+message("  d_001_fi_12_georef.csv: ", nrow(bare_d), " rows, camera ",
+        paste(unique(bare_d$camera), collapse = ", "))
+
+# And a real 404. Two of the seven archives these frames reference are missing, and the
+# server answers with a 196-byte HTML body under a `.csv` name.
+#
+# Fetched with curl rather than `utils::download.file()`, which sets FAILONERROR and so
+# raises rather than writing the body (measured: it leaves no file at all). That is the
+# safe behaviour and it is why `fly_fetch()` already reports these as failures. The body
+# is bundled anyway because FAILONERROR is a property of one client: anything that does
+# not set it - curl, a proxy, a cached copy from another tool - hands the HTML to the
+# parser, and the content check is what has to recognise it.
+miss <- "https://openmaps.gov.bc.ca/thumbs/patb_files/d_003_fi_11_georef.csv"
+miss_dest <- file.path(patb_dir, basename(miss))
+resp <- curl::curl_fetch_disk(miss, miss_dest,
+                              handle = curl::new_handle(followlocation = TRUE, timeout = 60))
+stopifnot(resp$status_code == 404,
+          grepl("404", paste(readLines(miss_dest, warn = FALSE), collapse = " ")))
+message("  d_003_fi_11_georef.csv: the 404 body, kept verbatim (status ",
+        resp$status_code, ", ", file.size(miss_dest), " bytes)")

@@ -176,8 +176,10 @@ test_that("an ambiguous serial refuses rather than picking a format", {
 
   # And the same token resolves when the two rows agree — so the refusal is about the
   # disagreement, not about the token reaching two rows.
-  fake$px_cross <- c(20000, 20000); fake$px_along <- c(12000, 12000)
-  fake$width_mm <- c(100, 100); fake$height_mm <- c(60, 60)
+  fake$px_cross <- c(20000, 20000)
+  fake$px_along <- c(12000, 12000)
+  fake$width_mm <- c(100, 100)
+  fake$height_mm <- c(60, 60)
   testthat::local_mocked_bindings(fly_camera_table = function() fake, .package = "fly")
   expect_true(fly_camera_format(patb_fixture(serial = "111111"))$resolved)
 })
@@ -227,7 +229,8 @@ test_that("patb_gsd sizes a frame only where the catalogue has no GSD of its own
   fp <- fly_footprint(photos)
 
   bb <- vapply(sf::st_geometry(sf::st_transform(fp, 3005)), function(g) {
-    b <- sf::st_bbox(g); unname(b["xmax"] - b["xmin"])
+    b <- sf::st_bbox(g)
+    unname(b["xmax"] - b["xmin"])
   }, numeric(1))
   # 20010 px x 0.30, 0.30, 0.25 m. Tolerance because the ring is built in 3005 from a
   # 4326 centroid, so the reprojection moves the width by about a metre.
@@ -245,4 +248,24 @@ test_that("the PAT-B columns keep their types on zero-row input", {
   expect_type(got$width_source, "character")
   expect_type(got$camera, "character")
   expect_type(got$resolved, "logical")
+})
+
+
+test_that("a serial with two equal-length digit runs refuses rather than picking one", {
+  # `fly_serial_tokens()` keeps ties on purpose, and reading only the first would pick by
+  # position in text the province writes: `100039-327542` and `327542-100039` are the same
+  # identity and reach a 13824 px DMC and a 25728 px DMC III respectively. The shipped
+  # table has no ties, so only an input like this can reach the guard.
+  got <- fly_camera_format(patb_fixture(
+    serial = c("100039-327542", "327542-100039"), focal = 53
+  ))
+
+  expect_false(any(got$resolved))
+  expect_true(all(startsWith(got$width_source, "ambiguous_serial:")))
+
+  # And a tie whose tokens AGREE still resolves — the refusal is about the disagreement,
+  # not about there being two runs.
+  agreeing <- fly_camera_format(patb_fixture(serial = "20814295-20814295", focal = 53))
+  expect_true(agreeing$resolved)
+  expect_equal(agreeing$px_cross, 20010)
 })
