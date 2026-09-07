@@ -179,3 +179,54 @@ test_that("resolved and inferred are distinct, so !inferred is a safe filter", {
   expect_true(got$inferred[5])       # focal-length fallback
   expect_true(all(!is.na(got$width_mm[got$resolved])))
 })
+
+
+test_that("one camera label means one sensor, so a label is safe to resolve on", {
+  # The invariant that lets fly#50 size a frame from a camera the province NAMES rather
+  # than from a serial. Where a PAT-B file carries no serial at all — `lens_no` is 0 in
+  # both 2012 archives — the model string is the only identity there is, and it is worth
+  # nothing unless the label determines the sensor.
+  #
+  # Restricted to `calib_file` rows deliberately. The four `focal_length` rows all carry
+  # `px_cross = NA`, and three of them share the label "inferred from focal length"
+  # across three different widths; pooled in, they group on (NA, NA), agree trivially,
+  # and the test passes for nothing.
+  tbl <- fly_camera_table()
+  calib <- tbl[tbl$key_type == "calib_file", ]
+
+  # Premise. On a table where every label were unique this is a per-row tautology, so
+  # assert that at least one label really does span several rows — today UltraCam Eagle
+  # spans five, UltraCamXp two and DMC III two.
+  expect_gt(max(table(calib$camera)), 1L)
+
+  by_label <- split(calib, calib$camera)
+  formats <- vapply(by_label, function(d) {
+    length(unique(paste(d$px_cross, d$px_along)))
+  }, integer(1))
+  expect_equal(unname(formats), rep(1L, length(formats)))
+})
+
+
+test_that("the label invariant fires on the UltraCamXp/UltraCam X mislabel it was written for", {
+  # Restore the defect fly#50 found: `70912643_2015` shipped as "UltraCamXp" on serial
+  # `UC-SX-1-70912643`, which is an UltraCam X — 14430 x 9420 @ 7.2 um against the Xp's
+  # 17310 x 11310 @ 6.0 um. The row's DIMENSIONS were right throughout and nothing joined
+  # on the label, so the table was self-consistent and only the name was wrong.
+  #
+  # Rebuild the check over a mutated copy rather than mutating the shipped table:
+  # `fly_camera_table()` memoises into a namespace environment, so a poked cache would
+  # outlive this test.
+  calib <- fly_camera_table()
+  calib <- calib[calib$key_type == "calib_file", ]
+  expect_true("UltraCam X" %in% calib$camera)                 # premise: the fix is in
+
+  broken <- calib
+  broken$camera[broken$key == "70912643_2015"] <- "UltraCamXp"
+
+  n_formats <- function(d) {
+    vapply(split(d, d$camera), function(x) length(unique(paste(x$px_cross, x$px_along))),
+           integer(1))
+  }
+  expect_true(all(n_formats(calib) == 1L))
+  expect_false(all(n_formats(broken) == 1L))
+})

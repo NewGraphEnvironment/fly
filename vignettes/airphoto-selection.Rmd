@@ -72,8 +72,20 @@ rotated onto the flight line using `fly_bearing()`.
 
 `width_source` names the calibration file behind each footprint, or the
 fallback rule where a frame carries no calibration; those are marked
-`"inferred_format"` in `footprint_basis`. `format_size` still overrides
-everything if you know your camera:
+`"inferred_format"` in `footprint_basis`.
+
+A frame with no calibration report often still has a camera, published in the
+per-frame georeferencing file the catalogue links through `patb_georef_url`.
+`fly_camera_patb()` fetches those and attaches the camera identity, and
+`fly_footprint()` then sizes the frame from the named sensor rather than
+refusing it — no DEM needed:
+
+```r
+photos <- fly_camera_patb(photos, dest_dir = "georef")
+fly_footprint(photos)
+```
+
+`format_size` still overrides everything if you know your camera:
 `fly_footprint(photos, format_size = c("Digital - Colour" = 3.54))`.
 
 The photos used throughout the rest of this vignette are 1968 film, so every

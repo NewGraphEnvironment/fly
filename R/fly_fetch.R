@@ -89,7 +89,12 @@ fly_fetch <- function(photos_sf, type = "thumbnail",
 
     dest_file <- file.path(dest_dir, basename(u))
 
-    if (!overwrite && file.exists(dest_file)) {
+    # Guard on non-empty, not on existence. `download.file()` truncates its target
+    # before it runs, so an interrupted fetch leaves a 0-byte file that an existence
+    # check then blesses forever - and a caller reading that file sees an absence rather
+    # than a failure. `data-raw/make_camera_formats.R` has carried this guard since
+    # fly#32; `fly_fetch()` did not.
+    if (!overwrite && file.exists(dest_file) && file.size(dest_file) > 0) {
       return(dplyr::tibble(
         airp_id = airp_id, url = u,
         dest = dest_file, success = TRUE

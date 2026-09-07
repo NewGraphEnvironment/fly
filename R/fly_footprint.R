@@ -396,8 +396,8 @@ fly_is_square <- function(footprints) {
 #'
 #' \describe{
 #'   \item{the `media` value}{format resolved from the format table}
-#'   \item{`"inferred_format"`}{digital frame with no calibration, sized from a
-#'     format inferred from its `focal_length`}
+#'   \item{`"inferred_format"`}{digital frame with no calibration and no camera
+#'     named in its PAT-B file, sized from a format inferred from its `focal_length`}
 #'   \item{`"assumed_default"`}{no `media` column; `negative_size` applied}
 #'   \item{`"unknown_format"`}{`media` present but unknown; empty geometry}
 #' }
@@ -420,15 +420,30 @@ fly_is_square <- function(footprints) {
 #' `ground_sample_distance` is in centimetres.
 #'
 #' Where a frame carries no `camera_calibration_url` — about a fifth of digital frames —
-#' the format is inferred from `focal_length` and `footprint_basis` records
+#' there are two remaining routes, in this order.
+#'
+#' The catalogue publishes the camera that flew the frame in the per-frame
+#' georeferencing file it links through `patb_georef_url`. [fly_camera_patb()] fetches
+#' and parses those and attaches `camera_serial`, `camera_name` and `patb_gsd`; where
+#' those columns are present, `fly_footprint()` sizes the frame from the named sensor on
+#' the ordinary `px x GSD` route, needing no DEM, and `width_source` records
+#' `patb_serial=` or `patb_camera=`. `patb_gsd` is used only where the catalogue's own
+#' `ground_sample_distance` is absent or zero, which it is for whole years of digital
+#' imagery. This function never reaches the network itself.
+#'
+#' Failing that, the format is inferred from `focal_length` and `footprint_basis` records
 #' `"inferred_format"`. Sensor width spreads only 1-3% at a given focal length, but
 #' pixel count spreads 32-83%, so an inferred frame can only be sized through a DEM
 #' (`width x height above ground / focal length`) and never from its GSD.
 #'
-#' `width_source` names the calibration file or fallback rule per row, so every
-#' footprint traces back to a source. Calibrations that could not be corroborated are
-#' listed in `inst/extdata/camera_formats_excluded.csv` with the reason, and frames
-#' naming one are refused rather than inferred.
+#' `width_source` names the calibration file, camera or fallback rule per row, so every
+#' footprint traces back to a source — and so does every refusal. Calibrations that could
+#' not be corroborated are listed in `inst/extdata/camera_formats_excluded.csv` with the
+#' reason, and frames naming one are refused rather than inferred (`withheld:`). A camera
+#' identity the shipped table does not recognise is likewise refused rather than guessed
+#' from the model string beside it (`unknown_serial:`, `unknown_camera:`,
+#' `ambiguous_serial:`); unlike a withheld calibration, that refusal does not block the
+#' focal-length inference, because it says nothing about the sensor's size.
 #'
 #' **Every footprint is rotated onto the flight line** using [fly_bearing()], and
 #' `footprint_bearing` records the azimuth each was rotated onto. Where no bearing can
@@ -647,12 +662,16 @@ fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL,
 
   width_source <- rep(NA_character_, n)
   width_source[from_table] <- fmt$width_source[from_table]
-  # A frame naming a withheld calibration is not `from_table` — it resolved to nothing —
-  # so without this the refusal is computed and then dropped, and the frame is
-  # indistinguishable from one whose media was simply unknown.
-  withheld <- is.na(width_in) & !is.na(fmt$width_source) &
-    startsWith(fmt$width_source, "withheld:")
-  width_source[withheld] <- fmt$width_source[withheld]
+  # A frame that resolved to nothing is not `from_table`, so without this its refusal is
+  # computed and then dropped, and the frame is indistinguishable from one whose media
+  # was simply unknown.
+  #
+  # Written as "any row the format table declined to size, whichever way it declined"
+  # rather than as a list of prefixes. A second `startsWith` would have been the obvious
+  # shape when fly#50 added `unknown_serial:` and `ambiguous_serial:`, and it is the shape
+  # that loses the third one.
+  refused <- is.na(width_in) & !from_table & !is.na(fmt$width_source)
+  width_source[refused] <- fmt$width_source[refused]
   basis[from_table] <- ifelse(fmt$inferred[from_table], "inferred_format",
                               as.character(centroids_sf$media)[from_table])
 
@@ -687,8 +706,36 @@ fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL,
   if ("ground_sample_distance" %in% names(centroids_sf)) {
     gsd_m <- fly_gsd_m(as.numeric(centroids_sf$ground_sample_distance))
   }
+
+  # The catalogue's own GSD is 0 on whole years of digital imagery — measured, all 24,742
+  # frames of 2011 and 2012 — so resolving the camera for those frames still leaves them
+  # unsizeable. Their PAT-B files carry the number, and `fly_camera_patb()` returns it as
+  # `patb_gsd`.
+  #
+  # Used ONLY where the catalogue has nothing. The catalogue column is never overwritten:
+  # where both are present they agree (25 on every 2015-2016 frame), and preferring the
+  # PAT-B value would make the footprint depend on whether the caller happened to have run
+  # `fly_camera_patb()`. Same units — centimetres — see `fly_gsd_m()`.
+  gsd_from_patb <- rep(FALSE, n)
+  if ("patb_gsd" %in% names(centroids_sf)) {
+    pg <- fly_gsd_m(suppressWarnings(as.numeric(centroids_sf$patb_gsd)))
+    use_pg <- (is.na(gsd_m) | gsd_m <= 0) & !is.na(pg) & pg > 0
+    gsd_m[use_pg] <- pg[use_pg]
+    gsd_from_patb[use_pg] <- TRUE
+  }
+
   by_gsd <- from_table & !is.na(fmt$px_cross) & !is.na(fmt$px_along) &
     !is.na(gsd_m) & gsd_m > 0
+  # Only where it was actually used to size the frame — a `patb_gsd` on a row that took
+  # another route says nothing about that row's footprint.
+  gsd_from_patb <- gsd_from_patb & by_gsd
+  if (any(gsd_from_patb)) {
+    width_source[gsd_from_patb] <- ifelse(
+      is.na(width_source[gsd_from_patb]),
+      "gsd=patb",
+      paste0(width_source[gsd_from_patb], "; gsd=patb")
+    )
+  }
   half_cross[by_gsd] <- fmt$px_cross[by_gsd] * gsd_m[by_gsd] / 2
   half_along[by_gsd] <- fmt$px_along[by_gsd] * gsd_m[by_gsd] / 2
 

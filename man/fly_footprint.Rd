@@ -72,8 +72,8 @@ records the outcome:
 
 \describe{
 \item{the \code{media} value}{format resolved from the format table}
-\item{\code{"inferred_format"}}{digital frame with no calibration, sized from a
-format inferred from its \code{focal_length}}
+\item{\code{"inferred_format"}}{digital frame with no calibration and no camera
+named in its PAT-B file, sized from a format inferred from its \code{focal_length}}
 \item{\code{"assumed_default"}}{no \code{media} column; \code{negative_size} applied}
 \item{\code{"unknown_format"}}{\code{media} present but unknown; empty geometry}
 }
@@ -97,15 +97,30 @@ camera regardless of model, against real pitches of 3.9 to 12 um.
 \code{ground_sample_distance} is in centimetres.
 
 Where a frame carries no \code{camera_calibration_url} — about a fifth of digital frames —
-the format is inferred from \code{focal_length} and \code{footprint_basis} records
+there are two remaining routes, in this order.
+
+The catalogue publishes the camera that flew the frame in the per-frame
+georeferencing file it links through \code{patb_georef_url}. \code{\link[=fly_camera_patb]{fly_camera_patb()}} fetches
+and parses those and attaches \code{camera_serial}, \code{camera_name} and \code{patb_gsd}; where
+those columns are present, \code{fly_footprint()} sizes the frame from the named sensor on
+the ordinary \verb{px x GSD} route, needing no DEM, and \code{width_source} records
+\verb{patb_serial=} or \verb{patb_camera=}. \code{patb_gsd} is used only where the catalogue's own
+\code{ground_sample_distance} is absent or zero, which it is for whole years of digital
+imagery. This function never reaches the network itself.
+
+Failing that, the format is inferred from \code{focal_length} and \code{footprint_basis} records
 \code{"inferred_format"}. Sensor width spreads only 1-3\% at a given focal length, but
 pixel count spreads 32-83\%, so an inferred frame can only be sized through a DEM
 (\verb{width x height above ground / focal length}) and never from its GSD.
 
-\code{width_source} names the calibration file or fallback rule per row, so every
-footprint traces back to a source. Calibrations that could not be corroborated are
-listed in \code{inst/extdata/camera_formats_excluded.csv} with the reason, and frames
-naming one are refused rather than inferred.
+\code{width_source} names the calibration file, camera or fallback rule per row, so every
+footprint traces back to a source — and so does every refusal. Calibrations that could
+not be corroborated are listed in \code{inst/extdata/camera_formats_excluded.csv} with the
+reason, and frames naming one are refused rather than inferred (\verb{withheld:}). A camera
+identity the shipped table does not recognise is likewise refused rather than guessed
+from the model string beside it (\verb{unknown_serial:}, \verb{unknown_camera:},
+\verb{ambiguous_serial:}); unlike a withheld calibration, that refusal does not block the
+focal-length inference, because it says nothing about the sensor's size.
 
 \strong{Every footprint is rotated onto the flight line} using \code{\link[=fly_bearing]{fly_bearing()}}, and
 \code{footprint_bearing} records the azimuth each was rotated onto. Where no bearing can
