@@ -17,3 +17,24 @@
 - Created branch `23-frame-border-alpha-masking` off main
 - Scaffolded PWF baseline with the approved phases
 - Next: Phase 0, the calibration script and shipped sweep table
+
+## Session 2026-09-08 — Phase 0
+
+- Ran the calibration over all 264 thumbnails: 2,640 sweep rows shipped as
+  `inst/extdata/mask_border_sweep.csv`
+- **Go/no-go passed:** `nearblack -alg floodfill` vs `terra::patches(directions = 8)`,
+  correlation 0.9877, 0 of 264 frames disagreeing by more than 0.02. The dependency-free
+  route holds; terra stays in Suggests
+- **Threshold measured:** per-frame plateau quantiles 50% 8, 90% 12, 99% **16**, max 16.
+  `fly_mask_threshold()` = 16 is the 99th percentile and the maximum
+- **Guard band computed:** largest legitimate interior fraction at t16 is 0.0131
+  (bcb94081_070), smallest runaway 0.2379 at t48 (bcd18704_592, a frame with no collar).
+  Band (0.0131, 0.2379), geometric middle 0.0559 -> `fly_mask_max_interior()` = 0.05
+- **The under-masking defect quantified:** median mask fraction 0.0016 at threshold 0
+  against 0.0311 at 16, a 19.8x gap; 128 of 264 frames had under a tenth of their collar
+  masked
+- The fringe check was **vacuous on first run** ("no partially-covered pixels") and again
+  on a real thumbnail, where vignetting is inseparable from an artifact. Rebuilt on a
+  synthetic uniform interior with a rotated ground quad: output alpha is binary and every
+  kept boundary pixel reads exactly the fill value, so there is no fringe
+- Next: Phase 1, the note

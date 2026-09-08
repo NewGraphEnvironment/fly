@@ -38,12 +38,12 @@ output band counts do not change on either path.
 
 ## Phase 0: Measure, no package code
 
-- [ ] Write `data-raw/mask_calibrate-border_threshold.R`, taking the thumbnail directory as an argument
-- [ ] Verify `nearblack -alg floodfill` agrees per-frame with `terra::patches(directions = 8)` across all 264 - the go/no-go for the dependency-free route
-- [ ] Re-cut the threshold sweep **per frame**: the threshold at which each frame's own mask fraction stops growing; take a high quantile as `fly_mask_threshold()`
-- [ ] Measure `frac_total` and `frac_interior` distributions and their **maxima** at that threshold; set `fly_mask_max_interior()` above the largest legitimate value, and record the computed admissible band
-- [ ] Verify bilinear resampling of the alpha band does not leave a dark fringe at the mask boundary; if it does, record the erode-inward remedy rather than changing resampling
-- [ ] Commit the script and `inst/extdata/mask_border_sweep.csv` (264 frames x threshold grid) so both constants are checkable inside the suite
+- [x] Write `data-raw/mask_calibrate-border_threshold.R`, taking the thumbnail directory as an argument
+- [x] Verify `nearblack -alg floodfill` agrees per-frame with `terra::patches(directions = 8)` across all 264 - the go/no-go for the dependency-free route
+- [x] Re-cut the threshold sweep **per frame**: the threshold at which each frame's own mask fraction stops growing; take a high quantile as `fly_mask_threshold()`
+- [x] Measure `frac_total` and `frac_interior` distributions and their **maxima** at that threshold; set `fly_mask_max_interior()` above the largest legitimate value, and record the computed admissible band
+- [x] Verify bilinear resampling of the alpha band does not leave a dark fringe at the mask boundary; if it does, record the erode-inward remedy rather than changing resampling
+- [x] Commit the script and `inst/extdata/mask_border_sweep.csv` (264 frames x threshold grid) so both constants are checkable inside the suite
 
 ## Phase 1: The argument, before any code
 
