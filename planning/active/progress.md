@@ -38,3 +38,32 @@
   synthetic uniform interior with a rotated ground quad: output alpha is binary and every
   kept boundary pixel reads exactly the fill value, so there is no fringe
 - Next: Phase 1, the note
+
+## Session 2026-09-08 — Phases 1-5
+
+- Phase 1: `inst/notes/border-masking.md`
+- Phase 2: `fly_mask()` + 40 tests. Three review rounds; round 2 found a defect INSIDE
+  round 1's fix (the new Byte guard was `length(types) && ...`, which short-circuits to
+  FALSE on an unparseable info string and masks anyway), so the loop ran to an enumeration
+  rather than to a quiet round
+- Round 3 named the mechanism: every contract was written twice, in prose and in code,
+  with nothing binding the copies; each defect was just which copy had drifted. Every fix
+  is a binding
+- Round 3 also found a real error in the evidence record: the note published an admissible
+  band of (0.0131, 0.2379) with 4.8x margin, but 0.2379 is the MAXIMUM interior fraction at
+  threshold 48, not the smallest that trips the cap there (0.0510). Corrected, and the
+  correction kept in the note rather than tidied away
+- Discovered while correcting it: the two constants are **coupled**. The worst legitimate
+  interior fraction reaches 0.0465 at threshold 32, where the cap clears it by 1.08x
+- Phases 3-4: wired into `fly_georef()` with `mask = "border"` default; band counts
+  verified unchanged; the false roxygen corrected
+- 11 restore-the-bug proofs, each turning exactly its own test red. The harness was wrong
+  first — it read testthat's `failed` and ignored `error`, so a restored defect that
+  aborted the run read as green
+- End-to-end on real data: 18 grayscale frames 1967-2000, 16 lose more collar, 0 lose
+  less, 2 unchanged and those are exactly the frames with no collar; 602,219 extra collar
+  pixels removed
+- Phase 5: NEWS, version 0.11.0, issue #23 body and title corrected, follow-up #56 filed
+- Suite: 1624 passing, 0 failures, 0 skips. lintr clean (the 3 extra `fly_georef.R` lints
+  are the documented installed-vs-source artifact — every new internal is absent from the
+  installed namespace, every pre-existing one present)

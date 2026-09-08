@@ -234,8 +234,12 @@ Two wrinkles, both measured:
   `Alpha`. RGB gets `Alpha` correctly. `-srcalpha` works either way because it forces the
   last band regardless — but nothing may key on `ColorInterp` for the grayscale path.
 - Grayscale output carries `-dstnodata 0` rather than an alpha band, which is strictly
-  weaker: it cannot express partial coverage at the mask boundary. Changing it would change
-  the band count of every grayscale output and is tracked separately.
+  weaker: it cannot express partial coverage at the mask boundary, and a genuine 0-valued
+  pixel inside the frame is indistinguishable from a masked one — the same class of defect
+  the mask exists to fix, on the output side. 182 of the 264 measured frames are grayscale.
+  Changing it moves the band count of every grayscale output from 1 to 2, which
+  `stac_airphoto_bc` consumes, so it is tracked separately as fly#56 rather than bundled
+  here.
 
 ### The warp does not pull masked black into the pixels beside it
 

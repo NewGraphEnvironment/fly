@@ -82,10 +82,10 @@ output band counts do not change on either path.
 
 ## Phase 5: Release and issue bookkeeping
 
-- [ ] Edit issue #23's body to the measured problem and retitle it
-- [ ] `NEWS.md` entry: the falsification, the under-masking defect, `fly_mask()`, band counts unchanged, `srcnodata` default change
-- [ ] Bump `DESCRIPTION` to 0.11.0 as the final commit of the branch
-- [ ] Open a follow-up issue for switching grayscale from `-dstnodata 0` to a real alpha band, naming the band-count change and `stac_airphoto_bc` as the consumer
+- [x] Edit issue #23's body to the measured problem and retitle it
+- [x] `NEWS.md` entry: the falsification, the under-masking defect, `fly_mask()`, band counts unchanged, `srcnodata` default change
+- [x] Bump `DESCRIPTION` to 0.11.0 as the final commit of the branch
+- [x] Open a follow-up issue for switching grayscale from `-dstnodata 0` to a real alpha band, naming the band-count change and `stac_airphoto_bc` as the consumer
 
 ## Phase 6: Restore-the-bug proof
 
