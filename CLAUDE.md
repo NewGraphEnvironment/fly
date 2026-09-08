@@ -35,6 +35,14 @@ checks can and cannot catch, and the PDF extraction traps these specific reports
 digital corner mapping, and the one of them that was wrong while looking strongest.
 `data-raw/georef_calibrate-corner_mapping.R` reproduces all three from public data — exterior
 orientation via `patb_georef_url`, adjacent-frame overlap correlation, and FWA lake darkness
+- `R/fly_mask.R` — the frame-collar mask: GDAL `nearblack -alg floodfill` through
+`sf::gdal_utils()`, plus the two measured constants and the runaway guard. `fly_georef(mask =)`
+routes through it
+- `inst/notes/border-masking.md` — why the collar is not a circle, why the threshold is 16 and
+the cap 0.05, and the two readings of the sweep that were wrong first.
+`data-raw/mask_calibrate-border_threshold.R` reproduces everything from a directory of
+thumbnails, and `inst/extdata/mask_border_sweep.csv` ships the result so the test suite
+recomputes both constants rather than trusting them
 - `mixed_media_fixture()` in `tests/testthat/setup.R` — synthesized frames whose format nothing resolves;
 `digital_fixture()` beside it covers every resolver branch, and `footprint_cases()` sweeps the 12 input
 shapes the invariant tests run over
@@ -141,6 +149,26 @@ produces the right shape — following it unconditionally reproduced #37 exactly
 not a total: a column with one frame digitised twice and one frame empty sums correctly and shifts every frame
 against its attributes by up to 20.4 km. See `planning/archive/2026-09-issue-37-non-point-geometry-guard/`
 
+- **The black collar is a rectangle, not a lens circle, and `srcnodata = "0"` was barely
+masking it** (v0.11.0, #23) — the issue asked for Hough-transform circle detection. An
+inscribed circle implies a dark fraction of 0.2146 with *bright* edge midpoints; measured over
+264 thumbnails the median is **0.027**, 2 of 264 land near 0.2146, and the edge midpoints are
+as dark as the corners, which no circle can produce. 27 frames carry no collar at all. A
+mapping camera's format also sits *inside* the lens image circle by design, so there is no dark
+circle at any resolution — that half is reasoning, not measurement, and is labelled so in the
+note.
+
+  Underneath it was a live defect: `-srcnodata "0"` matches **exact** zeros while scanned black
+runs 3-12, so it removed a median 0.16% of a frame where 3.11% of collar was present, and **128
+of 264 frames** had under a tenth of theirs masked. `fly_mask()` replaces it with a flood fill
+seeded from the image border, so interior dark water survives — on bcb90128_213 a plain
+threshold takes 7.7% and this takes 2.5%, and the missing 5% is a lake.
+
+  **Output band counts do not change**, because `-srcalpha` excludes the alpha band from the
+warped band list. That is what let masking default to on without moving `stac_airphoto_bc`.
+Grayscale keeps `-dstnodata 0`, the weaker contract — fly#56. Do not re-derive the collar's
+shape from geometry or re-propose a circle; read `inst/notes/border-masking.md`
+
 ## Gotchas
 
 - `.lintr` must be single-line DCF format — multi-line breaks newer lintr versions
@@ -187,6 +215,15 @@ order together — on a square `hc == ha`, so nothing else separates rotating by
 shift `r` from rotating by `b ± 90` with shift `r ∓ 90`. The film mapping in
 `inst/notes/georeferencing.md` is only meaningful against that convention; change the
 assertion and the measurement is void
+- **`fly_mask_threshold()` and `fly_mask_max_interior()` are coupled — never raise one alone**
+(#23). The cap is 0.05 on the interior mask fraction and clears the worst legitimate frame by
+3.81x *at threshold 16*. Raise the threshold and the margin collapses: worst legitimate interior
+is 0.0131 at 16, 0.0160 at 24 and **0.0465 at 32**, where the cap clears it by 1.08x. Nothing in
+the code couples them, and a green suite says nothing — no frame in the measured population can
+trip the guard at 16, so only a synthesized fixture tests it. Recompute both from
+`inst/extdata/mask_border_sweep.csv` together, or neither. An earlier draft of the note also
+published the band's upper end as 0.2379, which is the *maximum* interior fraction at threshold
+48 rather than the smallest that trips the cap there (0.0510) — flattering the margin by 4.7x
 - **An empty POINT centroid aborts the whole batch** (fly#47, open) — it is a POINT, so it passes the geometry
 guard by design, and then fails in `st_polygon()` with `!anyNA(x) is not TRUE`. Left open deliberately: refusing
 20 frames over one unlocatable centroid would contradict the per-frame reporting #30 established
