@@ -47,10 +47,10 @@ output band counts do not change on either path.
 
 ## Phase 1: The argument, before any code
 
-- [ ] Write `inst/notes/border-masking.md`: the circle falsification with the table above; the physical argument (a mapping camera's format sits inside the lens image circle, so there is no dark circle at any resolution) marked as reasoning rather than measurement; the sweep; why each constant is what it is; the guard's computed admissible band
-- [ ] Record the tried-and-rejected list: total-fraction cap, the `terra::patches` prototype, `-alg twopasses`
-- [ ] Record the scope limit - full-res is unreachable, `nearblack` assumes Byte bands, and `-near` does not transfer to 16-bit scans
-- [ ] Record that no real thumbnail in the population can reach the runaway guard at the chosen threshold, so only a synthesized fixture can
+- [x] Write `inst/notes/border-masking.md`: the circle falsification with the table above; the physical argument (a mapping camera's format sits inside the lens image circle, so there is no dark circle at any resolution) marked as reasoning rather than measurement; the sweep; why each constant is what it is; the guard's computed admissible band
+- [x] Record the tried-and-rejected list: total-fraction cap, the `terra::patches` prototype, `-alg twopasses`
+- [x] Record the scope limit - full-res is unreachable, `nearblack` assumes Byte bands, and `-near` does not transfer to 16-bit scans
+- [x] Record that no real thumbnail in the population can reach the runaway guard at the chosen threshold, so only a synthesized fixture can
 
 ## Phase 2: `fly_mask()`
 
