@@ -14,12 +14,18 @@
 #' @param dest_dir Directory for output GeoTIFFs. Created if it does not
 #'   exist.
 #' @param overwrite If `FALSE` (default), skip files that already exist.
-#' @param srcnodata Source nodata value passed to GDAL warp. Black pixels
-#'   matching this value are treated as transparent (alpha=0 for RGB,
-#'   nodata for grayscale). Default `"0"` masks camera frame borders and
-#'   film holder edges at the cost of losing real black pixels — acceptable
-#'   for thumbnails but may need adjustment for full-resolution scans.
-#'   Set to `NULL` to disable source nodata detection entirely.
+#' @param mask How to handle the black collar around the exposed frame. `"border"`
+#'   (default) masks it with [fly_mask()]; `"none"` reproduces the pre-0.11.0 warp
+#'   exactly, including its `srcnodata` handling.
+#' @param mask_threshold How close to black a pixel must be to count as collar. Passed
+#'   to [fly_mask()]; the default is measured, see there.
+#' @param srcnodata Source nodata value passed to GDAL warp, matched **exactly**. Now
+#'   defaults to `NULL`, and is an error alongside `mask = "border"` — the two are
+#'   different answers to one question and combining them silently undoes the mask (see
+#'   **Nodata handling**). It reached `"0"` before v0.11.0, which was close to useless:
+#'   scanned black runs 3-12, so it masked a median of 0.16% of a frame against the 3.11%
+#'   actually there, and 128 of 264 measured frames had under a tenth of their collar
+#'   removed.
 #' @param dem Optional elevation raster passed to [fly_footprint()], sizing each
 #'   frame from its height above ground instead of the reported scale. See the
 #'   **Terrain** section of [fly_footprint()].
@@ -119,21 +125,27 @@
 #' its own, or a sample of a roll rather than a contiguous run. It is warned
 #' about, for film as well as digital.
 #'
-#' **Nodata handling:** Two sources of unwanted black pixels are masked:
+#' **Nodata handling:** two sources of unwanted black pixels, handled separately.
 #'
-#' 1. **Warp fill** — GDAL creates black pixels outside the rotated source
-#'    frame. RGB images get an alpha band (`-dstalpha`); grayscale use
-#'    `dstnodata=0`.
-#' 2. **Camera frame borders** — film holder edges, fiducial marks, and
-#'    scanning artifacts produce black (value 0) pixels within the source
-#'    image. The `srcnodata` parameter (default `"0"`) tells GDAL to treat
-#'    these as transparent before warping.
+#' 1. **Warp fill** — GDAL creates black pixels outside the rotated source frame. RGB
+#'    images get an alpha band (`-dstalpha`); grayscale use `dstnodata=0`. Unchanged.
+#' 2. **The frame collar** — film holder edges, fiducial marks and chamfered corners.
+#'    Since v0.11.0 this is [fly_mask()]: a flood fill seeded from the image border, so
+#'    only darkness *reachable from the edge* is masked and interior dark water survives.
 #'
-#' **Tradeoff:** `srcnodata = "0"` also masks real black pixels (deep
-#' shadows). At thumbnail resolution (~1250x1250) this is acceptable —
-#' shadow detail is minimal. For full-resolution scans where shadow
-#' detail matters, set `srcnodata = NULL` and handle frame masking
-#' downstream (e.g., circle detection).
+#' **What this replaced, and why the old paragraph here was wrong.** Until v0.11.0 the
+#' collar was handled by `srcnodata = "0"`, documented as masking the borders at the cost
+#' of losing real black pixels. Measured over 264 thumbnails, **both halves were false**:
+#' exact-zero matching removed a median of 0.16% of a frame where 3.11% of collar was
+#' present, so it did not mask the borders — and the real black it was said to cost is a
+#' median 0.16% of the frame, which *is* the collar rather than shadow.
+#'
+#' **`srcnodata` and `mask = "border"` are mutually exclusive, and GDAL will not say so.**
+#' All combinations of `-srcalpha` and `-srcnodata` run clean and return the expected band
+#' count. What they do is delete the interior black the mask exists to keep: on a synthetic
+#' frame carrying an 11x11 block of true black, adding `-srcnodata "0 0 0"` to the masked
+#' warp removed exactly those 121 pixels. So `fly_georef()` raises the error GDAL does not.
+#' Pass `mask = "none"` to get the old behaviour, `srcnodata` and all.
 #'
 #' **Accuracy:** footprints assume a nadir camera angle, and without `dem`
 #' they also assume flat terrain. Passing `dem` sizes each frame from its
@@ -159,10 +171,24 @@
 #' @export
 fly_georef <- function(fetch_result, photos_sf,
                        dest_dir = "georef", overwrite = FALSE,
-                       srcnodata = "0", rotation = "auto", dem = NULL) {
+                       mask = c("border", "none"),
+                       mask_threshold = fly_mask_threshold(),
+                       srcnodata = NULL, rotation = "auto", dem = NULL) {
   if (!all(c("airp_id", "dest", "success") %in% names(fetch_result))) {
     stop("`fetch_result` must be output from `fly_fetch()`.", call. = FALSE)
   }
+
+  mask <- match.arg(mask)
+  # Refused rather than silently dropped. GDAL accepts both together and then deletes the
+  # interior black the mask exists to preserve, reporting nothing - so a caller who set
+  # `srcnodata` deliberately must be told their instruction and the mask disagree, not
+  # have one of them quietly win.
+  if (identical(mask, "border") && !is.null(srcnodata)) {
+    stop("`srcnodata` and `mask = \"border\"` are two answers to one question and GDAL ",
+         "applies both: the mask keeps interior black and `srcnodata` then deletes it, ",
+         "silently. Drop `srcnodata`, or pass `mask = \"none\"` to use it.", call. = FALSE)
+  }
+  if (identical(mask, "border")) fly_check_threshold(mask_threshold, "mask_threshold")
 
   auto_rotation <- identical(rotation, "auto")
   if (!auto_rotation) {
@@ -354,7 +380,8 @@ fly_georef <- function(fetch_result, photos_sf,
     }
 
     results$success[i] <- tryCatch(
-      georef_one(src, fp, out_file, srcnodata = srcnodata, rotation = rot),
+      georef_one(src, fp, out_file, srcnodata = srcnodata, rotation = rot,
+                 mask = mask, mask_threshold = mask_threshold),
       error = function(e) {
         message("Failed to georef ", basename(src), ": ", e$message)
         FALSE
@@ -369,22 +396,23 @@ fly_georef <- function(fetch_result, photos_sf,
 
 #' Georeference a single image to a footprint polygon
 #' @noRd
-georef_one <- function(src, fp, out_file, srcnodata = "0", rotation = 180) {
+georef_one <- function(src, fp, out_file, srcnodata = NULL, rotation = 180,
+                       mask = "border", mask_threshold = fly_mask_threshold()) {
   # Footprint ring, in the order `fly_rectangles()` guarantees: rows 1-4 are BL, BR, TR,
   # TL **in the rectangle's own frame**. For a rotated (non-square) footprint that frame
   # is the flight line's, so they are rear-left, rear-right, front-right, front-left.
   coords <- sf::st_coordinates(fp)[1:4, , drop = FALSE]
 
-  # Read image dimensions and band count via GDAL
-  info <- sf::gdal_utils("info", source = src, quiet = TRUE)
-  dims <- regmatches(info, regexpr("Size is \\d+, \\d+", info))
-  if (length(dims) == 0) return(FALSE)
-  px <- as.integer(strsplit(sub("Size is ", "", dims), ", ")[[1]])
+  # Read image dimensions and band count via GDAL, through the same two helpers
+  # `fly_mask()` uses — a second regex here is the same fact parsed twice, and the naive
+  # band count reports ONE band for a file with none (`gregexpr()` returns -1).
+  info <- fly_gdal_info(src)
+  px <- fly_gdal_dim(info)
+  if (is.null(px)) return(FALSE)
   ncol_px <- px[1]
   nrow_px <- px[2]
 
-  # Count bands from "Band N" lines
-  n_bands <- length(gregexpr("Band \\d+", info)[[1]])
+  n_bands <- fly_gdal_bands(info)
   is_rgb <- n_bands >= 3
 
   # Build GCP args from the pixel-to-ground correspondence.
@@ -434,42 +462,78 @@ georef_one <- function(src, fp, out_file, srcnodata = "0", rotation = 180) {
     gcp_args <- c(gcp_args, "-gcp", as.character(unname(gcp[j, ])))
   }
 
-  # Step 1: translate with GCPs
-  tmp_file <- tempfile(fileext = ".tif")
+  # Step 1: mask the frame collar, if asked. Done on the SOURCE, before any GCP or warp
+  # step touches it: the mask fraction is a property of the photograph, and measuring it
+  # after the warp would count GDAL's fill outside the rotated frame — nearly half the
+  # output on a 45-degree bearing. `fly_mask_one()` warns and declines on its own guards,
+  # and a declined mask simply leaves the unmasked source in place.
+  masked   <- FALSE
+  warp_src <- src
+  if (identical(mask, "border")) {
+    mask_file <- tempfile(fileext = ".tif")
+    on.exit(unlink(mask_file), add = TRUE)
+    res <- fly_mask_one(src, mask_file, mask_threshold)
+    if (isTRUE(res$masked) && file.exists(mask_file)) {
+      warp_src <- mask_file
+      masked <- TRUE
+    }
+  }
+
+  # Step 2: translate with GCPs. A VRT rather than a GeoTIFF — it carries a `<GCPList>`
+  # that gdalwarp reads, and at 9600 x 9000 x 4 it is the difference between roughly
+  # 350 MB and 700 MB of scratch per frame, since masking already materialises one copy.
+  tmp_file <- tempfile(fileext = ".vrt")
   on.exit(unlink(tmp_file), add = TRUE)
 
   sf::gdal_utils("translate",
-    source = src,
+    source = warp_src,
     destination = tmp_file,
-    options = c("-a_srs", "EPSG:3005", gcp_args)
+    options = c("-of", "VRT", "-a_srs", "EPSG:3005", gcp_args)
   )
 
-  # Step 2: warp to target CRS with nodata handling
-  # srcnodata: masks black source pixels (camera frame borders)
-  # RGB: alpha band (-dstalpha) for transparent fill in mosaics
-  # Grayscale: dstnodata=0 for nodata metadata
-  warp_opts <- c("-t_srs", "EPSG:3005", "-r", "bilinear")
-  if (!is.null(srcnodata)) {
-    src_val <- if (is_rgb) {
-      paste(rep(srcnodata, n_bands), collapse = " ")
-    } else {
-      srcnodata
-    }
-    warp_opts <- c(warp_opts, "-srcnodata", src_val)
-  }
-  if (is_rgb) {
-    warp_opts <- c(warp_opts, "-dstalpha")
-  } else {
-    warp_opts <- c(warp_opts, "-dstnodata", "0")
-  }
-
+  # Step 3: warp to the target CRS.
   sf::gdal_utils("warp",
     source = tmp_file,
     destination = out_file,
-    options = warp_opts
+    options = fly_georef_warp_opts(n_bands, srcnodata, masked)
   )
 
   file.exists(out_file) && file.size(out_file) > 0
+}
+
+#' The warp options for one frame
+#'
+#' The pure half of the warp step: no GDAL, no I/O. Split out for the same reason
+#' [fly_georef_gcps()] is — it is a thing that can be wrong while everything around it
+#' looks healthy, and an option vector is checkable offline where a warped GeoTIFF is not.
+#'
+#' Three rules, and the first is the one that matters:
+#'
+#' * a masked source is read through `-srcalpha`, which forces the LAST band to be the
+#'   alpha band and excludes it from the warped band list. That is what keeps the output
+#'   band count identical to a pre-0.11.0 run — grayscale 1 band, RGB 4.
+#' * `-srcnodata` is emitted only when there is no mask. The two together are refused at
+#'   the `fly_georef()` boundary; this function must not paper over a combination that
+#'   reaches it, so it simply never emits both.
+#' * warp fill is unchanged: `-dstalpha` for RGB, `-dstnodata 0` for grayscale.
+#'
+#' @param n_bands Band count of the source, before any alpha band is appended.
+#' @param srcnodata The `srcnodata` argument, or `NULL`.
+#' @param masked Whether the source carries a mask alpha band.
+#' @return A character vector of gdalwarp options.
+#' @noRd
+fly_georef_warp_opts <- function(n_bands, srcnodata, masked) {
+  is_rgb <- n_bands >= 3
+  opts <- c("-t_srs", "EPSG:3005", "-r", "bilinear")
+
+  if (masked) {
+    opts <- c(opts, "-srcalpha")
+  } else if (!is.null(srcnodata)) {
+    src_val <- if (is_rgb) paste(rep(srcnodata, n_bands), collapse = " ") else srcnodata
+    opts <- c(opts, "-srcnodata", src_val)
+  }
+
+  if (is_rgb) c(opts, "-dstalpha") else c(opts, "-dstnodata", "0")
 }
 
 #' Convert flight bearing to GCP rotation
