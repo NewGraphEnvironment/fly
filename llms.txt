@@ -115,6 +115,8 @@ Cloud-Optimized GeoTIFF conversion, S3 storage, and STAC cataloguing.
   : Estimate photo footprint polygons from centroids and scale
 - [`fly_georef()`](https://newgraphenvironment.github.io/fly/reference/fly_georef.md)
   : Georeference airphoto images to footprint polygons
+- [`fly_mask()`](https://newgraphenvironment.github.io/fly/reference/fly_mask.md)
+  : Mask the black frame border of an airphoto scan
 - [`fly_overlap()`](https://newgraphenvironment.github.io/fly/reference/fly_overlap.md)
   : Compute pairwise overlap between photo footprints
 - [`fly_select()`](https://newgraphenvironment.github.io/fly/reference/fly_select.md)

@@ -14,7 +14,9 @@ fly_georef(
   photos_sf,
   dest_dir = "georef",
   overwrite = FALSE,
-  srcnodata = "0",
+  mask = c("border", "none"),
+  mask_threshold = fly_mask_threshold(),
+  srcnodata = NULL,
   rotation = "auto",
   dem = NULL
 )
@@ -46,14 +48,30 @@ fly_georef(
 
   If `FALSE` (default), skip files that already exist.
 
+- mask:
+
+  How to handle the black collar around the exposed frame. `"border"`
+  (default) masks it with
+  [`fly_mask()`](https://newgraphenvironment.github.io/fly/reference/fly_mask.md);
+  `"none"` reproduces the pre-0.11.0 warp exactly, including its
+  `srcnodata` handling.
+
+- mask_threshold:
+
+  How close to black a pixel must be to count as collar. Passed to
+  [`fly_mask()`](https://newgraphenvironment.github.io/fly/reference/fly_mask.md);
+  the default is measured, see there.
+
 - srcnodata:
 
-  Source nodata value passed to GDAL warp. Black pixels matching this
-  value are treated as transparent (alpha=0 for RGB, nodata for
-  grayscale). Default `"0"` masks camera frame borders and film holder
-  edges at the cost of losing real black pixels — acceptable for
-  thumbnails but may need adjustment for full-resolution scans. Set to
-  `NULL` to disable source nodata detection entirely.
+  Source nodata value passed to GDAL warp, matched **exactly**. Now
+  defaults to `NULL`, and is an error alongside `mask = "border"` — the
+  two are different answers to one question and combining them silently
+  undoes the mask (see **Nodata handling**). It reached `"0"` before
+  v0.11.0, which was close to useless: scanned black runs 3-12, so it
+  masked a median of 0.16% of a frame against the 3.11% actually there,
+  and 128 of 264 measured frames had under a tenth of their collar
+  removed.
 
 - rotation:
 
@@ -174,22 +192,37 @@ so this is the ordinary result of georeferencing a single frame on its
 own, or a sample of a roll rather than a contiguous run. It is warned
 about, for film as well as digital.
 
-**Nodata handling:** Two sources of unwanted black pixels are masked:
+**Nodata handling:** two sources of unwanted black pixels, handled
+separately.
 
 1.  **Warp fill** — GDAL creates black pixels outside the rotated source
     frame. RGB images get an alpha band (`-dstalpha`); grayscale use
-    `dstnodata=0`.
+    `dstnodata=0`. Unchanged.
 
-2.  **Camera frame borders** — film holder edges, fiducial marks, and
-    scanning artifacts produce black (value 0) pixels within the source
-    image. The `srcnodata` parameter (default `"0"`) tells GDAL to treat
-    these as transparent before warping.
+2.  **The frame collar** — film holder edges, fiducial marks and
+    chamfered corners. Since v0.11.0 this is
+    [`fly_mask()`](https://newgraphenvironment.github.io/fly/reference/fly_mask.md):
+    a flood fill seeded from the image border, so only darkness
+    *reachable from the edge* is masked and interior dark water
+    survives.
 
-**Tradeoff:** `srcnodata = "0"` also masks real black pixels (deep
-shadows). At thumbnail resolution (~1250x1250) this is acceptable —
-shadow detail is minimal. For full-resolution scans where shadow detail
-matters, set `srcnodata = NULL` and handle frame masking downstream
-(e.g., circle detection).
+**What this replaced, and why the old paragraph here was wrong.** Until
+v0.11.0 the collar was handled by `srcnodata = "0"`, documented as
+masking the borders at the cost of losing real black pixels. Measured
+over 264 thumbnails, **both halves were false**: exact-zero matching
+removed a median of 0.16% of a frame where 3.11% of collar was present,
+so it did not mask the borders — and the real black it was said to cost
+is a median 0.16% of the frame, which *is* the collar rather than
+shadow.
+
+**`srcnodata` and `mask = "border"` are mutually exclusive, and GDAL
+will not say so.** All combinations of `-srcalpha` and `-srcnodata` run
+clean and return the expected band count. What they do is delete the
+interior black the mask exists to keep: on a synthetic frame carrying an
+11x11 block of true black, adding `-srcnodata "0 0 0"` to the masked
+warp removed exactly those 121 pixels. So `fly_georef()` raises the
+error GDAL does not. Pass `mask = "none"` to get the old behaviour,
+`srcnodata` and all.
 
 **Accuracy:** footprints assume a nadir camera angle, and without `dem`
 they also assume flat terrain. Passing `dem` sizes each frame from its
@@ -227,6 +260,6 @@ georef
 #> # A tibble: 2 × 4
 #>   airp_id source                               dest                      success
 #>     <int> <chr>                                <chr>                     <lgl>  
-#> 1  699426 /tmp/RtmpoNEGgY/bc5282_232_thumb.jpg /tmp/RtmpoNEGgY/bc5282_2… TRUE   
-#> 2  699425 /tmp/RtmpoNEGgY/bc5282_231_thumb.jpg /tmp/RtmpoNEGgY/bc5282_2… TRUE   
+#> 1  699426 /tmp/RtmpAWSws9/bc5282_232_thumb.jpg /tmp/RtmpAWSws9/bc5282_2… TRUE   
+#> 2  699425 /tmp/RtmpAWSws9/bc5282_231_thumb.jpg /tmp/RtmpAWSws9/bc5282_2… TRUE   
 ```
