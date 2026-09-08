@@ -54,15 +54,15 @@ output band counts do not change on either path.
 
 ## Phase 2: `fly_mask()`
 
-- [ ] `R/fly_mask.R` - `fly_mask(src, dest_dir = "masked", threshold = 16, overwrite = FALSE)` returning a tibble with `source`, `dest`, `mask_fraction`, `mask_fraction_interior`, `threshold`, `masked`, `reason`, `success`
-- [ ] `fly_mask_one()` plus `@noRd` constants `fly_mask_threshold()` and `fly_mask_max_interior()`, matching `fly_gcp_stretch_max()` / `fly_digital_rotation()`
-- [ ] Measure the fraction on the **source**, pre-warp - measuring the warped output counts GDAL's fill outside the rotated frame, which at a 45-degree bearing is nearly half the output
-- [ ] Interior fraction via `gdal_translate -of VRT -b <alpha> -srcwin` + `gdal_utils("info", "-stats")`, so no pixels are read into R
-- [ ] Runaway guard: warn naming the file, both fractions, the threshold and the remedy; fall back to unmasked; a zero mask fraction is **not** a warning (38 of 264 legitimately have none)
-- [ ] `tests/testthat/test-fly_mask.R` - Fixture A (border ring valued 3-12 **never exactly 0**, bright interior, interior dark blob not touching any edge) with both premises asserted, and an assertion that threshold-only and edge-connected answers **differ** on it
-- [ ] Fixture B (dark blob touching an edge and reaching past the interior box): guard message grepped, `masked` FALSE, `success` TRUE, file written with today's band count
-- [ ] Assertions against `mask_border_sweep.csv`: every legitimate frame below the cap, margin real on both sides, runaway case above it, `expect_gt(nrow(sweep), 200)` as a premise
-- [ ] `devtools::document()`, check `NAMESPACE` gained exactly `export(fly_mask)`, add to `_pkgdown.yml` reference and run `pkgdown::check_pkgdown()`
+- [x] `R/fly_mask.R` - `fly_mask(src, dest_dir = "masked", threshold = 16, overwrite = FALSE)` returning a tibble with `source`, `dest`, `mask_fraction`, `mask_fraction_interior`, `threshold`, `masked`, `reason`, `success`
+- [x] `fly_mask_one()` plus `@noRd` constants `fly_mask_threshold()` and `fly_mask_max_interior()`, matching `fly_gcp_stretch_max()` / `fly_digital_rotation()`
+- [x] Measure the fraction on the **source**, pre-warp - measuring the warped output counts GDAL's fill outside the rotated frame, which at a 45-degree bearing is nearly half the output
+- [x] Interior fraction via `gdal_translate -of VRT -b <alpha> -srcwin` + `gdal_utils("info", "-stats")`, so no pixels are read into R
+- [x] Runaway guard: warn naming the file, both fractions, the threshold and the remedy; fall back to unmasked; a zero mask fraction is **not** a warning (38 of 264 legitimately have none)
+- [x] `tests/testthat/test-fly_mask.R` - Fixture A (border ring valued 3-12 **never exactly 0**, bright interior, interior dark blob not touching any edge) with both premises asserted, and an assertion that threshold-only and edge-connected answers **differ** on it
+- [x] Fixture B (dark blob touching an edge and reaching past the interior box): guard message grepped, `masked` FALSE, `success` TRUE, file written with today's band count
+- [x] Assertions against `mask_border_sweep.csv`: every legitimate frame below the cap, margin real on both sides, runaway case above it, `expect_gt(nrow(sweep), 200)` as a premise
+- [x] `devtools::document()`, check `NAMESPACE` gained exactly `export(fly_mask)`, add to `_pkgdown.yml` reference and run `pkgdown::check_pkgdown()`
 
 ## Phase 3: Wire into `fly_georef()`
 

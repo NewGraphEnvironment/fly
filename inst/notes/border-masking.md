@@ -174,21 +174,34 @@ frame, and only the second is the failure the guard exists for. A genuine collar
 border, so it contributes almost nothing to a central box, which makes the interior
 fraction a far better-conditioned discriminator.
 
-Both ends of the admissible band are measured, at the threshold actually used:
+At the shipped threshold the margin is wide, and **no frame in the measured population can
+trip the guard**:
 
-| | interior fraction | frame |
-| --- | --- | --- |
-| largest **legitimate**, threshold 16 | **0.0131** | bcb94081_070 (1994) |
-| smallest **runaway**, threshold 48 | **0.2379** | bcd18704_592 (2018) |
-| threshold 64, same frame | 0.7159 | bcd18704_592 (2018) |
+| threshold | max interior fraction | frames over the 0.05 cap | smallest that trips it |
+| --- | --- | --- | --- |
+| **16 (shipped)** | **0.0131** | **0 of 264** | — |
+| 24 | 0.0160 | 0 | — |
+| 32 | 0.0465 | 0 | — |
+| 48 | 0.2379 | 14 | 0.0510 |
+| 64 | 0.7159 | 32 | 0.0525 |
 
-Admissible band **(0.0131, 0.2379)**, geometric middle 0.0559. The constant sits at 0.05 —
-3.8x above the largest legitimate value and 4.8x below the smallest runaway.
+The cap clears the worst legitimate frame (bcb94081_070, 1994) by **3.81x**.
 
-The runaway frame is worth naming: `bcd18704_592` is a 2018 digital frame with **no collar
-at all**. Given a threshold high enough to reach scene content, the fill escapes the border
-and consumes 72% of the image interior. That is the failure mode, and it is a flood rather
-than a mis-sized collar.
+**An earlier draft of this section published an admissible band of (0.0131, 0.2379) with a
+4.8x margin below "the smallest runaway". That was wrong.** 0.2379 is the *maximum*
+interior fraction at threshold 48, not the smallest value that trips the cap there, which
+is 0.0510. The error was in the direction that flatters the constant, and it was found by a
+reviewer recomputing it from the shipped sweep rather than reading the sentence.
+
+**The two constants are coupled, and the cap does not survive raising the threshold on its
+own.** The worst legitimate interior fraction climbs with the threshold: 0.0131 at 16,
+0.0160 at 24, **0.0465 at 32** — where the cap clears it by only 1.08x. Re-measure both
+from `mask_border_sweep.csv` together, or neither.
+
+The worst frame at high thresholds is worth naming: `bcd18704_592` is a 2018 digital frame
+with **no collar at all**. Given a threshold high enough to reach scene content the fill
+escapes the border and consumes 72% of the interior. That is the failure mode the guard
+exists for, and it is a flood rather than a mis-sized collar.
 
 **When it trips, the frame is left unmasked with a warning — not skipped.** This is
 deliberately the opposite call to the stretch tolerance in `georeferencing.md`, and the
@@ -252,10 +265,34 @@ Two ways this check goes vacuous, both met on the way to the number above:
 Had a fringe been present the remedy would have been to erode the mask inward by a pixel,
 **not** to change the resampling.
 
-`-srcnodata` and the mask are **mutually exclusive**, and passing both is an error rather
-than a silent drop. `-srcnodata "0 0 0"` against a 4-band source is a length mismatch, and
-padding it to `"0 0 0 0"` would declare the alpha band's own transparent value to be
-nodata.
+### `-srcnodata` and the mask are mutually exclusive, and GDAL will not tell you
+
+`fly_georef()` refuses the combination. The reason is **not** that GDAL rejects it — it
+does not. All four forms run clean and produce the expected band count:
+
+| warp options | result |
+| --- | --- |
+| `-srcalpha -dstalpha` | ok, 4 bands |
+| `-srcalpha -srcnodata "0 0 0" -dstalpha` | ok, 4 bands |
+| `-srcalpha -srcnodata "0 0 0 0" -dstalpha` | ok, 4 bands |
+| `-srcnodata "0 0 0" -dstalpha` (no srcalpha) | ok, 4 bands |
+
+An early draft of this note asserted the three-value form was a length mismatch against a
+four-band source. Measured, it is not, and neither is the four-value form. **The package
+refuses the combination precisely because GDAL accepts it silently.**
+
+What it silently does, measured on a 100 x 100 synthetic frame with an 8-pixel collar and
+an 11 x 11 block of *true black* (value 0) at the centre:
+
+| | opaque | transparent |
+| --- | --- | --- |
+| `-srcalpha` alone | 6400 | 3600 |
+| plus `-srcnodata "0 0 0"` | **6279** | 3721 |
+
+The difference is 121 pixels — exactly the interior block. Adding `-srcnodata` to a masked
+warp deletes the real black content the mask exists to preserve, which is the defect
+fly#23 was filed about, reintroduced by the option that was supposed to fix it. Nothing is
+reported, so the package raises the error GDAL does not.
 
 ## What was tried and rejected
 
