@@ -11,7 +11,8 @@
 capture_rotations <- function(expr) {
   seen <- list()
   testthat::local_mocked_bindings(
-    georef_one = function(src, fp, out_file, srcnodata = "0", rotation = 180) {
+    georef_one = function(src, fp, out_file, srcnodata = NULL, rotation = 180,
+                          mask = "border", mask_threshold = fly_mask_threshold()) {
       seen[[basename(src)]] <<- rotation
       TRUE
     },

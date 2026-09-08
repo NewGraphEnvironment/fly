@@ -66,19 +66,19 @@ output band counts do not change on either path.
 
 ## Phase 3: Wire into `fly_georef()`
 
-- [ ] Add `mask = "border"` and `mask_threshold = 16`; `srcnodata` default changes `"0"` -> `NULL`
-- [ ] Passing `srcnodata` non-NULL with `mask = "border"` is an **error** naming both arguments and the remedy - not a silent drop
-- [ ] Extract `fly_georef_warp_opts(is_rgb, srcnodata, masked)` as a pure `@noRd` function, the same split that made `fly_georef_gcps()` testable
-- [ ] Use `-of VRT` for the GCP translate step so only the nearblack output is materialised
-- [ ] `tests/testthat/test-fly_georef_mask.R` - pure-args assertions (`-srcnodata` absent whenever masked, `-srcalpha` present whenever masked, `-dstalpha` iff RGB, `-dstnodata 0` iff grayscale)
-- [ ] Parity assertion: `mask = "none"` reproduces today's exact option vector, so the old path is byte-identical to the current release
-- [ ] Band-contract assertions pinned explicitly: 3-band source -> 4 bands out with band 4 Alpha; 1-band source -> 1 band out with `NoData Value=0`
-- [ ] Rotation-invariance assertion: the same source under two footprint rotations gives an identical `mask_fraction` - this is what pins "measured on the source, not the warped output"
-- [ ] End-to-end: opaque pixel count with `mask = "border"` is strictly less than with `mask = "none"`, by about the border fraction
+- [x] Add `mask = "border"` and `mask_threshold = 16`; `srcnodata` default changes `"0"` -> `NULL`
+- [x] Passing `srcnodata` non-NULL with `mask = "border"` is an **error** naming both arguments and the remedy - not a silent drop
+- [x] Extract `fly_georef_warp_opts(is_rgb, srcnodata, masked)` as a pure `@noRd` function, the same split that made `fly_georef_gcps()` testable
+- [x] Use `-of VRT` for the GCP translate step so only the nearblack output is materialised
+- [x] `tests/testthat/test-fly_georef_mask.R` - pure-args assertions (`-srcnodata` absent whenever masked, `-srcalpha` present whenever masked, `-dstalpha` iff RGB, `-dstnodata 0` iff grayscale)
+- [x] Parity assertion: `mask = "none"` reproduces today's exact option vector, so the old path is byte-identical to the current release
+- [x] Band-contract assertions pinned explicitly: 3-band source -> 4 bands out with band 4 Alpha; 1-band source -> 1 band out with `NoData Value=0`
+- [x] Rotation-invariance assertion: the same source under two footprint rotations gives an identical `mask_fraction` - this is what pins "measured on the source, not the warped output"
+- [x] End-to-end: opaque pixel count with `mask = "border"` is strictly less than with `mask = "none"`, by about the border fraction
 
 ## Phase 4: Correct the false documentation
 
-- [ ] Fix the `srcnodata` `@param` and the **Tradeoff** paragraph in `fly_georef()`'s `@details` - both halves of the stated tradeoff are contradicted by measurement. Its own commit, since it is true independently of the feature
+- [x] Fix the `srcnodata` `@param` and the **Tradeoff** paragraph in `fly_georef()`'s `@details` - both halves of the stated tradeoff are contradicted by measurement. Its own commit, since it is true independently of the feature
 
 ## Phase 5: Release and issue bookkeeping
 
