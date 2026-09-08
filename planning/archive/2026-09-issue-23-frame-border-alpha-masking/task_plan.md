@@ -89,18 +89,18 @@ output band counts do not change on either path.
 
 ## Phase 6: Restore-the-bug proof
 
-- [ ] Four restorations, each with **exact prior bytes** from git rather than a rewrite
-- [ ] Run with `testthat::test_file()`, never `test_local()` / `devtools::test()`
-- [ ] Print a probe proving each patch took, and **grep the output for the expected message** rather than reading the exit status
-- [ ] Read `as.data.frame(test_file(f))$failed` rather than the console, which truncates at 10
-- [ ] Record per-restoration failure counts and grepped messages in the PR body
+- [x] Four restorations, each with **exact prior bytes** from git rather than a rewrite
+- [x] Run with `testthat::test_file()`, never `test_local()` / `devtools::test()`
+- [x] Print a probe proving each patch took, and **grep the output for the expected message** rather than reading the exit status
+- [x] Read `as.data.frame(test_file(f))$failed` rather than the console, which truncates at 10
+- [x] Record per-restoration failure counts and grepped messages in the PR body
 
 ## Validation
 
-- [ ] Tests pass
-- [ ] `lintr::lint_package()` diffed against the branch-point baseline
-- [ ] `devtools::document()` output read; `NAMESPACE` gained exactly one export
-- [ ] `pkgdown::check_pkgdown()` clean
-- [ ] `/code-check` clean on each commit
-- [ ] PWF checkboxes match landed work
-- [ ] `/planning-archive` on completion
+- [x] Tests pass
+- [x] `lintr::lint_package()` diffed against the branch-point baseline
+- [x] `devtools::document()` output read; `NAMESPACE` gained exactly one export
+- [x] `pkgdown::check_pkgdown()` clean
+- [x] `/code-check` clean on each commit
+- [x] PWF checkboxes match landed work
+- [x] `/planning-archive` on completion

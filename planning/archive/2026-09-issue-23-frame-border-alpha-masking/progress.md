@@ -67,3 +67,9 @@
 - Suite: 1624 passing, 0 failures, 0 skips. lintr clean (the 3 extra `fly_georef.R` lints
   are the documented installed-vs-source artifact — every new internal is absent from the
   installed namespace, every pre-existing one present)
+
+## Session 2026-09-08 — Phase 6 and close
+
+- 11 restore-the-bug proofs re-run against the committed state; every one turns its own
+  test red (7 by failure, 2 by error, 2 by both) and none stays green
+- Archived; PR opened
