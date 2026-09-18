@@ -89,23 +89,23 @@ never on `half_cross` arrival order (CLAUDE.md gotcha, fly#32).
       rolls listed), the three hypotheses it rules out, the repair-and-flag decision
 
 ## Phase 1: Measure the population and set the constants
-- [ ] `data-raw/height_calibrate-flying_height_slip.R` (`pkgload::load_all()`
+- [x] `data-raw/height_calibrate-flying_height_slip.R` (`pkgload::load_all()`
       unconditionally): per-year paged pull of `AIMG_PHOTO_CENTROIDS_SP`, attributes +
       centroid, cached outside git; assert row count against the catalogue's own total
-- [ ] Candidate sweep without a DEM: `flying_height / (scale x focal_length)` over every
+- [x] Candidate sweep without a DEM: `flying_height / (scale x focal_length)` over every
       film frame with a parseable scale; count candidates by roll and year; confirm whether
       any slipped roll hides *below* 15 km ASL (the low-altitude case)
-- [ ] Look for the mirror defect (`r` far *below* 1 — height recorded as AGL, or the
+- [x] Look for the mirror defect (`r` far *below* 1 — height recorded as AGL, or the
       inverse slip) and for any digital frame with an impossible `flying_height`
-- [ ] DEM-sample (MRDEM `/vsicurl/`) every candidate plus a stratified control set of
+- [x] DEM-sample (MRDEM `/vsicurl/`) every candidate plus a stratified control set of
       legitimate frames chosen for the *least favourable* cases, computed not remembered:
       highest terrain x largest scale (r pushed up), 1:90000 at 14.6 km (ceiling pushed)
-- [ ] Set the legit band on `r` and the absolute `height_agl` ceiling from that, with the
+- [x] Set the legit band on `r` and the absolute `height_agl` ceiling from that, with the
       margin to the least favourable member on **both** sides stated; verify `/10.7639`
       puts every candidate inside the band, and list any that it does not
-- [ ] Ship the sweep as `inst/extdata/flying_height_sweep.csv` (the `mask_border_sweep.csv`
+- [x] Ship the sweep as `inst/extdata/flying_height_sweep.csv` (the `mask_border_sweep.csv`
       pattern) so the suite recomputes the constants rather than trusting them
-- [ ] Record numbers and dead ends in `findings.md`
+- [x] Record numbers and dead ends in `findings.md`
 
 ## Phase 2: Failing tests first
 - [ ] Fixtures in `tests/testthat/setup.R` beside `terrain_fixture()`: a slipped film frame

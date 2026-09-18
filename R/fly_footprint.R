@@ -175,6 +175,37 @@ fly_warn_unsized <- function(footprints, operation) {
 # covered part to sit systematically higher or lower than the whole.
 fly_dem_coverage_min <- function() 0.95
 
+# The factor the catalogue's `FLYING_HEIGHT` is too large by on 1,589 film frames (fly#54).
+#
+# `3.28084^2`: a feet-to-metres conversion applied the wrong way round, so a height already
+# in metres was multiplied by 3.28084 where feet should have been divided by it, and then
+# read as feet again. Not fitted — it is the only candidate that survives the terrain.
+# Dividing by it puts all 1,589 frames between 0.80 and 1.32 of the height their own scale
+# implies; reading the value as feet misses by 4.5 to 17.7 km.
+fly_height_slip_factor <- function() 3.28084^2
+
+# How far a frame's height above ground may sit from `scale x focal_length` before the DEM
+# route stops trusting `flying_height`.
+#
+# Measured over MRDEM, not chosen: a random 2,500 of the catalogue's 1.44 million film
+# frames put 99.2% inside this band, and the 1,589 slipped frames land at 0.80-1.32 once
+# repaired against 10.0-15.8 before. The edges sit in the trough between that mass and the
+# next one out, at 2.0 and 0.5, which is a 153 / 305 mm lens recorded as the other — a
+# frame the DEM route would draw at twice or half its true width, and the nominal route
+# gets right because it never reads `focal_length`. One factor rather than two edges
+# because the error is a ratio either way. See `inst/notes/terrain-correction.md`.
+fly_height_ratio_band <- function() c(1 / 1.6, 1.6)
+
+# No survey aircraft flies above this, in metres above sea level.
+#
+# A backstop, not a discriminator, and the distinction matters: the highest legitimate
+# `flying_height` in the catalogue is 14,630 m (1:90000 film) and the highest digital one
+# 7,513 m, but slipped roll `bc78065` reads 4,115 m — so no ceiling separates good heights
+# from bad. It exists for the frames the ratio check cannot reach, a camera-table digital
+# frame having no reported scale worth comparing against, and for those it is judged before
+# a DEM window is ever built from the height in question.
+fly_flying_height_max <- function() 16000
+
 # The DEM-aligned grid a single footprint is counted against.
 #
 # Named and separate so the "one frame at a time" invariant can be asserted
