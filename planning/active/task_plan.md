@@ -82,10 +82,10 @@ never on `half_cross` arrival order (CLAUDE.md gotcha, fly#32).
 
 
 ## Phase 0: Housekeeping the gate produced
-- [ ] File a separate fly issue for partial `dem_coverage` (18 of 416 frames under 95%,
+- [x] File a separate fly issue for partial `dem_coverage` (18 of 416 frames under 95%,
       one at 47%, sized from the mean of the covered part) — to be worked from real
       examples; link it from #54
-- [ ] Edit the #54 issue body: cause found (`FLYING_HEIGHT` x10.764 on ~1,550 frames,
+- [x] Edit the #54 issue body: cause found (`FLYING_HEIGHT` x10.764 on ~1,550 frames,
       rolls listed), the three hypotheses it rules out, the repair-and-flag decision
 
 ## Phase 1: Measure the population and set the constants
