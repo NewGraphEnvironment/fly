@@ -151,8 +151,11 @@ the number the guard computes.
 the band (`bc79122` 640 m at 1:20000, `bc7584`, `bc7675`, `bc81013` ...) — but multiplying
 by **10** brings 729 (a dropped digit in a height in feet: 609 m is 2,000 ft), and for a
 different set of rolls doubling brings 799 (305 recorded for 153: `bc80001`, `bcc162`,
-`bc79209` sit at ratio_asl 0.500 exactly). The repaired spread is 0.63-1.6 and runs on past
-2 and 3 with no gap, where the forward slip is 0.80-1.32 behind a gap six wide. Three
+`bc79209` sit at ratio_asl 0.500; 519 of the 799 are catalogued at 305 mm but 280 at 153,
+which the lens reading cannot explain). x10.76 scatters the 1,962 from -0.70 to 5.38 — 130
+below the band, 1,106 above — where the forward slip is 0.80-1.32 with nothing between 6.69
+and 10.01. (Corrected after review round 2: an earlier line here said "0.63-1.6 ... behind a
+gap six wide", which was an impression, not a measurement.) Three
 remedies the terrain cannot tell apart, so none is applied: these frames come back
 `"implausible"` at nominal scale. Most were already falling back, since 588 of them have
 terrain above the recorded height.
@@ -161,8 +164,42 @@ terrain above the recorded height.
 
 See Errors. The first DEM run "completed (exit code 0)" with no output file.
 
+## Verification on real frames (2026-09-18)
+
+MRDEM-30 cropped once to the two rolls, then `fly_footprint(dem = )`:
+
+| roll | frames | `flying_height` | `height_agl` | `height_source` | width |
+|---|---|---|---|---|---|
+| `bcc03006` (1:35000 / 153) | 1-8 | 72,031-72,039 m | 5,461-6,135 m | `corrected_unit_slip` | 8.2-9.2 km |
+| `bcc03010` (1:15000 / 305) | 1-8 | 5,767-5,835 m | 4,601-4,898 m | `reported` | 3.4-3.7 km |
+
+`bcc03010`'s eight geometries are `identical()` to the ones `main`'s code returns over the
+same DEM file. 4.7 s for the sixteen frames.
+
+**Dead end kept:** the same check straight off `/vsicurl/` MRDEM did not finish in ten
+minutes; profiled, two clean frames took 583 s, all of it in `terra::extract()` inside
+`fly_dem_sample()` and almost none of it CPU. Pre-existing and out of scope here — fly#59.
+The calibration script's `extract(..., fun = mean)` ran at ~0.5 s per frame on the same
+raster, which is the lead.
+
+## /code-check (three rounds, whole branch against main)
+
+| Round | Findings | Fixed | Accepted | Inside previous fix? |
+|---|---|---|---|---|
+| 1 | 4 (2 code, 2 doc) | 4 | 0 | — |
+| 2 | 5 (all doc figures) | 5 | 0 | adjacent: the paragraph round 1 had edited |
+| 3 | 9 of 94 enumerated claims (wording / quantifiers, no number wrong) | 9 | 0 | n |
+
+Ended by enumeration, not by a quiet round: round 3 extracted all 94 quantitative and
+behavioural claims in the added prose and checked each against a producer. The class
+across all three rounds was one thing — prose written from an impression or from the
+plan-mode exploration sample rather than derived from the shipped sweep — so the script
+now prints a producer for every figure the note, NEWS and comments quote. No code defect
+after round 1. Reviews are `review-round[1-3].md`.
+
 ## Errors Encountered
 
 | Error | Resolution |
 |-------|------------|
 | `parallel::mclapply()` over `/vsicurl/` MRDEM: all 104 chunks died with "An irrecoverable exception occurred. R is aborting now", and the background wrapper still reported exit 0 | GDAL's curl handles do not survive a fork on macOS. PSOCK cluster (`parallel::makeCluster()` + `parLapply()`), opening the raster inside each worker; gate on the `DEM DONE` marker, not the exit code |
+| `python3` string replace matched nothing: the anchor was written with `\\u2014` where the file holds a literal em dash | Anchors asserted with `count == 1`, so it failed loudly instead of silently testing the unmodified file; matched on a dash-free substring |

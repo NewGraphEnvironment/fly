@@ -140,15 +140,15 @@ never on `half_cross` arrival order (CLAUDE.md gotcha, fly#32).
       `failed` **and** `error`), via `testthat::test_file()`
 
 ## Phase 4: Docs
-- [ ] roxygen: `@return` gains `height_source`; terrain section explains the slip, the
+- [x] roxygen: `@return` gains `height_source`; terrain section explains the slip, the
       repair and how to list repaired frames; `devtools::document()` and check NAMESPACE
       did not move; `pkgdown::check_pkgdown()`
-- [ ] `inst/notes/terrain-correction.md`: new section — the measurement, the rejected
+- [x] `inst/notes/terrain-correction.md`: new section — the measurement, the rejected
       feet hypothesis, why the relative check is the discriminating one, the constants'
       margins
-- [ ] Vignette: one short paragraph + `table(height_source)` beside the existing
+- [x] Vignette: one short paragraph + `table(height_source)` beside the existing
       `table(footprint_terrain)`
-- [ ] Draft (**do not send**) a short defect note for DataBC listing the rolls, for Al to
+- [x] Draft (**do not send**) a short defect note for DataBC listing the rolls, for Al to
       send or not
 
 ## Phase 5: Release

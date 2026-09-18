@@ -15,3 +15,9 @@
 - Deviation from the approved plan, stated: the absolute check is on `flying_height` (ASL),
   not `height_agl`, so it is judged before any DEM window is built
 - Inverse slip measured and deliberately NOT repaired (x10.76, x10 and x2 inseparable)
+- Phase 2: failing tests first (35 failed + 1 error on main's code); two vacuous assertions caught on the red run
+- Phase 3: implementation; 9 of 9 own mutations red (2 needed new fixture rows), suite 257 tests / 1,829 assertions green
+- Verified end to end on real `bcc03006` / `bcc03010` frames over MRDEM
+- Phase 4: roxygen, terrain note, vignette, DataBC draft (not sent)
+- /code-check x3 over the whole branch: 2 code regressions + 16 doc claims fixed; ended by a 94-claim enumeration
+- Follow-ups filed: #58 (partial DEM coverage), #59 (remote DEM sampling 583 s / 2 frames), #60 (lower-tail heights)

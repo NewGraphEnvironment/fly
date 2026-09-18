@@ -72,6 +72,98 @@ leaves NA slivers along its edges, so a frame near the margin is routinely a fra
 percent short through no fault of the caller; warning on any missing cell fires on good data
 and stops being read.
 
+## `flying_height` is held against the scale before it is believed (fly#54)
+
+The DEM route sizes a frame from `flying_height - terrain`, so it inherits whatever is wrong
+with `flying_height`, and until 0.12.0 it had no opinion about that. Two 2003 frames came
+back 110,834 m across against 8,022 m at nominal scale, as fly#54 reported them. Nothing in fly was wrong: **the
+catalogue's `FLYING_HEIGHT` is 3.28084² = 10.764 times too large on 1,589 film frames** — a
+feet-to-metres conversion applied the wrong way round. 13 rolls: `bc5596` (1974), `bc78065`,
+`bc78078` (1978), `bc79027`, `bc79103` (1979), `bcb98013` (1998), `bcc00085` (2000),
+`bcc03004`, `bcc03006`, `bcc03007`, `bcc03008`, `bcc03046` (2003 — 1,054 of the frames) and
+`bcc05001` (2005).
+
+Measured over the whole catalogue — all 1,670,471 centroids, reconciled against the
+catalogue's own count — and over MRDEM-30 under the 7,156 frames that decide the constants.
+`data-raw/height_calibrate-flying_height_slip.R` reproduces all of it from public data, and
+the sweep ships as `inst/extdata/flying_height_sweep.csv` and `flying_height_population.csv`
+so the suite checks the constants against the data rather than against themselves.
+
+**A film frame states its height above ground twice**: `flying_height - terrain`, and
+`scale x focal_length`. Call their ratio `r`.
+
+| population | r |
+|---|---|
+| ordinary frames (random 2,500 of the 1.42 million at `ratio_asl` ≤ 2) | median 1.03, 2.5–97.5% 0.81–1.25, **99.2% inside [1/1.6, 1.6]** — 98.7% of all 1.44 million film frames, weighting in the two strata above |
+| slipped, as reported (1,589) | 10.01–15.83 |
+| slipped, divided by 10.764 | **0.80–1.32**, median 1.05 |
+| between the two populations | nothing from 6.69 to 10.01 |
+
+The repaired slipped frames land in the same shape as the ordinary ones, which is the
+confirmation of the factor that does not depend on having guessed it. Reading the value as
+plain feet instead leaves r at 3.02–4.71, and **0 of the 1,589** inside the band.
+
+So `fly_footprint(dem = )` compares the two after its first DEM pass. Inside
+`fly_height_ratio_band()` the height is used as reported. Outside it, dividing by
+`fly_height_slip_factor()` is tried, and where that lands inside the band the frame is sized
+from the corrected height. Otherwise the frame falls back to nominal scale. `height_source`
+records which — `"reported"`, `"corrected_unit_slip"`, `"implausible"` — and the caller's
+`flying_height` column is never overwritten, so `flying_height - height_agl` is **not** the
+ground elevation on a corrected row.
+
+Four things here were measured and each is load-bearing:
+
+- **The check has to be relative, because the slip hides at legal altitudes.** `bc78065`
+  reads 4,115 m at 1:2000 and `bc78078` 9,449 m at 1:6000. The issue proposed a plausibility
+  bound on `height_agl`; no bound separates these from a legitimate flight. The highest
+  legitimate `flying_height` in the catalogue is 14,630 m and the lowest slipped one is
+  4,115 m.
+- **The rule is per frame, never per roll.** 1,208 frames sit on a slipped roll without
+  being slipped themselves.
+- **The band's upper edge sits in a trough, and what is beyond it is a second defect.** The
+  least favourable legitimate frames — low flights over high ground, where terrain is a
+  large share of the height — still sit around 1: the 348 of the 600 sampled that are
+  inside the band have a median of 1.05 and run 0.83–1.51 (5–95%). The next mass out is
+  centred on
+  **r = 2, and of the 223 frames sampled beyond r 1.8 in that stratum, 209 are catalogued
+  at 153 mm**: a 305 mm lens recorded as a 153. The DEM route draws those at twice their
+  true width; the nominal route gets them right, because it never reads `focal_length`.
+  Falling back is therefore the correct answer there and not merely the cautious one. The
+  lower edge is the same factor inverted, since the error is a ratio either way — set by
+  symmetry, not by a trough: ordinary frames thin out steadily below 0.8 and there is no
+  second mass at 0.5.
+- **The repair fires on nothing else.** Of 2,733 sampled frames outside the band and not
+  slipped, dividing by 10.764 brings none inside it.
+
+**The slip appears to run the other way as well, and that is deliberately not repaired.**
+1,963 frames read under half their nominal height, 1,962 of them sampled as the lower tail
+(the other was already in the random draw). Multiplying by 10.764 brings 726 of those into
+the band — but multiplying by **10** brings 729 (a dropped digit in a height in feet:
+609 m is 2,000 ft), and for a different set of rolls doubling brings 799 (a 153 mm lens
+catalogued as 305 would do that, and 519 of them are catalogued at 305 — but 280 are at 153,
+which that reading cannot explain). Nor does 10.764 sort the lower tail the way it sorts the
+upper one: it scatters the 1,962 from −0.70 to 5.38, leaving 130 still below the band and
+1,106 above it, where the forward repair puts all 1,589 at 0.80–1.32 with the nearest
+unslipped frame at 6.69 and the nearest slipped one at 10.01. Three remedies the
+terrain cannot tell apart, so none is applied and those frames come back `"implausible"`
+at nominal scale. Do not "finish" this by picking one.
+
+**The ceiling, `fly_flying_height_max()`, is a backstop and not a discriminator.** A digital
+frame's `scale` is a nominal figure a third of its true image scale, so there is nothing to
+hold its height against, and for those the only check is that no survey aircraft flies at
+16,000 m. No digital frame in the catalogue comes near it — the highest is 7,513 m of
+223,667 — so today it catches nothing. It is judged on `flying_height` itself, before any
+DEM window is built: a camera-table frame seeds its first window from the whole flying
+height, so judging `height_agl` would mean fetching 100 km of terrain to learn the height
+was wrong. The second pass is withheld from a refused frame for the same reason, and a test
+asserts on the grids rather than on the answer — classifying after both passes returns the
+right footprint and still pays for the wrong one.
+
+**What this cannot do.** `r` cannot tell a wrong height from a wrong `scale`. Where the
+scale is the wrong one, falling back to nominal is the worse choice, and nothing here can
+know. That is why the `"implausible"` warning names no cause, and why the frames are
+flagged rather than silently resized.
+
 ## Testing this
 
 The bundled fixture — one 30 m EPSG:3005 DEM — **cannot reach any of the four failures
@@ -88,6 +180,7 @@ Vary the fixture along the axes the bundled one holds constant:
 | geographic CRS | the only way to execute the reprojection branch at all |
 | a truncating extent | a DEM cropped to an AOI is the common case, and it stops rather than going NA |
 | frames far apart | grid allocation scales with the gap, not the frames |
+| a `flying_height` that disagrees with the scale | every bundled frame agrees with its own scale, so the height checks never fire — and relabelling a frame's `scale` without moving its `flying_height` builds exactly the disagreement they refuse |
 
 And buffer a DEM past the **corner** of the widest footprint, `half_side * sqrt(2)` — 5.1 km
 at 1:31680, not the 3.6 km half-side — plus room for the correction, which enlarges the
