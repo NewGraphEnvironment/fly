@@ -110,6 +110,60 @@ terrain_fixture <- function() {
 }
 
 
+# Frames whose `flying_height` does and does not survive the plausibility checks of fly#54,
+# all over ground at 700 m (see `flat_dem()`), so every expected height is arithmetic.
+#
+# Rows 1 and 2 are the same frame, clean and slipped, at the SAME point: whatever the DEM
+# is, the repaired twin has to come back where the clean one does. Row 3 is the case that
+# decides which check is doing the work — its slipped value, 14,424 m, is a perfectly legal
+# altitude, so a ceiling cannot see it and only the comparison against `scale x
+# focal_length` can. Row 4 is wrong by a factor the slip does not explain. Row 5 is the
+# highest legitimate height in the catalogue and must be left alone. Row 6 is a digital
+# frame the camera table sizes from its focal length, with no reported scale worth
+# comparing against, so the ceiling is the only check that reaches it.
+height_fixture <- function() {
+  k <- 3.28084^2
+  sf::st_sf(
+    airp_id = 1:6,
+    scale = c("1:12000", "1:12000", "1:4000", "1:12000", "1:90000", "1:20000"),
+    media = c(rep("Film - BW", 5), "Digital - Colour"),
+    focal_length = c(153, 153, 153, 153, 153, 100),
+    flying_height = c(2628, round(2628 * k), round(1340 * k), 2628 * 4, 14630, 45000),
+    geometry = sf::st_sfc(
+      sf::st_point(c(-126.60, 54.40)),
+      sf::st_point(c(-126.60, 54.40)),
+      sf::st_point(c(-126.56, 54.40)),
+      sf::st_point(c(-126.54, 54.40)),
+      sf::st_point(c(-126.52, 54.40)),
+      sf::st_point(c(-126.50, 54.40)),
+      crs = 4326
+    )
+  )
+}
+
+# What `height_fixture()` must come back as, in row order.
+height_fixture_source <- function() {
+  c("reported", "corrected_unit_slip", "corrected_unit_slip", "implausible", "reported",
+    "implausible")
+}
+
+# Level ground with nothing missing and room past the widest footprint in
+# `height_fixture()` — the 1:90000 frame is 20.6 km across.
+flat_dem <- function(elev = 700, cell = 100, pad = 40000, crs = "EPSG:3005") {
+  bb <- sf::st_bbox(sf::st_transform(height_fixture(), 3005))
+  r <- terra::rast(
+    xmin = bb[["xmin"]] - pad, xmax = bb[["xmax"]] + pad,
+    ymin = bb[["ymin"]] - pad, ymax = bb[["ymax"]] + pad,
+    resolution = cell, crs = "EPSG:3005"
+  )
+  terra::values(r) <- elev
+  if (!identical(crs, "EPSG:3005")) {
+    r <- terra::project(r, crs)
+  }
+  r
+}
+
+
 # The same bundled centroids in every class shape a real caller can supply.
 #
 # `bcdata::collect()` returns `bcdc_sf, sf, tbl_df, tbl, data.frame`, and #35
@@ -158,7 +212,7 @@ mixed_media_shapes <- function() {
 # The columns #30 and #9 added, which #35 found were reaching no tibble caller.
 fly_reported_cols <- function() {
   c("footprint_basis", "footprint_terrain", "footprint_bearing", "height_agl",
-    "dem_coverage")
+    "dem_coverage", "height_source")
 }
 
 
@@ -186,6 +240,7 @@ footprint_cases <- function() {
     "mixed resolvability"       = list(x = digital_fixture(), dem = NULL),
     "mixed resolvability + dem" = list(x = digital_fixture(), dem = dem),
     "terrain fixture"           = list(x = terrain_fixture(), dem = dem),
+    "height fixture"            = list(x = height_fixture(), dem = dem),
     "no media column"           = list(x = film[, setdiff(names(film), "media")], dem = NULL),
     "empty input"               = list(x = digital_fixture()[0, ], dem = NULL)
   )

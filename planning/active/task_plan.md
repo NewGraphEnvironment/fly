@@ -108,23 +108,23 @@ never on `half_cross` arrival order (CLAUDE.md gotcha, fly#32).
 - [x] Record numbers and dead ends in `findings.md`
 
 ## Phase 2: Failing tests first
-- [ ] Fixtures in `tests/testthat/setup.R` beside `terrain_fixture()`: a slipped film frame
+- [x] Fixtures in `tests/testthat/setup.R` beside `terrain_fixture()`: a slipped film frame
       (x10.7639), a **low-altitude slip whose bad value is a legal altitude**, an
       implausible-not-slip frame (e.g. x4), a camera-table digital frame over the ceiling,
       and a legitimate 1:90000 / 14,630 m frame that must stay `"reported"`
-- [ ] `test-fly_footprint.R`: corrected frame's width within tolerance of the same frame
+- [x] `test-fly_footprint.R`: corrected frame's width within tolerance of the same frame
       with the true height; `height_source` values; `height_agl` is the corrected height;
       input `flying_height` column unchanged; implausible frame falls back to nominal with
       one warning (`capture_warnings()`, assert the rendered text, not just a field name)
-- [ ] Batch independence: a slipped frame sizes identically alone and in a mixed batch
-- [ ] Terrain axes the bundled DEM cannot reach (per `terrain-correction.md`): run the
+- [x] Batch independence: a slipped frame sizes identically alone and in a mixed batch
+- [x] Terrain axes the bundled DEM cannot reach (per `terrain-correction.md`): run the
       slip case at ~900 m cells, in a geographic CRS, and with a truncating extent
-- [ ] `height_source` added to `fly_reported_cols()` so the plain / tibble / grouped /
+- [x] `height_source` added to `fly_reported_cols()` so the plain / tibble / grouped /
       `bcdc_sf` sweep and `test-fly_terrain_passthrough.R` cover it; `NA` with `dem = NULL`
       and for `gsd_scaled` frames
-- [ ] Constants test: band and ceiling recomputed from `flying_height_sweep.csv`, with a
+- [x] Constants test: band and ceiling recomputed from `flying_height_sweep.csv`, with a
       premise assertion that the CSV holds both slipped and legitimate rows
-- [ ] Confirm the new tests fail on `main`'s code
+- [x] Confirm the new tests fail on `main`'s code
 
 ## Phase 3: Implement in `R/fly_footprint.R`
 - [ ] `fly_height_slip_factor()`, `fly_height_ratio_band()`, `fly_agl_max()` — named
