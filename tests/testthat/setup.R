@@ -121,14 +121,23 @@ terrain_fixture <- function() {
 # highest legitimate height in the catalogue and must be left alone. Row 6 is a digital
 # frame the camera table sizes from its focal length, with no reported scale worth
 # comparing against, so the ceiling is the only check that reaches it.
+#
+# Rows 7 and 8 exist because two deliberate defects survived the first six. Row 7 is wrong
+# by a factor of 20, which the slip does not explain either — but unlike row 4, whose 15 km
+# window hides under row 5's legitimate 21 km one, the window its height implies is 77 km,
+# so it is the row that shows whether the second DEM pass was really withheld. Row 8 is a
+# digital frame with a perfectly good height: its nominal `scale` puts it at r = 2, so an
+# implementation that compared digital frames against their scale would refuse it.
 height_fixture <- function() {
   k <- 3.28084^2
   sf::st_sf(
-    airp_id = 1:6,
-    scale = c("1:12000", "1:12000", "1:4000", "1:12000", "1:90000", "1:20000"),
-    media = c(rep("Film - BW", 5), "Digital - Colour"),
-    focal_length = c(153, 153, 153, 153, 153, 100),
-    flying_height = c(2628, round(2628 * k), round(1340 * k), 2628 * 4, 14630, 45000),
+    airp_id = 1:8,
+    scale = c("1:12000", "1:12000", "1:4000", "1:12000", "1:90000", "1:20000", "1:12000",
+              "1:20000"),
+    media = c(rep("Film - BW", 5), "Digital - Colour", "Film - BW", "Digital - Colour"),
+    focal_length = c(153, 153, 153, 153, 153, 100, 153, 100),
+    flying_height = c(2628, round(2628 * k), round(1340 * k), 2628 * 4, 14630, 45000,
+                      2628 * 20, 4700),
     geometry = sf::st_sfc(
       sf::st_point(c(-126.60, 54.40)),
       sf::st_point(c(-126.60, 54.40)),
@@ -136,6 +145,8 @@ height_fixture <- function() {
       sf::st_point(c(-126.54, 54.40)),
       sf::st_point(c(-126.52, 54.40)),
       sf::st_point(c(-126.50, 54.40)),
+      sf::st_point(c(-126.58, 54.40)),
+      sf::st_point(c(-126.48, 54.40)),
       crs = 4326
     )
   )
@@ -144,7 +155,7 @@ height_fixture <- function() {
 # What `height_fixture()` must come back as, in row order.
 height_fixture_source <- function() {
   c("reported", "corrected_unit_slip", "corrected_unit_slip", "implausible", "reported",
-    "implausible")
+    "implausible", "implausible", "reported")
 }
 
 # Level ground with nothing missing and room past the widest footprint in

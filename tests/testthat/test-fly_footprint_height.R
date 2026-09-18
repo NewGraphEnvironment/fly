@@ -3,7 +3,7 @@
 #
 # The catalogue's `FLYING_HEIGHT` is 3.28084^2 too large on 1,589 film frames, which the DEM
 # route turned into 110 km footprints. Every fixture here sits over level ground at a known
-# elevation, so each expected height is arithmetic rather than a reading — and the two
+# elevation, so each expected height is arithmetic rather than a reading — and the three
 # constants are checked further down against the sweep they were measured from, which ships
 # in `inst/extdata/`, rather than against themselves.
 
@@ -35,7 +35,8 @@ test_that("a slipped flying_height is repaired, flagged, and sized like its clea
   expect_identical(fp$height_source, height_fixture_source())
   expect_identical(
     fp$footprint_terrain,
-    c("dem_agl", "dem_agl", "dem_agl", "nominal_scale", "dem_agl", NA)
+    c("dem_agl", "dem_agl", "dem_agl", "nominal_scale", "dem_agl", NA, "nominal_scale",
+      "dem_agl")
   )
 
   # Rows 1 and 2 are one frame, clean and slipped. The fixture rounds the slipped height to
@@ -52,9 +53,13 @@ test_that("a slipped flying_height is repaired, flagged, and sized like its clea
   expect_identical(fp$flying_height, hf$flying_height)
 
   # An implausible film frame keeps its nominal-scale footprint — it is not dropped.
-  flat <- fly_footprint(hf)
-  expect_equal(width_m(fp)[4], width_m(flat)[4])
-  expect_true(is.na(fp$height_agl[4]))
+  film <- hf$media %in% fly_film_media()
+  flat <- fly_footprint(hf[film, ])     # with no `dem`, a digital row here has no route at all
+  expect_equal(width_m(fp)[c(4, 7)], width_m(flat)[match(c(4, 7), which(film))])
+  expect_true(all(is.na(fp$height_agl[c(4, 7)])))
+  # A digital frame with a good height is sized from it, whatever its nominal `scale` says.
+  expect_equal(fp$height_agl[8], 4700 - 700)
+  expect_false(sf::st_is_empty(sf::st_geometry(fp)[8]))
   # A camera-table frame has no nominal footprint to fall back to.
   expect_true(sf::st_is_empty(sf::st_geometry(fp)[6]))
 })
@@ -69,6 +74,16 @@ test_that("the fixture reaches each check by the route it claims to", {
   # Row 6 can only be caught by the ceiling: it is digital, sized from the camera table.
   expect_gt(hf$flying_height[6], fly_flying_height_max())
   expect_false(hf$media[6] %in% fly_film_media())
+  # Row 4 is under the ceiling, so only the ratio can refuse it, and the slip does not
+  # explain it; row 7's window would dwarf the widest legitimate one (row 5's).
+  expect_lt(hf$flying_height[4], fly_flying_height_max())
+  window <- function(i, h) 9 * 0.0254 * (h - 700) / (hf$focal_length[i] / 1000)
+  expect_lt(window(4, hf$flying_height[4]), window(5, hf$flying_height[5]))
+  expect_gt(window(7, hf$flying_height[7]), 3 * window(5, hf$flying_height[5]))
+  # Row 8 would be refused if a digital frame's `scale` were taken at its word.
+  band <- fly_height_ratio_band()
+  r8 <- (hf$flying_height[8] - 700) / (20000 * hf$focal_length[8] / 1000)
+  expect_gt(r8, band[2])
 })
 
 
@@ -85,7 +100,7 @@ test_that("corrected and implausible heights are each reported once, and not as 
 
   implausible <- grep("implausible", w, value = TRUE)
   expect_length(implausible, 1)
-  expect_match(implausible, "^2 of ")
+  expect_match(implausible, "^3 of ")
   expect_match(implausible, "height_source", fixed = TRUE)
 
   # Neither is missing metadata, and the digital frame was given every column the
@@ -119,8 +134,10 @@ test_that("no DEM window is ever built from a height that fails the checks", {
   widest <- (9 * 0.0254 * 90000 * 1.05 / 100 + 2)^2
   expect_gt(length(sizes), 0)
   expect_lt(max(sizes), widest)
-  # Premise: the slipped row's own window would have stood out against that.
+  # Premise: the windows that must never be built would have stood out against that — the
+  # slipped row's at its reported height, and row 7's, which no repair rescues.
   expect_gt((9 * 0.0254 * (28288 - 700) / 0.153 / 100)^2, 3 * widest)
+  expect_gt((9 * 0.0254 * (2628 * 20 - 700) / 0.153 / 100)^2, 3 * widest)
 })
 
 
@@ -209,6 +226,49 @@ test_that("height_source is NA wherever no DEM height was judged", {
 })
 
 
+test_that("a slipped frame the DEM does not cover is uncovered, not implausible", {
+  skip_if_no_terra()
+  # Every slipped frame of 2003 reads ~75 km, far over the ceiling. Off the edge of a DEM
+  # cropped to an AOI the repair cannot be tried, so saying "no single correction explains
+  # it" would be false — and the frame has to stay findable as `no_dem_coverage`, which is
+  # how a caller learns the DEM needs to be bigger. Extend the DEM and it is repaired.
+  twins <- height_fixture()[1:2, ]
+  sf::st_geometry(twins) <- sf::st_sfc(
+    sf::st_point(c(-126.60, 54.40)), sf::st_point(c(-120, 50)), crs = 4326
+  )
+  expect_gt(twins$flying_height[2], fly_flying_height_max())   # premise
+  got <- collect_warnings(fly_footprint(twins, dem = flat_dem()))
+  fp <- got$value
+  expect_identical(fp$footprint_terrain, c("dem_agl", "no_dem_coverage"))
+  expect_identical(fp$height_source, c("reported", NA))
+  expect_identical(fp$dem_coverage, c(1, 0))
+  expect_false(any(grepl("implausible", got$warnings)))
+  expect_true(any(grepl("outside the DEM", got$warnings)))
+
+  # A digital frame over the ceiling is refused wherever it is: the ceiling needs no
+  # terrain, and there is no scale it could have been tested against.
+  digital <- height_fixture()[6, ]
+  sf::st_geometry(digital) <- sf::st_sfc(sf::st_point(c(-120, 50)), crs = 4326)
+  fp <- suppressWarnings(fly_footprint(digital, dem = flat_dem()))
+  expect_identical(fp$height_source, "implausible")
+})
+
+
+test_that("a digital frame below the terrain is still told it has no footprint", {
+  skip_if_no_terra()
+  # It carries the "implausible" label, but it is reported by the older warning, whose
+  # "sized from nominal scale instead" is not true of a frame with no nominal route. The
+  # no-footprint warning is the only one that says the frame is gone, so the refusal
+  # warning's suppression of it must not reach this frame.
+  digital <- height_fixture()[8, ]
+  digital$flying_height <- 100
+  got <- collect_warnings(fly_footprint(digital, dem = flat_dem()))
+  expect_true(sf::st_is_empty(sf::st_geometry(got$value)))
+  expect_identical(got$value$height_source, "implausible")
+  expect_true(any(grepl("no way to size it", got$warnings, fixed = TRUE)))
+})
+
+
 test_that("the bundled film frames are all left exactly as they were", {
   skip_if_no_terra()
   centroids <- sf::st_read(testdata_path("photo_centroids.gpkg"), quiet = TRUE)
@@ -258,6 +318,10 @@ test_that("the constants hold against the sweep they were measured from", {
   expect_gt(min(s$r_fix[slipped]) / band[1], 1.2)
   expect_gt(band[2] / max(s$r_fix[slipped]), 1.2)
   expect_gt(min(s$r[slipped]) / band[2], 6)
+  # The rival reading of the value, plain feet, rescues none of them.
+  r_feet <- (s$flying_height * 0.3048 - s$elev) / nominal
+  expect_identical(sum(in_band(r_feet[slipped])), 0L)
+  expect_gt(min(r_feet[slipped]), 3)
 
   # The band costs ordinary frames under 1%.
   expect_gt(mean(in_band(s$r[ordinary])), 0.99)

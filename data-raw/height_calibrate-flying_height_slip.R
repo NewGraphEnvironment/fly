@@ -1,5 +1,5 @@
 # height_calibrate-flying_height_slip.R — measure the catalogue's `FLYING_HEIGHT` unit
-# slip (fly#54) and the two constants `fly_footprint(dem = )` guards against it with.
+# slip (fly#54) and the constants `fly_footprint(dem = )` guards against it with.
 #
 # Everything here is public: the airphoto centroid layer of the BC Data Catalogue and
 # NRCan's MRDEM-30, both unauthenticated.
@@ -126,8 +126,9 @@ film <- frames[usable, ]
 film$scale_n <- scale_n[usable]
 # Height above ground the reported scale implies: scale x focal length.
 film$nominal_agl <- film$scale_n * film$focal_length / 1000
-# `flying_height` is metres above SEA LEVEL, so this is an upper bound on the ratio the
-# DEM route will see — terrain only ever lowers it. That is what lets the upper tail be
+# `flying_height` is metres above SEA LEVEL, so wherever the ground is above sea level this
+# is an upper bound on the ratio the DEM route will see. (7 of the 7,156 sampled frames sit
+# over ground up to a metre below it, which moves nothing.) That is what lets the upper tail be
 # found without a DEM, and it is why the lower tail cannot be.
 film$ratio_asl <- film$flying_height / film$nominal_agl
 
@@ -143,7 +144,9 @@ set.seed(54)
 take <- function(d, n) d[sample(nrow(d), min(n, nrow(d))), ]
 
 sets <- rbind(
-  # Every frame the upper check could fire on, slipped or not.
+  # Every frame reporting over three times the height its scale implies, slipped or not —
+  # which holds every frame the REPAIR could fire on. The band's upper edge fires on more:
+  # frames in the two sets below can sit above 1.6 too.
   cbind(film[film$ratio_asl > 3, ], set = "upper_tail"),
   # The least favourable legitimate frames for the upper bound, computed rather than
   # remembered: low flights over high ground, where terrain is a large share of the
@@ -153,8 +156,8 @@ sets <- rbind(
   # from a population that includes it, so it stays a sample of everything at or under 2.
   cbind(take(film[film$ratio_asl <= 2, ], 2500), set = "random")
 )
-# Every frame whose reported height is under half what its scale implies. `r <= ratio_asl`,
-# so all of these are outside any band without a DEM; terrain is sampled under them only
+# Every frame whose reported height is under half what its scale implies. Terrain only
+# lowers the ratio further, so all of these are outside the band without a DEM; terrain is sampled under them only
 # to test whether the slip also runs the other way (stored = true metres / 3.28084^2).
 lower <- film[film$ratio_asl <= 0.5 & !film$airp_id %in% sets$airp_id, ]
 sets <- rbind(sets, cbind(lower, set = "lower_tail"))
@@ -184,7 +187,9 @@ if (nrow(todo)) {
         dem <- terra::rast(mrdem)
         half <- 9 * 0.0254 * d$scale_n / 2
         polys <- lapply(seq_len(nrow(d)), function(i) {
-          x <- d$x[i]; y <- d$y[i]; h <- half[i]
+          x <- d$x[i]
+          y <- d$y[i]
+          h <- half[i]
           sf::st_polygon(list(rbind(c(x - h, y - h), c(x + h, y - h), c(x + h, y + h),
                                     c(x - h, y + h), c(x - h, y - h))))
         })
@@ -215,12 +220,14 @@ sets$r     <- (sets$flying_height - sets$elev) / sets$nominal_agl
 sets$r_fix <- (sets$flying_height / k - sets$elev) / sets$nominal_agl
 
 q <- c(0, .005, .025, .5, .975, .995, 1)
-message("\nrandom frames, r:");            print(round(quantile(sets$r[sets$set == "random"], q), 3))
+message("\nrandom frames, r:")
+print(round(quantile(sets$r[sets$set == "random"], q), 3))
 message("random frames inside the band: ",
         sprintf("%.1f%%", 100 * mean(in_band(sets$r[sets$set == "random"]))))
-message("near_upper frames, r:");          print(round(quantile(sets$r[sets$set == "near_upper"], q), 3))
+message("near_upper frames, r:")
+print(round(quantile(sets$r[sets$set == "near_upper"], q), 3))
 
-# The slipped population, identified by ROLL and by a ratio no terrain can explain — not by
+# The slipped population, identified by a ratio no terrain can explain — not by
 # the rule under test, or the check below could only agree with itself.
 slipped <- sets$set == "upper_tail" & sets$ratio_asl > 9
 message(sprintf("\nslipped: %d frames on %d rolls", sum(slipped),
@@ -231,9 +238,16 @@ print(as.data.frame(
     summarise(n = n(), fh_min = min(flying_height), fh_max = max(flying_height),
               r = round(median(r), 2), r_fix = round(median(r_fix), 2), .groups = "drop")
 ))
-message("slipped, raw r:");      print(round(quantile(sets$r[slipped], q), 2))
-message("slipped, repaired r:"); print(round(quantile(sets$r_fix[slipped], q), 3))
+message("slipped, raw r:")
+print(round(quantile(sets$r[slipped], q), 2))
+message("slipped, repaired r:")
+print(round(quantile(sets$r_fix[slipped], q), 3))
 stopifnot(all(in_band(sets$r_fix[slipped])), !any(in_band(sets$r[slipped])))
+
+# The rival reading: the value is in feet. It is not — nothing lands in the band.
+r_feet <- (sets$flying_height[slipped] * 0.3048 - sets$elev[slipped]) / sets$nominal_agl[slipped]
+message(sprintf("slipped, read as feet: r %.2f to %.2f, %d of %d inside the band",
+                min(r_feet), max(r_feet), sum(in_band(r_feet)), sum(slipped)))
 
 # Frames on a slipped roll that are NOT slipped would mean the rule has to work per frame
 # rather than per roll. It does work per frame; this says whether it needs to.
@@ -248,6 +262,37 @@ message(sprintf("\noutside the band and not slipped: %d sampled frames; repair w
 message("the empty stretch between the two populations, in r: ",
         sprintf("%.2f to %.2f", max(sets$r[!slipped]), min(sets$r[slipped])))
 
+# What the band costs, over the whole population rather than over one sampled stratum:
+# each set weighted by the number of frames it stands for. `upper_tail` and `lower_tail`
+# are censuses, `random` and `near_upper` are draws from the strata named beside them.
+n_le2 <- sum(film$ratio_asl <= 2)
+n_23  <- sum(film$ratio_asl > 2 & film$ratio_asl <= 3)
+inside <- mean(in_band(sets$r[sets$set == "random"])) * n_le2 +
+  mean(in_band(sets$r[sets$set == "near_upper"])) * n_23 +
+  sum(in_band(sets$r[sets$set == "upper_tail"]))
+message(sprintf("\ninside the band, population-weighted: %.1f%% of %d film frames",
+                100 * inside / nrow(film), nrow(film)))
+message(sprintf("outside it and not repaired: %.1f%%",
+                100 * (nrow(film) - inside - sum(slipped)) / nrow(film)))
+nu_in <- sets$r[sets$set == "near_upper" & in_band(sets$r)]
+message(sprintf("near_upper frames inside the band: %d of %d, median r %.2f, 5-95%% %.2f to %.2f",
+                length(nu_in), sum(sets$set == "near_upper"), median(nu_in),
+                quantile(nu_in, .05), quantile(nu_in, .95)))
+digital_all <- frames[grepl("^Digital", frames$media), ]
+d_nominal <- suppressWarnings(as.numeric(sub("^1:", "", digital_all$scale))) *
+  digital_all$focal_length / 1000
+d_ratio <- digital_all$flying_height / d_nominal
+d_ratio <- d_ratio[is.finite(d_ratio) & d_ratio > 0]
+message(sprintf("digital frames whose nominal `scale` puts flying_height / nominal outside the band: %.0f%% of %d",
+                100 * mean(!in_band(d_ratio)), length(d_ratio)))
+message("random frames below r = 1, per 0.1: ",
+        paste(table(cut(sets$r[sets$set == "random"], seq(0.2, 1, by = 0.1))), collapse = " "))
+message(sprintf("sampled frames over ground below sea level: %d of %d (lowest %.1f m)",
+                sum(sets$elev < 0), nrow(sets), min(sets$elev)))
+beyond <- sets$set == "near_upper" & sets$r > 1.8
+message(sprintf("near_upper frames beyond r 1.8: %d, catalogued at 153 mm: %d",
+                sum(beyond), sum(sets$focal_length[beyond] == 153)))
+
 # The other way round. Multiplying by the same factor brings some of the lower tail into
 # the band too — and so does multiplying by ten (a dropped digit in a height in feet), and
 # for a different set of rolls so does doubling (a 305 mm lens recorded for a 153). Three
@@ -256,6 +301,13 @@ lower <- sets[sets$set == "lower_tail", ]
 alt <- function(f) sum(in_band((lower$flying_height * f - lower$elev) / lower$nominal_agl))
 message(sprintf("\nlower tail %d frames; into the band under x%.2f: %d, under x10: %d, under x2: %d",
                 nrow(lower), k, alt(k), alt(10), alt(2)))
+r_inv <- (lower$flying_height * k - lower$elev) / lower$nominal_agl
+message(sprintf("lower tail x%.2f: r %.2f to %.2f, %d below the band, %d above it",
+                k, min(r_inv), max(r_inv), sum(r_inv < band[1]), sum(r_inv > band[2])))
+doubled <- in_band((lower$flying_height * 2 - lower$elev) / lower$nominal_agl)
+message("lower tail x2, by catalogued focal length: ",
+        paste(names(table(lower$focal_length[doubled])), table(lower$focal_length[doubled]),
+              collapse = ", "))
 
 # The ceiling: highest height on a frame with nothing wrong with it, film and digital.
 # `Digital`, by name: `!is_film` would sweep in the infrared film stocks, which fly does not

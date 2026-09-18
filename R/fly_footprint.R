@@ -181,19 +181,23 @@ fly_dem_coverage_min <- function() 0.95
 # in metres was multiplied by 3.28084 where feet should have been divided by it, and then
 # read as feet again. Not fitted — it is the only candidate that survives the terrain.
 # Dividing by it puts all 1,589 frames between 0.80 and 1.32 of the height their own scale
-# implies; reading the value as feet misses by 4.5 to 17.7 km.
+# implies. Reading the value as plain feet instead leaves them at 3.0 to 4.7 times it, and
+# not one of the 1,589 inside the band.
 fly_height_slip_factor <- function() 3.28084^2
 
 # How far a frame's height above ground may sit from `scale x focal_length` before the DEM
 # route stops trusting `flying_height`.
 #
-# Measured over MRDEM, not chosen: a random 2,500 of the catalogue's 1.44 million film
-# frames put 99.2% inside this band, and the 1,589 slipped frames land at 0.80-1.32 once
-# repaired against 10.0-15.8 before. The edges sit in the trough between that mass and the
-# next one out, at 2.0 and 0.5, which is a 153 / 305 mm lens recorded as the other — a
-# frame the DEM route would draw at twice or half its true width, and the nominal route
-# gets right because it never reads `focal_length`. One factor rather than two edges
-# because the error is a ratio either way. See `inst/notes/terrain-correction.md`.
+# Measured over MRDEM, not chosen: 99.2% of a random 2,500 of the 1.42 million film frames
+# whose reported height is at most twice what their scale implies sit inside this band
+# (98.7% of all 1.44 million, weighting in the strata above that), and the 1,589 slipped
+# frames land at 0.80-1.32 once repaired against 10.0-15.8 before. The UPPER edge sits in
+# the trough between that mass and the next one out, centred on 2.0, which is a 305 mm lens
+# catalogued as 153 — a frame the DEM route would draw at twice its true width, and the
+# nominal route gets right because it never reads `focal_length`. The lower edge is that
+# factor inverted, because the error is a ratio either way; it is set by symmetry and not
+# by a trough, since ordinary frames simply thin out below 0.8 with no second mass at 0.5.
+# See `inst/notes/terrain-correction.md`.
 fly_height_ratio_band <- function() c(1 / 1.6, 1.6)
 
 # No survey aircraft flies above this, in metres above sea level.
@@ -397,8 +401,10 @@ fly_is_square <- function(footprints) {
 #'   `footprint_bearing` giving the flight azimuth each rectangle was rotated
 #'   onto (`NA` where it was drawn axis-aligned because no bearing could be
 #'   computed), `height_agl` giving the metres above ground each was sized from,
-#'   and `dem_coverage` giving the fraction of each footprint the DEM actually
-#'   covered (`0` where it covered none, `NA` only where there is no footprint).
+#'   `height_source` recording where that height came from or why there is none
+#'   (see Terrain), and `dem_coverage` giving the fraction of each footprint the
+#'   DEM actually covered (`0` where it covered none, `NA` only where there is no
+#'   footprint).
 #'   Frames whose format could not be resolved get an empty geometry. Every
 #'   class the input carries is carried through, so a tibble-backed sf — which
 #'   is what `bcdata::collect()` returns — comes back tibble-backed. The order
@@ -547,6 +553,41 @@ fly_is_square <- function(footprints) {
 #' A frame the DEM cannot correct falls back to nominal scale with a warning,
 #' rather than being dropped. The same applies where the DEM puts terrain at or
 #' above the aircraft, which means `flying_height` is not in metres ASL.
+#'
+#' **`flying_height` is checked before it is believed.** Sizing from it means
+#' inheriting whatever is wrong with it, and the catalogue's is about 10.76 times
+#' (3.28084 squared) too large on 1,589 film frames from 13 rolls flown between
+#' 1974 and 2005 — a feet-to-metres conversion applied the wrong way round, which
+#' draws a 1:35000 frame 110 km across. A film frame states its height above
+#' ground twice, as `flying_height` minus terrain and as scale times focal length,
+#' so the two are compared, and `height_source` records the outcome:
+#'
+#' \describe{
+#'   \item{`"reported"`}{the two agree to within a factor of 1.6, as 99% of frames
+#'     do; sized from `flying_height` as supplied}
+#'   \item{`"corrected_unit_slip"`}{they disagree, and dividing `flying_height` by
+#'     10.76 brings them back into agreement; sized from the corrected height.
+#'     `height_agl` is the height used. Your `flying_height` column is **not**
+#'     overwritten, so on these rows `flying_height - height_agl` is not the ground
+#'     elevation}
+#'   \item{`"implausible"`}{they disagree some other way, or `flying_height` is
+#'     above 16,000 m or below the terrain. Nothing can say whether the height, the
+#'     scale or the focal length is the wrong one — a 305 mm lens catalogued as
+#'     153 looks the same from here — so the height is not used: a film frame
+#'     falls back to nominal scale, and a digital frame with no other route has no
+#'     footprint}
+#'   \item{`NA`}{no height was judged: no `dem`, a frame the DEM route does not
+#'     size (one sized from its ground sample distance, or with no footprint at
+#'     all for another reason), one the DEM does not cover, or `flying_height` or
+#'     `focal_length` missing — except that a height above 16,000 m is
+#'     `"implausible"` even where `focal_length` is missing}
+#' }
+#'
+#' Measured over the whole catalogue, the correction applies to those 1,589
+#' frames and to nothing else. A digital frame's `scale` is a nominal figure, not
+#' its image scale, so it is not compared: only the 16,000 m ceiling, or terrain at
+#' or above the aircraft, can refuse one. To list the frames worth a second look:
+#' `dplyr::filter(fp, height_source != "reported")`.
 #'
 #' **Still assumed, with or without a DEM:** the camera points straight down.
 #' The BC catalogue carries no tilt, roll or crab, so footprints stay
@@ -803,17 +844,29 @@ fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL,
   terrain[by_gsd] <- "gsd_scaled"
   height_agl <- rep(NA_real_, n)
   dem_coverage <- rep(NA_real_, n)
+  # Where `height_agl` came from, or why there is none. NA wherever no DEM height was
+  # judged at all: no `dem`, a frame sized from its ground sample distance, a frame the DEM
+  # does not cover, or `flying_height` / `focal_length` simply missing.
+  height_source <- rep(NA_character_, n)
+  # The frames the "implausible" warning counted. Kept as a logical beside the column,
+  # because the column also says "implausible" for terrain at or above the aircraft, which
+  # is reported by a different warning with different words.
+  height_refused <- rep(FALSE, n)
 
   if (!is.null(dem)) {
     focal_m <- centroids_sf$focal_length / 1000
+    fh <- as.numeric(centroids_sf$flying_height)
 
     # Format width in metres, whichever way the row was resolved: `negative_size` is
     # inches, the camera table is millimetres.
     fmt_cross_m <- ifelse(is.na(width_in), fmt$width_mm / 1000, width_in * 0.0254)
     fmt_along_m <- ifelse(is.na(width_in), fmt$height_mm / 1000, width_in * 0.0254)
 
-    resize <- function(e) {
-      k <- (centroids_sf$flying_height - e) / focal_m
+    # `h` is the height the frame is sized from, which is `flying_height` except where the
+    # checks below replace or withhold it. Passed in rather than closed over, so nothing
+    # downstream can reach past a repaired height to the raw column.
+    resize <- function(e, h) {
+      k <- (h - e) / focal_m
       list(cross = fmt_cross_m * k / 2, along = fmt_along_m * k / 2)
     }
 
@@ -845,24 +898,84 @@ fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL,
     # seed one from the whole flying height — terrain at sea level, which is the largest
     # plausible window and therefore certain to contain the true footprint. The second
     # pass then averages over the rectangle the first produced, as it does for film.
+    #
+    # Not from a height no aircraft reaches, though. The window is as wide as the height is
+    # tall, so seeding one from a `flying_height` of 75 km asks the DEM for 100 km of
+    # terrain in order to discover that the height was wrong. `flying_height` is an input,
+    # known before any route runs, so it is judged here and the window is never built.
+    over_ceiling <- dem_eligible & is.finite(fh) & fh > fly_flying_height_max()
     seed_cross <- half_cross
     seed_along <- half_along
-    need_seed <- dem_eligible & is.na(seed_cross)
+    need_seed <- dem_eligible & is.na(seed_cross) & !over_ceiling
     if (any(need_seed)) {
-      at_sea_level <- resize(0)
+      at_sea_level <- resize(0, fh)
       seed_cross[need_seed] <- at_sea_level$cross[need_seed]
       seed_along[need_seed] <- at_sea_level$along[need_seed]
     }
 
     first <- fly_dem_sample(dem, fly_rectangles(coords, seed_cross, seed_along, bearing))
-    r1 <- resize(first$elev)
+
+    # Is the height believable? (fly#54)
+    #
+    # The catalogue's `FLYING_HEIGHT` is 3.28084^2 too large on 1,589 film frames, which
+    # this route turned into footprints 110 km across. A film frame carries a second,
+    # independent statement of its height above ground — `scale x focal_length` — so the
+    # two are compared, and a frame outside `fly_height_ratio_band()` is not sized from
+    # its `flying_height` as it stands. Where dividing by `fly_height_slip_factor()` brings
+    # it back inside, that is the slip and the corrected height is used; measured over the
+    # whole catalogue the repair fires on the 1,589 and on nothing else. Anywhere else the
+    # two disagree and nothing here can say which is wrong, so the frame falls back to
+    # nominal scale, exactly as one with unusable metadata does.
+    #
+    # Judged after the FIRST pass and before the second, because the second pass samples
+    # the rectangle this height implies and that is the expensive half of the mistake.
+    #
+    # `comparable` is keyed on the recording format and on inputs, never on `half_cross`:
+    # a digital frame's `scale` is a nominal figure about a third of its true image scale,
+    # so holding its height against it would refuse most of them (measured on height above
+    # sea level, 94% of the catalogue's digital frames sit outside the band), and media named in
+    # `format_size` may be digital too. No `media` column at all is documented as assumed
+    # film, so it is compared as film.
+    film_like <- if ("media" %in% names(centroids_sf)) {
+      as.character(centroids_sf$media) %in% fly_film_media()
+    } else {
+      rep(TRUE, n)
+    }
+    nominal_agl <- scale_num * focal_m
+    comparable <- dem_eligible & film_like & is.finite(nominal_agl) & nominal_agl > 0
+    band <- fly_height_ratio_band()
+    in_band <- function(r) is.finite(r) & r >= band[1] & r <= band[2]
+
+    r_reported <- (fh - first$elev) / nominal_agl
+    r_repaired <- (fh / fly_height_slip_factor() - first$elev) / nominal_agl
+    # `r_reported > 0`: terrain at or above the aircraft is already its own case below,
+    # with its own warning, and stays there.
+    disputed <- comparable & is.finite(r_reported) & r_reported > 0 & !in_band(r_reported)
+    slipped <- disputed & in_band(r_repaired)
+    fh_used <- fh
+    fh_used[slipped] <- fh[slipped] / fly_height_slip_factor()
+    # The ceiling needs no terrain, so it applies whether or not the DEM covers the frame \u2014
+    # except to a frame that HAS a scale to be held against and could not be, because the
+    # DEM stops short of it. Every slipped frame on the 2003 rolls is over the ceiling (they
+    # read 75 km), so without this a slipped frame off the edge of an AOI-cropped DEM is
+    # told that no correction explains it when none could be tried, and stops being
+    # findable as `no_dem_coverage`, which is the documented way to learn the DEM needs to
+    # be bigger.
+    untested <- comparable & !is.finite(first$elev)
+    implausible <- (disputed & !slipped) |
+      (dem_eligible & !untested & is.finite(fh_used) & fh_used > fly_flying_height_max())
+    height_refused <- implausible
+
+    r1 <- resize(first$elev, fh_used)
+    r1$cross[implausible] <- NA_real_
+    r1$along[implausible] <- NA_real_
     second <- fly_dem_sample(dem, fly_rectangles(coords, r1$cross, r1$along, bearing))
 
     # Keep the first pass wherever the second could not improve on it, so a
     # frame is never lost to the resize alone.
     elev <- ifelse(is.na(second$elev), first$elev, second$elev)
-    agl <- centroids_sf$flying_height - elev
-    candidate <- resize(elev)
+    agl <- fh_used - elev
+    candidate <- resize(elev, fh_used)
 
     # Classify on the half-side we would actually use, not on the inputs that
     # feed it. An NA or zero `focal_length`, or an NA `flying_height`, yields a
@@ -877,10 +990,14 @@ fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL,
     # that is the ordinary path rather than an edge case. The two routes agree to about
     # 1%, but agreeing is not the same as being interchangeable: the GSD route is the
     # measurement and the DEM route is the estimate.
-    corrected <- dem_eligible & is.finite(candidate$cross) & candidate$cross > 0 &
-      is.finite(candidate$along) & candidate$along > 0
-    uncovered <- dem_eligible & !corrected & is.na(elev)
-    unusable <- dem_eligible & !corrected & !uncovered
+    #
+    # `implausible` is excluded from all three by name. `unusable` is a residual — whatever
+    # is eligible and neither corrected nor uncovered — so a frame taken out of `corrected`
+    # for its height would otherwise land there and be reported as missing metadata.
+    corrected <- dem_eligible & !implausible & is.finite(candidate$cross) &
+      candidate$cross > 0 & is.finite(candidate$along) & candidate$along > 0
+    uncovered <- dem_eligible & !implausible & !corrected & is.na(elev)
+    unusable <- dem_eligible & !implausible & !corrected & !uncovered
 
     # Coverage has to describe the footprint that is actually returned. A
     # corrected frame ships the second pass's rectangle, so it takes the second
@@ -908,6 +1025,31 @@ fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL,
         "missing, zero, or terrain at or above the aircraft. Check that ",
         "`flying_height` is metres above sea level. Sized from nominal scale ",
         "instead. See `footprint_terrain`.",
+        call. = FALSE
+      )
+    }
+
+    repaired <- corrected & slipped
+    if (any(repaired)) {
+      warning(
+        sum(repaired), " of ", sum(dem_eligible), " frames carry a `flying_height` about ",
+        format(round(fly_height_slip_factor(), 2), nsmall = 2), " times what their scale ",
+        "and `focal_length` imply \u2014 a feet-to-metres conversion applied the wrong way ",
+        "round in the catalogue \u2014 and were sized from the corrected height. ",
+        "`flying_height` is left as supplied; `height_agl` is the height used. ",
+        "See `height_source`.",
+        call. = FALSE
+      )
+    }
+    if (any(implausible)) {
+      warning(
+        sum(implausible), " of ", sum(dem_eligible), " frames have a `flying_height` that ",
+        "cannot be reconciled with their reported scale and `focal_length` (more than ",
+        format(band[2]), " times apart, either way), or that is above ",
+        format(fly_flying_height_max()), " m, and no single correction explains it. ",
+        "Nothing here can say which value is wrong, so the height was not used: they are ",
+        "sized from nominal scale instead, and a frame with no reported scale to fall ",
+        "back on has no footprint. Marked \"implausible\" in `height_source`.",
         call. = FALSE
       )
     }
@@ -946,6 +1088,13 @@ fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL,
     terrain[corrected] <- "dem_agl"
     terrain[uncovered] <- "no_dem_coverage"
     terrain[unusable] <- "nominal_scale"
+
+    height_source[corrected] <- "reported"
+    height_source[repaired] <- "corrected_unit_slip"
+    height_source[implausible] <- "implausible"
+    # Terrain at or above the aircraft is a height that was supplied and rejected, so it is
+    # findable the same way. Missing or zero metadata is not: there was no height to doubt.
+    height_source[unusable & is.finite(fh) & is.finite(elev) & fh <= elev] <- "implausible"
   }
 
   # A frame with no rectangle has had no terrain treatment to report, whichever route
@@ -974,6 +1123,10 @@ fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL,
   terrain[no_geom] <- NA_character_
   height_agl[no_geom] <- NA_real_
   dem_coverage[no_geom] <- NA_real_
+  # `height_source` names the height `height_agl` came from, so it goes with it — except
+  # "implausible", which says why a frame has NO height and, like `width_source` on a
+  # refused camera, is the only thing on the row explaining the empty geometry.
+  height_source[no_geom & !(height_source %in% "implausible")] <- NA_character_
   # And the bearing, for the same reason #30 gave for the other three: a frame that was
   # never placed has no rotation to report. Without this, `is.finite(footprint_bearing)`
   # — which `fly_georef()` uses to mean "this ring was rotated" — is TRUE for a frame
@@ -988,7 +1141,14 @@ fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL,
   # warnings either.
   # Split by cause: a film frame reaches this state through an unparseable `scale`, and
   # telling its owner to supply a ground sample distance points at the wrong column.
-  unsized_digital <- from_table & no_geom
+  #
+  # Not a frame whose height was refused: it was given every column this asks for, and has
+  # already been reported by the warning that says what was wrong with one of them and
+  # that it has no footprint. Keyed on the frames THAT warning counted, not on
+  # `height_source == "implausible"`: terrain above the aircraft carries the same label
+  # but is reported as "sized from nominal scale instead", which for a camera-table frame
+  # is not true, so this warning is the only one telling its owner the frame is gone.
+  unsized_digital <- from_table & no_geom & !height_refused
   unsized_film <- !is.na(width_in) & no_geom
   if (any(unsized_digital)) {
     warning(
@@ -1025,6 +1185,7 @@ fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL,
   attrs$footprint_bearing <- bearing
   attrs$height_agl <- height_agl
   attrs$dem_coverage <- dem_coverage
+  attrs$height_source <- height_source
 
   result <- sf::st_sf(
     attrs,

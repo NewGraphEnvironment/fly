@@ -38,8 +38,10 @@ rectangles, a \code{footprint_basis} column recording how each was sized, a
 \code{footprint_bearing} giving the flight azimuth each rectangle was rotated
 onto (\code{NA} where it was drawn axis-aligned because no bearing could be
 computed), \code{height_agl} giving the metres above ground each was sized from,
-and \code{dem_coverage} giving the fraction of each footprint the DEM actually
-covered (\code{0} where it covered none, \code{NA} only where there is no footprint).
+\code{height_source} recording where that height came from or why there is none
+(see Terrain), and \code{dem_coverage} giving the fraction of each footprint the
+DEM actually covered (\code{0} where it covered none, \code{NA} only where there is no
+footprint).
 Frames whose format could not be resolved get an empty geometry. Every
 class the input carries is carried through, so a tibble-backed sf — which
 is what \code{bcdata::collect()} returns — comes back tibble-backed. The order
@@ -193,6 +195,41 @@ and \code{dem_coverage} are \code{NA}}
 A frame the DEM cannot correct falls back to nominal scale with a warning,
 rather than being dropped. The same applies where the DEM puts terrain at or
 above the aircraft, which means \code{flying_height} is not in metres ASL.
+
+\strong{\code{flying_height} is checked before it is believed.} Sizing from it means
+inheriting whatever is wrong with it, and the catalogue's is about 10.76 times
+(3.28084 squared) too large on 1,589 film frames from 13 rolls flown between
+1974 and 2005 — a feet-to-metres conversion applied the wrong way round, which
+draws a 1:35000 frame 110 km across. A film frame states its height above
+ground twice, as \code{flying_height} minus terrain and as scale times focal length,
+so the two are compared, and \code{height_source} records the outcome:
+
+\describe{
+\item{\code{"reported"}}{the two agree to within a factor of 1.6, as 99\% of frames
+do; sized from \code{flying_height} as supplied}
+\item{\code{"corrected_unit_slip"}}{they disagree, and dividing \code{flying_height} by
+10.76 brings them back into agreement; sized from the corrected height.
+\code{height_agl} is the height used. Your \code{flying_height} column is \strong{not}
+overwritten, so on these rows \code{flying_height - height_agl} is not the ground
+elevation}
+\item{\code{"implausible"}}{they disagree some other way, or \code{flying_height} is
+above 16,000 m or below the terrain. Nothing can say whether the height, the
+scale or the focal length is the wrong one — a 305 mm lens catalogued as
+153 looks the same from here — so the height is not used: a film frame
+falls back to nominal scale, and a digital frame with no other route has no
+footprint}
+\item{\code{NA}}{no height was judged: no \code{dem}, a frame the DEM route does not
+size (one sized from its ground sample distance, or with no footprint at
+all for another reason), one the DEM does not cover, or \code{flying_height} or
+\code{focal_length} missing — except that a height above 16,000 m is
+\code{"implausible"} even where \code{focal_length} is missing}
+}
+
+Measured over the whole catalogue, the correction applies to those 1,589
+frames and to nothing else. A digital frame's \code{scale} is a nominal figure, not
+its image scale, so it is not compared: only the 16,000 m ceiling, or terrain at
+or above the aircraft, can refuse one. To list the frames worth a second look:
+\code{dplyr::filter(fp, height_source != "reported")}.
 
 \strong{Still assumed, with or without a DEM:} the camera points straight down.
 The BC catalogue carries no tilt, roll or crab, so footprints stay

@@ -127,16 +127,16 @@ never on `half_cross` arrival order (CLAUDE.md gotcha, fly#32).
 - [x] Confirm the new tests fail on `main`'s code
 
 ## Phase 3: Implement in `R/fly_footprint.R`
-- [ ] `fly_height_slip_factor()`, `fly_height_ratio_band()`, `fly_agl_max()` — named
+- [x] `fly_height_slip_factor()`, `fly_height_ratio_band()`, `fly_agl_max()` — named
       constant functions in the `fly_dem_coverage_min()` style, each commented with its
       measurement
-- [ ] Classify after the first pass per the Rule above; resize from the corrected height
+- [x] Classify after the first pass per the Rule above; resize from the corrected height
       so the second pass samples the rectangle actually returned; keep `covered` reading
       the pass that matches the shipped rectangle
-- [ ] Fold `"implausible"` into the existing fallback path; one new warning, with counts
+- [x] Fold `"implausible"` into the existing fallback path; one new warning, with counts
       for corrected and implausible separately, naming `height_source`
-- [ ] Attach `height_source` via the `attrs$` pattern (not `st_sf(x, col = )` — fly#35)
-- [ ] Restore-the-bug proof: revert the classification, watch Phase 2 go red (count
+- [x] Attach `height_source` via the `attrs$` pattern (not `st_sf(x, col = )` — fly#35)
+- [x] Restore-the-bug proof: revert the classification, watch Phase 2 go red (count
       `failed` **and** `error`), via `testthat::test_file()`
 
 ## Phase 4: Docs
