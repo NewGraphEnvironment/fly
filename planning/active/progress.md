@@ -21,3 +21,7 @@
 - Phase 4: roxygen, terrain note, vignette, DataBC draft (not sent)
 - /code-check x3 over the whole branch: 2 code regressions + 16 doc claims fixed; ended by a 94-claim enumeration
 - Follow-ups filed: #58 (partial DEM coverage), #59 (remote DEM sampling 583 s / 2 frames), #60 (lower-tail heights)
+- Phase 5: `devtools::check()` 0 errors / 1 warning / 0 notes — the warning is non-ASCII
+  characters in `R/fly_mask.R`, untouched by this branch and present on main. 0.12.0.
+- `/code-check` ran over the whole branch once implementation and docs existed (three
+  rounds), rather than once per commit; the Phase 1 and 2 commits were covered by that pass

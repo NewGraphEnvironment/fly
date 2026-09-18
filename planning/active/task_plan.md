@@ -152,14 +152,14 @@ never on `half_cross` arrival order (CLAUDE.md gotcha, fly#32).
       send or not
 
 ## Phase 5: Release
-- [ ] `lintr::lint_package()`, `devtools::test()`, `devtools::check()`
-- [ ] NEWS.md entry and version bump to 0.12.0 as the final commit
-- [ ] CLAUDE.md Key Decisions entry (catalogue height slip, repair-and-flag, do not
+- [x] `lintr::lint_package()`, `devtools::test()`, `devtools::check()`
+- [x] NEWS.md entry and version bump to 0.12.0 as the final commit
+- [x] CLAUDE.md Key Decisions entry (catalogue height slip, repair-and-flag, do not
       re-derive the band without the sweep)
 
 ## Validation
 
-- [ ] Tests pass
-- [ ] `/code-check` clean on each commit
-- [ ] PWF checkboxes match landed work
+- [x] Tests pass
+- [x] `/code-check` clean on each commit
+- [x] PWF checkboxes match landed work
 - [ ] `/planning-archive` on completion
