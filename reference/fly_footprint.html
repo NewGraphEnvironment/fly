@@ -9,7 +9,7 @@ of each airphoto, based on film negative dimensions and the reported scale."><me
 
     <a class="navbar-brand me-2" href="../index.html">fly</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.12.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.13.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -290,7 +290,10 @@ DEM addresses.</p>
 <ul><li><p><strong>MRDEM-30</strong> — NRCan's 30 m bare-earth DTM, all of Canada, public
 and unauthenticated. A good default, and what the bundled <code>dem.tif</code> is
 cut from:
-<code>/vsicurl/https://canelevation-dem.s3.ca-central-1.amazonaws.com/mrdem-30/mrdem-30-dtm.tif</code></p></li>
+<code>/vsicurl/https://canelevation-dem.s3.ca-central-1.amazonaws.com/mrdem-30/mrdem-30-dtm.tif</code>
+Reading it over <code>/vsicurl/</code> needs no download: the DEM is sampled
+through one window per frame, so two frames take seconds rather than
+the minutes a whole-vector read cost before 0.13.0.</p></li>
 <li><p><strong>LidarBC</strong> — sub-10 m where coverage exists; query the
 <code>stac-elevation-bc</code> STAC catalogue and pass an item's COG URL.</p></li>
 <li><p><strong>BC TRIM</strong> — 25 m provincial DEM via the <code>bcdata</code> CLI
@@ -309,6 +312,14 @@ merely noticed.</p>
 far point of a square is <code>half_side * sqrt(2)</code>, which at 1:31680 is 5.1 km
 rather than 3.6 km. Allow more again for the correction itself, which
 enlarges footprints before the second pass samples them.</p>
+<p>A remote DEM is read a window at a time, and each window is one footprint —
+so cost scales with the number of frames and never with the distance
+between them. Cropping a <code>/vsicurl/</code> raster to your AOI first still saves a
+little where the frames are close together (measured: 1.00 s against 1.23 s
+for eight contiguous frames), but it allocates for the whole AOI rather than
+one footprint, and it stops paying as the frames spread out — a crop of the
+bundled extent costs 4.4 s on its own. Worth doing to work offline; not
+worth doing for speed.</p>
 <p>Coverage and overlap downstream (e.g. <code><a href="fly_coverage.html">fly_coverage()</a></code>, <code><a href="fly_overlap.html">fly_overlap()</a></code>)
 accept the same <code>dem</code> argument and inherit whichever basis you give them.</p>
     </div>

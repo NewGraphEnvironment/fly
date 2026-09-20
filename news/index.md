@@ -2,6 +2,107 @@
 
 ## fly (development version)
 
+### 0.13.0 (2026-09-20)
+
+- **A `/vsicurl/` DEM is now practical: the reported two-frame case goes
+  from 263 s to 4.3 s**
+  ([\#59](https://github.com/NewGraphEnvironment/fly/issues/59)).
+  `fly_dem_sample()` called `terra::extract(dem, v)` once over every
+  rectangle with no `fun`, which returns every cell — and over HTTP that
+  read cost **64.59 s and 158 range requests for a single 1:15000
+  frame** against MRDEM-30, where the same frame read through a crop of
+  its own window takes **0.69 s and 4 requests**. The DEM is now read
+  one window per frame, and the same two frames come back with identical
+  `dem_coverage`, `height_agl` and `footprint_terrain`
+- **The window was chosen by measurement, and two plausible alternatives
+  are wrong.** Timing one form per *fresh* R process, so the GDAL block
+  cache cannot carry between them, `fun = mean` is exactly as quick
+  (0.66 s) — but the coverage numerator counts non-`NA` cells and an
+  aggregating extract returns one number per frame, so that route needs
+  a second call with a custom closure terra applies in R over the values
+  it had to return anyway. And **cropping once to the whole batch is
+  wrong form 4 of `dem_coverage` arriving through the read**:
+  `fly_dem_sample()` is handed every rectangle at once, so a crop
+  spanning them is sized to the gap between photos — **243,583,754
+  cells** for the two frames 700 km apart in this package’s own suite.
+  Bounding the crop to one footprint costs 23% on contiguous frames
+  (1.23 s against 1.00 s for eight, the block cache absorbing their 60%
+  overlap) and cannot produce it. **The local-DEM path does not regress
+  either** — 1.260 s against 1.437 s for the 20 bundled frames, because
+  each extract now works over a window of a few thousand cells instead
+  of the whole raster
+- **The read window is not the counting template.** `fly_dem_grid()`
+  align()s with terra’s default `snap = "near"`, which moves each edge
+  to the *nearest* cell boundary, so the template can be **smaller**
+  than the footprint — and a first version of this change read through
+  it, losing cells the whole-DEM extract returned. A review round
+  measured 52 of 300 frames drawn between 0.2 and 6 cells across
+  disagreeing on mean elevation. **Frame width is not the condition** —
+  interior frames 3.8 cells across diverge 0 of 200 times, because a
+  near-snap only discards a column whose centre is already outside the
+  polygon. What triggers it is the frame’s *overlap with the DEM*
+  covering no cell centre, which happens to a frame of **any** size at
+  the edge of coverage — the ordinary AOI-cropped DEM. With the defect
+  restored, 100 of 100 overlap depths under half a cell diverge and 0 of
+  100 once the overlap passes a cell. The read is snapped **out** (a
+  superset of both the footprint and the template) while the template
+  keeps `snap = "near"`, because fly#9 measured `dem_coverage` against
+  that grid. Caught in review. The regression test drives twelve
+  full-size frames overlapping a 900 m DEM’s edge by under half a cell,
+  checks each against the whole-DEM extract, and takes the trigger
+  condition itself as its premise — every frame’s overlap must cover no
+  cell centre, computed against the cell centres directly. It fails 12
+  of 12 with the defect restored
+- A new test records every extent handed to
+  [`terra::crop()`](https://rspatial.github.io/terra/reference/crop.html)
+  and bounds it; planting a union-extent crop takes it to the
+  243,583,754 cells above. The **pre-existing** grid assertion stays
+  green through that plant — it watches `fly_dem_grid()`, which is still
+  per-frame, and cannot see the read at all — so the new test is not
+  redundant with it
+- **One new failure mode, guarded.**
+  [`terra::extract()`](https://rspatial.github.io/terra/reference/extract.html)
+  returns an `NA` placeholder row for a rectangle that misses the raster
+  entirely;
+  [`terra::crop()`](https://rspatial.github.io/terra/reference/crop.html)
+  **errors** on it. Unguarded, one unlocatable frame would abort a whole
+  batch — which is precisely what the per-frame reporting in 0.4.0
+  exists to prevent. Removing the guard errors five tests, three of them
+  pre-existing
+- **What licensed the change was parity, not the timings.** The previous
+  implementation was pulled from git rather than rewritten, and returns
+  identical `elev` and `covered` over eleven shapes: all 20 bundled
+  frames, a frame 200 km off the DEM, two off and two on, a frame
+  straddling the DEM edge, an empty geometry among real ones, all-empty
+  input, a DEM hole, a geographic-CRS DEM, anisotropic 120 x 904 cells,
+  a multi-layer DEM, and frames swept from 0.05 to 60 cells across at
+  three resolutions. **The parity is conditional and the note states the
+  condition**: it holds wherever a frame covers at least one cell
+  *centre*. A frame that covers none but still touches the raster takes
+  [`terra::extract()`](https://rspatial.github.io/terra/reference/extract.html)’s
+  touched-cells fallback, which is computed over whatever raster it is
+  handed, so a crop and the full DEM can return different cells —
+  measured on a synthetic 10 x 10 grid, 96 against 95.5, with
+  `dem_coverage` unchanged. There is one deliberate behaviour change in
+  the same family, and it is a **correction rather than a loss**: a
+  frame that merely *abuts* the DEM shares a boundary line with it and
+  no area, so no cell centre can lie inside it — the old code still
+  returned a mean from the cells touching that line (`elev` 60,
+  `dem_coverage` 0.0556 on that grid) and the new code reports no
+  elevation and zero coverage, which is what `no_dem_coverage` means. No
+  route to any of this was found through
+  [`fly_footprint()`](https://newgraphenvironment.github.io/fly/reference/fly_footprint.md).
+  [`terra::align()`](https://rspatial.github.io/terra/reference/align.html)
+  also returns the same extent whether handed the DEM or a crop of it,
+  and
+  [`terra::crop()`](https://rspatial.github.io/terra/reference/crop.html)
+  to an overhanging extent clips rather than pads — so ground past the
+  edge still yields no row, which is wrong form 1
+- The issue’s headline figure of 583 s was measured against a link
+  shared with the 0.12.0 calibration sweep and is an upper bound; 263 s
+  is the same case on a quiet link. See the new section of
+  `inst/notes/terrain-correction.md`
+
 ### 0.12.0 (2026-09-18)
 
 - **`fly_footprint(dem = )` no longer believes a `flying_height` its own

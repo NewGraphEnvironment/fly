@@ -295,6 +295,9 @@ On this AOI that per-corner refinement is worth roughly 2%, against the
   unauthenticated. A good default, and what the bundled `dem.tif` is cut
   from:
   `/vsicurl/https://canelevation-dem.s3.ca-central-1.amazonaws.com/mrdem-30/mrdem-30-dtm.tif`
+  Reading it over `/vsicurl/` needs no download: the DEM is sampled
+  through one window per frame, so two frames take seconds rather than
+  the minutes a whole-vector read cost before 0.13.0.
 
 - **LidarBC** — sub-10 m where coverage exists; query the
   `stac-elevation-bc` STAC catalogue and pass an item's COG URL.
@@ -317,6 +320,15 @@ Buffer past the **corner** of the widest footprint, not its half-side:
 the far point of a square is `half_side * sqrt(2)`, which at 1:31680 is
 5.1 km rather than 3.6 km. Allow more again for the correction itself,
 which enlarges footprints before the second pass samples them.
+
+A remote DEM is read a window at a time, and each window is one
+footprint — so cost scales with the number of frames and never with the
+distance between them. Cropping a `/vsicurl/` raster to your AOI first
+still saves a little where the frames are close together (measured: 1.00
+s against 1.23 s for eight contiguous frames), but it allocates for the
+whole AOI rather than one footprint, and it stops paying as the frames
+spread out — a crop of the bundled extent costs 4.4 s on its own. Worth
+doing to work offline; not worth doing for speed.
 
 Coverage and overlap downstream (e.g.
 [`fly_coverage()`](https://newgraphenvironment.github.io/fly/reference/fly_coverage.md),
