@@ -97,11 +97,72 @@ the mountain frame and 0.204 on the plateau, because the second pass resizes the
 - One of the review's own remedies was wrong: it proposed excluding ocean-contaminated
   frames by a count of exact-zero cells. Probe 4 shows there are none.
 
+## Phase 1 measured — the population, against MRDEM-30 (2026-09-20)
+
+Against the DEM `fly_footprint()` documents as its default, **partial coverage is
+essentially absent in BC**.
+
+### Film
+
+| stratum | n | DEM-sized | cov < 1 | cov < 0.95 | cov < 0.8 | cov < 0.5 | min |
+|---|---|---|---|---|---|---|---|
+| edge candidates (census) | 113 | 87 | 82 | 66 | 42 | 22 | 0.0064 |
+| random draw (control) | 3000 | 2975 | **0** | **0** | 0 | 0 | 1.0000 |
+
+So **66 of 1,437,147** DEM-eligible film frames sit under 0.95 — 0.0046%. The edge
+stratum also holds 26 frames the DEM does not reach at all (`no_dem_coverage`). The
+affected frames run 1982-1996 at scales 1:10000 to 1:70000.
+
+**The random draw is the control on the candidate finder**, which reads a 1833 m overview
+and so cannot see a nodata hole a few cells across. 0 of 2,975 randomly drawn frames are
+short of full coverage, so the finder missed nobody at that resolution. Its residual blind
+spot is a nodata patch smaller than a coarse cell.
+
+Incidentally: 25 of 3,000 randomly drawn frames come back `height_source == "implausible"`
+(0.83%), consistent with the ~1.2% fly#54 estimated.
+
+### Digital
+
+| stratum | n | DEM-sized | cov < 1 | routes |
+|---|---|---|---|---|
+| edge candidates (census) | 173 | 6 | **0** | dem_agl 6, gsd_scaled 167 |
+| random control | 500 | 130 | **0** | dem_agl 130, gsd_scaled 340, NA 30 |
+
+Every DEM-sized digital frame measured comes back at coverage **1.0000**. 167 of the 173
+edge candidates never reach the DEM route at all — they are sized from their ground
+sample distance.
+
+### What this does to the issue's own figure
+
+**The issue's "18 of 416 DEM-corrected frames fell under 95% `dem_coverage`, one as low as
+47%" does not reproduce against MRDEM-30.** Nothing in the catalogue's digital population
+is partially covered by it. The likely explanation is that the fly#50 run supplied a DEM
+cropped to that run's area of interest, which is the failure `fly_footprint()`'s own
+documentation already calls the ordinary one — but that is inference, not measurement, and
+the run left no artifact to check it against.
+
+The consequence for this issue is a reframing rather than a retraction: **the frequency of
+partial coverage is not a property of the catalogue at all.** With the documented default
+DEM it is a 0.005% event. With a user-supplied DEM it happens exactly as often as that
+user under-buffers, which no measurement here can bound. So the decision has to rest on
+what partial coverage *costs* when it happens, which is Phase 3.
+
+### A coverage-1 failure this sweep cannot generate
+
+MRDEM returns a near-zero surface over near-shore ocean rather than nodata (probe 4), so a
+coastal frame reports `dem_coverage` ~ 1 with its mean dragged toward sea level. It is
+invisible to `dem_coverage`, it is not reachable by removing cells, and it is out of scope
+here — recorded as a bound on the claim rather than fixed.
+
 ## Errors Encountered
 
 | Error | Resolution |
 |-------|------------|
-| `terra::crop()` then `aggregate()` over the BC bbox of MRDEM-30 did not finish in 120 s | Reads at full resolution; a province-wide coarse mask is the wrong instrument. Use a random draw plus a coordinate-only border census instead |
+| `terra::crop()` then `aggregate()` over the BC bbox of MRDEM-30 did not finish in 120 s | Reads at full resolution. `sf::gdal_utils("translate", -outsize)` resolves against the COG's own overviews and returns a 1200 x 1138 grid in 5.9 s |
+| `terra::distance(x, target = NA)` marked 99.999% of the catalogue as an edge candidate | It measures FROM the NA cells outward, so every data cell reads 0. Invert the mask first: `distance(ifel(is.na(r), 1, NA), target = NA)`. A result that implausible is the instrument, not the world |
+| `gdal_utils("translate")` and `terra::writeRaster()` both failed with "cannot guess driver / file type from filename" | The atomic-write idiom appends `.part`, and GDAL guesses the driver from the extension. Pass `-of GTiff`, or name the temp file `.part.tif` |
+| Sweep workers died with `could not find function "window_path"` | A PSOCK worker binds a deserialised function to its OWN global environment, so every helper and constant has to be installed there explicitly. Collected in one `worker_objs()` rather than listed at each of the three cluster call sites |
+| The sweep was killed three times for system memory | Each worker carries a `pkgload::load_all()` at 400-600 MB RSS, and other sessions on this machine were holding ~4 GB of R. Dropped to 2 workers, made `WORKERS` an env override, and cached the sweep every 20 targets so a kill costs one batch rather than the run |
 
 ## Issue context
 

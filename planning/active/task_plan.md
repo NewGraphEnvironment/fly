@@ -36,29 +36,31 @@ NEWS as measured figures.
 
 ## Phase 1 - The population, before anything synthetic
 
-- [ ] Random draw (n ~ 3,000) of DEM-eligible catalogue frames measured against MRDEM-30
-      through a PSOCK cluster; base rate under 1, 0.95, 0.8, 0.5
-- [ ] Border census: every frame within one footprint half-diagonal of 49 N, from
-      coordinates alone so the finder needs no DEM and cannot be circular
-- [ ] False-alarm side of 0.95 on a properly buffered DEM
-- [ ] Ocean contamination count, by a low-variance near-zero test (not exact zeros)
-- [ ] Ship `inst/extdata/dem_coverage_population.csv`
+- [x] Random draw (n ~ 3,000) of DEM-eligible catalogue frames measured against MRDEM-30
+      through a PSOCK cluster; base rate under 1, 0.95, 0.8, 0.5 — **0 of 2,975 short**
+- [x] Census of every frame that could reach MRDEM nodata — found by distance to nodata on
+      a coarse overview, not by latitude: MRDEM extends past 49 N, so a border test would
+      have measured the wrong stratum. 113 film candidates, 66 under 0.95; 173 digital
+      candidates, 0 under 1
+- [x] False-alarm side of 0.95 on a properly buffered DEM — zero, in 2,975 frames
+- [x] Ocean contamination recorded as a bound on the claim: a coastal frame reports
+      coverage ~1 over a near-zero surface, which removing cells cannot generate
+- [ ] Ship `inst/extdata/dem_coverage_population.csv` (written by Stage 6)
 
 ## Phase 2 - Harness contract
 
-- [ ] `data-raw/dem_calibrate-coverage_error.R`, house pattern: `pkgload::load_all()`,
+- [x] `data-raw/dem_calibrate-coverage_error.R`, house pattern: `pkgload::load_all()`,
       resumable `.part` + `file.rename` cache, `write_if_changed()`, a producer line per
       published figure
-- [ ] Treatment variable is exogenous and geometric (share of the nominal footprint
+- [x] Treatment variable is exogenous and geometric (share of the nominal footprint
       removed); achieved `dem_coverage` is an outcome, and the mapping is published
-- [ ] `NA` masking primary, extent cropping a declared second level
-- [ ] Assert `terra::origin()` and `terra::res()` unchanged by every truncation
-- [ ] Window sized from `resize(0, fh)` times sqrt(2); assert the second-pass rectangle
-      lies inside the un-truncated part
-- [ ] Bearing handled explicitly - contiguous roll runs, bearing swept as a factor
-- [ ] Film primary; digital only for the patb anchor, with `camera_calibration_url`
-      re-pulled for those rows
-- [ ] Premise assertions: every retained frame is `dem_coverage == 1`, `"dem_agl"`,
+- [x] `NA` masking primary, extent cropping a declared second level
+- [x] Assert `terra::origin()` and `terra::res()` unchanged by every truncation
+- [x] Window sized from `resize(0, fh)` times sqrt(2)
+- [x] Bearing handled explicitly - contiguous roll runs of 3, the target in the middle
+- [x] Film primary; digital eligibility resolved by re-pulling `camera_calibration_url`
+      for 673 rows rather than the whole catalogue
+- [x] Premise assertions: every retained frame is `dem_coverage == 1`, `"dem_agl"`,
       `"reported"` on its full window; anything else dropped by name and counted
 
 ## Phase 3 - The sweep
