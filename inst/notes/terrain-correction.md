@@ -72,6 +72,64 @@ leaves NA slivers along its edges, so a frame near the margin is routinely a fra
 percent short through no fault of the caller; warning on any missing cell fires on good data
 and stops being read.
 
+## The DEM is read through one window per frame (fly#59)
+
+`fly_footprint(dem = )` offers MRDEM-30 over `/vsicurl/` as a default that needs no download,
+and until 0.13.0 that was close to unusable: **two ordinary 1:15000 frames took 583 s**, with
+`Rprof` putting all of it in `terra::extract()` and almost none of it in CPU — 61 s sampled of
+583 s wall.
+
+That 583 s was never a clean comparison. The run shared bandwidth with the fly#54 calibration
+sweep reading the same S3 object from six workers, so it confounded `fun` against no `fun`, one
+worker against six, one polygon per call against fifty, and a contended link against a quiet one.
+Re-measured 2026-09-20 with one variable moving, one form per **fresh R process** so the GDAL
+block cache cannot carry between them, one frame:
+
+| form | secs | HTTP GETs | cells | mean elev |
+|---|---|---|---|---|
+| `crop(dem, ext(v))` then `extract(crop, v)` | 0.69 | 4 | 12616 | 609.150 |
+| `extract(dem, v, fun = mean, na.rm = TRUE)` | 0.66 | 4 | — | 609.150 |
+| `extract(dem, v)` — what shipped until 0.13.0 | 64.59 | 158 | 12616 | 609.150 |
+
+94x the wall clock and 39x the requests. **The two fast forms return the identical cell count
+and the identical mean**, which is the whole licence for this change: the window alters what is
+*read* and never what is counted.
+
+4 requests is about what the object should cost. It is a well-formed COG — `LAYOUT=COG`,
+`Block=512x512`, LZW, nine overview levels, 185220 x 166668 at 30 m — so a 512-cell block spans
+15.4 km and a 1:15000 footprint is 3.4 km. One frame is one to four blocks. 158 is not.
+
+**Cropping, not `fun = mean`, although they time the same.** The coverage numerator counts
+non-`NA` cells, and an aggregating extract returns one number per frame. Taking the mean that way
+would need a second call with a custom closure for the count — a closure terra applies in R, over
+values it has to return anyway.
+
+**Per frame, not once over the batch**, and this is the same argument as wrong form 4 above
+arriving one step earlier. "Crop once to what we are about to sample" *is* the union-sized
+allocation: `fly_dem_sample()` is handed every rectangle at once, so a crop spanning them is
+sized to the gap between photos, not to the photos — 243 million cells for two frames 700 km
+apart. Bounding the crop to one footprint costs 23% on contiguous frames (1.23 s against 1.00 s
+for eight, because the block cache absorbs their 60% overlap) and **cannot** reproduce it.
+`fly_dem_grid()` is the single definition of that window, so the crop and the counting template
+cannot drift apart, and the existing mock-the-grid test bounds both at once.
+
+**Two things the window must not quietly change**, both checked rather than reasoned:
+
+- `terra::align()` returns the same extent whether it is handed the DEM or a crop of it, and
+  `terra::crop()` to an extent overhanging the DEM **clips rather than pads**. So ground past the
+  edge still yields no row — wrong form 1 — instead of an `NA` row that would be counted as
+  described-and-missing.
+- A frame with no DEM beneath it at all is the one place the two differ in kind:
+  `terra::extract()` returns an `NA` placeholder row, and `terra::crop()` **errors**. Unguarded
+  that would abort a batch over one unlocatable frame. It is caught, and the frame comes back
+  with no elevation and no covered cells, exactly as before.
+
+The check that licensed the change was parity against the previous implementation pulled from
+git rather than rewritten by hand — identical `elev` and `covered` over all 20 bundled frames,
+a frame 200 km off the DEM, two off and two on, a frame straddling the DEM edge, an empty
+geometry among real ones, all-empty input, a DEM hole, a geographic-CRS DEM, and anisotropic
+120 x 904 cells.
+
 ## `flying_height` is held against the scale before it is believed (fly#54)
 
 The DEM route sizes a frame from `flying_height - terrain`, so it inherits whatever is wrong

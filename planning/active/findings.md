@@ -68,6 +68,44 @@ straight off the remote COG.
 **Whole-AOI context:** `terra::crop()` of the entire bundled extent (47 x 46 km, 2.4 M cells, all
 20 bundled frames) off the same remote object takes 4.4 s, `inMemory` TRUE.
 
+## The local-DEM path does not regress
+
+The old code made one `extract()` over every rectangle; the new one makes n crops and n
+extracts, so a slowdown on the common local path was the obvious risk. Measured by alternating
+the two implementations in one process, five rounds each, 20 bundled frames against the bundled
+`dem.tif`:
+
+| | median secs |
+|---|---|
+| old, one extract over all 20 | 1.437 |
+| new, one window per frame | **1.260** |
+
+12% *faster*, not slower — each extract now works over a window of a few thousand cells instead
+of the whole 1210 x 1098 raster, which more than pays for the per-frame crop.
+
+## End to end, the case the issue reports
+
+Two frames, remote MRDEM, `fly_footprint(cen, dem = u)`, the old implementation pulled from
+`git show HEAD:` and swapped in with `assignInNamespace()`. Each run printed whether the loaded
+body contained `terra::crop`, so the comparison cannot be a tautology.
+
+| | secs | dem_coverage | height_agl | footprint_terrain |
+|---|---|---|---|---|
+| before (`has_crop=FALSE`) | **263.4** | 1,1 | 1984.285, 1934.798 | dem_agl, dem_agl |
+| after (`has_crop=TRUE`) | **4.3** | 1,1 | 1984.285, 1934.798 | dem_agl, dem_agl |
+
+61x, identical answers. 263 s on a quiet link against the issue's 583 s on a contended one is
+the confound the issue itself flagged, quantified: about 2.2x.
+
+## Both new guards were proven to fire
+
+| planted defect | result |
+|---|---|
+| crop once over `in_dem` rather than per frame | `max(crops)` = **243,583,754** cells — the figure the note records — and **only the new test** reddens, since the counting grid is still per-frame and the old grid test cannot see the read |
+| drop the `tryCatch` around `terra::crop()` | **5 tests error**, three of them pre-existing. Errors, not failures: the batch aborts |
+
+Restored from a byte-compared copy afterwards, suite re-run green.
+
 ## Environment
 
 terra 1.9.50, GDAL 3.13.0 (terra) / 3.8.5 (sf), PROJ 9.8.1, macOS.

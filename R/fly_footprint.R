@@ -238,15 +238,20 @@ fly_dem_sample <- function(dem, rects) {
   }
   in_dem <- sf::st_transform(sf::st_sf(geometry = rects[ok]),
                              sf::st_crs(terra::crs(dem)))
-  v <- terra::vect(in_dem)
-
-  cells <- terra::extract(dem, v)
-  # split() keys on the ID column, whose values are 1..n in ascending order, so
-  # the results come back aligned with `rects[ok]`.
-  per_frame <- split(cells[, 2], cells[, 1])
-  elev[ok] <- vapply(per_frame, function(x) mean(x, na.rm = TRUE), numeric(1))
-  got <- vapply(per_frame, function(x) sum(!is.na(x)), numeric(1))
-
+  # One window per frame, with both counts read off the same values.
+  #
+  # The window is what makes a remote DEM usable. terra::extract() handed the
+  # whole vector and no `fun` reads the raster a way that cost 64.59 s for a
+  # single 1:15000 frame against MRDEM-30 over /vsicurl/, where the same frame
+  # read through a crop of its own window takes 0.69 s — and returns the
+  # identical 12,616 cells and the identical mean, so the crop changes what is
+  # *read* and never what is counted. Measured 2026-09-20 on a quiet link,
+  # one form per fresh R process: 4 HTTP GETs against 158.
+  #
+  # Cropping rather than `fun = mean`, which is just as quick (0.66 s):
+  # the coverage numerator needs every cell, and an aggregating extract returns
+  # one number per frame.
+  #
   # The denominator has to be counted the way the numerator is. extract() takes
   # a cell when its *centre* falls inside the polygon, so dividing by the
   # footprint's area in cell units compares two different measurements and runs
@@ -255,21 +260,46 @@ fly_dem_sample <- function(dem, rects) {
   #
   # So count cells on a grid aligned to the DEM's own, per frame. align() snaps
   # to the DEM's cell boundaries, which is what puts both counts on the same
-  # centres.
+  # centres — and it returns the same window whether it is handed the DEM or a
+  # crop of it, which is what lets the numerator be read off the crop.
   #
-  # Per frame, not once over their union: the union's bounding box spans the
-  # whole photo set, and one frame away from the rest sizes the template to the
-  # gap between them. On a fixture in this package's own suite that is 243
-  # million cells against 16 thousand for the same two frames counted
-  # separately. Each frame's own template is bounded by one footprint.
-  expected <- vapply(seq_len(nrow(in_dem)), function(i) {
+  # Per frame, not once over their union, and that now governs the *read* as
+  # well as the template. The union's bounding box spans the whole photo set,
+  # and one frame away from the rest sizes it to the gap between them: on a
+  # fixture in this package's own suite that is 243 million cells against 16
+  # thousand for the same two frames counted separately. Cropping once to what
+  # we are about to sample would be that same allocation arriving through the
+  # read. Bounded by one footprint costs 1.23 s against 1.00 s for
+  # eight contiguous frames and cannot reproduce it. fly_dem_grid() stays the
+  # single definition of the window so the crop and the template cannot drift.
+  per <- vapply(seq_len(nrow(in_dem)), function(i) {
     vi <- terra::vect(in_dem[i, ])
     tmpl <- fly_dem_grid(dem, in_dem[i, ])
-    terra::values(tmpl) <- 1L
-    sum(!is.na(terra::extract(tmpl, vi)[, 2]))
-  }, numeric(1))
 
-  covered[ok] <- ifelse(expected > 0, pmin(1, got / expected), 0)
+    # A frame with no DEM beneath it at all is the one place the two reads
+    # differ in kind: extract() returns an NA placeholder row and crop()
+    # *errors*. Unguarded, one unlocatable frame aborts the batch.
+    #
+    # Tested on the extents rather than by catching the error, because
+    # "crop() failed" is a proxy for "no DEM here" and the two come apart: a
+    # tryCatch here would turn a transient read failure on a remote DEM into a
+    # frame that silently reports no coverage and falls back to nominal scale.
+    # Overlap is the property; strict inequality, so extents that merely touch
+    # along an edge share no cell and count as no overlap.
+    ei <- terra::ext(tmpl)
+    ed <- terra::ext(dem)
+    on_dem <- ei[1] < ed[2] && ei[2] > ed[1] && ei[3] < ed[4] && ei[4] > ed[3]
+    vals <- if (!on_dem) NA_real_ else terra::extract(terra::crop(dem, ei), vi)[, 2]
+
+    terra::values(tmpl) <- 1L
+    c(elev = mean(vals, na.rm = TRUE),
+      got = sum(!is.na(vals)),
+      expected = sum(!is.na(terra::extract(tmpl, vi)[, 2])))
+  }, numeric(3))
+
+  elev[ok] <- per["elev", ]
+  covered[ok] <- ifelse(per["expected", ] > 0,
+                        pmin(1, per["got", ] / per["expected", ]), 0)
 
   elev[is.nan(elev)] <- NA_real_
   list(elev = elev, covered = covered)
@@ -602,6 +632,9 @@ fly_is_square <- function(footprints) {
 #'     and unauthenticated. A good default, and what the bundled `dem.tif` is
 #'     cut from:
 #'     `/vsicurl/https://canelevation-dem.s3.ca-central-1.amazonaws.com/mrdem-30/mrdem-30-dtm.tif`
+#'     Reading it over `/vsicurl/` needs no download: the DEM is sampled
+#'     through one window per frame, so two frames take seconds rather than
+#'     the minutes a whole-vector read cost before 0.13.0.
 #'   \item **LidarBC** — sub-10 m where coverage exists; query the
 #'     `stac-elevation-bc` STAC catalogue and pass an item's COG URL.
 #'   \item **BC TRIM** — 25 m provincial DEM via the `bcdata` CLI
@@ -623,6 +656,11 @@ fly_is_square <- function(footprints) {
 #' far point of a square is `half_side * sqrt(2)`, which at 1:31680 is 5.1 km
 #' rather than 3.6 km. Allow more again for the correction itself, which
 #' enlarges footprints before the second pass samples them.
+#'
+#' A remote DEM is read a window at a time, and each window is one footprint —
+#' so cost scales with the number of frames and never with the distance
+#' between them. There is nothing to gain by cropping a `/vsicurl/` raster
+#' yourself first; a local crop is worth it only to work offline.
 #'
 #' Coverage and overlap downstream (e.g. [fly_coverage()], [fly_overlap()])
 #' accept the same `dem` argument and inherit whichever basis you give them.

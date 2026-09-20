@@ -244,6 +244,9 @@ DEM addresses.
 and unauthenticated. A good default, and what the bundled \code{dem.tif} is
 cut from:
 \verb{/vsicurl/https://canelevation-dem.s3.ca-central-1.amazonaws.com/mrdem-30/mrdem-30-dtm.tif}
+Reading it over \verb{/vsicurl/} needs no download: the DEM is sampled
+through one window per frame, so two frames take seconds rather than
+the minutes a whole-vector read cost before 0.13.0.
 \item \strong{LidarBC} — sub-10 m where coverage exists; query the
 \code{stac-elevation-bc} STAC catalogue and pass an item's COG URL.
 \item \strong{BC TRIM} — 25 m provincial DEM via the \code{bcdata} CLI
@@ -265,6 +268,11 @@ Buffer past the \strong{corner} of the widest footprint, not its half-side: the
 far point of a square is \code{half_side * sqrt(2)}, which at 1:31680 is 5.1 km
 rather than 3.6 km. Allow more again for the correction itself, which
 enlarges footprints before the second pass samples them.
+
+A remote DEM is read a window at a time, and each window is one footprint —
+so cost scales with the number of frames and never with the distance
+between them. There is nothing to gain by cropping a \verb{/vsicurl/} raster
+yourself first; a local crop is worth it only to work offline.
 
 Coverage and overlap downstream (e.g. \code{\link[=fly_coverage]{fly_coverage()}}, \code{\link[=fly_overlap]{fly_overlap()}})
 accept the same \code{dem} argument and inherit whichever basis you give them.

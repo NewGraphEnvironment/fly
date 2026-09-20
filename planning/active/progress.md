@@ -11,4 +11,26 @@
   identical results, so per-frame is affordable and bounded by construction. Design decided
 - Phases approved by user
 - Created branch `59-fly-dem-sample-over-a-vsicurl-dem-took` off main
-- Next: Phase 1 — request counts, the align-under-crop check, and the zero-cell frame question
+- Phase 1 closed. Request counts: **158 GETs for the current path against 4 for a windowed
+  read**, one frame. `terra::align()` returns the identical extent whether handed the DEM or a
+  crop of it, and `terra::crop()` to an overhanging extent **clips rather than pads**, so
+  beyond-extent ground still yields no row. The zero-cell frame turned out **not** to be a
+  defect: `terra::extract()` emits an NA placeholder row for a polygon that misses the raster
+  entirely, so `split()` keeps every ID and the old code was correct. Nothing to file — but the
+  new code has to reproduce it, because `terra::crop()` *errors* on that input
+- Phase 2: `fly_dem_sample()` now reads one window per frame, numerator and denominator off the
+  same values. Parity against the HEAD implementation pulled from git (never rewritten by hand):
+  **identical `elev` and `covered` over 9 shapes** — 20 bundled frames, a frame 200 km off the
+  DEM, two off and two on, straddling the DEM edge, an empty geometry among real ones, all
+  empty, a DEM hole, a geographic-CRS DEM, anisotropic 120x904 cells
+- End to end, the case the issue reports: **263.4 s before, 4.3 s after**, identical coverage
+  (1,1), `height_agl` (1984.285, 1934.798) and `footprint_terrain`. 263 s quiet against the
+  issue's 583 s contended confirms its own upper-bound caveat
+- Phase 3: two tests added, and **both proven to fire**. Planting a union-extent crop takes
+  `max(crops)` to **243,583,754 cells** — the exact figure the note records — and reddens only
+  the new test, since the counting *grid* is still per-frame and the old test cannot see the
+  read. Dropping the off-DEM guard errors **5** tests, three of them pre-existing
+- Suite green: FAIL 0, ERROR 0, SKIP 0, PASS 1829. Lint unchanged against HEAD (4 and 4, all
+  `object_usage_linter`, the known installed-vs-source artifact)
+- Issue body reconciled; CLAUDE.md gotcha replaced with a decision; note and roxygen updated
+- Next: /code-check rounds, then NEWS and the version bump as the final commit
