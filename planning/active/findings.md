@@ -211,3 +211,13 @@ which the route falls back to nominal scale, or report a per-frame quality colum
 implementations passed 200+ tests while wrong, because the bundled DEM cannot reach the
 failure mode. A truncating extent is one of the axes it names.
 
+
+## Harness hazard noted, not yet fixed
+
+`resume.sh` (scratch, not shipped) reaps orphaned PSOCK workers with
+`pkill -f "parallel:::.workRSOCK"`. That pattern matches **any** session's workers, and a
+PSOCK worker reports `PPID 1` whether it is live or orphaned, so parentage cannot tell
+mine apart. No other session had workers running when this was noticed, but the correct
+form is for the script to register its own worker PIDs (`clusterCall(cl, Sys.getpid)`) to a
+file and for the reap to kill only those. To be applied at the next restart rather than by
+editing a file bash is reading expression by expression.
