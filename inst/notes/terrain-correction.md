@@ -72,6 +72,108 @@ leaves NA slivers along its edges, so a frame near the margin is routinely a fra
 percent short through no fault of the caller; warning on any missing cell fires on good data
 and stops being read.
 
+## The DEM is read through one window per frame (fly#59)
+
+`fly_footprint(dem = )` offers MRDEM-30 over `/vsicurl/` as a default that needs no download,
+and until 0.13.0 that was close to unusable: **two ordinary 1:15000 frames took 583 s**, with
+`Rprof` putting all of it in `terra::extract()` and almost none of it in CPU — 61 s sampled of
+583 s wall.
+
+That 583 s was never a clean comparison. The run shared bandwidth with the fly#54 calibration
+sweep reading the same S3 object from six workers, so it confounded `fun` against no `fun`, one
+worker against six, one polygon per call against fifty, and a contended link against a quiet one.
+Re-measured 2026-09-20 with one variable moving, one form per **fresh R process** so the GDAL
+block cache cannot carry between them, one frame:
+
+| form | secs | HTTP GETs | cells | mean elev |
+|---|---|---|---|---|
+| `crop(dem, ext(v))` then `extract(crop, v)` | 0.69 | 4 | 12616 | 609.150 |
+| `extract(dem, v, fun = mean, na.rm = TRUE)` | 0.66 | 4 | — | 609.150 |
+| `extract(dem, v)` — what shipped until 0.13.0 | 64.59 | 158 | 12616 | 609.150 |
+
+94x the wall clock and 39x the requests. **The two fast forms return the identical cell count
+and the identical mean**, which is the whole licence for this change: the window alters what is
+*read* and never what is counted.
+
+4 requests is about what the object should cost. It is a well-formed COG — `LAYOUT=COG`,
+`Block=512x512`, LZW, nine overview levels, 185220 x 166668 at 30 m — so a 512-cell block spans
+15.4 km and a 1:15000 footprint is 3.4 km. One frame is one to four blocks. 158 is not.
+
+**Cropping, not `fun = mean`, although they time the same.** The coverage numerator counts
+non-`NA` cells, and an aggregating extract returns one number per frame. Taking the mean that way
+would need a second call with a custom closure for the count — a closure terra applies in R, over
+values it has to return anyway.
+
+**Per frame, not once over the batch**, and this is the same argument as wrong form 4 above
+arriving one step earlier. "Crop once to what we are about to sample" *is* the union-sized
+allocation: `fly_dem_sample()` is handed every rectangle at once, so a crop spanning them is
+sized to the gap between photos, not to the photos — 243 million cells for two frames 700 km
+apart. Bounding the crop to one footprint costs 23% on contiguous frames (1.23 s against 1.00 s
+for eight, because the block cache absorbs their 60% overlap) and **cannot** reproduce it.
+**The read window is not the counting template**, and a review round caught the version that
+made it one. `fly_dem_grid()` align()s with terra's default `snap = "near"`, which moves each
+edge to the *nearest* cell boundary — so the template can be **smaller** than the footprint, and
+reading through it drops cells the whole-DEM extract returned. Measured on the bundled 30 m DEM,
+a review round measured 52 of 300 frames drawn between 0.2 and 6 cells across coming back with a
+different mean elevation (`planning/archive/.../review-round1.md`).
+
+**Frame width is not the condition, and a first draft of this section said it was.** Interior
+frames 3.8 cells across diverge 0 of 200 times. A `snap = "near"` edge moves inward by at most
+half a cell, so the column it discards has its own centre *outside* the polygon — and
+`terra::extract()` takes a cell by its centre, so discarding it changes nothing. The read can
+only diverge where `extract()` abandons the centre rule for its **touched-cells fallback**,
+which fires when the frame's **overlap with the DEM covers no cell centre at all**.
+
+That is a frame of **any size** sitting at the edge of coverage — the ordinary case for a DEM
+cropped to an AOI, which this note already calls the ordinary failure rather than an exotic one.
+Measured with the defect restored, on a full-size 3.4 km frame overlapping the east edge: **100
+of 100** overlap depths under half a cell diverge, 50 of 100 under a whole cell, and **0 of 100**
+once the overlap passes one cell.
+
+So the read is snapped **out**, which is a superset of both the footprint and the template, since
+the nearest boundary is never outside the boundary outside it. The template keeps `snap = "near"`
+because fly#9 measured `dem_coverage` against that grid, and a faster read must not move what is
+counted. Both windows are one footprint, so the bound holds either way.
+
+**Two things the window must not quietly change**, both checked rather than reasoned:
+
+- `terra::align()` returns the same extent whether it is handed the DEM or a crop of it, and
+  `terra::crop()` to an extent overhanging the DEM **clips rather than pads**. So ground past the
+  edge still yields no row — wrong form 1 — instead of an `NA` row that would be counted as
+  described-and-missing.
+- A frame with no DEM beneath it at all is the one place the two differ in kind:
+  `terra::extract()` returns an `NA` placeholder row, and `terra::crop()` **errors**. Unguarded
+  that would abort a batch over one unlocatable frame. It is **guarded on the extents and
+  deliberately not caught** — see the comment at the guard. `tryCatch` here would test a proxy:
+  "crop() failed" and "no DEM here" come apart, and a transient read failure on a remote DEM
+  would become a frame that silently reports no coverage and falls back to nominal scale. Over
+  400 randomized geometries and 800 degenerate edge overlaps, no input was found where the
+  extent test passes and `crop()` then errors.
+
+The check that licensed the change was parity against the previous implementation pulled from
+git rather than rewritten by hand — identical `elev` and `covered` over all 20 bundled frames,
+a frame 200 km off the DEM, two off and two on, a frame straddling the DEM edge, an empty
+geometry among real ones, all-empty input, a DEM hole, a geographic-CRS DEM, anisotropic
+120 x 904 cells, a multi-layer DEM, and frames swept from 0.05 to 60 cells across at three
+resolutions.
+
+**That parity is conditional, and the condition is worth stating.** It holds wherever the frame
+covers at least one cell **centre**. Where a frame covers none but still touches the raster,
+`terra::extract()` falls back to the cells the polygon touches, and that fallback is computed
+over whatever raster it is handed — so the full DEM and a one-row crop of it return different
+cells. Measured on a synthetic 10 x 10 DEM at 100 m: a frame poking 0.5 to 49.9 m into the
+bottom row gives 96 from the whole raster and 95.5 from the crop, with `dem_coverage` unchanged.
+
+One case in the same family is a **deliberate correction rather than a parity loss**: a frame
+that merely *abuts* the DEM shares a boundary line with it and no area at all, so no cell centre
+can be inside it. The old whole-DEM read still returned a mean from the cells touching that line
+— `elev` 60 and `dem_coverage` 0.0556 on the same synthetic grid — where the strict-inequality
+overlap test now reports no elevation and zero coverage. That is what `no_dem_coverage` is for,
+and it is the answer the centre rule implies. **No route to it through `fly_footprint()` was found** — a real
+footprint spans many cells, and on the bundled DEM the NA edge collar makes both paths agree at
+`no_dem_coverage` — so it is recorded as the boundary of the claim rather than as a live
+defect.
+
 ## `flying_height` is held against the scale before it is believed (fly#54)
 
 The DEM route sizes a frame from `flying_height - terrain`, so it inherits whatever is wrong
@@ -167,7 +269,7 @@ flagged rather than silently resized.
 ## Testing this
 
 The bundled fixture — one 30 m EPSG:3005 DEM — **cannot reach any of the four failures
-above.** A fine grid hides the `2/k` error, a CRS matching the data makes every reprojection
+above, nor the fly#59 window defect.** A fine grid hides the `2/k` error, a CRS matching the data makes every reprojection
 an identity, a generously buffered extent never truncates, and frames that are close
 together never blow up the grid. Two hundred tests passed over each of the wrong forms.
 
@@ -180,6 +282,7 @@ Vary the fixture along the axes the bundled one holds constant:
 | geographic CRS | the only way to execute the reprojection branch at all |
 | a truncating extent | a DEM cropped to an AOI is the common case, and it stops rather than going NA |
 | frames far apart | grid allocation scales with the gap, not the frames |
+| a footprint whose **overlap with the DEM is under one cell** | where `align()`'s snapping matters — *not* a small footprint, which is the wrong axis and was tried first: interior frames 3.8 cells across never diverge. A window snapped to the nearest boundary can be smaller than the footprint, but the column it drops has its centre outside the polygon anyway. Divergence needs `extract()`'s touched-cells fallback, i.e. an overlap covering no cell centre — a frame of any size at the edge of coverage. fly#59 shipped that defect past a green suite; it was caught in review, and the first test written for it varied the wrong axis |
 | a `flying_height` that disagrees with the scale | every bundled frame agrees with its own scale, so the height checks never fire — and relabelling a frame's `scale` without moving its `flying_height` builds exactly the disagreement they refuse |
 
 And buffer a DEM past the **corner** of the widest footprint, `half_side * sqrt(2)` — 5.1 km

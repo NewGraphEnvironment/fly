@@ -140,6 +140,27 @@ the exterior orientation the province publishes per frame, over every row of the
 archives, the GSD route gives 5,193 / 4,329 / 5,002 m against 5,220 / 4,337 / 5,000 m.
 The precedence set in #32 is unchanged
 
+- **The DEM is read through one window per frame, and that was measured rather than
+assumed** (v0.13.0, #59) — `terra::extract()` handed the whole vector with no `fun` cost
+**64.59 s and 158 HTTP requests for one 1:15000 frame** against MRDEM-30 over `/vsicurl/`,
+where the same frame read through a crop of its own window takes **0.69 s and 4 requests**
+and returns the identical 12,616 cells and identical mean. The reported case — two frames —
+went **263.4 s to 4.3 s** like for like. The issue's own headline of 583 s was measured on a
+link shared with the #54 sweep and is an upper bound; do not quote it against a quiet-link
+number.
+
+  **Three things here are load-bearing.** Cropping rather than `fun = mean`, which times the
+same (0.66 s): the coverage numerator needs every cell, so an aggregating extract would need
+a second call with a custom closure. **Per frame rather than once over the batch**, because
+"crop once to what we are about to sample" is wrong form 4 of `dem_coverage` arriving through
+the read — bounding it to one footprint costs 23% on contiguous frames and cannot produce the
+243-million-cell allocation. And a frame with **no** DEM beneath it is the one case where the
+two differ in kind: `extract()` returns an `NA` placeholder row and `terra::crop()` *errors*,
+so it is guarded or one unlocatable frame aborts the batch. The old and new functions return
+identical `elev` and `covered` over off-DEM, truncating, geographic-CRS, multi-layer and
+anisotropic shapes — **wherever the frame covers at least one cell centre**, which is the
+condition the note states and bounds. Read `inst/notes/terrain-correction.md`
+
 - **Terrain error is a datum offset, not slope** (v0.5.0, #9) — `FLYING_HEIGHT` is metres **above sea level**,
 and reported scale is referenced to an elevation above the ground the photos cover, so it understates footprint
 area by a median 13.8% *always in the same direction*. `fly_footprint(dem =)` sizes each frame from
@@ -263,8 +284,17 @@ frame" at 2.7 km instead of 7.7. Every bundled frame agrees with its own scale, 
 checks never fire on bundled data — use `height_fixture()`. And `unusable` in the DEM block is a
 **residual** class (eligible, not corrected, not uncovered), so any new class taken out of
 `corrected` must be excluded from it by name or it is reported as missing metadata
-- **`fly_dem_sample()` straight off a `/vsicurl/` DEM is pathologically slow** (fly#59, open) —
-583 s for two frames, against 1.3 s for eight over a local crop. Crop once, then sample
+- **Do not "speed up" the DEM read by cropping once to the batch** (fly#59) — that is the
+union-sized allocation `inst/notes/terrain-correction.md` refuses, arriving through the read
+instead of the counting grid, and it is 23% faster on contiguous frames in exchange for 243
+million cells when two frames are 700 km apart. The read is windowed **per frame**, through
+the footprint's own extent snapped **out**. That is deliberately *not* the counting
+template: `fly_dem_grid()` snaps to the **nearest** cell boundary, so it can be smaller than
+the footprint, and reading through it silently drops cells. **Frame width is not the
+condition** — interior frames 3.8 cells across never diverge; what triggers it is the frame's
+*overlap with the DEM* covering no cell centre, so it is a frame of any size at the edge of
+coverage. The template keeps `snap = "near"` because fly#9 measured
+`dem_coverage` against it
 - **An empty POINT centroid aborts the whole batch** (fly#47, open) — it is a POINT, so it passes the geometry
 guard by design, and then fails in `st_polygon()` with `!anyNA(x) is not TRUE`. Left open deliberately: refusing
 20 frames over one unlocatable centroid would contradict the per-frame reporting #30 established

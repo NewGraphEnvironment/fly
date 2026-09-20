@@ -623,6 +623,135 @@ test_that("fly_footprint does not size its coverage grid to the span of the phot
   expect_equal(fp$dem_coverage, c(1, 0))
 })
 
+test_that("fly_footprint reads the DEM through one window per frame", {
+  skip_if_no_terra()
+  # fly#59. The read is the SECOND place a union-sized allocation can get in.
+  # "Crop once to what we are about to sample" is the same defect as the
+  # coverage grid above, arriving through terra::crop() instead of through
+  # fly_dem_grid() — and the grid assertion above cannot see the read at all,
+  # so it would stay green while the crop allocated 243 million cells.
+  #
+  # Asserted on the extents handed to crop(), not on elapsed time, for the same
+  # reason as the test above: the union crop returns the right numbers.
+  centroids <- sf::st_read(testdata_path("photo_centroids.gpkg"), quiet = TRUE)[1:2, ]
+  sf::st_geometry(centroids)[2] <- sf::st_sfc(sf::st_point(c(-120, 50)), crs = 4326)
+  dem <- terra::rast(testdata_path("dem.tif"))
+
+  # The fixture must be able to expose the defect. Measured before the mock.
+  flat <- fly_footprint(centroids)
+  union_cells <- prod(dim(fly_dem_grid(
+    dem, sf::st_transform(flat, sf::st_crs(terra::crs(dem)))
+  ))[1:2])
+  expect_gt(union_cells, 1e8)
+
+  # Record the window every crop is asked for, in cells at the DEM's resolution.
+  crops <- c()
+  real_crop <- terra::crop
+  testthat::local_mocked_bindings(
+    crop = function(x, y, ...) {
+      crops <<- c(crops, prod(dim(terra::rast(terra::ext(y),
+                                              resolution = terra::res(x)))[1:2]))
+      real_crop(x, y, ...)
+    },
+    .package = "terra"
+  )
+  fp <- suppressWarnings(fly_footprint(centroids, dem = dem))
+
+  # The mock has to have been reached, or every bound below is vacuous.
+  expect_gt(length(crops), 0)
+  expect_lt(max(crops), 1e6)
+  expect_lt(max(crops), union_cells / 100)
+
+  # And the answer is unchanged by being read a window at a time.
+  expect_equal(fp$footprint_terrain, c("dem_agl", "no_dem_coverage"))
+  expect_equal(fp$dem_coverage, c(1, 0))
+})
+
+test_that("the DEM read window holds where the overlap with the DEM is thinner than a cell", {
+  skip_if_no_terra()
+  # fly#59, found in review round 1 and re-scoped in round 3.
+  #
+  # fly_dem_grid() align()s with terra's default snap = "near", so each edge
+  # moves to the NEAREST cell boundary and the window can fall INSIDE the
+  # footprint. Reading through it drops cells the whole-DEM extract returned.
+  #
+  # Frame WIDTH is not the condition, and an earlier version of this test said
+  # it was. Interior frames 3.8 cells across diverge 0 of 200 times with the
+  # defect restored: a near-snap only discards a column whose own centre is
+  # outside the polygon, and extract() takes a cell by its centre, so
+  # discarding it changes nothing.
+  #
+  # The read diverges only where extract() abandons the centre rule for its
+  # touched-cells fallback — when the frame's OVERLAP WITH THE DEM covers no
+  # cell centre at all. That is a frame of any size at the edge of coverage,
+  # which is the ordinary case for a DEM cropped to an AOI. Measured with the
+  # defect restored: 100 of 100 overlap depths under half a cell diverge, and
+  # 0 of 100 once the overlap passes a whole cell.
+  #
+  # The oracle is the whole-DEM extract — the read the window replaced.
+  rr <- 900
+  dem <- terra::rast(terra::ext(c(0, 9000, 0, 9000)), resolution = rr,
+                     crs = "EPSG:3005")
+  terra::values(dem) <- seq_len(terra::ncell(dem))
+  e <- terra::ext(dem)
+  side <- 3429                      # a real 1:15000 frame, 3.8 cells across
+
+  frames <- lapply(seq(0.05, 0.45, length.out = 12), function(dp) {
+    x1 <- e[2] + side - dp * rr     # overlaps the east edge by dp cells
+    sf::st_sfc(sf::st_polygon(list(rbind(
+      c(x1 - side, 4000), c(x1, 4000), c(x1, 4000 + side),
+      c(x1 - side, 4000 + side), c(x1 - side, 4000)))), crs = 3005)
+  })
+
+  # Premise: this is the trigger condition itself, not a proxy for it. Every
+  # frame's overlap with the DEM must cover no cell CENTRE, or the fallback
+  # never fires and the assertions below pass for nothing.
+  xy <- terra::xyFromCell(dem, seq_len(terra::ncell(dem)))
+  centres <- sf::st_as_sf(data.frame(x = xy[, 1], y = xy[, 2]),
+                          coords = c("x", "y"), crs = 3005)
+  covered_centres <- vapply(frames, function(g) {
+    sum(sf::st_intersects(centres, g, sparse = FALSE))
+  }, numeric(1))
+  expect_true(all(covered_centres == 0))
+
+  for (g in frames) {
+    ref <- mean(terra::extract(dem, terra::vect(g))[, 2], na.rm = TRUE)
+    if (is.nan(ref)) ref <- NA_real_
+    expect_equal(fly_dem_sample(dem, g)$elev, ref)
+  }
+})
+
+test_that("fly_footprint survives a frame with no DEM beneath it at all", {
+  skip_if_no_terra()
+  # fly#59. terra::extract() returns an NA placeholder row for a polygon that
+  # misses the raster entirely; terra::crop() ERRORS on it. So the window read
+  # has a failure mode the whole-vector read did not, and unguarded it aborts a
+  # batch over one unlocatable frame — which is what #30 established must never
+  # happen. Two on-DEM frames either side of the off one, so a misalignment
+  # would show as the wrong elevation rather than only as an error.
+  dem <- terra::rast(testdata_path("dem.tif"))
+  e <- terra::ext(dem)
+  sq <- function(cx, cy, h = 1000) {
+    sf::st_polygon(list(rbind(c(cx - h, cy - h), c(cx + h, cy - h),
+                              c(cx + h, cy + h), c(cx - h, cy + h),
+                              c(cx - h, cy - h))))
+  }
+  cx <- mean(e[1:2])
+  cy <- mean(e[3:4])
+  rects <- sf::st_sfc(list(sq(cx, cy), sq(e[2] + 2e5, cy), sq(cx + 3000, cy)),
+                      crs = 3005)
+
+  got <- fly_dem_sample(dem, rects)
+  alone <- fly_dem_sample(dem, sf::st_sfc(list(sq(cx, cy), sq(cx + 3000, cy)),
+                                          crs = 3005))
+
+  expect_true(is.na(got$elev[2]))
+  expect_equal(got$covered[2], 0)
+  # the neighbours are untouched by the gap between them
+  expect_equal(got$elev[c(1, 3)], alone$elev)
+  expect_equal(got$covered[c(1, 3)], alone$covered)
+})
+
 test_that("fly_footprint reports coverage of the footprint it actually returns", {
   skip_if_no_terra()
   # Terrain above the aircraft gives a negative height above ground, so the
