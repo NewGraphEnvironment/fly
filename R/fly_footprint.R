@@ -281,9 +281,16 @@ fly_dem_sample <- function(dem, rects) {
     # defaults to snap = "near", which moves each edge to the *nearest* cell
     # boundary — so the template can be smaller than the footprint, and cropping
     # to it drops cells the whole-DEM read returned. Measured on the bundled
-    # 30 m DEM: 13 of 300 frames drawn between 0.2 and 6 cells across came back
-    # with a different mean elevation. Reachable on real data, because a 3.4 km
-    # frame is 3.8 cells across on the 900 m DEM this file's own tests use.
+    # Frame *width* is not the condition, though a first draft of this comment
+    # said it was: interior frames 3.8 cells across diverge 0 of 200 times. A
+    # near-snap only discards a column whose own centre is outside the polygon,
+    # and extract() takes a cell by its centre, so discarding it changes
+    # nothing. The read diverges only where extract() abandons the centre rule
+    # for its touched-cells fallback — where the frame's OVERLAP WITH THE DEM
+    # covers no cell centre at all. That is a frame of any size at the edge of
+    # coverage, i.e. the ordinary AOI-cropped DEM: with the defect restored,
+    # 100 of 100 overlap depths under half a cell diverge and 0 of 100 once the
+    # overlap passes a whole cell.
     #
     # snap = "out" is a superset of both the footprint and the template, since
     # the nearest boundary is never outside the boundary outside. The template
@@ -673,8 +680,12 @@ fly_is_square <- function(footprints) {
 #'
 #' A remote DEM is read a window at a time, and each window is one footprint —
 #' so cost scales with the number of frames and never with the distance
-#' between them. There is nothing to gain by cropping a `/vsicurl/` raster
-#' yourself first; a local crop is worth it only to work offline.
+#' between them. Cropping a `/vsicurl/` raster to your AOI first still saves a
+#' little where the frames are close together (measured: 1.00 s against 1.23 s
+#' for eight contiguous frames), but it allocates for the whole AOI rather than
+#' one footprint, and it stops paying as the frames spread out — a crop of the
+#' bundled extent costs 4.4 s on its own. Worth doing to work offline; not
+#' worth doing for speed.
 #'
 #' Coverage and overlap downstream (e.g. [fly_coverage()], [fly_overlap()])
 #' accept the same `dem` argument and inherit whichever basis you give them.

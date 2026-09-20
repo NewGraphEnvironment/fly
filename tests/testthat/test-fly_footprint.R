@@ -667,48 +667,57 @@ test_that("fly_footprint reads the DEM through one window per frame", {
   expect_equal(fp$dem_coverage, c(1, 0))
 })
 
-test_that("the DEM read window contains the footprint, even when the frame is small", {
+test_that("the DEM read window holds where the overlap with the DEM is thinner than a cell", {
   skip_if_no_terra()
-  # fly#59, found in review. The counting template comes from fly_dem_grid(),
-  # which align()s with terra's default snap = "near" — each edge moves to the
-  # NEAREST cell boundary, so the template can be SMALLER than the footprint.
-  # Reading through it drops cells the whole-DEM extract returned and the mean
-  # elevation moves. Measured before the fix: 13 of 300 frames drawn between
-  # 0.2 and 6 cells across on the bundled 30 m DEM disagreed.
+  # fly#59, found in review round 1 and re-scoped in round 3.
   #
-  # Not exotic. A 3.4 km 1:15000 frame is under 4 cells across on a 900 m DEM,
-  # which is the coarse axis inst/notes/terrain-correction.md demands be tested.
+  # fly_dem_grid() align()s with terra's default snap = "near", so each edge
+  # moves to the NEAREST cell boundary and the window can fall INSIDE the
+  # footprint. Reading through it drops cells the whole-DEM extract returned.
   #
-  # The oracle is the whole-DEM extract — the read the window replaced — not
-  # anything this code computes for itself.
-  dem <- terra::aggregate(terra::rast(testdata_path("dem.tif")), fact = 30)
+  # Frame WIDTH is not the condition, and an earlier version of this test said
+  # it was. Interior frames 3.8 cells across diverge 0 of 200 times with the
+  # defect restored: a near-snap only discards a column whose own centre is
+  # outside the polygon, and extract() takes a cell by its centre, so
+  # discarding it changes nothing.
+  #
+  # The read diverges only where extract() abandons the centre rule for its
+  # touched-cells fallback — when the frame's OVERLAP WITH THE DEM covers no
+  # cell centre at all. That is a frame of any size at the edge of coverage,
+  # which is the ordinary case for a DEM cropped to an AOI. Measured with the
+  # defect restored: 100 of 100 overlap depths under half a cell diverge, and
+  # 0 of 100 once the overlap passes a whole cell.
+  #
+  # The oracle is the whole-DEM extract — the read the window replaced.
+  rr <- 900
+  dem <- terra::rast(terra::ext(c(0, 9000, 0, 9000)), resolution = rr,
+                     crs = "EPSG:3005")
+  terra::values(dem) <- seq_len(terra::ncell(dem))
   e <- terra::ext(dem)
-  rr <- min(terra::res(dem))
+  side <- 3429                      # a real 1:15000 frame, 3.8 cells across
 
-  set.seed(42)
-  frames <- lapply(seq_len(40), function(k) {
-    hw <- stats::runif(1, 0.2, 4) * rr / 2
-    cx <- stats::runif(1, e[1] + 5 * rr, e[2] - 5 * rr)
-    cy <- stats::runif(1, e[3] + 5 * rr, e[4] - 5 * rr)
-    sf::st_polygon(list(rbind(c(cx - hw, cy - hw), c(cx + hw, cy - hw),
-                              c(cx + hw, cy + hw), c(cx - hw, cy + hw),
-                              c(cx - hw, cy - hw))))
+  frames <- lapply(seq(0.05, 0.45, length.out = 12), function(dp) {
+    x1 <- e[2] + side - dp * rr     # overlaps the east edge by dp cells
+    sf::st_sfc(sf::st_polygon(list(rbind(
+      c(x1 - side, 4000), c(x1, 4000), c(x1, 4000 + side),
+      c(x1 - side, 4000 + side), c(x1 - side, 4000)))), crs = 3005)
   })
 
-  # Premise: the fixture must be able to expose the defect. A snap = "near"
-  # window that contains every frame would make the rest of this vacuous.
-  uncontained <- sum(vapply(frames, function(g) {
-    fe <- terra::ext(terra::vect(sf::st_sfc(g, crs = 3005)))
-    al <- terra::ext(fly_dem_grid(dem, sf::st_sfc(g, crs = 3005)))
-    !(al[1] <= fe[1] && al[2] >= fe[2] && al[3] <= fe[3] && al[4] >= fe[4])
-  }, logical(1)))
-  expect_gt(uncontained, 0)
+  # Premise: this is the trigger condition itself, not a proxy for it. Every
+  # frame's overlap with the DEM must cover no cell CENTRE, or the fallback
+  # never fires and the assertions below pass for nothing.
+  xy <- terra::xyFromCell(dem, seq_len(terra::ncell(dem)))
+  centres <- sf::st_as_sf(data.frame(x = xy[, 1], y = xy[, 2]),
+                          coords = c("x", "y"), crs = 3005)
+  covered_centres <- vapply(frames, function(g) {
+    sum(sf::st_intersects(centres, g, sparse = FALSE))
+  }, numeric(1))
+  expect_true(all(covered_centres == 0))
 
   for (g in frames) {
-    gg <- sf::st_sfc(g, crs = 3005)
-    ref <- mean(terra::extract(dem, terra::vect(gg))[, 2], na.rm = TRUE)
+    ref <- mean(terra::extract(dem, terra::vect(g))[, 2], na.rm = TRUE)
     if (is.nan(ref)) ref <- NA_real_
-    expect_equal(fly_dem_sample(dem, gg)$elev, ref)
+    expect_equal(fly_dem_sample(dem, g)$elev, ref)
   }
 })
 

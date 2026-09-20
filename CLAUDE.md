@@ -290,8 +290,10 @@ instead of the counting grid, and it is 23% faster on contiguous frames in excha
 million cells when two frames are 700 km apart. The read is windowed **per frame**, through
 the footprint's own extent snapped **out**. That is deliberately *not* the counting
 template: `fly_dem_grid()` snaps to the **nearest** cell boundary, so it can be smaller than
-the footprint, and reading through it silently drops cells — 13 of 300 frames drawn between
-0.2 and 6 cells across on the bundled DEM. The template keeps `snap = "near"` because fly#9 measured
+the footprint, and reading through it silently drops cells. **Frame width is not the
+condition** — interior frames 3.8 cells across never diverge; what triggers it is the frame's
+*overlap with the DEM* covering no cell centre, so it is a frame of any size at the edge of
+coverage. The template keeps `snap = "near"` because fly#9 measured
 `dem_coverage` against it
 - **An empty POINT centroid aborts the whole batch** (fly#47, open) — it is a POINT, so it passes the geometry
 guard by design, and then fails in `st_polygon()` with `!anyNA(x) is not TRUE`. Left open deliberately: refusing

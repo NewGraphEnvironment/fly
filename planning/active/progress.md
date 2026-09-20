@@ -29,10 +29,12 @@
   (1,1), `height_agl` (1984.285, 1934.798) and `footprint_terrain`. 263 s quiet against the
   issue's 583 s contended confirms its own upper-bound caveat
 - Phase 3: two tests added, and **both proven to fire**. Planting a union-extent crop takes
-  `max(crops)` to **243,583,754 cells** — the exact figure the note records — and reddens only
-  the new test, since the counting *grid* is still per-frame and the old test cannot see the
-  read. Dropping the off-DEM guard errors **5** tests, three of them pre-existing
-- Suite green: FAIL 0, ERROR 0, SKIP 0, PASS 1829. Lint unchanged against HEAD (4 and 4, all
+  `max(crops)` to **243,583,754 cells** — the exact figure the note records. The
+  **pre-existing** grid assertion stays green through that plant, because it watches
+  `fly_dem_grid()` and cannot see the read, so the new test is not redundant with it. Dropping the off-DEM guard errors **5** tests, three of them pre-existing
+- Suite green: FAIL 0, ERROR 0, SKIP 0, **PASS 1852** — 1829 on `main`, 1880 after the first
+  pair of new tests, 1852 once review round 3 replaced the 40-frame small-frame test with a
+  12-frame one targeting the right regime (1880 - 41 + 13). Lint unchanged against HEAD (4 and 4, all
   `object_usage_linter`, the known installed-vs-source artifact)
 - Issue body reconciled; CLAUDE.md gotcha replaced with a decision; note and roxygen updated
 - Next: /code-check rounds, then NEWS and the version bump as the final commit

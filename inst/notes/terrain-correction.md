@@ -114,10 +114,21 @@ for eight, because the block cache absorbs their 60% overlap) and **cannot** rep
 made it one. `fly_dem_grid()` align()s with terra's default `snap = "near"`, which moves each
 edge to the *nearest* cell boundary — so the template can be **smaller** than the footprint, and
 reading through it drops cells the whole-DEM extract returned. Measured on the bundled 30 m DEM,
-13 of 300 frames drawn between 0.2 and 6 cells across came back with a different mean elevation
-(an independent review round measured 52 of 300 over the same range on its own fixtures). That is not an
-exotic shape: a 3.4 km 1:15000 frame is under 4 cells across on a 900 m DEM, the coarse axis this
-note already demands be tested.
+a review round measured 52 of 300 frames drawn between 0.2 and 6 cells across coming back with a
+different mean elevation (`planning/archive/.../review-round1.md`).
+
+**Frame width is not the condition, and a first draft of this section said it was.** Interior
+frames 3.8 cells across diverge 0 of 200 times. A `snap = "near"` edge moves inward by at most
+half a cell, so the column it discards has its own centre *outside* the polygon — and
+`terra::extract()` takes a cell by its centre, so discarding it changes nothing. The read can
+only diverge where `extract()` abandons the centre rule for its **touched-cells fallback**,
+which fires when the frame's **overlap with the DEM covers no cell centre at all**.
+
+That is a frame of **any size** sitting at the edge of coverage — the ordinary case for a DEM
+cropped to an AOI, which this note already calls the ordinary failure rather than an exotic one.
+Measured with the defect restored, on a full-size 3.4 km frame overlapping the east edge: **100
+of 100** overlap depths under half a cell diverge, 50 of 100 under a whole cell, and **0 of 100**
+once the overlap passes one cell.
 
 So the read is snapped **out**, which is a superset of both the footprint and the template, since
 the nearest boundary is never outside the boundary outside it. The template keeps `snap = "near"`
@@ -151,8 +162,14 @@ covers at least one cell **centre**. Where a frame covers none but still touches
 `terra::extract()` falls back to the cells the polygon touches, and that fallback is computed
 over whatever raster it is handed — so the full DEM and a one-row crop of it return different
 cells. Measured on a synthetic 10 x 10 DEM at 100 m: a frame poking 0.5 to 49.9 m into the
-bottom row gives 96 from the whole raster and 95.5 from the crop. `dem_coverage` is unaffected;
-only the sampled values move. **No route to it through `fly_footprint()` was found** — a real
+bottom row gives 96 from the whole raster and 95.5 from the crop, with `dem_coverage` unchanged.
+
+One case in the same family is a **deliberate correction rather than a parity loss**: a frame
+that merely *abuts* the DEM shares a boundary line with it and no area at all, so no cell centre
+can be inside it. The old whole-DEM read still returned a mean from the cells touching that line
+— `elev` 60 and `dem_coverage` 0.0556 on the same synthetic grid — where the strict-inequality
+overlap test now reports no elevation and zero coverage. That is what `no_dem_coverage` is for,
+and it is the answer the centre rule implies. **No route to it through `fly_footprint()` was found** — a real
 footprint spans many cells, and on the bundled DEM the NA edge collar makes both paths agree at
 `no_dem_coverage` — so it is recorded as the boundary of the claim rather than as a live
 defect.
@@ -265,7 +282,7 @@ Vary the fixture along the axes the bundled one holds constant:
 | geographic CRS | the only way to execute the reprojection branch at all |
 | a truncating extent | a DEM cropped to an AOI is the common case, and it stops rather than going NA |
 | frames far apart | grid allocation scales with the gap, not the frames |
-| a footprint only a **few cells across** | where `align()`'s snapping matters. A window snapped to the *nearest* boundary can be smaller than the footprint, and reading through it drops cells — invisible at 30 m, where a frame is 113 cells wide, and live at 900 m, where it is under 4. fly#59 shipped that defect past a green suite and it was caught in review, not by a test |
+| a footprint whose **overlap with the DEM is under one cell** | where `align()`'s snapping matters — *not* a small footprint, which is the wrong axis and was tried first: interior frames 3.8 cells across never diverge. A window snapped to the nearest boundary can be smaller than the footprint, but the column it drops has its centre outside the polygon anyway. Divergence needs `extract()`'s touched-cells fallback, i.e. an overlap covering no cell centre — a frame of any size at the edge of coverage. fly#59 shipped that defect past a green suite; it was caught in review, and the first test written for it varied the wrong axis |
 | a `flying_height` that disagrees with the scale | every bundled frame agrees with its own scale, so the height checks never fire — and relabelling a frame's `scale` without moving its `flying_height` builds exactly the disagreement they refuse |
 
 And buffer a DEM past the **corner** of the widest footprint, `half_side * sqrt(2)` — 5.1 km

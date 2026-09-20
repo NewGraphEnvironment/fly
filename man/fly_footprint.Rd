@@ -271,8 +271,12 @@ enlarges footprints before the second pass samples them.
 
 A remote DEM is read a window at a time, and each window is one footprint —
 so cost scales with the number of frames and never with the distance
-between them. There is nothing to gain by cropping a \verb{/vsicurl/} raster
-yourself first; a local crop is worth it only to work offline.
+between them. Cropping a \verb{/vsicurl/} raster to your AOI first still saves a
+little where the frames are close together (measured: 1.00 s against 1.23 s
+for eight contiguous frames), but it allocates for the whole AOI rather than
+one footprint, and it stops paying as the frames spread out — a crop of the
+bundled extent costs 4.4 s on its own. Worth doing to work offline; not
+worth doing for speed.
 
 Coverage and overlap downstream (e.g. \code{\link[=fly_coverage]{fly_coverage()}}, \code{\link[=fly_overlap]{fly_overlap()}})
 accept the same \code{dem} argument and inherit whichever basis you give them.

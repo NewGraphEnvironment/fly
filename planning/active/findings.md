@@ -101,7 +101,7 @@ the confound the issue itself flagged, quantified: about 2.2x.
 
 | planted defect | result |
 |---|---|
-| crop once over `in_dem` rather than per frame | `max(crops)` = **243,583,754** cells — the figure the note records — and **only the new test** reddens, since the counting grid is still per-frame and the old grid test cannot see the read |
+| crop once over `in_dem` rather than per frame | `max(crops)` = **243,583,754** cells — the figure the note records. Review round 3 measured the fallout as FAIL 3 across **two** tests, not one; the load-bearing part is that the **pre-existing** grid assertion stays green, because it watches `fly_dem_grid()` and cannot see the read, so the new test is not redundant with it |
 | remove the off-DEM extent guard, so `terra::crop()` runs unconditionally | **5 tests error**, three of them pre-existing. Errors, not failures: the batch aborts |
 
 Restored from a byte-compared copy afterwards, suite re-run green.
@@ -130,6 +130,58 @@ Reprojecting a BC rectangle into an orthographic CRS centred on the far side of 
 an empty geometry, and **old and new then fail identically** with `missing value where
 TRUE/FALSE needed`. Pre-existing, of fly#47's family, and not a regression — so no guard was
 added for it.
+
+## The invariant the fix rests on, checked rather than argued
+
+`snap = "out"` is the whole repair, and the argument for it is that the nearest cell boundary is
+never outside the boundary outside — so an out-snapped window contains both the footprint and the
+near-snapped counting template. That is a claim, so it was run: **4,000 random grid/frame
+geometries**, resolutions 5-400 m on both axes, random grid origins, frames from 0.01 to 8 cells
+across.
+
+| property | violations |
+|---|---|
+| out-snapped window contains the footprint | **0 of 4000** |
+| out-snapped window contains the near-snapped template | **0 of 4000** |
+
+And the behavioural sweep after the fix, old implementation against new:
+
+| regime | divergent |
+|---|---|
+| 30 m DEM, 0.2-6 cells across (the range that failed) | 0 / 300 |
+| 30 m DEM, 0.05-2 cells (sub-cell) | 0 / 300 |
+| 30 m DEM, 6-60 cells | 0 / 200 |
+| 913 m DEM, 0.2-8 cells (a real 3.4 km frame) | 0 / 200 |
+| anisotropic 120x904, 0.2-8 cells | 0 / 200 |
+
+0 of 1200. Review round 1 swept 1100 cases of its own and also found 0.
+
+## What the window defect actually needs, and where each number is recorded
+
+Review round 3 refused the reachability argument the first fix shipped with, and it was right to.
+The argument was reasoned from frame **width**; width is not the condition.
+
+| regime, defect restored | frames differing |
+|---|---|
+| interior, 3.4 km frame on a 900 m DEM (3.8 cells across) — **the claim that was made** | **0 / 200** |
+| interior, 0.2-6 cells across, bundled 30 m DEM | 52 / 300 (review round 1); ~10-13 / 300 on re-draw |
+| full-size 3.4 km frame overlapping the DEM's east edge by **under half a cell** | **100 / 100** |
+| same, overlap under one whole cell | 50 / 100 |
+| same, overlap **over** one cell | **0 / 100** |
+
+The mechanism forces it. A `snap = "near"` edge moves inward by at most half a cell, so the
+column it discards has its own centre *outside* the polygon — and `terra::extract()` takes a cell
+by its centre, so discarding it changes nothing. Divergence needs `extract()` to abandon the
+centre rule for its **touched-cells fallback**, which fires only where the frame's overlap with
+the DEM covers no cell centre at all. That is a frame of **any** size at the edge of coverage:
+the ordinary AOI-cropped DEM, not a small frame.
+
+**Provenance, since round 3 flagged three numbers as cited-but-unrecorded.** The 52/300 and the
+800 degenerate-overlap sweep are in `review-round1.md`; the 400 randomized geometries are in
+`review-round2.md`; both files are tracked. The session's own first figure (13 of 300) came from
+a scratch probe that is not shipped and reconstructs to ~10/300 on a different draw, so the
+tracked review number is cited instead of it wherever the claim appears. The 4,000-case superset
+sweep and the 1,200-case behavioural sweep above are this file.
 
 ## Environment
 
