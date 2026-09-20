@@ -28,6 +28,20 @@ suppressMessages({
 })
 sf::sf_use_s2(FALSE)
 
+# Cap what GDAL and terra may hold, in every process this script starts.
+#
+# Measured on this machine: `terra::gdalCache()` defaults to **3,276 MB per process** and
+# `terraOptions()$memfrac` to 0.5 of 64 GB. A master plus two PSOCK workers may therefore
+# reserve about 10 GB of block cache before reading anything, which is what put the
+# machine under memory pressure and had the sweep killed four times. The windows are a few
+# hundred thousand cells, so a 128 MB block cache is ample and the ceiling costs nothing.
+cap_memory <- function() {
+  terra::gdalCache(128)
+  terra::terraOptions(memfrac = 0.05, memmax = 1, progress = 0)
+  invisible(TRUE)
+}
+cap_memory()
+
 CENTROIDS <- "data-raw/.cache/centroids"
 CACHE     <- "data-raw/.cache/dem_coverage"
 WINDOWS   <- file.path(CACHE, "windows")
@@ -35,11 +49,12 @@ MRDEM     <- "/vsicurl/https://canelevation-dem.s3.ca-central-1.amazonaws.com/mr
 OUT_SWEEP <- "inst/extdata/dem_coverage_sweep.csv"
 OUT_POP   <- "inst/extdata/dem_coverage_population.csv"
 REPO      <- normalizePath(".")
-# Three, not six. Each worker carries a `pkgload::load_all()` of the package — measured at
-# 400-600 MB RSS — so six of them plus the rasters put a 64 GB machine under memory
-# pressure and the run was killed. The work is network-bound in Stage 2 and cheap per run
-# in Stage 4, so three costs little.
-WORKERS   <- 3
+# Two, not six. Each worker carries a `pkgload::load_all()` of the package — measured at
+# 400-600 MB RSS — so six of them plus the rasters put the machine under memory pressure
+# and the run was killed twice, the second time at three. Overridable, because the right
+# number is a property of the machine and of what else is running on it, not of the sweep:
+#   FLY_DEM_CALIB_WORKERS=6 Rscript data-raw/dem_calibrate-coverage_error.R
+WORKERS   <- as.integer(Sys.getenv("FLY_DEM_CALIB_WORKERS", "2"))
 
 # The truncation grid. Shares are of the NOMINAL footprint's area, which is exogenous —
 # known before any DEM is read. Achieved `dem_coverage` is an OUTCOME, recorded per run.
@@ -83,7 +98,18 @@ pub <- function(...) message(sprintf(...))
 # Stage 1 — select, offline
 # ---------------------------------------------------------------------------
 
+SELECTION <- file.path(CACHE, "selection.rds")
+
 message("Stage 1 — selecting frames from ", CENTROIDS)
+if (file.exists(SELECTION)) {
+  # A resume needs the selection, not the catalogue it was drawn from. Rebuilding it costs
+  # about a minute and 3.3 GB of resident memory that R does not hand back — which is what
+  # the kernel sees when it decides what to kill, whatever `gc()` reports.
+  sel <- readRDS(SELECTION)
+  for (nm in names(sel)) assign(nm, sel[[nm]], envir = globalenv())
+  pub("  restored the selection from %s (%d sweep targets, %d population frames)",
+      SELECTION, nrow(targets), nrow(pop_set))
+} else {
 year_files <- list.files(CENTROIDS, pattern = "\\.rds$", full.names = TRUE)
 stopifnot(length(year_files) > 100)
 frames <- do.call(rbind, lapply(year_files, readRDS))
@@ -177,6 +203,14 @@ digital_edge <- digital[is.na(digital$dist_nodata) |
 pub("  digital frames whose footprint could reach MRDEM nodata: %d of %d (%.4f%%)",
     nrow(digital_edge), nrow(digital), 100 * nrow(digital_edge) / nrow(digital))
 
+# The three population totals Stage 6 publishes, taken as scalars here. Stage 6 used to
+# call `nrow(film)` directly, which kept the 1.44M-row frame — and the 1.67M-row one it
+# was cut from — alive for the whole run: the master measured 3.28 GB against 0.86 and
+# 0.48 GB for its two workers, and it is the master that was being killed.
+POP_TOTALS <- c(film_dem_eligible = nrow(film),
+                film_edge_candidates = sum(film$edge_candidate),
+                digital_edge_candidates = nrow(digital_edge))
+
 # --- stratum 2: a random draw, as contiguous runs -------------------------------------
 #
 # Runs, not isolated frames. `fly_bearing()` refuses a neighbour that is not adjacent by
@@ -255,6 +289,18 @@ stopifnot(!anyNA(sweep_runs$holdout))
 pub("  sweep set: %d targets over %d strata (%d held out)",
     nrow(targets), length(unique(targets$stratum)), sum(targets$holdout))
 
+digital_ids <- unique(c(
+  digital_edge$airp_id,
+  take_runs(digital[!is.na(digital$film_roll), ], n_runs = 50, len = 10,
+            seed_tag = "dctl")$airp_id))
+pub("  digital frames to pull calibration columns for: %d", length(digital_ids))
+
+save_atomic(list(targets = targets, sweep_runs = sweep_runs, pop_set = pop_set,
+                 POP_TOTALS = POP_TOTALS, digital_ids = digital_ids,
+                 digital_edge_ids = digital_edge$airp_id),
+            SELECTION)
+}
+
 # Everything a worker needs in its own global environment.
 #
 # A PSOCK worker deserialises a function whose environment IS the master's global
@@ -265,7 +311,7 @@ pub("  sweep set: %d targets over %d strata (%d held out)",
 # inside a worker, several stages after the omission.
 worker_objs <- function() {
   nms <- c("MRDEM", "WINDOWS", "CACHE", "DIRS", "CUT_U", "RUN_LEN",
-           "window_radius", "window_path", "fetch_window",
+           "window_radius", "window_path", "fetch_window", "cap_memory",
            "keep_rect", "rect_sfc", "covered_stats", "sweep_target", "measure_coverage")
   nms <- nms[vapply(nms, exists, logical(1), envir = globalenv())]
   stats::setNames(lapply(nms, get, envir = globalenv()), nms)
@@ -338,6 +384,7 @@ run_batched <- function(todo, tag, batch = 1000, chunk = 25) {
           suppressMessages(pkgload::load_all(repo, quiet = TRUE))
           suppressMessages(sf::sf_use_s2(FALSE))
           setup(objs)
+          cap_memory()
           measure_coverage(d, dem_src)
         }, error = function(e) conditionMessage(e))
       }, dem_src = MRDEM, repo = REPO, objs = worker_objs(),
@@ -385,9 +432,6 @@ pub("  frames the DEM does not reach at all (no_dem_coverage): %d",
 # `camera_calibration_url` / `patb_gsd`, which the centroid cache does not carry. Those
 # columns are pulled for the candidates and for a control, rather than the whole
 # catalogue: 673 rows against 223,667.
-digital_ids <- unique(c(digital_edge$airp_id,
-                        take_runs(digital[!is.na(digital$film_roll), ], n_runs = 50,
-                                  len = 10, seed_tag = "dctl")$airp_id))
 dig_path <- file.path(CACHE, "digital_attrs.rds")
 if (file.exists(dig_path)) {
   dig <- readRDS(dig_path)
@@ -411,7 +455,7 @@ if (file.exists(dig_path)) {
   save_atomic(dig, dig_path)
 }
 dig$scale_n <- suppressWarnings(as.numeric(sub("^1:", "", dig$scale)))
-dig$set <- ifelse(dig$airp_id %in% digital_edge$airp_id, "digital_edge", "digital_random")
+dig$set <- ifelse(dig$airp_id %in% digital_edge_ids, "digital_edge", "digital_random")
 dig$relief <- NA_real_
 dig$dist_nodata <- NA_real_
 dig_pop <- run_batched(dig, "population_digital")
@@ -425,6 +469,15 @@ for (s in sort(unique(dig_pop$set))) {
   pub("      routes: %s", paste(names(table(z$footprint_terrain, useNA = "ifany")),
                                 table(z$footprint_terrain, useNA = "ifany"), collapse = ", "))
 }
+
+# Everything from here works on 120 cached windows and needs none of the catalogue. Held,
+# it is gigabytes of master-process residency for the whole sweep.
+rm(list = intersect(c("frames", "film", "digital", "digital_edge", "coarse",
+                      "nodata_dist", "coarse_relief", "random_set", "edge_set",
+                      "sweep_pool", "pop_set", "dig", "ll"), ls()))
+invisible(gc(full = TRUE))
+pub("  master residency after dropping the catalogue: %.2f GB",
+    sum(gc()[, "used"] * c(56, 8)) / 2^30)
 
 message("POP DONE")
 
@@ -478,6 +531,7 @@ if (nrow(todo_win)) {
         suppressMessages(pkgload::load_all(repo, quiet = TRUE))
         suppressMessages(sf::sf_use_s2(FALSE))
         setup(objs)
+        cap_memory()
         for (i in seq_len(nrow(d))) fetch_window(d[i, ], dem_src)
         TRUE
       }, error = function(e) conditionMessage(e))
@@ -601,7 +655,7 @@ sweep_target <- function(run, dem_arm = NULL, dirs = DIRS, us = CUT_U,
   area_nom <- as.numeric(sf::st_area(nom_d))
 
   base <- data.frame(
-    airp_id = run$airp_id[tgt], stratum = run$stratum[tgt],
+    airp_id = run$airp_id[tgt], run_id = run$run_id[tgt], stratum = run$stratum[tgt],
     holdout = run$holdout[tgt], arm = arm,
     scale_n = run$scale_n[tgt], focal_length = run$focal_length[tgt],
     flying_height = run$flying_height[tgt], relief_coarse = run$relief[tgt],
@@ -677,7 +731,16 @@ run_sweep <- function(runs, tag, arm_fn = NULL, arm = "native", ...) {
   path <- file.path(CACHE, paste0(tag, ".rds"))
   done <- if (file.exists(path)) readRDS(path) else NULL
   by_target <- split(runs, runs$run_id)
-  by_target <- by_target[!names(by_target) %in% unique(done$run_id)]
+  # Keyed on the target frame, and asserted rather than assumed. The first version tested
+  # `names(by_target) %in% unique(done$run_id)` against an output that carried no `run_id`
+  # column at all: `%in% NULL` is FALSE for everything, so nothing was ever skipped and
+  # each resume redid the same twenty targets. The row count still grew, which is exactly
+  # what made it read as progress.
+  stopifnot(is.null(done) || all(c("airp_id", "run_id") %in% names(done)))
+  done_targets <- unique(done$airp_id)
+  by_target <- by_target[vapply(by_target, function(r) {
+    !r$airp_id[which(r$is_target)] %in% done_targets
+  }, logical(1))]
   if (!length(by_target)) {
     pub("  %s: complete (%d rows cached)", tag, nrow(done))
     return(done)
@@ -703,6 +766,7 @@ run_sweep_batch <- function(by_target, tag, arm_fn, arm, ...) {
         suppressMessages(pkgload::load_all(repo, quiet = TRUE))
         suppressMessages(sf::sf_use_s2(FALSE))
         setup(objs)
+        cap_memory()
         dem_arm <- if (is.null(arm_fn)) NULL else {
           arm_fn(terra::rast(window_path(run$airp_id[which(run$is_target)])))
         }
@@ -945,7 +1009,8 @@ population <- rbind(population, data.frame(
   media = c("film", "film", "digital"),
   set = c("film_dem_eligible_total", "film_edge_candidates_total", "digital_edge_candidates_total"),
   coverage_bin = NA_character_,
-  n = c(nrow(film), sum(film$edge_candidate), nrow(digital_edge)),
+  n = as.integer(POP_TOTALS[c("film_dem_eligible", "film_edge_candidates",
+                              "digital_edge_candidates")]),
   stringsAsFactors = FALSE))
 
 write_if_changed(sweep_out, OUT_SWEEP)
