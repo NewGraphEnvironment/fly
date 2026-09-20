@@ -480,9 +480,9 @@ georef[, c("airp_id", "dest", "success")]
 #> # A tibble: 3 × 3
 #>   airp_id dest                                 success
 #>     <int> <chr>                                <lgl>  
-#> 1  699370 /tmp/Rtmp84ndF4/bc5282_176_thumb.tif TRUE   
-#> 2  699415 /tmp/Rtmp84ndF4/bc5282_221_thumb.tif TRUE   
-#> 3  699426 /tmp/Rtmp84ndF4/bc5282_232_thumb.tif TRUE
+#> 1  699370 /tmp/Rtmp7q7Wn1/bc5282_176_thumb.tif TRUE   
+#> 2  699415 /tmp/Rtmp7q7Wn1/bc5282_221_thumb.tif TRUE   
+#> 3  699426 /tmp/Rtmp7q7Wn1/bc5282_232_thumb.tif TRUE
 ```
 
 The georeferenced TIFFs inherit whatever basis
@@ -582,6 +582,31 @@ table(terrain$footprint_terrain)
 #> dem_agl 
 #>      20
 ```
+
+`height_source` does the same for the height itself. Sizing from
+`flying_height` means inheriting whatever is wrong with it, and the
+catalogue’s is about 10.76 times too large on 1,589 film frames from 13
+rolls flown between 1974 and 2005 — a feet-to-metres conversion applied
+the wrong way round, which would draw a 1:35000 frame 110 km across. A
+film frame states its height twice, once as `flying_height` and once as
+scale times focal length, so the two are compared. Where dividing by
+that factor brings them back into agreement the corrected height is used
+and the frame is marked `"corrected_unit_slip"`; where they disagree
+some other way nothing can say which is wrong, so the frame is sized
+from nominal scale and marked `"implausible"`. Your `flying_height`
+column is never overwritten. The bundled frames all agree with their own
+scale:
+
+``` r
+
+table(terrain$height_source)
+#> 
+#> reported 
+#>       20
+```
+
+To list the frames worth a second look after a real query, filter on it:
+`dplyr::filter(footprints, height_source != "reported")`.
 
 The bundled `dem.tif` is a clip of **MRDEM-30**, NRCan’s 30 m bare-earth
 DTM. For your own area of interest, read it straight off the public COG

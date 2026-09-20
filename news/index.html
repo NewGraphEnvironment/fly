@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fly</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.11.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.12.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,27 @@
 
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="development version" id="fly-development-version">fly (development version)<a class="anchor" aria-label="anchor" href="#fly-development-version"></a></h2>
+<div class="section level3">
+<h3 id="id_0120-development-version">0.12.0 (2026-09-18)<a class="anchor" aria-label="anchor" href="#id_0120-development-version"></a></h3>
+<ul><li>
+<strong><code>fly_footprint(dem = )</code> no longer believes a <code>flying_height</code> its own scale contradicts, and repairs the one error it can identify</strong> (<a href="https://github.com/NewGraphEnvironment/fly/issues/54" class="external-link">#54</a>). fly#54 reported two 2003 frames 110,834 m across with a DEM against 8,022 m without. Nothing in fly was wrong: <strong>the catalogue’s <code>FLYING_HEIGHT</code> is 3.28084² = 10.764 times too large on 1,589 film frames</strong> across 13 rolls (1974-2005, 1,054 of them on five rolls of 2003) — a feet-to-metres conversion applied the wrong way round. Measured over all 1,670,471 centroids, reconciled against the catalogue’s own count, and over MRDEM-30 under the 7,156 frames that decide the constants. Divided by the factor, the 1,589 land at 0.80-1.32 of the height their scale implies, against 10.0-15.8 as published, with nothing between 6.69 and 10.01; read as plain feet instead they sit at 3.0-4.7 and not one lands in the band</li>
+<li>New column <strong><code>height_source</code></strong>: <code>"reported"</code>, <code>"corrected_unit_slip"</code> (sized from <code>flying_height / 10.764</code>; <code>height_agl</code> is the height used), <code>"implausible"</code> (the height disagrees with <code>scale x focal_length</code> by more than 1.6x either way and the slip does not explain it, or is above 16,000 m, or is below the terrain — sized from nominal scale instead), and <code>NA</code> where no height was judged. <strong>Your <code>flying_height</code> column is never overwritten</strong>, so on a corrected row <code>flying_height - height_agl</code> is not the ground elevation. <code>dplyr::filter(fp, height_source != "reported")</code> lists the frames worth a second look</li>
+<li>
+<strong>The check had to be relative, which is not what the issue proposed.</strong> A plausibility bound on <code>height_agl</code> cannot work: slipped roll <code>bc78065</code> reads 4,115 m at 1:2000 and the highest <em>legitimate</em> height in the catalogue is 14,630 m, so no bound separates them. A film frame states its height above ground twice — <code>flying_height</code> minus terrain, and scale times focal length — and those are compared. The 16,000 m ceiling that remains is a backstop for digital frames, whose <code>scale</code> is not an image scale; no digital frame in the catalogue comes near it (highest 7,513 m of 223,667)</li>
+<li>
+<strong>A frame outside the band now falls back to nominal scale where it used to be sized from the DEM</strong>, which changes footprints for at most an estimated 1.2% of film frames (fewer, since a frame whose terrain sits above its recorded height was already falling back): 98.7% sit inside the band, weighting the sampled strata by the population they stand for, and the slipped 0.1% are repaired rather than refused. For the one group whose cause is known, falling back is the correct answer and not merely the cautious one: the mass centred on r = 2 is a 305 mm lens catalogued as 153 (209 of the 223 frames sampled beyond r 1.8 in that stratum), which the DEM route drew at twice its true width and the nominal route gets right because it never reads <code>focal_length</code>. For the rest, <code>r</code> cannot tell a wrong height from a wrong <code>scale</code>, which is why they are flagged rather than silently resized. Every bundled frame is inside the band and unchanged</li>
+<li>
+<strong>The slip also appears to run the other way, and that is deliberately not repaired.</strong> Of the 1,962 sampled frames reading under half their nominal height (1,963 in the catalogue), multiplying by 10.764 brings 726 into the band — but multiplying by 10 brings 729 and doubling brings 799. Three remedies the terrain cannot tell apart, so none is applied; they are flagged <code>"implausible"</code> and tracked in <a href="https://github.com/NewGraphEnvironment/fly/issues/60" class="external-link">#60</a>
+</li>
+<li>
+<strong>No DEM window is built from a height that fails the checks.</strong> <code>main</code> sampled its second pass over the rectangle the bad height implied — 110 km of terrain per frame. A refused frame is withheld from the second pass, and a camera-table frame over the ceiling is never seeded at all; a test asserts on the grids rather than on the answer, since classifying after both passes returns the right footprint and still pays for the wrong one</li>
+<li>The rule is <strong>per frame, never per roll</strong>: 1,208 frames sit on a slipped roll without being slipped. Measured over the catalogue, the repair fires on the 1,589 and on none of the 2,733 other sampled frames outside the band</li>
+<li>
+<code>data-raw/height_calibrate-flying_height_slip.R</code> reproduces every figure above from public data, and the sweep ships as <code>inst/extdata/flying_height_sweep.csv</code> and <code>flying_height_population.csv</code> so the suite checks the three constants against the data rather than against themselves. See the new section of <code>inst/notes/terrain-correction.md</code>
+</li>
+<li>An existing test relabelled a 1:12000 frame as 1:31680 without moving its <code>flying_height</code>, building exactly the disagreement this release refuses — and had been sizing its “wide frame” at 2.7 km. It now uses a frame that is 1:31680, which comes back 7.7 km</li>
+<li>Split out while here: what a partially DEM-covered footprint costs (<a href="https://github.com/NewGraphEnvironment/fly/issues/58" class="external-link">#58</a>), and <code>fly_dem_sample()</code> taking 583 s for two frames over a <code>/vsicurl/</code> DEM (<a href="https://github.com/NewGraphEnvironment/fly/issues/59" class="external-link">#59</a>)</li>
+</ul></div>
 <div class="section level3">
 <h3 id="id_0110-development-version">0.11.0 (2026-09-08)<a class="anchor" aria-label="anchor" href="#id_0110-development-version"></a></h3>
 <ul><li>
