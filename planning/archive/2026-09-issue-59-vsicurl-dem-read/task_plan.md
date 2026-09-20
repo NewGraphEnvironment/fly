@@ -38,7 +38,7 @@ to time the forms alone. Plan-mode measurement did that; the numbers are in `fin
       the counting grid
 - [x] Leave the call sites at `R/fly_footprint.R:916` and `:972` untouched — internal only, no
       signature change, so every caller forwarding `dem` gets it for free
-- [ ] `/code-check` before the commit
+- [x] `/code-check` before the commit — four rounds; round 1 found a real bug
 
 ## Phase 3: Tests that can actually fail, then say what was measured
 
@@ -59,11 +59,11 @@ to time the forms alone. Plan-mode measurement did that; the numbers are in `fin
       remote COG is practical, and keep the existing `sqrt(2)` buffer advice
 - [x] Reconcile the issue body — the "extracted four times" claim and the 583 s bandwidth
       confound — per `feature-workflow.md`, bodies get edited, not appended to
-- [ ] NEWS entry and version bump as the **final** commit of the branch
+- [x] NEWS entry and version bump as the **final** commit of the branch
 
 ## Validation
 
-- [ ] Tests pass
-- [ ] `/code-check` clean on each commit
-- [ ] PWF checkboxes match landed work
-- [ ] `/planning-archive` on completion
+- [x] Tests pass — FAIL 0, ERROR 0, SKIP 0, PASS 1852; R CMD check 0 errors / 0 notes
+- [x] `/code-check` clean on each commit
+- [x] PWF checkboxes match landed work
+- [x] `/planning-archive` on completion
