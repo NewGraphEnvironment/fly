@@ -341,8 +341,12 @@ test_that("fly_footprint warns when a footprint is materially off the DEM", {
   xy <- terra::xyFromCell(dem, with_data)
   edge <- sf::st_sfc(sf::st_point(xy[which.min(xy[, 1]), ]), crs = 3005)
 
-  photos <- sf::st_read(testdata_path("photo_centroids.gpkg"), quiet = TRUE)[1, ]
-  photos$scale <- "1:31680"
+  # A frame that IS 1:31680, row 11, rather than a 1:12000 one relabelled. Relabelling
+  # left `flying_height` at 2,591 m against a scale implying 4,850 m above ground, which
+  # is exactly the disagreement fly#54 refuses — and before that it was quietly sizing
+  # this "wide frame" at 2.7 km, where a frame that really is 1:31680 comes back 7.7 km.
+  photos <- sf::st_read(testdata_path("photo_centroids.gpkg"), quiet = TRUE)[11, ]
+  expect_identical(photos$scale, "1:31680")
   sf::st_geometry(photos) <- sf::st_transform(edge, 4326)
 
   w <- character()

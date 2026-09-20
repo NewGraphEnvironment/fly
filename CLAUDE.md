@@ -43,6 +43,16 @@ the cap 0.05, and the two readings of the sweep that were wrong first.
 `data-raw/mask_calibrate-border_threshold.R` reproduces everything from a directory of
 thumbnails, and `inst/extdata/mask_border_sweep.csv` ships the result so the test suite
 recomputes both constants rather than trusting them
+- `data-raw/height_calibrate-flying_height_slip.R` — pulls every catalogue centroid by year
+(1.67 million, cached under the gitignored `data-raw/.cache/`), samples MRDEM under the 7,156
+frames that decide the `flying_height` constants, and prints a producer line for every figure
+the note and NEWS quote. Ships `inst/extdata/flying_height_sweep.csv` and
+`flying_height_population.csv`, which `test-fly_footprint_height.R` reads so the three constants
+are checked against the data. Use a PSOCK cluster for remote DEM reads — `mclapply()` forks
+abort on GDAL's curl handles on macOS while the wrapper exits 0
+- `height_fixture()` and `flat_dem()` in `tests/testthat/setup.R` — eight frames over level
+ground, each reaching one height check by a stated route; rows 7 and 8 exist because two
+deliberate defects survived the first six
 - `mixed_media_fixture()` in `tests/testthat/setup.R` — synthesized frames whose format nothing resolves;
 `digital_fixture()` beside it covers every resolver branch, and `footprint_cases()` sweeps the 12 input
 shapes the invariant tests run over
@@ -169,6 +179,29 @@ warped band list. That is what let masking default to on without moving `stac_ai
 Grayscale keeps `-dstnodata 0`, the weaker contract — fly#56. Do not re-derive the collar's
 shape from geometry or re-propose a circle; read `inst/notes/border-masking.md`
 
+- **`flying_height` is held against `scale x focal_length` before the DEM route believes it,
+and the one identifiable error is repaired** (v0.12.0, #54) — the catalogue's `FLYING_HEIGHT`
+is 3.28084² = 10.764 times too large on 1,589 film frames (13 rolls, 1974-2005), a
+feet-to-metres conversion applied the wrong way round, which drew 110 km footprints. Inside
+`fly_height_ratio_band()` ([1/1.6, 1.6]) the height is used; outside it, dividing by the factor
+is tried and used where that lands inside; otherwise the frame falls back to nominal scale.
+`height_source` records which, and the caller's `flying_height` is never overwritten.
+
+  **Four things were measured and each is load-bearing.** The check is *relative*, not the bound
+on `height_agl` the issue proposed: slipped roll `bc78065` reads 4,115 m and the highest
+legitimate height is 14,630 m, so no bound separates them — `fly_flying_height_max()` is a
+backstop for digital frames (whose `scale` is not an image scale; 94% would be refused on it)
+and catches nothing in today's catalogue. The rule is **per frame, never per roll**: 1,208 clean
+frames share a slipped roll. The band's **upper edge sits in a trough** before a mass at r = 2
+that is a 305 mm lens catalogued as 153, which the DEM route drew at twice its width and nominal
+gets right — the lower edge is the same factor by symmetry, not a trough. And the slip's
+apparent mirror image is **deliberately not repaired**: x10.764, x10 and x2 each bring ~730-800
+of the lower tail into the band and the terrain cannot choose (fly#60). Do not "finish" that by
+picking one, and do not re-derive the band without the sweep. Classification happens after the
+first DEM pass and **before** the second, and a camera-table frame over the ceiling is never
+seeded — classifying after both passes returns the right footprint and still fetches 110 km of
+terrain per frame, so the test asserts on the grids. Read `inst/notes/terrain-correction.md`
+
 ## Gotchas
 
 - `.lintr` must be single-line DCF format — multi-line breaks newer lintr versions
@@ -224,6 +257,14 @@ trip the guard at 16, so only a synthesized fixture tests it. Recompute both fro
 `inst/extdata/mask_border_sweep.csv` together, or neither. An earlier draft of the note also
 published the band's upper end as 0.2379, which is the *maximum* interior fraction at threshold
 48 rather than the smallest that trips the cap there (0.0510) — flattering the margin by 4.7x
+- **Relabelling a fixture's `scale` without moving its `flying_height` builds exactly the
+disagreement #54 refuses.** A test did this for two releases and had been sizing its "wide
+frame" at 2.7 km instead of 7.7. Every bundled frame agrees with its own scale, so the height
+checks never fire on bundled data — use `height_fixture()`. And `unusable` in the DEM block is a
+**residual** class (eligible, not corrected, not uncovered), so any new class taken out of
+`corrected` must be excluded from it by name or it is reported as missing metadata
+- **`fly_dem_sample()` straight off a `/vsicurl/` DEM is pathologically slow** (fly#59, open) —
+583 s for two frames, against 1.3 s for eight over a local crop. Crop once, then sample
 - **An empty POINT centroid aborts the whole batch** (fly#47, open) — it is a POINT, so it passes the geometry
 guard by design, and then fails in `st_polygon()` with `!anyNA(x) is not TRUE`. Left open deliberately: refusing
 20 frames over one unlocatable centroid would contradict the per-frame reporting #30 established
