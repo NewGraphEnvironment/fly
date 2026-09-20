@@ -20,7 +20,9 @@
   new code has to reproduce it, because `terra::crop()` *errors* on that input
 - Phase 2: `fly_dem_sample()` now reads one window per frame, numerator and denominator off the
   same values. Parity against the HEAD implementation pulled from git (never rewritten by hand):
-  **identical `elev` and `covered` over 9 shapes** — 20 bundled frames, a frame 200 km off the
+  **identical `elev` and `covered` over 9 shapes** (and, after review, over a multi-layer DEM
+  and frames swept 0.05-60 cells across at three resolutions — parity holds wherever a frame
+  covers at least one cell centre, which is the condition the note now states) — 20 bundled frames, a frame 200 km off the
   DEM, two off and two on, straddling the DEM edge, an empty geometry among real ones, all
   empty, a DEM hole, a geographic-CRS DEM, anisotropic 120x904 cells
 - End to end, the case the issue reports: **263.4 s before, 4.3 s after**, identical coverage

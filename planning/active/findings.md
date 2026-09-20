@@ -102,9 +102,34 @@ the confound the issue itself flagged, quantified: about 2.2x.
 | planted defect | result |
 |---|---|
 | crop once over `in_dem` rather than per frame | `max(crops)` = **243,583,754** cells — the figure the note records — and **only the new test** reddens, since the counting grid is still per-frame and the old grid test cannot see the read |
-| drop the `tryCatch` around `terra::crop()` | **5 tests error**, three of them pre-existing. Errors, not failures: the batch aborts |
+| remove the off-DEM extent guard, so `terra::crop()` runs unconditionally | **5 tests error**, three of them pre-existing. Errors, not failures: the batch aborts |
 
 Restored from a byte-compared copy afterwards, suite re-run green.
+
+## The overlap test was probed at the boundary, not reasoned about
+
+Replacing a first draft's `tryCatch(crop(...), error = NULL)` with an explicit extent test —
+there is no `tryCatch` in the shipped code — introduced one risk
+worth measuring: an input where `on_dem` is TRUE but `terra::crop()` still errors would now abort
+a batch where the old code merely returned `NA` for that frame. Five boundary shapes, old against
+new:
+
+| case | agree |
+|---|---|
+| overlaps the east edge by 0.1 of a cell | yes — both `elev` NA, `covered` 0 |
+| frame extent exactly touching the east edge | yes |
+| frame one micron past the east edge | yes |
+| frame exactly one cell wide, well inside | yes |
+| frame spanning the whole DEM and 50 km past it on all sides | yes — both `elev` 866.2, `covered` 0.0359 |
+
+No abort and no divergence. Strict inequality is what makes the touching case fall on the
+no-overlap side, where it belongs: extents that share only a boundary share no cell.
+
+A second probe asked whether an **NA** extent could reach the test, since `if (!NA)` would error.
+Reprojecting a BC rectangle into an orthographic CRS centred on the far side of the globe yields
+an empty geometry, and **old and new then fail identically** with `missing value where
+TRUE/FALSE needed`. Pre-existing, of fly#47's family, and not a regression — so no guard was
+added for it.
 
 ## Environment
 

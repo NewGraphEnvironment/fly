@@ -110,8 +110,19 @@ allocation: `fly_dem_sample()` is handed every rectangle at once, so a crop span
 sized to the gap between photos, not to the photos — 243 million cells for two frames 700 km
 apart. Bounding the crop to one footprint costs 23% on contiguous frames (1.23 s against 1.00 s
 for eight, because the block cache absorbs their 60% overlap) and **cannot** reproduce it.
-`fly_dem_grid()` is the single definition of that window, so the crop and the counting template
-cannot drift apart, and the existing mock-the-grid test bounds both at once.
+**The read window is not the counting template**, and a review round caught the version that
+made it one. `fly_dem_grid()` align()s with terra's default `snap = "near"`, which moves each
+edge to the *nearest* cell boundary — so the template can be **smaller** than the footprint, and
+reading through it drops cells the whole-DEM extract returned. Measured on the bundled 30 m DEM,
+13 of 300 frames drawn between 0.2 and 6 cells across came back with a different mean elevation
+(an independent review round measured 52 of 300 over the same range on its own fixtures). That is not an
+exotic shape: a 3.4 km 1:15000 frame is under 4 cells across on a 900 m DEM, the coarse axis this
+note already demands be tested.
+
+So the read is snapped **out**, which is a superset of both the footprint and the template, since
+the nearest boundary is never outside the boundary outside it. The template keeps `snap = "near"`
+because fly#9 measured `dem_coverage` against that grid, and a faster read must not move what is
+counted. Both windows are one footprint, so the bound holds either way.
 
 **Two things the window must not quietly change**, both checked rather than reasoned:
 
@@ -121,14 +132,30 @@ cannot drift apart, and the existing mock-the-grid test bounds both at once.
   described-and-missing.
 - A frame with no DEM beneath it at all is the one place the two differ in kind:
   `terra::extract()` returns an `NA` placeholder row, and `terra::crop()` **errors**. Unguarded
-  that would abort a batch over one unlocatable frame. It is caught, and the frame comes back
-  with no elevation and no covered cells, exactly as before.
+  that would abort a batch over one unlocatable frame. It is **guarded on the extents and
+  deliberately not caught** — see the comment at the guard. `tryCatch` here would test a proxy:
+  "crop() failed" and "no DEM here" come apart, and a transient read failure on a remote DEM
+  would become a frame that silently reports no coverage and falls back to nominal scale. Over
+  400 randomized geometries and 800 degenerate edge overlaps, no input was found where the
+  extent test passes and `crop()` then errors.
 
 The check that licensed the change was parity against the previous implementation pulled from
 git rather than rewritten by hand — identical `elev` and `covered` over all 20 bundled frames,
 a frame 200 km off the DEM, two off and two on, a frame straddling the DEM edge, an empty
-geometry among real ones, all-empty input, a DEM hole, a geographic-CRS DEM, and anisotropic
-120 x 904 cells.
+geometry among real ones, all-empty input, a DEM hole, a geographic-CRS DEM, anisotropic
+120 x 904 cells, a multi-layer DEM, and frames swept from 0.05 to 60 cells across at three
+resolutions.
+
+**That parity is conditional, and the condition is worth stating.** It holds wherever the frame
+covers at least one cell **centre**. Where a frame covers none but still touches the raster,
+`terra::extract()` falls back to the cells the polygon touches, and that fallback is computed
+over whatever raster it is handed — so the full DEM and a one-row crop of it return different
+cells. Measured on a synthetic 10 x 10 DEM at 100 m: a frame poking 0.5 to 49.9 m into the
+bottom row gives 96 from the whole raster and 95.5 from the crop. `dem_coverage` is unaffected;
+only the sampled values move. **No route to it through `fly_footprint()` was found** — a real
+footprint spans many cells, and on the bundled DEM the NA edge collar makes both paths agree at
+`no_dem_coverage` — so it is recorded as the boundary of the claim rather than as a live
+defect.
 
 ## `flying_height` is held against the scale before it is believed (fly#54)
 
@@ -225,7 +252,7 @@ flagged rather than silently resized.
 ## Testing this
 
 The bundled fixture — one 30 m EPSG:3005 DEM — **cannot reach any of the four failures
-above.** A fine grid hides the `2/k` error, a CRS matching the data makes every reprojection
+above, nor the fly#59 window defect.** A fine grid hides the `2/k` error, a CRS matching the data makes every reprojection
 an identity, a generously buffered extent never truncates, and frames that are close
 together never blow up the grid. Two hundred tests passed over each of the wrong forms.
 
@@ -238,6 +265,7 @@ Vary the fixture along the axes the bundled one holds constant:
 | geographic CRS | the only way to execute the reprojection branch at all |
 | a truncating extent | a DEM cropped to an AOI is the common case, and it stops rather than going NA |
 | frames far apart | grid allocation scales with the gap, not the frames |
+| a footprint only a **few cells across** | where `align()`'s snapping matters. A window snapped to the *nearest* boundary can be smaller than the footprint, and reading through it drops cells — invisible at 30 m, where a frame is 113 cells wide, and live at 900 m, where it is under 4. fly#59 shipped that defect past a green suite and it was caught in review, not by a test |
 | a `flying_height` that disagrees with the scale | every bundled frame agrees with its own scale, so the height checks never fire — and relabelling a frame's `scale` without moving its `flying_height` builds exactly the disagreement they refuse |
 
 And buffer a DEM past the **corner** of the widest footprint, `half_side * sqrt(2)` — 5.1 km

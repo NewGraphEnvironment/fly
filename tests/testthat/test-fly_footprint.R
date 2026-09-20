@@ -667,6 +667,51 @@ test_that("fly_footprint reads the DEM through one window per frame", {
   expect_equal(fp$dem_coverage, c(1, 0))
 })
 
+test_that("the DEM read window contains the footprint, even when the frame is small", {
+  skip_if_no_terra()
+  # fly#59, found in review. The counting template comes from fly_dem_grid(),
+  # which align()s with terra's default snap = "near" — each edge moves to the
+  # NEAREST cell boundary, so the template can be SMALLER than the footprint.
+  # Reading through it drops cells the whole-DEM extract returned and the mean
+  # elevation moves. Measured before the fix: 13 of 300 frames drawn between
+  # 0.2 and 6 cells across on the bundled 30 m DEM disagreed.
+  #
+  # Not exotic. A 3.4 km 1:15000 frame is under 4 cells across on a 900 m DEM,
+  # which is the coarse axis inst/notes/terrain-correction.md demands be tested.
+  #
+  # The oracle is the whole-DEM extract — the read the window replaced — not
+  # anything this code computes for itself.
+  dem <- terra::aggregate(terra::rast(testdata_path("dem.tif")), fact = 30)
+  e <- terra::ext(dem)
+  rr <- min(terra::res(dem))
+
+  set.seed(42)
+  frames <- lapply(seq_len(40), function(k) {
+    hw <- stats::runif(1, 0.2, 4) * rr / 2
+    cx <- stats::runif(1, e[1] + 5 * rr, e[2] - 5 * rr)
+    cy <- stats::runif(1, e[3] + 5 * rr, e[4] - 5 * rr)
+    sf::st_polygon(list(rbind(c(cx - hw, cy - hw), c(cx + hw, cy - hw),
+                              c(cx + hw, cy + hw), c(cx - hw, cy + hw),
+                              c(cx - hw, cy - hw))))
+  })
+
+  # Premise: the fixture must be able to expose the defect. A snap = "near"
+  # window that contains every frame would make the rest of this vacuous.
+  uncontained <- sum(vapply(frames, function(g) {
+    fe <- terra::ext(terra::vect(sf::st_sfc(g, crs = 3005)))
+    al <- terra::ext(fly_dem_grid(dem, sf::st_sfc(g, crs = 3005)))
+    !(al[1] <= fe[1] && al[2] >= fe[2] && al[3] <= fe[3] && al[4] >= fe[4])
+  }, logical(1)))
+  expect_gt(uncontained, 0)
+
+  for (g in frames) {
+    gg <- sf::st_sfc(g, crs = 3005)
+    ref <- mean(terra::extract(dem, terra::vect(gg))[, 2], na.rm = TRUE)
+    if (is.nan(ref)) ref <- NA_real_
+    expect_equal(fly_dem_sample(dem, gg)$elev, ref)
+  }
+})
+
 test_that("fly_footprint survives a frame with no DEM beneath it at all", {
   skip_if_no_terra()
   # fly#59. terra::extract() returns an NA placeholder row for a polygon that

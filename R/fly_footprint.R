@@ -270,12 +270,26 @@ fly_dem_sample <- function(dem, rects) {
   # thousand for the same two frames counted separately. Cropping once to what
   # we are about to sample would be that same allocation arriving through the
   # read. Bounded by one footprint costs 1.23 s against 1.00 s for
-  # eight contiguous frames and cannot reproduce it. fly_dem_grid() stays the
-  # single definition of the window so the crop and the template cannot drift.
+  # eight contiguous frames and cannot reproduce it. The read window and the
+  # counting template are snapped differently — see below — but both are one
+  # footprint, so the bound holds either way.
   per <- vapply(seq_len(nrow(in_dem)), function(i) {
     vi <- terra::vect(in_dem[i, ])
     tmpl <- fly_dem_grid(dem, in_dem[i, ])
 
+    # The read window is NOT the counting template, and must not be. align()
+    # defaults to snap = "near", which moves each edge to the *nearest* cell
+    # boundary — so the template can be smaller than the footprint, and cropping
+    # to it drops cells the whole-DEM read returned. Measured on the bundled
+    # 30 m DEM: 13 of 300 frames drawn between 0.2 and 6 cells across came back
+    # with a different mean elevation. Reachable on real data, because a 3.4 km
+    # frame is 3.8 cells across on the 900 m DEM this file's own tests use.
+    #
+    # snap = "out" is a superset of both the footprint and the template, since
+    # the nearest boundary is never outside the boundary outside. The template
+    # keeps snap = "near", because fly#9 measured dem_coverage against that grid
+    # and a faster read must not move what is counted.
+    #
     # A frame with no DEM beneath it at all is the one place the two reads
     # differ in kind: extract() returns an NA placeholder row and crop()
     # *errors*. Unguarded, one unlocatable frame aborts the batch.
@@ -286,7 +300,7 @@ fly_dem_sample <- function(dem, rects) {
     # frame that silently reports no coverage and falls back to nominal scale.
     # Overlap is the property; strict inequality, so extents that merely touch
     # along an edge share no cell and count as no overlap.
-    ei <- terra::ext(tmpl)
+    ei <- terra::align(terra::ext(vi), dem, snap = "out")
     ed <- terra::ext(dem)
     on_dem <- ei[1] < ed[2] && ei[2] > ed[1] && ei[3] < ed[4] && ei[4] > ed[3]
     vals <- if (!on_dem) NA_real_ else terra::extract(terra::crop(dem, ei), vi)[, 2]
