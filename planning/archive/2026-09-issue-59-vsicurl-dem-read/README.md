@@ -130,6 +130,14 @@ covering no cell centre falls into `terra::extract()`'s touched-cells fallback, 
 is computed over whatever raster it is handed, so a crop and the full DEM can legitimately return
 different cells.
 
+**A fourth round was launched and lost.** It was scoped to the claims written by the round-3
+fix — by the mechanism above, the likeliest place for the next defect — and it died silently at
+a 1.47 MB transcript, as the first round-1 agent had. It is recorded as lost rather than clean,
+because an agent with nothing to say and a dead one look identical from the calling side. Its
+job was done by hand instead: enumerating the new claims against their measurements found two
+more instances of the same mechanism (a NEWS sentence still describing the superseded test, and
+three stale claims in the PR body and this file), which are corrected here.
+
 ## Evidence
 
 Probe scripts are session scratch and not committed; every figure above is reproducible from
