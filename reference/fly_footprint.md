@@ -55,11 +55,20 @@ applied, `footprint_bearing` giving the flight azimuth each rectangle
 was rotated onto (`NA` where it was drawn axis-aligned because no
 bearing could be computed), `height_agl` giving the metres above ground
 each was sized from, `height_source` recording where that height came
-from or why there is none (see Terrain), and `dem_coverage` giving the
+from or why there is none (see Terrain), `dem_coverage` giving the
 fraction of each footprint the DEM actually covered (`0` where it
-covered none, `NA` only where there is no footprint). Frames whose
-format could not be resolved get an empty geometry. Every class the
-input carries is carried through, so a tibble-backed sf — which is what
+covered none, `NA` only where there is no footprint), `dem_elev_sd`
+giving the standard deviation in metres of the DEM values under that
+footprint — `NA` wherever `dem_coverage` is, and also wherever the DEM
+described **fewer than two** cells, since a spread needs two. The common
+case of the second is a frame the DEM does not reach at all, which has
+`dem_coverage` of `0` rather than `NA` and so is the one place the two
+columns differ. And `dem_shortfall_m` giving the metres the DEM would
+have to extend to contain that footprint, where **`0` is an answer**:
+the DEM already spans the frame, so any missing cells are nodata inside
+its extent and no re-crop will recover them. Frames whose format could
+not be resolved get an empty geometry. Every class the input carries is
+carried through, so a tibble-backed sf — which is what
 `bcdata::collect()` returns — comes back tibble-backed. The order is not
 preserved:
 [`sf::st_transform()`](https://r-spatial.github.io/sf/reference/st_transform.html)
@@ -315,6 +324,32 @@ the DEM described, and warns once that falls below 95%. `dem_coverage`
 reports the fraction per frame — measured against the cells the
 footprint should have covered, not the cells that came back — so a
 truncated footprint can be filtered rather than merely noticed.
+
+**Two remedies, and the column that tells them apart.** Partial coverage
+has two causes that `dem_coverage` reports identically. A DEM whose
+extent stops short of the frame can be re-cropped and the frame
+recovered exactly, and `dem_shortfall_m` says by how much —
+`max(fp$dem_shortfall_m)` is the buffer that would contain every
+footprint in the batch. A DEM with nodata *inside* its extent cannot be
+re-cropped at all, and reports `0`. Against a remote MRDEM read the
+shortfall is always `0`, because the window is fetched per frame; the
+first case is what a DEM cropped to an area of interest produces.
+
+**What truncation costs, and why two columns report it.** Measured over
+11,520 truncations of 120 real frames against each frame's own
+full-coverage answer: the error is exactly the elevation bias divided by
+the height above ground, so it is a median 0.18% of footprint width at
+80-90% coverage, 0.34% at 60-80%, and 1.5% below 20% — but it reaches
+24% on broken ground. **The median is not what one frame is exposed
+to:** at a fixed `dem_coverage` the error spans 13 to 52 times between
+frames, which is why `dem_elev_sd` ships beside it. Frames above the
+median spread for their coverage sit 2.3 to 4.1 times further from the
+full-coverage answer than those below it. Read the pair together —
+coverage says how much is missing, `dem_elev_sd` says how much that
+could be worth — and see `inst/notes/terrain-correction.md` for the
+distribution and its limits. Falling back to nominal scale is **not**
+the better answer at any coverage: the DEM route beats it in the median
+even below 20% covered.
 
 Buffer past the **corner** of the widest footprint, not its half-side:
 the far point of a square is `half_side * sqrt(2)`, which at 1:31680 is

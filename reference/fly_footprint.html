@@ -9,7 +9,7 @@ of each airphoto, based on film negative dimensions and the reported scale."><me
 
     <a class="navbar-brand me-2" href="../index.html">fly</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.13.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.14.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -93,9 +93,17 @@ rectangles, a <code>footprint_basis</code> column recording how each was sized, 
 onto (<code>NA</code> where it was drawn axis-aligned because no bearing could be
 computed), <code>height_agl</code> giving the metres above ground each was sized from,
 <code>height_source</code> recording where that height came from or why there is none
-(see Terrain), and <code>dem_coverage</code> giving the fraction of each footprint the
+(see Terrain), <code>dem_coverage</code> giving the fraction of each footprint the
 DEM actually covered (<code>0</code> where it covered none, <code>NA</code> only where there is no
-footprint).
+footprint), <code>dem_elev_sd</code> giving the standard deviation in metres of the
+DEM values under that footprint — <code>NA</code> wherever <code>dem_coverage</code> is, and also
+wherever the DEM described <strong>fewer than two</strong> cells, since a spread needs
+two. The common case of the second is a frame the DEM does not reach at all,
+which has <code>dem_coverage</code> of <code>0</code> rather than <code>NA</code> and so is the one place the
+two columns differ. And <code>dem_shortfall_m</code> giving the metres the DEM would
+have to extend to contain that footprint, where <strong><code>0</code> is an answer</strong>: the DEM
+already spans the frame, so any missing cells are nodata inside its extent and
+no re-crop will recover them.
 Frames whose format could not be resolved get an empty geometry. Every
 class the input carries is carried through, so a tibble-backed sf — which
 is what <code>bcdata::collect()</code> returns — comes back tibble-backed. The order
@@ -308,6 +316,27 @@ and warns once that falls below 95%. <code>dem_coverage</code> reports the fract
 frame — measured against the cells the footprint should have covered, not the
 cells that came back — so a truncated footprint can be filtered rather than
 merely noticed.</p>
+<p><strong>Two remedies, and the column that tells them apart.</strong> Partial coverage has
+two causes that <code>dem_coverage</code> reports identically. A DEM whose extent stops
+short of the frame can be re-cropped and the frame recovered exactly, and
+<code>dem_shortfall_m</code> says by how much — <code>max(fp$dem_shortfall_m)</code> is the buffer
+that would contain every footprint in the batch. A DEM with nodata <em>inside</em> its
+extent cannot be re-cropped at all, and reports <code>0</code>. Against a remote MRDEM
+read the shortfall is always <code>0</code>, because the window is fetched per frame;
+the first case is what a DEM cropped to an area of interest produces.</p>
+<p><strong>What truncation costs, and why two columns report it.</strong> Measured over 11,520
+truncations of 120 real frames against each frame's own full-coverage answer:
+the error is exactly the elevation bias divided by the height above ground, so
+it is a median 0.18% of footprint width at 80-90% coverage, 0.34% at 60-80%,
+and 1.5% below 20% — but it reaches 24% on broken ground. <strong>The median is not
+what one frame is exposed to:</strong> at a fixed <code>dem_coverage</code> the error spans 13 to
+52 times between frames, which is why <code>dem_elev_sd</code> ships beside it. Frames
+above the median spread for their coverage sit 2.3 to 4.1 times further from the
+full-coverage answer than those below it. Read the pair together — coverage
+says how much is missing, <code>dem_elev_sd</code> says how much that could be worth — and
+see <code>inst/notes/terrain-correction.md</code> for the distribution and its limits.
+Falling back to nominal scale is <strong>not</strong> the better answer at any coverage: the
+DEM route beats it in the median even below 20% covered.</p>
 <p>Buffer past the <strong>corner</strong> of the widest footprint, not its half-side: the
 far point of a square is <code>half_side * sqrt(2)</code>, which at 1:31680 is 5.1 km
 rather than 3.6 km. Allow more again for the correction itself, which
