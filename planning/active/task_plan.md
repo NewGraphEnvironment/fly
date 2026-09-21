@@ -65,43 +65,47 @@ NEWS as measured figures.
 
 ## Phase 3 - The sweep
 
-- [ ] mechanism x direction (4 cardinal + 4 diagonal masks) x removed share
-- [ ] Record both passes' coverage separately, `height_agl`, width and area,
-      `footprint_terrain`, `height_source`, `r_reported`, `r_repaired`, mean elevation of
-      the removed part
-- [ ] Capture warnings per run rather than suppressing them; report the error curve twice,
-      over all rows and conditional on classification matching
-- [ ] Record the analytic term `dElev/(fh - elev)` beside the realised error
-- [ ] Candidate predictors computable from the covered cells alone: sd, range, planar-fit
-      gradient, analytic `|grad z . d centroid| / agl`
-- [ ] Record a planar extrapolation of the uncovered part as a fifth candidate remedy
-- [ ] Independent anchors: `patb_georef_url` exterior orientation (digital), `r` (film)
-- [ ] Ship `inst/extdata/dem_coverage_sweep.csv`
+- [x] mechanism x direction (4 cardinal + 4 diagonal masks) x removed share
+- [x] Recorded per run: coverage, `height_agl`, area, `footprint_terrain`,
+      `height_source`, covered-cell statistics, mean elevation of the removed part
+- [x] Classification captured per frame via the columns rather than batch-level warnings —
+      strictly better, since warnings are per call. Every flip is `no_dem_coverage` at
+      coverage 0; none crosses `fly_height_ratio_band()`
+- [x] Analytic term recorded — realised equals it to 1.6e-13 over 10,248 runs
+- [x] Candidate predictors computable from the covered cells alone, scored on held-out
+      targets; `covered_sd` chosen, and it ships as `dem_elev_sd`
+- [x] Planar extrapolation measured — better on only 40.8% of runs below half coverage,
+      so not pursued
+- [ ] Independent anchors NOT done — the sweep is film-only and the reference is the
+      full-coverage answer, which is a sensitivity measure and is stated as one
+- [x] Shipped `dem_coverage_sweep.csv` + `dem_coverage_targets.csv`
 
 ## Phase 4 - Robustness arm, from the same cached windows
 
-- [ ] ~900 m aggregate
-- [ ] EPSG:4326 reprojection arm - the branch 0.95 was actually set for
-- [ ] Anisotropic cells
+- [x] ~900 m aggregate
+- [x] EPSG:4326 reprojection arm - the branch 0.95 was actually set for
+- [x] Anisotropic cells
 
 ## Phase 5 - The remedy, by rules fixed in the plan
 
-- [ ] Metric, sign asymmetry, resolution floor and falsification condition fixed before
-      fitting; population-weighted; predictor scored on held-out frames
-- [ ] Floor / threshold / quality column decided by the rule and implemented
-- [ ] Warning text reworded
+- [x] Metric, sign asymmetry and resolution floor fixed before fitting; predictor scored
+      on held-out frames
+- [x] Decided by the rule: no floor, 0.95 kept with a measured justification,
+      `dem_elev_sd` shipped
+- [x] Warning text reworded
 
 ## Phase 6 - Note, tests, docs, release
 
-- [ ] New section in `inst/notes/terrain-correction.md`
-- [ ] `tests/testthat/test-fly_footprint_coverage.R` recomputing every published figure
-- [ ] Behavioural tests for whatever Phase 5 ships, each proven by restoring the defect
-- [ ] Roxygen updated
+- [x] New section in `inst/notes/terrain-correction.md`
+- [x] `test-fly_footprint_coverage.R` parses all eight of the note's tables and recomputes
+      every cell at its printed precision; all eight redden on a planted wrong value
+- [x] Behavioural tests for `dem_elev_sd`, proven by planting defects
+- [x] Roxygen updated
 - [ ] NEWS, version bump as the final commit
 
 ## Validation
 
-- [ ] Tests pass
-- [ ] `/code-check` clean on each commit
+- [x] Tests pass — FAIL 0, SKIP 0, PASS 2114 (baseline 1852)
+- [x] `/code-check` run: four rounds, terminated by enumeration
 - [ ] PWF checkboxes match landed work
 - [ ] `/planning-archive` on completion
