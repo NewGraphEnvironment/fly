@@ -1,0 +1,14 @@
+"media","set","footprint_terrain","coverage_bin","n"
+film,edge,dem_agl,"[0,0.5)",22
+film,edge,dem_agl,"[0.5,0.8)",20
+film,edge,dem_agl,"[0.8,0.9)",16
+film,edge,dem_agl,"[0.9,0.95)",8
+film,edge,dem_agl,"[0.95,0.99)",13
+film,edge,dem_agl,"[0.99,1)",3
+film,edge,dem_agl,"1",5
+film,random,dem_agl,"1",2975
+film,edge,no_dem_coverage,"[0,0.5)",26
+film,random,nominal_scale,"1",25
+film,film_dem_eligible_total,NA,NA,1437147
+film,film_edge_candidates_total,NA,NA,113
+digital,digital_edge_candidates_total,NA,NA,173

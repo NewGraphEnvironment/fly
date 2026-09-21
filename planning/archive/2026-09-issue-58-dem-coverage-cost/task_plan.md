@@ -1,0 +1,111 @@
+# Task: Measure what a partially DEM-covered footprint costs, from real frames (#58)
+
+## Problem
+
+A footprint that hangs off the edge of the DEM is sized from the **mean elevation of the
+part that is covered**. That is documented behaviour and it is reported — `dem_coverage`
+gives the fraction per frame, and `fly_footprint()` warns once it falls below
+`fly_dem_coverage_min()` (0.95) — but nothing has ever measured what it costs.
+
+During the fly#50 run over the province-wide digital population, **18 of 416
+DEM-corrected frames fell under 95% `dem_coverage`, one as low as 47%**. A frame half off
+the DEM is sized from the half that happens to be on it, and its `height_agl` sits in the
+same column, with the same `footprint_terrain = "dem_agl"`, as a fully sampled
+neighbour's.
+
+Outcome: a measurement that ships, plus whichever of the four remedies the issue names
+(leave as is / move the threshold / add a floor / report a quality column) a rule written
+**before the numbers exist** selects.
+
+## What exploration established (plan mode, 2026-09-20)
+
+1. **A single-point `fly_footprint()` call gets `NA` bearing** — `width_source` comes back
+   `axis_aligned_no_bearing`, because `fly_bearing()` needs an *adjacent* frame number in
+   the object handed to it. A direction-dependent truncation study must not run on an
+   axis-aligned square by accident.
+2. **The full 1.67M-row catalogue pull is already cached** in `data-raw/.cache/centroids/`.
+3. **MRDEM-30 is `NA` only over US territory south of 49 N and far offshore**, so real BC
+   partial coverage against the default DEM is a border phenomenon losing one systematic
+   direction.
+4. **Near-shore ocean is not `NA` and not exact zero** — 40,000 cells in Hecate Strait read
+   0.098-0.189 m, no exact zeros. A coastal frame reports coverage ~1 with its mean dragged
+   toward sea level, and an "exact zero cells" guard can never fire.
+
+The 2-frame feasibility probe is an anecdote and its numbers must not reach the note or
+NEWS as measured figures.
+
+## Phase 1 - The population, before anything synthetic
+
+- [x] Random draw (n ~ 3,000) of DEM-eligible catalogue frames measured against MRDEM-30
+      through a PSOCK cluster; base rate under 1, 0.95, 0.8, 0.5 — **0 of 2,975 short**
+- [x] Census of every frame that could reach MRDEM nodata — found by distance to nodata on
+      a coarse overview, not by latitude: MRDEM extends past 49 N, so a border test would
+      have measured the wrong stratum. 113 film candidates, 66 under 0.95; 173 digital
+      candidates, 0 under 1
+- [x] False-alarm side of 0.95 on a properly buffered DEM — zero, in 2,975 frames
+- [x] Ocean contamination recorded as a bound on the claim: a coastal frame reports
+      coverage ~1 over a near-zero surface, which removing cells cannot generate
+- [ ] Ship `inst/extdata/dem_coverage_population.csv` (written by Stage 6)
+
+## Phase 2 - Harness contract
+
+- [x] `data-raw/dem_calibrate-coverage_error.R`, house pattern: `pkgload::load_all()`,
+      resumable `.part` + `file.rename` cache, `write_if_changed()`, a producer line per
+      published figure
+- [x] Treatment variable is exogenous and geometric (share of the nominal footprint
+      removed); achieved `dem_coverage` is an outcome, and the mapping is published
+- [x] `NA` masking primary, extent cropping a declared second level
+- [x] Assert `terra::origin()` and `terra::res()` unchanged by every truncation
+- [x] Window sized from `resize(0, fh)` times sqrt(2)
+- [x] Bearing handled explicitly - contiguous roll runs of 3, the target in the middle
+- [x] Film primary; digital eligibility resolved by re-pulling `camera_calibration_url`
+      for 673 rows rather than the whole catalogue
+- [x] Premise assertions: every retained frame is `dem_coverage == 1`, `"dem_agl"`,
+      `"reported"` on its full window; anything else dropped by name and counted
+
+## Phase 3 - The sweep
+
+- [x] mechanism x direction (4 cardinal + 4 diagonal masks) x removed share
+- [x] Recorded per run: coverage, `height_agl`, area, `footprint_terrain`,
+      `height_source`, covered-cell statistics, mean elevation of the removed part
+- [x] Classification captured per frame via the columns rather than batch-level warnings —
+      strictly better, since warnings are per call. Every flip is `no_dem_coverage` at
+      coverage 0; none crosses `fly_height_ratio_band()`
+- [x] Analytic term recorded — realised equals it to 1.6e-13 over 10,248 runs
+- [x] Candidate predictors computable from the covered cells alone, scored on held-out
+      targets; `covered_sd` chosen, and it ships as `dem_elev_sd`
+- [x] Planar extrapolation measured — better on only 40.8% of runs below half coverage,
+      so not pursued
+- [ ] Independent anchors NOT done — the sweep is film-only and the reference is the
+      full-coverage answer, which is a sensitivity measure and is stated as one
+- [x] Shipped `dem_coverage_sweep.csv` + `dem_coverage_targets.csv`
+
+## Phase 4 - Robustness arm, from the same cached windows
+
+- [x] ~900 m aggregate
+- [x] EPSG:4326 reprojection arm - the branch 0.95 was actually set for
+- [x] Anisotropic cells
+
+## Phase 5 - The remedy, by rules fixed in the plan
+
+- [x] Metric, sign asymmetry and resolution floor fixed before fitting; predictor scored
+      on held-out frames
+- [x] Decided by the rule: no floor, 0.95 kept with a measured justification,
+      `dem_elev_sd` shipped
+- [x] Warning text reworded
+
+## Phase 6 - Note, tests, docs, release
+
+- [x] New section in `inst/notes/terrain-correction.md`
+- [x] `test-fly_footprint_coverage.R` parses all eight of the note's tables and recomputes
+      every cell at its printed precision; all eight redden on a planted wrong value
+- [x] Behavioural tests for `dem_elev_sd`, proven by planting defects
+- [x] Roxygen updated
+- [ ] NEWS, version bump as the final commit
+
+## Validation
+
+- [x] Tests pass — FAIL 0, SKIP 0, PASS 2114 (baseline 1852)
+- [x] `/code-check` run: four rounds, terminated by enumeration
+- [ ] PWF checkboxes match landed work
+- [ ] `/planning-archive` on completion

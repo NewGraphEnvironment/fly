@@ -161,6 +161,40 @@ identical `elev` and `covered` over off-DEM, truncating, geographic-CRS, multi-l
 anisotropic shapes — **wherever the frame covers at least one cell centre**, which is the
 condition the note states and bounds. Read `inst/notes/terrain-correction.md`
 
+- **Partial DEM coverage costs the elevation bias over the height above ground, and
+`dem_coverage` alone cannot tell you how much** (v0.14.0, #58) — 11,520 truncations of 120
+real frames, cut from eight directions at eight depths and compared against each frame's
+own full-coverage answer. The realised width error equals `Δelev / height_agl` to
+**1.6e-13**, so the pipeline contributes nothing and the result is terrain statistics
+rather than a property of this code.
+
+  **Three of the four possible remedies were refused, each by a rule fixed before the
+  numbers existed.** No fallback floor: no coverage band exists where the DEM route is
+  worse than nominal scale in the median, and below 20% coverage it is still better by
+  nearly four times. `fly_dem_coverage_min()` stays at **0.95**, but its justification
+  changes from "reprojection slivers" to measurement — the worst linear error at or above
+  0.95 is 0.794%, still 0.794% at 0.94, and first passes 1% at 0.92, which is where a
+  truncated frame's worst case stops being cheaper than the ~2% of area the deferred
+  per-corner ray-casting already costs every frame. It is **not** moved down, because the
+  warning's remedy (buffer by `half_side * sqrt(2)`) is correct at every coverage.
+
+  **What did ship is `dem_elev_sd`**, because at a fixed `dem_coverage` the error spans
+  **13 to 52 times** between frames and nothing on the row separated them. Frames above
+  their band's median spread sit 2.3 to 4.1 times further out. The predictor had to be
+  computable from the cells the DEM actually read — a relief figure from the full window
+  predicts well and could never be reported — and **pooled, it barely beats coverage
+  (0.80 against 0.72), on which alone no column would have shipped**. Pooling is the wrong
+  comparison: coverage dominates it, and the question is what remains once coverage is
+  known.
+
+  **Against MRDEM-30 this is a 0.005% event** — 66 of 1,437,147 film frames, 0 of 223,667
+  digital, 0 of 2,975 random controls. The issue's own "18 of 416" does not reproduce; a
+  DEM cropped to that run's AOI is the likely cause and is recorded as inference. So the
+  frequency is a property of how the caller crops, not of the catalogue. A near-zero ocean
+  surface (not nodata, and with no exact zeros) is a coverage-1 failure the sweep cannot
+  generate and `dem_coverage` cannot see — out of scope, stated as a bound. Read
+  `inst/notes/terrain-correction.md`
+
 - **Terrain error is a datum offset, not slope** (v0.5.0, #9) — `FLYING_HEIGHT` is metres **above sea level**,
 and reported scale is referenced to an elevation above the ground the photos cover, so it understates footprint
 area by a median 13.8% *always in the same direction*. `fly_footprint(dem =)` sizes each frame from
