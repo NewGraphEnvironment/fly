@@ -41,12 +41,15 @@ computed), \code{height_agl} giving the metres above ground each was sized from,
 \code{height_source} recording where that height came from or why there is none
 (see Terrain), \code{dem_coverage} giving the fraction of each footprint the
 DEM actually covered (\code{0} where it covered none, \code{NA} only where there is no
-footprint), and \code{dem_elev_sd} giving the standard deviation in metres of the
+footprint), \code{dem_elev_sd} giving the standard deviation in metres of the
 DEM values under that footprint — \code{NA} wherever \code{dem_coverage} is, and also
 wherever the DEM described \strong{fewer than two} cells, since a spread needs
 two. The common case of the second is a frame the DEM does not reach at all,
 which has \code{dem_coverage} of \code{0} rather than \code{NA} and so is the one place the
-two columns differ.
+two columns differ. And \code{dem_shortfall_m} giving the metres the DEM would
+have to extend to contain that footprint, where \strong{\code{0} is an answer}: the DEM
+already spans the frame, so any missing cells are nodata inside its extent and
+no re-crop will recover them.
 Frames whose format could not be resolved get an empty geometry. Every
 class the input carries is carried through, so a tibble-backed sf — which
 is what \code{bcdata::collect()} returns — comes back tibble-backed. The order
@@ -268,6 +271,15 @@ and warns once that falls below 95\%. \code{dem_coverage} reports the fraction p
 frame — measured against the cells the footprint should have covered, not the
 cells that came back — so a truncated footprint can be filtered rather than
 merely noticed.
+
+\strong{Two remedies, and the column that tells them apart.} Partial coverage has
+two causes that \code{dem_coverage} reports identically. A DEM whose extent stops
+short of the frame can be re-cropped and the frame recovered exactly, and
+\code{dem_shortfall_m} says by how much — \code{max(fp$dem_shortfall_m)} is the buffer
+that would contain every footprint in the batch. A DEM with nodata \emph{inside} its
+extent cannot be re-cropped at all, and reports \code{0}. Against a remote MRDEM
+read the shortfall is always \code{0}, because the window is fetched per frame;
+the first case is what a DEM cropped to an area of interest produces.
 
 \strong{What truncation costs, and why two columns report it.} Measured over 11,520
 truncations of 120 real frames against each frame's own full-coverage answer:

@@ -393,11 +393,20 @@ test_that("every row of the note's published tables recomputes from the shipped 
   sec <- md[seq(grep("^## What a partially covered footprint costs", md),
                 grep("^## Testing this", md) - 1)]
   # Terminate by enumeration rather than by intent. This test claims a figure cannot be
-  # published in the section without being checked; that claim is only true if it walks
-  # EVERY table, and an earlier version walked six of eight while saying so. Counting the
-  # separator rows is what makes "all of them" a measurement.
+  # published in the section without being checked; that claim is only true if it accounts
+  # for EVERY table, and an earlier version walked six of eight while saying so.
+  #
+  # It has already earned its keep: adding the shortfall section took the count to nine and
+  # this assertion failed, which is the only reason the new table was accounted for rather
+  # than silently unchecked.
+  #
+  # Every table is either recomputed below or named here as carrying no recomputable
+  # figure. The exemption is explicit, because an unnamed one is how a guard quietly stops
+  # covering what it claims to.
   n_tables <- sum(grepl("^\\|[- |]+\\|$", sec))
-  expect_identical(n_tables, 8L)
+  qualitative <- grep("^\\| cause \\| `dem_shortfall_m` \\| remedy \\|$", sec)
+  expect_identical(length(qualitative), 1L)
+  expect_identical(n_tables - length(qualitative), 8L)
   pct <- function(v) as.numeric(sub("%$", "", v))
   # Compared at the PUBLISHED precision, not through a tolerance. `tolerance` in
   # testthat 3e is relative, so 2e-2 pinned a three-decimal figure only to +/-2% and
@@ -529,4 +538,103 @@ test_that("every row of the note's published tables recomputes from the shipped 
     expect_printed(stats::cor(z$covered_sd, abs(z$err), method = "spearman"), r[[2]], r[[1]])
     expect_printed(stats::cor(z$covered_grad, abs(z$err), method = "spearman"), r[[3]], r[[1]])
   }
+})
+
+
+test_that("dem_shortfall_m says how far the DEM falls short, and zero means something else", {
+  skip_if_no_terra()
+  dem <- terra::rast(testdata_path("dem.tif"))
+  centroids <- sf::st_read(testdata_path("photo_centroids.gpkg"), quiet = TRUE)
+
+  # A frame hanging off the western edge: the case an under-cropped AOI produces, and the
+  # only one that actually occurs against a remote MRDEM read.
+  with_data <- which(!is.na(terra::values(dem)))
+  xy <- terra::xyFromCell(dem, with_data)
+  edge <- centroids[11, ]
+  sf::st_geometry(edge) <- sf::st_transform(
+    sf::st_sfc(sf::st_point(xy[which.min(xy[, 1]), ]), crs = 3005), 4326)
+
+  w <- character()
+  fp <- withCallingHandlers(
+    fly_footprint(edge, dem = dem),
+    warning = function(x) {
+      w <<- c(w, conditionMessage(x))
+      invokeRestart("muffleWarning")
+    })
+  expect_lt(fp$dem_coverage, fly_dem_coverage_min())
+  expect_gt(fp$dem_shortfall_m, 0)
+
+  # The figure has to be the real distance, not a proxy for it: the DEM extended by this
+  # much must actually contain the footprint, and a hair less must not.
+  fe <- sf::st_bbox(sf::st_transform(fp, terra::crs(dem)))
+  de <- terra::ext(dem)
+  truth <- max(0, de[1] - fe[["xmin"]], fe[["xmax"]] - de[2],
+               de[3] - fe[["ymin"]], fe[["ymax"]] - de[4])
+  expect_equal(fp$dem_shortfall_m, truth, tolerance = 1e-6)
+
+  # And the warning has to say it, since that is the whole point of computing it.
+  msg <- grep("covered by the DEM", w, value = TRUE)
+  expect_length(msg, 1L)
+  expect_match(msg, "stops short of")
+  expect_match(msg, "extending it by [0-9]+ m")
+  expect_false(grepl("no re-crop will help", msg))
+})
+
+
+test_that("an interior nodata hole reports zero shortfall and says so", {
+  skip_if_no_terra()
+  dem <- terra::rast(testdata_path("dem.tif"))
+  one <- sf::st_read(testdata_path("photo_centroids.gpkg"), quiet = TRUE)[1, ]
+
+  # Punch a hole inside a frame that the DEM comfortably spans. This is the case a caller
+  # can do nothing about, and reporting a coverage fraction made it look identical to the
+  # re-croppable one.
+  fp0 <- suppressWarnings(fly_footprint(one, dem = dem))
+  g <- terra::vect(sf::st_transform(sf::st_geometry(fp0), terra::crs(dem)))
+  holed <- terra::mask(dem, terra::buffer(terra::centroids(g), 900))
+
+  w <- character()
+  fp <- withCallingHandlers(
+    fly_footprint(one, dem = holed),
+    warning = function(x) {
+      w <<- c(w, conditionMessage(x))
+      invokeRestart("muffleWarning")
+    })
+  expect_lt(fp$dem_coverage, fly_dem_coverage_min())
+  # Zero, not NA: the DEM's extent does span the frame. That distinction is the finding.
+  expect_identical(fp$dem_shortfall_m, 0)
+
+  msg <- grep("covered by the DEM", w, value = TRUE)
+  expect_length(msg, 1L)
+  expect_match(msg, "no re-crop will help")
+  expect_false(grepl("stops short of", msg))
+})
+
+
+test_that("the shortfall is metres even when the DEM is in degrees", {
+  skip_if_no_terra()
+  dem <- terra::rast(testdata_path("dem.tif"))
+  # The axis `inst/notes/terrain-correction.md` says the bundled fixture cannot reach, and
+  # the one this figure is most exposed to: in a geographic CRS the raw gap is in DEGREES,
+  # so an unconverted number would read 0.0104 where the answer is about a kilometre.
+  geo <- terra::project(dem, "EPSG:4326")
+  expect_true(terra::is.lonlat(geo))
+  with_data <- which(!is.na(terra::values(geo)))
+  xy <- terra::xyFromCell(geo, with_data)
+  edge <- sf::st_read(testdata_path("photo_centroids.gpkg"), quiet = TRUE)[1, ]
+  sf::st_geometry(edge) <- sf::st_sfc(sf::st_point(xy[which.min(xy[, 1]), ]), crs = 4326)
+
+  fp <- suppressWarnings(fly_footprint(edge, dem = geo))
+  expect_lt(fp$dem_coverage, 1)
+  expect_gt(fp$dem_shortfall_m, 100)      # metres, not degrees
+  expect_lt(fp$dem_shortfall_m, 50000)    # ... and not degrees mistaken for metres
+
+  # Pin the failure it guards: the raw degree gap, which is what shipping unconverted
+  # would report, is three orders of magnitude smaller.
+  fe <- sf::st_bbox(sf::st_transform(fp, terra::crs(geo)))
+  de <- terra::ext(geo)
+  raw <- max(0, de[1] - fe[["xmin"]], fe[["xmax"]] - de[2],
+             de[3] - fe[["ymin"]], fe[["ymax"]] - de[4])
+  expect_lt(raw, 1)
+  expect_gt(fp$dem_shortfall_m / raw, 1000)
 })

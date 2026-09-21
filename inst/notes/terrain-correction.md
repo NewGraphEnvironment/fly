@@ -492,6 +492,38 @@ covers 95.3% of held-out runs, fitted on the training third alone — but it is 
 where a caller would want it. A number that looks authoritative and is six times too large
 is worse than the two inputs it was built from.
 
+### The number that was missing was not a better description of the damage
+
+Everything above measures what partial coverage *costs*. None of it tells a caller what to
+*do*, and the population section says why that matters: against a remote MRDEM read this
+happens to 66 frames in 1.44 million, so in practice it is a DEM cropped to an area of
+interest that is too small. The remedy is not a better statistic, it is a bigger crop.
+
+`dem_shortfall_m` is the metres the DEM would have to extend to contain the footprint. On
+the same frame where `dem_coverage` reports 0.253 and `dem_elev_sd` 94.1 m, it reports
+**3,822 m** — and `max(fp$dem_shortfall_m)` is the buffer that would contain the whole
+batch. It needs no DEM read, being pure geometry, so it is computed on the rectangle the
+caller actually receives rather than on the one the second pass sampled; those differed by
+6.4 m on a 3,822 m shortfall, which is small and exactly the kind of near-miss that makes
+a number impossible to check against the object in front of you.
+
+**Zero is an answer, and it is the point of the column.** Partial coverage has two causes
+that `dem_coverage` reports identically:
+
+| cause | `dem_shortfall_m` | remedy |
+|---|---|---|
+| the DEM's extent stops short of the frame | > 0 | re-crop by that much; the frame is recovered exactly |
+| nodata *inside* an extent that already spans the frame | 0 | none — no re-crop reaches it |
+
+The warning distinguishes them in those words rather than quoting a coverage fraction at
+both. That distinction is the part `dem_coverage` structurally cannot make, and it went
+unbuilt for three releases because the question was framed as "how do we describe this
+better" rather than "what is the caller supposed to do".
+
+**Not an automatic top-up.** Falling back to MRDEM for the missing terrain was considered
+and rejected: it partially ignores a documented argument and reaches the network without
+being asked. Reporting the window the caller needs leaves the decision where it belongs.
+
 ### What the sweep is blind to
 
 - **Ocean.** MRDEM returns a near-zero surface over near-shore water rather than nodata —

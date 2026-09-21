@@ -330,6 +330,7 @@ fly_dem_sample <- function(dem, rects) {
     vals <- if (!on_dem) NA_real_ else terra::extract(terra::crop(dem, ei), vi)[, 2]
 
     terra::values(tmpl) <- 1L
+
     # The spread of the cells that were read, from the values already in hand (fly#58).
     # `covered` says how much of the footprint is missing; this says how much that could
     # matter, and nothing else on the row does. At a FIXED coverage the frames above the
@@ -480,12 +481,15 @@ fly_is_square <- function(footprints) {
 #'   `height_source` recording where that height came from or why there is none
 #'   (see Terrain), `dem_coverage` giving the fraction of each footprint the
 #'   DEM actually covered (`0` where it covered none, `NA` only where there is no
-#'   footprint), and `dem_elev_sd` giving the standard deviation in metres of the
+#'   footprint), `dem_elev_sd` giving the standard deviation in metres of the
 #'   DEM values under that footprint — `NA` wherever `dem_coverage` is, and also
 #'   wherever the DEM described **fewer than two** cells, since a spread needs
 #'   two. The common case of the second is a frame the DEM does not reach at all,
 #'   which has `dem_coverage` of `0` rather than `NA` and so is the one place the
-#'   two columns differ.
+#'   two columns differ. And `dem_shortfall_m` giving the metres the DEM would
+#'   have to extend to contain that footprint, where **`0` is an answer**: the DEM
+#'   already spans the frame, so any missing cells are nodata inside its extent and
+#'   no re-crop will recover them.
 #'   Frames whose format could not be resolved get an empty geometry. Every
 #'   class the input carries is carried through, so a tibble-backed sf — which
 #'   is what `bcdata::collect()` returns — comes back tibble-backed. The order
@@ -702,6 +706,15 @@ fly_is_square <- function(footprints) {
 #' frame — measured against the cells the footprint should have covered, not the
 #' cells that came back — so a truncated footprint can be filtered rather than
 #' merely noticed.
+#'
+#' **Two remedies, and the column that tells them apart.** Partial coverage has
+#' two causes that `dem_coverage` reports identically. A DEM whose extent stops
+#' short of the frame can be re-cropped and the frame recovered exactly, and
+#' `dem_shortfall_m` says by how much — `max(fp$dem_shortfall_m)` is the buffer
+#' that would contain every footprint in the batch. A DEM with nodata *inside* its
+#' extent cannot be re-cropped at all, and reports `0`. Against a remote MRDEM
+#' read the shortfall is always `0`, because the window is fetched per frame;
+#' the first case is what a DEM cropped to an area of interest produces.
 #'
 #' **What truncation costs, and why two columns report it.** Measured over 11,520
 #' truncations of 120 real frames against each frame's own full-coverage answer:
@@ -956,6 +969,11 @@ fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL,
   # missing part could be worth, which coverage alone cannot: at a fixed coverage the
   # measured error spans 13 to 52 times between frames.
   dem_elev_sd <- rep(NA_real_, n)
+  # How far the DEM would have to extend to contain the footprint, in metres (fly#58).
+  # The actionable half of the pair: `dem_coverage` says how much is missing, this says
+  # what to do about it. **Zero is an answer** — the DEM already spans the frame, so the
+  # missing cells are interior nodata and no re-crop will help.
+  dem_shortfall_m <- rep(NA_real_, n)
   # Where `height_agl` came from, or why there is none. NA wherever no DEM height was
   # judged at all: no `dem`, a frame sized from its ground sample distance, a frame the DEM
   # does not cover, or `flying_height` / `focal_length` simply missing.
@@ -1123,6 +1141,44 @@ fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL,
     # rectangle the caller receives, and a corrected frame ships the second pass's.
     spread <- ifelse(corrected, second$spread, first$spread)
 
+    # How far the DEM falls short of each footprint, in metres (fly#58).
+    #
+    # Computed here, once, on the rectangle the caller will actually receive — not on the
+    # one the second pass sampled, and not separately for the warning and the column. It
+    # is pure geometry and needs no DEM read, so there is no reason for it to lag a resize
+    # behind the way `dem_coverage` must.
+    #
+    # ZERO IS AN ANSWER, not an absence. A DEM whose extent already spans the footprint
+    # and still returns missing cells has nodata *inside* it, which no re-crop can fix.
+    # The two causes need opposite remedies and `dem_coverage` cannot tell them apart,
+    # which is most of what this column is for.
+    fin_cross <- half_cross
+    fin_along <- half_along
+    fin_cross[corrected] <- candidate$cross[corrected]
+    fin_along[corrected] <- candidate$along[corrected]
+    final <- fly_rectangles(coords, fin_cross, fin_along, bearing)
+    has_geom <- dem_eligible & !sf::st_is_empty(final)
+    if (any(has_geom)) {
+      fv <- terra::vect(sf::st_transform(sf::st_sf(geometry = final[has_geom]),
+                                         sf::st_crs(terra::crs(dem))))
+      ed <- terra::ext(dem)
+      # A geographic DEM measures the gap in DEGREES, so it is converted at the
+      # footprint's own latitude — an unconverted figure reads 0.010 where the answer is
+      # about a kilometre. Approximate by design: this is one scalar distance along a
+      # meridian or parallel, not a reprojected rectangle, so the convention against
+      # transforming a projected bbox's corners does not apply.
+      lonlat <- terra::is.lonlat(dem)
+      dem_shortfall_m[has_geom] <- vapply(seq_along(fv), function(i) {
+        fe <- terra::ext(fv[i])
+        gap <- pmax(c(ed[1] - fe[1], fe[2] - ed[2], ed[3] - fe[3], fe[4] - ed[4]), 0)
+        if (lonlat) {
+          m <- 111320 * cos((fe[3] + fe[4]) / 2 * pi / 180)
+          gap <- gap * c(m, m, 111320, 111320)
+        }
+        max(gap)
+      }, numeric(1))
+    }
+
     # Every fallback keeps the frame at nominal scale rather than dropping it:
     # a frame we cannot correct is still a frame.
     if (any(uncovered)) {
@@ -1175,25 +1231,36 @@ fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL,
     # so it is reported rather than passed off silently.
     partial <- corrected & !is.na(covered) & covered < fly_dem_coverage_min()
     if (any(partial)) {
-      warning(
+      # Two causes, two remedies, and the number that tells them apart. A DEM that stops
+      # short can be re-cropped and the frame recovered exactly; one with interior nodata
+      # cannot, and there is nothing for the caller to do but decide whether to keep the
+      # frame. Reporting only the coverage fraction left both looking the same.
+      short <- dem_shortfall_m[partial]
+      need <- max(short, na.rm = TRUE)
+      msg <- paste0(
         sum(partial), " of ", sum(corrected), " corrected frames are less than ",
-        round(100 * fly_dem_coverage_min()), "% covered by the DEM (as little ",
-        "as ", round(100 * min(covered[partial])), "% of one footprint). Their ",
-        "ground elevation is the mean of the covered part, which need not ",
-        "represent the whole. Measured over 11,520 truncations of real frames, that ",
-        "costs a median 0.34% of footprint width at 60-80% coverage and 1.5% below ",
-        "20%, but up to 24% on broken ground \u2014 so the median is not what any one ",
-        "frame is exposed to. `dem_elev_sd` is what separates them: at a given ",
-        "coverage, frames above the median spread sit 2 to 4 times further out. ",
-        "Buffer the DEM past the corner of the widest footprint \u2014 half its width ",
-        "times sqrt(2), not half its width. See `dem_coverage` and ",
-        "`inst/notes/terrain-correction.md`.",
-        call. = FALSE
-      )
+        round(100 * fly_dem_coverage_min()), "% covered by the DEM (as little as ",
+        round(100 * min(covered[partial])), "% of one footprint). Their ground ",
+        "elevation is the mean of the covered part, which need not represent the whole ",
+        "\u2014 measured over 11,520 truncations that costs a median 0.34% of footprint ",
+        "width at 60-80% coverage and 1.5% below 20%, but up to 24% on broken ground. ")
+      msg <- paste0(msg, if (need > 0) {
+        paste0("The DEM stops short of ", sum(short > 0, na.rm = TRUE), " of them; ",
+               "extending it by ", format(ceiling(need)), " m would contain every ",
+               "footprint. See `dem_shortfall_m` for the figure per frame.")
+      } else {
+        paste0("The DEM already spans every one of them, so the gaps are nodata ",
+               "*inside* its extent and no re-crop will help. See `dem_elev_sd` for how ",
+               "much the terrain under each varies, which is what separates a costly ",
+               "gap from a free one.")
+      })
+      warning(msg, call. = FALSE)
     }
 
-    half_cross[corrected] <- candidate$cross[corrected]
-    half_along[corrected] <- candidate$along[corrected]
+    # From the same locals the shortfall was measured on, so the reported figure and the
+    # returned geometry cannot come apart.
+    half_cross <- fin_cross
+    half_along <- fin_along
     height_agl[corrected] <- agl[corrected]
     # Reported for every frame that had a footprint to sample, not only the
     # corrected ones: `no_dem_coverage` is a measured zero, and leaving it NA
@@ -1245,6 +1312,7 @@ fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL,
   height_agl[no_geom] <- NA_real_
   dem_coverage[no_geom] <- NA_real_
   dem_elev_sd[no_geom] <- NA_real_
+  dem_shortfall_m[no_geom] <- NA_real_
   # `height_source` names the height `height_agl` came from, so it goes with it — except
   # "implausible", which says why a frame has NO height and, like `width_source` on a
   # refused camera, is the only thing on the row explaining the empty geometry.
@@ -1308,6 +1376,7 @@ fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL,
   attrs$height_agl <- height_agl
   attrs$dem_coverage <- dem_coverage
   attrs$dem_elev_sd <- dem_elev_sd
+  attrs$dem_shortfall_m <- dem_shortfall_m
   attrs$height_source <- height_source
 
   result <- sf::st_sf(
