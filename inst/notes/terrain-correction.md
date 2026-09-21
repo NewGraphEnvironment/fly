@@ -70,7 +70,8 @@ count over the cell count — both counted the same way, on the same centres.
 The 0.95 warning threshold in `fly_dem_coverage_min()` is not arbitrary. Reprojecting a DEM
 leaves NA slivers along its edges, so a frame near the margin is routinely a fraction of a
 percent short through no fault of the caller; warning on any missing cell fires on good data
-and stops being read.
+and stops being read. That is why it was *chosen*; fly#58 later measured what it is worth
+and it survives for a better reason — see "What a partially covered footprint costs".
 
 ## The DEM is read through one window per frame (fly#59)
 
@@ -265,6 +266,278 @@ right footprint and still pays for the wrong one.
 scale is the wrong one, falling back to nominal is the worse choice, and nothing here can
 know. That is why the `"implausible"` warning names no cause, and why the frames are
 flagged rather than silently resized.
+
+## What a partially covered footprint costs (fly#58)
+
+A footprint hanging off the edge of the DEM is sized from the mean of the part that is
+covered. `dem_coverage` has reported the fraction since fly#9 and `fly_dem_coverage_min()`
+has warned below 0.95 since then, but nothing measured what it was worth. This section is
+that measurement, and it changed one thing: `dem_elev_sd` now ships beside `dem_coverage`,
+because coverage alone cannot tell an expensive truncation from a free one.
+
+### It almost never happens against the DEM this package recommends
+
+Measured before anything synthetic was generated, because the answer decides which remedy
+is worth building. Candidates were found by distance to the nearest nodata cell on an
+1833 m overview of MRDEM-30, read through `gdal_translate -outsize` so it resolves against
+the COG's own overviews; every candidate was then measured at full resolution through
+`fly_footprint()` itself.
+
+| population | n | could reach nodata | DEM-sized | under 0.95 |
+|---|---|---|---|---|
+| film, DEM-eligible | 1,437,147 | 113 | 87 | **66** |
+| digital | 223,667 | 173 | 6 | **0** |
+| random film control | 3,000 | — | 2,975 | **0** |
+
+So 66 frames in 1.44 million — 0.005%. Of the 173 digital candidates, 167 never reach the
+DEM route at all: they are sized from their ground sample distance. The affected film
+frames run 1982-1996 at 1:10000 to 1:70000, and 26 more are off the DEM entirely.
+
+**The random draw is the control on the finder**, which reads a coarse overview and so
+cannot see a nodata hole a few cells across. 0 of 2,975 randomly drawn frames were short
+of full coverage, which is what licenses the census above as a census. Its residual blind
+spot is a nodata patch smaller than a coarse cell.
+
+**The issue's own figure does not reproduce.** fly#58 reports "18 of 416 DEM-corrected
+frames fell under 95% `dem_coverage`, one as low as 47%" from the fly#50 run. Nothing in
+the catalogue's digital population is partially covered by MRDEM-30. The likely
+explanation is that the run supplied a DEM cropped to its own area of interest — which is
+the failure this file already calls the ordinary one — but that is inference, and the run
+left no artifact to check it against.
+
+**The frequency is therefore not a property of the catalogue.** With the documented
+default DEM it is a 0.005% event; with a DEM cropped to an AOI it happens exactly as often
+as that AOI is under-buffered, which no measurement here can bound. That is why the
+decision below rests on what partial coverage costs, not on how often it occurs.
+
+### The cost is exactly the elevation bias over the height above ground
+
+120 frames, stratified by scale and by a ruggedness surface computed from the coarse DEM —
+both properties known before any truncation, never the error itself. Each frame's DEM
+window was truncated from eight directions at eight depths, by `NA` masking and by extent
+cropping, and the result compared against that frame's own full-coverage answer.
+11,520 runs; `data-raw/dem_calibrate-coverage_error.R` reproduces all of it, and
+`inst/extdata/dem_coverage_sweep.csv`, `dem_coverage_targets.csv` and
+`dem_coverage_population.csv` ship so the suite recomputes every **table** here from the
+artifact rather than trusting it — all eight, cell by cell, at the precision each is
+printed to, with the table count itself asserted so a ninth cannot be added unchecked.
+Figures stated only in **prose** are a different matter: some recompute and are asserted,
+some recompute and are not, and eight are **not** recomputable from the shipped tables and rest on
+the script's own run log instead: the digital population's route split, the 1982-1996 span
+of the affected film frames, the ocean probe, the determinism check, the 0.215 correction
+above, the `1.6e-13` analytic agreement at full precision (the shipped table is rounded, so
+the suite checks 1e-5), the 223,667 digital total, and the 1833 m overview resolution.
+
+**The treatment variable is the share of the nominal footprint removed, computed from
+geometry before any DEM is read.** Achieved `dem_coverage` is recorded as an outcome, and
+that distinction is load-bearing: truncation biases the first pass, which changes the
+height above ground, which resizes the rectangle, which moves the coverage again.
+
+**Measured, that feedback is negligible in the middle and real in the tail.** Across the
+native runs, `share_removed` minus `1 - dem_coverage` has a median of **0.000**, a 90th
+percentile of **0.055** and a maximum of **0.284** — so a 0.30 geometric share comes back
+at a median achieved coverage of 0.699, and the two agree for most frames. The design
+decision does not rest on the magnitude: achieved coverage is downstream of the treatment
+whatever its size, so regressing the error on it would be fitting an outcome to an
+outcome. The mapping between the two is published instead, because any shipped constant
+has to be expressed in the number the code holds.
+
+An earlier draft of this paragraph claimed a 0.30 target came back as 0.215. That figure
+is from the two-frame feasibility probe, which parameterised the cut as a fraction of the
+footprint's bounding box rather than as a share of its area — a different quantity, quoted
+as if it were this one. It is the anecdote-into-the-note failure this file warns about,
+and it survived two review rounds.
+
+**Realised error equals `Δelev / height_agl` to 1.6e-13 over 10,248 runs.** The half-side
+scales with the height above ground, so the whole first-order effect is the elevation bias
+divided by that height, and the pipeline adds nothing measurable on top. This is a
+terrain-statistics result that transfers past this package: partial coverage costs
+whatever the covered mean differs from the true mean, scaled by the flying height.
+
+Signed linear error against the full-coverage answer, by achieved coverage. Area error is
+the square of this — roughly twice it, for small values:
+
+Over the 6,743 of the 7,616 usable native `na_mask` runs whose frame the DEM still sized —
+the 873 that lost their terrain entirely are `no_dem_coverage` and are counted separately
+below, not mixed in here:
+
+| achieved coverage | n | median | 5-95% | max abs |
+|---|---|---|---|---|
+| 0.99-1 | 402 | -0.000% | -0.034% .. +0.021% | 0.175% |
+| 0.95-0.99 | 764 | -0.000% | -0.136% .. +0.148% | 0.794% |
+| 0.90-0.95 | 552 | +0.005% | -0.316% .. +0.374% | 1.280% |
+| 0.80-0.90 | 662 | +0.020% | -0.555% .. +0.707% | 2.520% |
+| 0.60-0.80 | 922 | +0.036% | -1.194% .. +1.428% | 5.569% |
+| 0.40-0.60 | 968 | +0.038% | -2.384% .. +2.656% | 8.577% |
+| 0.20-0.40 | 966 | +0.007% | -4.316% .. +3.696% | 12.529% |
+| 0-0.20 | 1,507 | -0.008% | -7.296% .. +5.487% | 23.563% |
+
+**The signed median is near zero everywhere, and that is the trap.** Every median in the
+table above is of the *signed* error; the DEM-vs-nominal and spread tables below are of
+the *absolute* error, and the two are not comparable. Truncation is unbiased in
+aggregate — losing high ground and losing low ground are equally likely across a
+population — so a median is the wrong summary for a caller holding one frame. What grows
+as coverage falls is the spread.
+
+### 0.95 survives, for a better reason than it was chosen for
+
+It was set to stay quiet on reprojection slivers. Measured:
+
+| coverage floor | n | max abs linear error |
+|---|---|---|
+| >= 0.99 | 402 | 0.175% |
+| >= 0.96 | 1,021 | 0.794% |
+| **>= 0.95** | **1,166** | **0.794%** |
+| >= 0.94 | 1,289 | 0.794% |
+| >= 0.92 | 1,529 | 1.221% |
+| >= 0.90 | 1,718 | 1.280% |
+| >= 0.85 | 2,151 | 2.520% |
+
+One percent of width is about two percent of area, which is what this file records as the
+cost of the per-corner ray-casting the model defers. So at 0.95 the *worst* truncated
+frame is still cheaper than an error already accepted in every frame, and the worst case
+first passes that line at 0.92. The threshold is where it should be; only its
+justification changes.
+
+**It is not moved down**, although the median error stays under 0.05% all the way to 0.8.
+The warning's own remedy — buffer past the corner, `half_side * sqrt(2)` — is correct at
+every coverage, so moving the threshold down silences exactly the frames that advice
+works on. And the median is not what a caller is exposed to; see the spread below.
+
+### No fallback floor: the DEM route beats nominal scale at every coverage
+
+The rule was fixed before the numbers existed: add a floor only if some coverage band
+exists where the DEM route is worse than the nominal fallback it replaced, in the median,
+on the population that occurs. There is none.
+
+| achieved coverage | median abs DEM | median abs nominal | DEM worse on |
+|---|---|---|---|
+| 0.99-1 | 0.003% | 3.321% | 0 of 402 (0.0%) |
+| 0.95-0.99 | 0.032% | 4.467% | 0 of 764 (0.0%) |
+| 0.90-0.95 | 0.079% | 6.236% | 3 of 552 (0.5%) |
+| 0.80-0.90 | 0.178% | 7.807% | 7 of 662 (1.1%) |
+| 0.60-0.80 | 0.335% | 6.316% | 24 of 922 (2.6%) |
+| 0.40-0.60 | 0.632% | 5.755% | 62 of 968 (6.4%) |
+| 0.20-0.40 | 0.967% | 5.755% | 97 of 966 (10.0%) |
+| 0-0.20 | 1.491% | 5.755% | 229 of 1,507 (15.2%) |
+
+Even below 20% coverage the DEM route is better in the median by nearly four times, though
+it is worse on 15% of runs there — the tail is what the next section is about. A frame sized from a sliver of its own terrain still beats
+one sized from a scale referenced to ground it does not cover. **`no_dem_coverage` remains
+the only fallback**, and it is reached only when a footprint finds no elevation at all.
+
+Note this is a *sensitivity* measure, not a ground-truth accuracy claim: the reference is
+the answer the caller would get by following the existing warning's advice and buffering
+the DEM. What it licenses is "buffering is worth this much", not "the DEM route is
+accurate to this much".
+
+### `dem_elev_sd`, because coverage cannot separate the frames inside a band
+
+At a fixed coverage the measured error spans **13 to 52 times** between frames, and until
+now nothing on the row distinguished them. The issue said so at the outset — 47% covered
+over a plateau costs nothing, 80% across a valley wall may cost a lot — and it is right:
+
+| achieved coverage | median abs error | max abs error | spread |
+|---|---|---|---|
+| 0-0.20 | 1.491% | 23.563% | 15.8x |
+| 0.20-0.40 | 0.967% | 12.529% | 13.0x |
+| 0.60-0.80 | 0.335% | 5.569% | 16.6x |
+| 0.80-0.90 | 0.178% | 2.520% | 14.1x |
+| 0.95-0.99 | 0.032% | 0.794% | 25.1x |
+
+**The predictor has to be computable from the cells the DEM route actually read**, because
+that is all production has. A relief figure taken from the full window predicts well and
+could never be reported. Candidates were fixed in advance and scored on held-out frames —
+a third of the targets, untouched until the comparison:
+
+| predictor, covered cells only | Spearman rho vs abs error |
+|---|---|
+| `dem_coverage` | -0.717 (0.717 in magnitude; more coverage, less error) |
+| `covered_range` | 0.152 |
+| `covered_sd` | 0.185 |
+| `covered_grad` (planar fit) | 0.480 |
+| `covered_grad` x lost share x side / agl | 0.801 |
+
+Pooled, the gradient product barely beats coverage, and on that alone no column would have
+shipped. **Pooling is the wrong comparison**: coverage dominates it, and the question is
+what is left once coverage is known. Within each coverage band both spread measures carry
+real signal — `covered_sd` at rho 0.39 to 0.59, `covered_grad` at 0.27 to 0.59 — and `sd`
+is the better of the two in **five** bands of six while needing no plane fit:
+
+| achieved coverage | `covered_sd` | `covered_grad` |
+|---|---|---|
+| 0-0.20 | +0.438 | +0.505 |
+| 0.20-0.40 | +0.513 | +0.474 |
+| 0.40-0.60 | +0.544 | +0.500 |
+| 0.60-0.80 | +0.594 | +0.589 |
+| 0.80-0.95 | +0.474 | +0.451 |
+| 0.95-1 | +0.385 | +0.266 |
+
+What it buys, on held-out frames, splitting each band at its median spread:
+
+| achieved coverage | low-spread median | high-spread median | ratio |
+|---|---|---|---|
+| 0-0.50 | 0.719% (n=479) | 1.636% (n=480) | 2.3x |
+| 0.50-0.80 | 0.231% (n=246) | 0.728% (n=246) | 3.2x |
+| 0.80-0.95 | 0.066% (n=217) | 0.174% (n=218) | 2.6x |
+| 0.95-1 | 0.006% (n=186) | 0.026% (n=187) | 4.1x |
+
+So `dem_elev_sd` is the standard deviation of the DEM values under the returned footprint,
+taken from values `fly_dem_sample()` already holds and read off the same pass as
+`dem_coverage`.
+
+**A calibrated bound is deliberately not shipped.** `4.97 * sd * (1 - coverage) / agl`
+covers 95.3% of held-out runs, fitted on the training third alone — but it is a median
+6.1 times the actual error and holds on only 89.4% of runs below half coverage, which is
+where a caller would want it. A number that looks authoritative and is six times too large
+is worse than the two inputs it was built from.
+
+### What the sweep is blind to
+
+- **Ocean.** MRDEM returns a near-zero surface over near-shore water rather than nodata —
+  40,000 cells in Hecate Strait read 0.098 to 0.189 m, with no exact zeros at all. A
+  coastal frame therefore reports `dem_coverage` near 1 while its mean is dragged toward
+  sea level. That is a coverage-1 failure, it cannot be produced by removing cells, and
+  `dem_coverage` cannot see it. Not fixed here. Note also that the obvious guard for it —
+  counting exact-zero cells — can never fire.
+- **The reference is one frame's own full-coverage answer**, which carries MRDEM's own
+  vertical error and the ~2% of area that per-corner ray-casting would move. Differences
+  below about 1% of width are not resolvable against it and are not read as a knee.
+- **One target of 120 failed its premise** (`1154997`, scale_fine/relief_q4) and is
+  excluded by name: its full-window reference was not a fully covered, DEM-sized,
+  believed-height frame, so truncation would not have been the only treatment.
+- **Film only.** A digital frame's DEM eligibility depends on `camera_calibration_url`,
+  and its `scale` is not an image scale, so it carries no second statement of height to
+  anchor against. The physics is media-independent, but it was measured on film.
+
+### The controls that make the above readable
+
+- **Both truncation mechanisms agree where it matters.** `NA` masking keeps extent, origin
+  and resolution fixed; extent cropping moves them and is the only one that exercises the
+  `on_dem` guard and `crop()`-clips-rather-than-pads. Over 1,856 matched runs the maximum
+  error difference is 14.79% — but that is three runs at total loss, where a one-cell ring
+  at the boundary decides between `dem_agl` with a handful of cells and `no_dem_coverage`.
+  Restricted to the 1,633 runs where both kept the frame on the DEM route: **max 0.43%,
+  99th percentile 0.11%, median 0.003%**.
+- **Resolution, CRS and cell shape do not change the answer.** The same frames swept at
+  ~900 m, reprojected to EPSG:4326 and with anisotropic cells give a median absolute error
+  of 0.696%, 0.585% and 0.677% below 0.8 coverage against 0.777% natively, with zero
+  classification flips. **Each arm is measured against its own full-coverage reference**,
+  which the shipped tables key on `airp_id` AND `arm` for: an arm samples a different
+  raster, so its reference is not the native one — `ref_n` is 90,692 cells natively and
+  101 on the coarse arm for the same frame — and joining every arm to one reference
+  conflates "this arm's DEM differs" with "truncation cost this much". The geographic arm matters most: the reprojection branch is the one
+  0.95 was originally set for, and it does not execute at all on a DEM in the data's own CRS.
+- **Truncation does not trip the fly#54 height checks.** 873 of the 7,616 usable native
+  `na_mask` runs change classification (11.5%) and **every one is `no_dem_coverage` at
+  coverage exactly 0** —
+  the legitimate total-loss endpoint. Zero runs with any coverage at all flip to
+  `"implausible"`, so the ratio band is not being crossed by a biased first pass.
+- **A frame can be `dem_agl` with `dem_coverage == 0`.** Reachable, and self-consistent:
+  the height came from the first pass and coverage describes the second-pass rectangle,
+  which moved off the DEM. The documented `dem_coverage` filter still excludes it.
+- **The sweep is deterministic.** A resume bug re-ran 40 targets twice; the two runs came
+  back byte-identical across every column.
 
 ## Testing this
 

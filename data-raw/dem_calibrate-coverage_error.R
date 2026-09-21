@@ -48,6 +48,7 @@ WINDOWS   <- file.path(CACHE, "windows")
 MRDEM     <- "/vsicurl/https://canelevation-dem.s3.ca-central-1.amazonaws.com/mrdem-30/mrdem-30-dtm.tif"
 OUT_SWEEP <- "inst/extdata/dem_coverage_sweep.csv"
 OUT_POP   <- "inst/extdata/dem_coverage_population.csv"
+OUT_TARGETS <- "inst/extdata/dem_coverage_targets.csv"
 REPO      <- normalizePath(".")
 # Two, not six. Each worker carries a `pkgload::load_all()` of the package — measured at
 # 400-600 MB RSS — so six of them plus the rasters put the machine under memory pressure
@@ -72,7 +73,17 @@ set.seed(58)
 # leaves `git status` clean.
 write_if_changed <- function(d, path) {
   tmp <- tempfile(fileext = ".csv")
-  utils::write.csv(d, tmp, row.names = FALSE)
+  # Quote only the columns that need it. The sweep's character columns are bare tokens
+  # (`na_mask`, `dem_agl`, `NE`) and quoting 11,520 rows of them costs about a fifth of the
+  # file — but the population table's coverage bins are `[0,0.5)`, which carry a comma, and
+  # writing those unquoted would silently shift every column after them. Decided per
+  # column rather than asserted away: the first version of this was a `stopifnot` that
+  # refused the population table outright.
+  needs <- which(vapply(d, function(v) {
+    is.character(v) && any(grepl('[",\n]', v))
+  }, logical(1)))
+  utils::write.csv(d, tmp, row.names = FALSE,
+                   quote = if (length(needs)) needs else FALSE)
   if (!file.exists(path) || tools::md5sum(tmp) != tools::md5sum(path)) {
     file.copy(tmp, path, overwrite = TRUE) || stop("could not write ", path)
     message("wrote ", path, " (", nrow(d), " rows)")
@@ -553,10 +564,13 @@ pub("  %d windows cached", nrow(targets))
 # The treatment variable is the share of the NOMINAL footprint removed, computed from
 # geometry before any DEM is read. Achieved `dem_coverage` is an OUTCOME and is recorded
 # as one: truncation biases the first pass's mean, which changes the height above ground,
-# which resizes the rectangle, which moves the coverage again. A 0.30 geometric target
-# came back as 0.215 achieved in the feasibility probe. Putting achieved coverage on the
-# x-axis would fit a feedback loop; the mapping between the two is published instead,
-# because any shipped constant has to be expressed in the number the code holds.
+# which resizes the rectangle, which moves the coverage again. Measured over this sweep
+# that feedback is negligible in the middle and real in the tail: `share_removed` minus
+# `1 - dem_coverage` has a median of 0.000, a 90th percentile of 0.055 and a maximum of
+# 0.284. The decision does not rest on the magnitude — achieved coverage is downstream of
+# the treatment whatever its size, so regressing the error on it fits an outcome to an
+# outcome. The mapping is published instead, because any shipped constant has to be
+# expressed in the number the code holds.
 #
 # Both mechanisms are "keep only what is inside an axis-aligned rectangle", which is
 # exactly what a DEM cropped to an AOI does: a footprint over the AOI's edge loses a
@@ -855,11 +869,18 @@ sw$elev_bias <- sw$covered_mean - sw$ref_elev
 # scale, not a few percent of resize, and it is the larger failure where it happens.
 sw$flipped <- !(sw$footprint_terrain %in% "dem_agl") | !(sw$height_source %in% "reported")
 
-pub("  classification flips: %d of %d runs (%.2f%%)", sum(sw$flipped), nrow(sw),
-    100 * mean(sw$flipped))
-if (any(sw$flipped)) {
-  pub("    flipped to: %s", paste(names(table(sw$footprint_terrain[sw$flipped])),
-                                  table(sw$footprint_terrain[sw$flipped]), collapse = ", "))
+# Stated over the population the note quotes — native `na_mask` runs with a usable
+# reference — not over every arm and mechanism at once, or the reproducer prints a
+# different pair from the document it reproduces.
+nat_usable <- sw[sw$arm == "native" & sw$mech == "na_mask", ]
+pub("  classification flips: %d of %d native na_mask runs (%.1f%%)",
+    sum(nat_usable$flipped), nrow(nat_usable), 100 * mean(nat_usable$flipped))
+if (any(nat_usable$flipped)) {
+  # The same population as the headline above it. A first version left this on `sw`, which
+  # is every arm and mechanism at once — 1,096 rows under a headline reporting 873.
+  pub("    flipped to: %s",
+      paste(names(table(nat_usable$footprint_terrain[nat_usable$flipped])),
+            table(nat_usable$footprint_terrain[nat_usable$flipped]), collapse = ", "))
 }
 
 # What the pipeline contributes over the arithmetic. If these agree everywhere, the result
@@ -869,7 +890,13 @@ pub("  realised vs analytic error, unflipped runs: max |difference| %.2e over %d
     max(abs(unflipped$err - unflipped$err_analytic)), nrow(unflipped))
 
 native <- sw[sw$arm == "native", ]
-mask <- native[native$mech == "na_mask", ]
+# The population every table below is computed over, defined ONCE. A first version applied
+# the `dem_agl` filter to the robustness arms and not to this, so the script's own producer
+# lines printed a different lowest band from the note they produce: n=2380 and max 25.290%
+# against 1,507 and 23.563%, because all 873 total-loss runs sit at coverage 0 and fall in
+# that band. A frame that lost its terrain entirely is a nominal-scale fallback, not a
+# partially covered footprint, and it does not belong in a table about partial coverage.
+mask <- native[native$mech == "na_mask" & native$footprint_terrain %in% "dem_agl", ]
 
 # The headline: signed linear error by achieved coverage. Signed, because the two routes
 # fail in opposite directions — partial coverage over high ground draws the footprint too
@@ -948,8 +975,46 @@ for (p in c("dem_coverage", "covered_sd", "covered_range", "covered_grad")) {
 ho$predicted <- abs(ho$covered_grad) * (1 - ho$dem_coverage) *
   sqrt(ho$ref_area) / abs(ho$height_agl)
 ok2 <- is.finite(ho$predicted)
-pub("    %-14s Spearman rho vs |error| = %+.3f", "grad x loss", 
+pub("    %-14s Spearman rho vs |error| = %+.3f", "grad x loss",
     stats::cor(ho$predicted[ok2], abs(ho$err[ok2]), method = "spearman"))
+
+# Within a coverage band, which is the question actually being asked once coverage is
+# known. Pooled, coverage dominates and the terrain statistics barely beat it; this block
+# is what decides between `covered_sd` and `covered_grad`, and it had no producer line at
+# all until a review round recomputed the note against nothing.
+pub("\n  within-band Spearman rho vs |error| (held-out):")
+hbb <- cut(ho$dem_coverage, c(0, .2, .4, .6, .8, .95, 1.01))
+r_sd <- tapply(seq_len(nrow(ho)), hbb,
+               function(i) stats::cor(ho$covered_sd[i], abs(ho$err[i]), method = "spearman"))
+r_gr <- tapply(seq_len(nrow(ho)), hbb,
+               function(i) stats::cor(ho$covered_grad[i], abs(ho$err[i]), method = "spearman"))
+for (lv in levels(hbb)) {
+  pub("    %-12s sd %+0.3f   grad %+0.3f", lv, r_sd[[lv]], r_gr[[lv]])
+}
+pub("    sd %.3f-%.3f ; grad %.3f-%.3f ; sd better in %d of %d bands",
+    min(r_sd), max(r_sd), min(r_gr), max(r_gr), sum(r_sd > r_gr), length(r_sd))
+
+# The calibrated bound the note publishes and deliberately does NOT ship. Fitted on the
+# training targets alone and scored on the held-out ones, or it would be reporting how well
+# it fits its own fit.
+tr_b <- mask[!mask$holdout & mask$dem_coverage > 0 & is.finite(mask$covered_sd), ]
+ho_b <- mask[mask$holdout & mask$dem_coverage > 0 & is.finite(mask$covered_sd), ]
+scale_of <- function(z) z$covered_sd * (1 - z$dem_coverage) / abs(z$height_agl)
+k_bound <- stats::quantile(abs(tr_b$err) / scale_of(tr_b), .95, na.rm = TRUE)
+pub("\n  calibrated bound k = %.2f (95th pct on training, n=%d)", k_bound, nrow(tr_b))
+pub("    held-out: holds on %.1f%% of %d runs; median bound/actual %.1fx; under half coverage holds on %.1f%%",
+    100 * mean(abs(ho_b$err) <= k_bound * scale_of(ho_b), na.rm = TRUE), nrow(ho_b),
+    stats::median(k_bound * scale_of(ho_b) / abs(ho_b$err), na.rm = TRUE),
+    100 * mean((abs(ho_b$err) <= k_bound * scale_of(ho_b))[ho_b$dem_coverage < 0.5],
+               na.rm = TRUE))
+
+# The share-to-coverage mapping, as a distribution rather than one example. An earlier
+# draft of the note quoted "0.30 comes back as 0.215" from the two-frame feasibility probe,
+# which parameterised the cut differently; measured here the two agree closely in the
+# middle and diverge only in the tail.
+gap <- mask$share_removed - (1 - mask$dem_coverage)
+pub("  share_removed vs 1 - dem_coverage: median %.3f, 90th %.3f, max %.3f",
+    stats::median(gap), stats::quantile(abs(gap), .9), max(abs(gap)))
 
 # The fifth candidate, out of scope to ship here and measured rather than left unmentioned:
 # extrapolating the covered cells' plane over the part the DEM did not describe.
@@ -965,28 +1030,74 @@ for (b in levels(cut(pl$dem_coverage, c(-0.01, 0.5, 0.8, 0.95, 1.01)))) {
 }
 
 # The arms.
+# Each arm against its OWN full-coverage reference, and over the frames the DEM still
+# sized — the same population the tables above use, or the arms would not be comparable
+# with them.
 pub("\n  robustness arms, |linear error| at achieved coverage under 0.8:")
 for (a in sort(unique(sw$arm))) {
-  z <- sw[sw$arm == a & sw$mech == "na_mask" & sw$dem_coverage < 0.8 & is.finite(sw$err), ]
+  all_a <- sw[sw$arm == a & sw$mech == "na_mask", ]
+  z <- all_a[all_a$dem_coverage < 0.8 & all_a$footprint_terrain %in% "dem_agl" &
+               is.finite(all_a$err), ]
   if (!nrow(z)) next
-  pub("    %-12s n=%-5d  median %6.3f%%  90th %6.3f%%  flips %d", a, nrow(z),
-      100 * stats::median(abs(z$err)), 100 * stats::quantile(abs(z$err), .9), sum(z$flipped))
+  # Flips counted BEFORE the `dem_agl` filter, or the column is 0 by construction: a
+  # flipped run is one that is no longer `dem_agl`, so filtering on it first removes every
+  # row the count exists to find, and the reproducer becomes decoration.
+  pub("    %-12s n=%-5d  median %6.3f%%  90th %6.3f%%  flips %d of %d", a, nrow(z),
+      100 * stats::median(abs(z$err)), 100 * stats::quantile(abs(z$err), .9),
+      sum(all_a$flipped), nrow(all_a))
 }
 
 # ---------------------------------------------------------------------------
 # The artifacts
 # ---------------------------------------------------------------------------
 
-sweep_out <- sweep[, c("airp_id", "stratum", "holdout", "arm", "mech", "dir", "cut_u",
-                       "scale_n", "focal_length", "flying_height", "relief_coarse",
-                       "bearing", "ref_ok", "ref_agl", "ref_area", "ref_elev", "ref_sd",
-                       "ref_range", "ref_grad", "ref_n", "nominal_area",
-                       "share_removed", "dem_coverage", "footprint_terrain",
-                       "height_source", "height_agl", "area", "covered_n", "covered_mean",
-                       "covered_sd", "covered_range", "covered_grad", "covered_planar",
-                       "lost_elev")]
-num <- vapply(sweep_out, is.numeric, logical(1))
-sweep_out[num] <- lapply(sweep_out[num], function(v) signif(v, 8))
+# Two tables, not one. The per-target facts are constant across that target's runs within
+# an arm, so carrying them on each row cost 3.5 MB against the 395 KB and 156 KB the
+# package's other shipped sweeps take.
+#
+# Keyed on `airp_id` AND `arm`, which a first version got wrong. Every arm samples a
+# DIFFERENT raster — coarsened, reprojected or anisotropic — so it computes its own
+# full-coverage reference against it, and those references are not interchangeable:
+# `ref_area` differs on 39 of the 40 arm targets and `ref_n` on all 40, by 90,692 cells
+# against 101 on the coarse arm. Keeping one row per frame silently measured every arm's
+# truncation against the NATIVE reference, which conflates "this arm's DEM differs" with
+# "truncation cost this much" — and the arm medians it produced disagreed with the
+# script's own per-arm figures.
+targets_out <- sweep[!duplicated(sweep[, c("airp_id", "arm")]),
+                     c("airp_id", "arm", "run_id", "stratum", "holdout", "scale_n",
+                       "focal_length", "flying_height", "relief_coarse", "bearing",
+                       "ref_ok", "ref_agl", "ref_area", "ref_elev", "ref_sd", "ref_range",
+                       "ref_grad", "ref_n", "nominal_area")]
+targets_out$relief_coarse <- round(targets_out$relief_coarse, 2)
+targets_out$bearing <- round(targets_out$bearing, 2)
+targets_out$ref_agl <- round(targets_out$ref_agl, 2)
+targets_out$ref_area <- round(targets_out$ref_area)
+targets_out$nominal_area <- round(targets_out$nominal_area)
+targets_out$ref_elev <- round(targets_out$ref_elev, 3)
+targets_out$ref_sd <- round(targets_out$ref_sd, 3)
+targets_out$ref_range <- round(targets_out$ref_range, 2)
+targets_out$ref_grad <- signif(targets_out$ref_grad, 6)
+targets_out <- targets_out[order(targets_out$arm, targets_out$airp_id), ]
+stopifnot(!anyDuplicated(paste(targets_out$airp_id, targets_out$arm)),
+          nrow(targets_out) == length(unique(paste(sweep$airp_id, sweep$arm))))
+
+sweep_out <- sweep[, c("airp_id", "arm", "mech", "dir", "cut_u", "share_removed",
+                       "dem_coverage", "footprint_terrain", "height_source", "height_agl",
+                       "area", "covered_n", "covered_mean", "covered_sd", "covered_range",
+                       "covered_grad", "covered_planar", "lost_elev")]
+# Rounded to what the note quotes and the test recomputes. `area` and `height_agl` decide
+# the linear error, which is published to three decimals of a percent, so six significant
+# figures is two orders of magnitude of headroom.
+sweep_out$share_removed <- round(sweep_out$share_removed, 6)
+sweep_out$dem_coverage <- round(sweep_out$dem_coverage, 6)
+sweep_out$height_agl <- round(sweep_out$height_agl, 3)
+sweep_out$area <- round(sweep_out$area)
+sweep_out$covered_mean <- round(sweep_out$covered_mean, 3)
+sweep_out$covered_sd <- round(sweep_out$covered_sd, 3)
+sweep_out$covered_range <- round(sweep_out$covered_range, 2)
+sweep_out$covered_grad <- signif(sweep_out$covered_grad, 6)
+sweep_out$covered_planar <- round(sweep_out$covered_planar, 3)
+sweep_out$lost_elev <- round(sweep_out$lost_elev, 3)
 sweep_out <- sweep_out[order(sweep_out$arm, sweep_out$airp_id, sweep_out$mech,
                              sweep_out$dir, sweep_out$cut_u), ]
 
@@ -996,23 +1107,31 @@ pop$media <- "film"
 cov_bin <- cut(pop$dem_coverage, c(-0.01, 0.5, 0.8, 0.9, 0.95, 0.99, 0.9999, 1.01),
                labels = c("[0,0.5)", "[0.5,0.8)", "[0.8,0.9)", "[0.9,0.95)",
                           "[0.95,0.99)", "[0.99,1)", "1"))
-population <- do.call(rbind, lapply(split(pop, pop$set), function(z) {
-  b <- cut(z$dem_coverage, c(-0.01, 0.5, 0.8, 0.9, 0.95, 0.99, 0.9999, 1.01),
-           labels = levels(cov_bin))
-  data.frame(media = "film", set = z$set[1], coverage_bin = levels(cov_bin),
-             n = as.integer(table(b)),
-             stringsAsFactors = FALSE)
-}))
+# Binned by route as well as by stratum. Without the route a reader cannot separate the
+# frames the DEM SIZED and left short of coverage from the ones it never reached: the edge
+# stratum holds 66 of the first and 26 of the second, and both land in the lowest bin.
+population <- do.call(rbind, lapply(
+  split(pop, list(pop$set, pop$footprint_terrain), drop = TRUE), function(z) {
+    b <- cut(z$dem_coverage, c(-0.01, 0.5, 0.8, 0.9, 0.95, 0.99, 0.9999, 1.01),
+             labels = levels(cov_bin))
+    data.frame(media = "film", set = z$set[1],
+               footprint_terrain = z$footprint_terrain[1],
+               coverage_bin = levels(cov_bin), n = as.integer(table(b)),
+               stringsAsFactors = FALSE)
+  }))
+population <- population[population$n > 0, ]
 # The two figures the strata stand for, so a sampled rate can be re-weighted to the
 # catalogue rather than read as if the sample were the population.
 population <- rbind(population, data.frame(
   media = c("film", "film", "digital"),
   set = c("film_dem_eligible_total", "film_edge_candidates_total", "digital_edge_candidates_total"),
+  footprint_terrain = NA_character_,
   coverage_bin = NA_character_,
   n = as.integer(POP_TOTALS[c("film_dem_eligible", "film_edge_candidates",
                               "digital_edge_candidates")]),
   stringsAsFactors = FALSE))
 
+write_if_changed(targets_out, OUT_TARGETS)
 write_if_changed(sweep_out, OUT_SWEEP)
 write_if_changed(population, OUT_POP)
 message("ALL DONE")

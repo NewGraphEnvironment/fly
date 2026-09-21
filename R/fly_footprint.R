@@ -167,12 +167,28 @@ fly_warn_unsized <- function(footprints, operation) {
 
 # Coverage below which a footprint's mean elevation stops being trustworthy.
 #
-# Reprojecting a DEM leaves NA slivers along its edges, so a frame near the
-# margin is routinely a percent or two short through no fault of the caller —
-# warning on any missing cell at all would fire on a bundled frame that is
-# 99.96% covered, and a guard that noisy stops being read. A frame missing more
-# than a twentieth of its footprint is a different thing: that is enough for the
-# covered part to sit systematically higher or lower than the whole.
+# 0.95 was chosen so the warning would stay quiet on reprojection slivers — a frame near
+# a reprojected DEM's margin is routinely a fraction of a percent short through no fault
+# of the caller, and a guard that fires on the bundled 99.96% frame stops being read.
+# fly#58 measured what it is worth, and it survives for a better reason than it was
+# picked for.
+#
+# 11,520 truncations of 120 real frames, cut from eight directions at eight depths and
+# compared against the same frame's full-coverage answer: the WORST linear error over
+# every frame at or above 0.95 coverage is 0.794%, and it is still 0.794% at 0.94. It
+# first passes 1% at 0.92 (1.221%) and reaches 2.520% by 0.85. One percent of width is
+# about two percent of area, which is what `inst/notes/terrain-correction.md` records as
+# the cost of the per-corner ray-casting this model defers — so 0.95 is very nearly the
+# point at which a truncated frame's worst case stops being smaller than the error
+# already accepted in every frame. Below it the cost is real: a median ABSOLUTE error of
+# 0.34% at 0.6-0.8 coverage and 1.49% under 0.2, with a maximum of 23.6%.
+#
+# The threshold is NOT moved down, though the median SIGNED error stays under 0.05% all
+# the way to 0.8 — truncation is unbiased in aggregate, which is why the signed median is
+# near zero everywhere and is the wrong summary for a caller holding one frame. The
+# spread at a fixed coverage is 13 to 52 times, so the median is not what a caller is
+# exposed to — and the warning's own remedy, buffering the DEM, is correct at every
+# coverage. See `dem_elev_sd`, which is what separates the frames inside a band.
 fly_dem_coverage_min <- function() 0.95
 
 # The factor the catalogue's `FLYING_HEIGHT` is too large by on 1,589 film frames (fly#54).
@@ -232,9 +248,10 @@ fly_dem_grid <- function(dem, geom) {
 fly_dem_sample <- function(dem, rects) {
   elev <- rep(NA_real_, length(rects))
   covered <- rep(NA_real_, length(rects))
+  spread <- rep(NA_real_, length(rects))
   ok <- !sf::st_is_empty(rects)
   if (!any(ok)) {
-    return(list(elev = elev, covered = covered))
+    return(list(elev = elev, covered = covered, spread = spread))
   }
   in_dem <- sf::st_transform(sf::st_sf(geometry = rects[ok]),
                              sf::st_crs(terra::crs(dem)))
@@ -313,17 +330,25 @@ fly_dem_sample <- function(dem, rects) {
     vals <- if (!on_dem) NA_real_ else terra::extract(terra::crop(dem, ei), vi)[, 2]
 
     terra::values(tmpl) <- 1L
+    # The spread of the cells that were read, from the values already in hand (fly#58).
+    # `covered` says how much of the footprint is missing; this says how much that could
+    # matter, and nothing else on the row does. At a FIXED coverage the frames above the
+    # median spread come back 2.3 to 4.1 times further from the full-coverage answer than
+    # those below it, measured on held-out frames.
     c(elev = mean(vals, na.rm = TRUE),
+      spread = if (sum(!is.na(vals)) > 1L) stats::sd(vals, na.rm = TRUE) else NA_real_,
       got = sum(!is.na(vals)),
       expected = sum(!is.na(terra::extract(tmpl, vi)[, 2])))
-  }, numeric(3))
+  }, numeric(4))
 
   elev[ok] <- per["elev", ]
+  spread[ok] <- per["spread", ]
   covered[ok] <- ifelse(per["expected", ] > 0,
                         pmin(1, per["got", ] / per["expected", ]), 0)
 
   elev[is.nan(elev)] <- NA_real_
-  list(elev = elev, covered = covered)
+  spread[is.nan(spread)] <- NA_real_
+  list(elev = elev, covered = covered, spread = spread)
 }
 
 # Build rectangles of `half_cross` by `half_along` metres about each coordinate pair.
@@ -453,9 +478,14 @@ fly_is_square <- function(footprints) {
 #'   onto (`NA` where it was drawn axis-aligned because no bearing could be
 #'   computed), `height_agl` giving the metres above ground each was sized from,
 #'   `height_source` recording where that height came from or why there is none
-#'   (see Terrain), and `dem_coverage` giving the fraction of each footprint the
+#'   (see Terrain), `dem_coverage` giving the fraction of each footprint the
 #'   DEM actually covered (`0` where it covered none, `NA` only where there is no
-#'   footprint).
+#'   footprint), and `dem_elev_sd` giving the standard deviation in metres of the
+#'   DEM values under that footprint — `NA` wherever `dem_coverage` is, and also
+#'   wherever the DEM described **fewer than two** cells, since a spread needs
+#'   two. The common case of the second is a frame the DEM does not reach at all,
+#'   which has `dem_coverage` of `0` rather than `NA` and so is the one place the
+#'   two columns differ.
 #'   Frames whose format could not be resolved get an empty geometry. Every
 #'   class the input carries is carried through, so a tibble-backed sf — which
 #'   is what `bcdata::collect()` returns — comes back tibble-backed. The order
@@ -672,6 +702,20 @@ fly_is_square <- function(footprints) {
 #' frame — measured against the cells the footprint should have covered, not the
 #' cells that came back — so a truncated footprint can be filtered rather than
 #' merely noticed.
+#'
+#' **What truncation costs, and why two columns report it.** Measured over 11,520
+#' truncations of 120 real frames against each frame's own full-coverage answer:
+#' the error is exactly the elevation bias divided by the height above ground, so
+#' it is a median 0.18% of footprint width at 80-90% coverage, 0.34% at 60-80%,
+#' and 1.5% below 20% — but it reaches 24% on broken ground. **The median is not
+#' what one frame is exposed to:** at a fixed `dem_coverage` the error spans 13 to
+#' 52 times between frames, which is why `dem_elev_sd` ships beside it. Frames
+#' above the median spread for their coverage sit 2.3 to 4.1 times further from the
+#' full-coverage answer than those below it. Read the pair together — coverage
+#' says how much is missing, `dem_elev_sd` says how much that could be worth — and
+#' see `inst/notes/terrain-correction.md` for the distribution and its limits.
+#' Falling back to nominal scale is **not** the better answer at any coverage: the
+#' DEM route beats it in the median even below 20% covered.
 #'
 #' Buffer past the **corner** of the widest footprint, not its half-side: the
 #' far point of a square is `half_side * sqrt(2)`, which at 1:31680 is 5.1 km
@@ -907,6 +951,11 @@ fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL,
   terrain[by_gsd] <- "gsd_scaled"
   height_agl <- rep(NA_real_, n)
   dem_coverage <- rep(NA_real_, n)
+  # How much the terrain under the footprint varies, for the frames the DEM sized (fly#58).
+  # `dem_coverage` says how much of the footprint the DEM described; this says how much the
+  # missing part could be worth, which coverage alone cannot: at a fixed coverage the
+  # measured error spans 13 to 52 times between frames.
+  dem_elev_sd <- rep(NA_real_, n)
   # Where `height_agl` came from, or why there is none. NA wherever no DEM height was
   # judged at all: no `dem`, a frame sized from its ground sample distance, a frame the DEM
   # does not cover, or `flying_height` / `focal_length` simply missing.
@@ -1070,6 +1119,9 @@ fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL,
     # half-side, which draws a mirrored rectangle somewhere else entirely, and
     # that measured 100% coverage for a footprint only 30% covered.
     covered <- ifelse(corrected, second$covered, first$covered)
+    # Read off the same pass as `covered`, for the same reason: both describe the
+    # rectangle the caller receives, and a corrected frame ships the second pass's.
+    spread <- ifelse(corrected, second$spread, first$spread)
 
     # Every fallback keeps the frame at nominal scale rather than dropping it:
     # a frame we cannot correct is still a frame.
@@ -1128,9 +1180,14 @@ fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL,
         round(100 * fly_dem_coverage_min()), "% covered by the DEM (as little ",
         "as ", round(100 * min(covered[partial])), "% of one footprint). Their ",
         "ground elevation is the mean of the covered part, which need not ",
-        "represent the whole. Buffer the DEM past the corner of the widest ",
-        "footprint \u2014 half its width times sqrt(2), not half its width. ",
-        "See `dem_coverage`.",
+        "represent the whole. Measured over 11,520 truncations of real frames, that ",
+        "costs a median 0.34% of footprint width at 60-80% coverage and 1.5% below ",
+        "20%, but up to 24% on broken ground \u2014 so the median is not what any one ",
+        "frame is exposed to. `dem_elev_sd` is what separates them: at a given ",
+        "coverage, frames above the median spread sit 2 to 4 times further out. ",
+        "Buffer the DEM past the corner of the widest footprint \u2014 half its width ",
+        "times sqrt(2), not half its width. See `dem_coverage` and ",
+        "`inst/notes/terrain-correction.md`.",
         call. = FALSE
       )
     }
@@ -1147,6 +1204,7 @@ fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL,
     # came from the pixel count and the ground sample distance. Reporting it would be a
     # coverage figure for a shape the caller never receives.
     dem_coverage[dem_eligible] <- covered[dem_eligible]
+    dem_elev_sd[dem_eligible] <- spread[dem_eligible]
     terrain[dem_eligible] <- "nominal_scale"
     terrain[corrected] <- "dem_agl"
     terrain[uncovered] <- "no_dem_coverage"
@@ -1186,6 +1244,7 @@ fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL,
   terrain[no_geom] <- NA_character_
   height_agl[no_geom] <- NA_real_
   dem_coverage[no_geom] <- NA_real_
+  dem_elev_sd[no_geom] <- NA_real_
   # `height_source` names the height `height_agl` came from, so it goes with it — except
   # "implausible", which says why a frame has NO height and, like `width_source` on a
   # refused camera, is the only thing on the row explaining the empty geometry.
@@ -1248,6 +1307,7 @@ fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL,
   attrs$footprint_bearing <- bearing
   attrs$height_agl <- height_agl
   attrs$dem_coverage <- dem_coverage
+  attrs$dem_elev_sd <- dem_elev_sd
   attrs$height_source <- height_source
 
   result <- sf::st_sf(

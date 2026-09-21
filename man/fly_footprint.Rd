@@ -39,9 +39,14 @@ rectangles, a \code{footprint_basis} column recording how each was sized, a
 onto (\code{NA} where it was drawn axis-aligned because no bearing could be
 computed), \code{height_agl} giving the metres above ground each was sized from,
 \code{height_source} recording where that height came from or why there is none
-(see Terrain), and \code{dem_coverage} giving the fraction of each footprint the
+(see Terrain), \code{dem_coverage} giving the fraction of each footprint the
 DEM actually covered (\code{0} where it covered none, \code{NA} only where there is no
-footprint).
+footprint), and \code{dem_elev_sd} giving the standard deviation in metres of the
+DEM values under that footprint — \code{NA} wherever \code{dem_coverage} is, and also
+wherever the DEM described \strong{fewer than two} cells, since a spread needs
+two. The common case of the second is a frame the DEM does not reach at all,
+which has \code{dem_coverage} of \code{0} rather than \code{NA} and so is the one place the
+two columns differ.
 Frames whose format could not be resolved get an empty geometry. Every
 class the input carries is carried through, so a tibble-backed sf — which
 is what \code{bcdata::collect()} returns — comes back tibble-backed. The order
@@ -263,6 +268,20 @@ and warns once that falls below 95\%. \code{dem_coverage} reports the fraction p
 frame — measured against the cells the footprint should have covered, not the
 cells that came back — so a truncated footprint can be filtered rather than
 merely noticed.
+
+\strong{What truncation costs, and why two columns report it.} Measured over 11,520
+truncations of 120 real frames against each frame's own full-coverage answer:
+the error is exactly the elevation bias divided by the height above ground, so
+it is a median 0.18\% of footprint width at 80-90\% coverage, 0.34\% at 60-80\%,
+and 1.5\% below 20\% — but it reaches 24\% on broken ground. \strong{The median is not
+what one frame is exposed to:} at a fixed \code{dem_coverage} the error spans 13 to
+52 times between frames, which is why \code{dem_elev_sd} ships beside it. Frames
+above the median spread for their coverage sit 2.3 to 4.1 times further from the
+full-coverage answer than those below it. Read the pair together — coverage
+says how much is missing, \code{dem_elev_sd} says how much that could be worth — and
+see \code{inst/notes/terrain-correction.md} for the distribution and its limits.
+Falling back to nominal scale is \strong{not} the better answer at any coverage: the
+DEM route beats it in the median even below 20\% covered.
 
 Buffer past the \strong{corner} of the widest footprint, not its half-side: the
 far point of a square is \code{half_side * sqrt(2)}, which at 1:31680 is 5.1 km
