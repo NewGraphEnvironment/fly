@@ -530,8 +530,9 @@ being asked. Reporting the window the caller needs leaves the decision where it 
   40,000 cells in Hecate Strait read 0.098 to 0.189 m, with no exact zeros at all. A
   coastal frame therefore reports `dem_coverage` near 1 while its mean is dragged toward
   sea level. That is a coverage-1 failure, it cannot be produced by removing cells, and
-  `dem_coverage` cannot see it. Not fixed here. Note also that the obvious guard for it —
-  counting exact-zero cells — can never fire.
+  neither `dem_coverage` nor `dem_shortfall_m` can see it — the cells carry data and the
+  extent does span the frame. Not fixed here; filed as fly#65. Note also that the obvious
+  guard for it — counting exact-zero cells — can never fire.
 - **The reference is one frame's own full-coverage answer**, which carries MRDEM's own
   vertical error and the ~2% of area that per-corner ray-casting would move. Differences
   below about 1% of width are not resolvable against it and are not read as a knee.
