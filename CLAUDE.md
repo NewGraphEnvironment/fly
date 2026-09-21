@@ -2231,15 +2231,16 @@ silent direction is the dangerous one.
   produced those files already succeeded. Silent-after-success: the costly stage
   worked and the cheap one threw it away.
 - **Writing the entry is not repairing the callers.** This rule was written once and the
-  registration script that hit it was left unchanged, so the same run failed the same way
-  a second time. When a trap is recorded, grep for the shape and fix every site in the same
+  registration script that hit it was left unchanged, so a later run of that same script
+  failed the same way. When a trap is recorded, grep for the shape and fix every site in the same
   commit — and check what the neighbouring rules prescribe, because one of them was
   still telling readers to use the glob.
 - The cost is worse than a wasted download when the script **deletes before it
   loads**: a registration that removes the collection in step 2 and fails in step
   4 leaves a live public API serving zero items until it is repaired by hand. A
-  destructive-then-rebuild sequence turns "retry it" into an outage, so order the
-  destructive step after the one that can still fail.
+  destructive-then-rebuild sequence turns "retry it" into an outage. Build the
+  replacement first and make the destructive step the last one, so a failure anywhere
+  above it leaves the live collection alone.
 - Safe form — `find` batches under the limit itself:
   ```bash
   find "$DIR" -maxdepth 1 -name '*.json' -exec cat {} + > combined.ndjson
@@ -2522,6 +2523,33 @@ all_pids="$all_pids $!"
 for pid in $all_pids; do wait "$pid" 2>/dev/null || true; done
 ```
 
+### `if ! cmd; then rc=$?` captures the negation, not the command
+
+Inside the branch, `$?` is the status of the `!` compound — which is **0 by
+construction**, because the negation succeeded. So `rc` is always 0 there, and any arm
+built on it to tell one failure apart from another can never fire.
+
+```bash
+$ bash -c 'if ! awk "BEGIN{exit 3}"; then echo "inside then, \$?=$?"; fi'
+inside then, $?=0
+$ bash -c 'awk "BEGIN{exit 3}"; echo "plain, \$?=$?"'
+plain, $?=3
+```
+
+Capture before negating:
+
+```bash
+rc=0; cmd || rc=$?
+if [ "$rc" -ne 0 ]; then …; fi
+```
+
+Same for `while ! cmd`, `until ! cmd`, and `if ! cmd1 | cmd2` (where `$?` is the
+pipeline's, not `cmd1`'s). The direction is the expensive one: the branch *is* taken and
+the message *does* print, so the guard looks like it fired — only the number in it is
+wrong, and a reader chasing that number is sent somewhere the failure is not.
+
+*5 lines of evidence for this rule are in `conventions/code-check-shell.md`, which `/code-check` reads in full.*
+
 ### A `pgrep -f` waiter matches its own command line, so it never exits
 
 `until ! pgrep -f "job" >/dev/null; do sleep 30; done` is the obvious way to wait for a
@@ -2608,6 +2636,8 @@ containing those digits.
 - That direction is survivable because it is loud. The dangerous one is a wrapper that exits 0 on a comparison it never performed, which reads as "verified".
 - For anything whose output you are about to treat as evidence, bypass the lookup: `command diff`, `\diff`, or a tool with no common wrapper — `cmp -s` for byte-equality, `md5` / `sha256sum` for a value you can print. Printing the digest beats printing a verdict: it stays checkable after the fact.
 - `type <cmd>` tells you what you actually have. Worth running the first time a verification step returns something surprising, before believing the surprise.
+
+*7 lines of evidence for this rule are in `conventions/code-check-shell.md`, which `/code-check` reads in full.*
 
 ### psql does not interpolate `:'var'` inside a dollar-quoted string, and `\quit N` exits 0
 
@@ -3056,9 +3086,9 @@ rule.
 - **The failure is invisible for as long as your fixtures share one class**, and
   it is invisible in the least alarming way: geometry and every downstream number
   stay correct, and only the columns you added go missing. `bcdata::collect()`
-  returns a tibble while a fixture read back with `st_read()` defaults is plain
+  returns a tibble while a fixture read back from disk can come back plain
   `sf, data.frame`, so a documented data source and the fixtures standing in for it
-  can take different branches.
+  take different branches.
 - **Fix: build the frame first, then hand the constructor one argument.** The
   columns are then inside the argument the branch keeps, whichever branch it is,
   and the caller's class is untouched:
@@ -3198,8 +3228,8 @@ Two steps, both load-bearing:
 
 - **`normalize()`** — GEOS canonical form: consistent ring order and orientation.
 - **`set_precision()`** — snap coordinates to a stated grid, so floating-point noise
-  below the precision of the data does not register as a difference. A sane starting
-  point is 0.01 m, or 1e-7 for a geographic CRS.
+  below the precision of the data does not register as a difference. `FIT_changedetector`
+  defaults to 0.01 m, and 1e-7 for a geographic CRS.
 
 **Record the precision alongside the hash** — a hash at an unstated precision is not
 comparable to one at another.
@@ -3218,7 +3248,7 @@ precision means, or a hash comparison across the two is off by orders of magnitu
 Verify whichever you use against both known answers — one pair of polygons that differ
 only in ring order must hash equal, and one that differs in a vertex must not.
 
-*12 lines of evidence for this rule are in `conventions/code-check-spatial.md`, which `/code-check` reads in full.*
+*11 lines of evidence for this rule are in `conventions/code-check-spatial.md`, which `/code-check` reads in full.*
 
 ### sf: `st_join(largest = TRUE)` ignores the join predicate
 - `sf::st_join(x, y, join = predicate, largest = TRUE)` does **not** use `predicate` to decide matches — with `largest = TRUE`, sf runs `st_intersection(x, y)` and keeps the feature of greatest overlap area, so matching is *always* intersection-based regardless of what `join =` is set to. A function that exposes a configurable predicate AND a largest-overlap mode therefore silently mis-attributes when both are combined: pass `st_within` expecting containment, get anything that merely *overlaps*. Verify against sf source, not the argument list — the `join` arg is accepted and ignored, not rejected. Fix: abort when a non-default predicate is combined with the largest-overlap mode, rather than honouring one and dropping the other. (drift#42)
@@ -3950,6 +3980,39 @@ got <- tryCatch(
 Forking is fine for a **local** file; the trigger is the network driver. `future::plan(multicore)`
 and `furrr` on that plan fork the same way.
 
+### terra: `align()` defaults to `snap = "near"`, so the aligned window need not contain the input
+
+`terra::align(e, r)` snaps each edge of `e` to the **nearest** cell boundary of `r`, which moves
+an edge *inward* as readily as outward. So the returned extent is **not** a superset of what you
+gave it, and cropping a raster to it silently drops cells:
+
+```r
+fe <- terra::ext(c(950545.1, 950567.1, 1040258, 1040280))   # a small frame
+al <- terra::align(fe, dem)                                  # snap = "near" (the default)
+al[2] >= fe[2]                                               # FALSE -- xmax moved INWARD
+terra::align(fe, dem, snap = "out")                          # this one does contain fe
+```
+
+The failure is silent and lands on a **value**, not an error: a mean over the cropped window
+differs from a mean over the whole raster, and any coverage ratio capped with `pmin(1, ...)`
+hides the discrepancy entirely. `snap = "out"` is a superset of both the input extent and the
+near-snapped one, since the nearest boundary is never outside the boundary outside it —
+measured 0 violations over 4,000 random grid/frame geometries at resolutions 5-400 m.
+
+**Frame size is the wrong axis to test.** A near-snap only ever discards a column whose own
+centre is outside the polygon, and `terra::extract()` takes a cell by its centre, so discarding
+it usually changes nothing: interior frames a few cells across diverge **0 of 200** times.
+Divergence needs `extract()` to fall back from the centre rule to its touched-cells path, which
+happens only where the geometry's **overlap with the raster** covers no cell centre at all —
+a feature of any size sitting at the **edge of coverage**, which is the ordinary case for a
+raster cropped to an AOI.
+
+Use `snap = "out"` for any window you are going to *read* through. Keep `snap = "near"` only
+where the grid is itself the measurement and something downstream was calibrated against it —
+and then never read through it.
+
+*6 lines of evidence for this rule are in `conventions/code-check-spatial.md`, which `/code-check` reads in full.*
+
 
 # Code Check Conventions
 
@@ -4330,7 +4393,7 @@ several sources — a rule promoted out of its instances, a summary over a measu
 execute it against each source rather than against itself: the compression reads correct on
 its own, and the condition it dropped is visible only in the thing it compressed.
 
-*24 recorded instances of this are in `conventions/code-check.md`, which `/code-check` reads in full.*
+*25 recorded instances of this are in `conventions/code-check.md`, which `/code-check` reads in full.*
 
 ### A fix lands in one of two callers that share a harness
 
@@ -6232,6 +6295,17 @@ Skip planning for single-file edits, quick fixes, or tasks with obvious next ste
    - **Agent type that can write**: put the file-path instruction in the first prompt, not as a follow-up.
 
    Asking for a file the agent cannot produce costs a round-trip, and — worse — sets you up to read an absent file as an absent review. Check the agent type's tools before writing the instruction.
+
+   **A reviewer asked to prove a guard fires will patch your working tree, and that races
+   your own test runs.** "Restore the defect and watch it go red" is the right instruction
+   (`code-check.md`), and a subagent given it edits the same files the parent is testing.
+   From the parent's side the result is a test run that reports failures belonging to
+   nobody's code — the reviewer's planted defect, caught mid-flight. Tell reviewers to work
+   in a copy (`cp -r` to a temp dir, or a worktree) and say so in the prompt; they honour it
+   when asked. Then snapshot the files you care about and `cmp` them before **and after**
+   every run whose result you intend to act on, so "the tree was intact for this
+   measurement" is a fact rather than an assumption. Same hazard as a mid-flight edit in
+   `karpathy.md` §5, arriving from an agent instead of from you.
 
    **Review the fixes, not just the code.** The second pass is where the value concentrates, because a fix written under a wrong assumption reproduces the same defect. Measured on gq#52: pass 1 found 13 defects, pass 2 found 7 more — including a blocker sitting *inside the fix* for pass 1's blocker, the same class twice (`lty`, then `fill_alpha`) because completeness was reasoned about rather than computed. Pass 3, scoped narrowly to the file edited most, found no new instances; **convergence is the signal to stop, not a fixed number of rounds.**
 
