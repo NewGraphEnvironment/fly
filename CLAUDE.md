@@ -1399,6 +1399,35 @@ after a probe, not by any test.
   beside it. Resolve through the index, never by reconstructing a path from the
   display string.
 
+### `sort()` and `order()` collate by `LC_COLLATE`, so a canonical form is locale-dependent
+
+Character sorting in R is locale-sensitive by default, which makes any *canonical*
+string built by sorting — an XML node with its attributes ordered, a joined key, a
+manifest — a function of the session's locale rather than of the data:
+
+```r
+x <- c("autoRefreshMode", "maxScale", "Type", "wkbType")
+withr::with_collate("C",           paste(sort(x), collapse = ","))
+#> Type,autoRefreshMode,maxScale,wkbType
+withr::with_collate("en_US.UTF-8", paste(sort(x), collapse = ","))
+#> autoRefreshMode,maxScale,Type,wkbType
+```
+
+`method = "radix"` collates in the C locale whatever `LC_COLLATE` says, and is the
+fix — the *argument* is the remedy, not the sort.
+
+**A comparison of two values computed in one session cannot see this**, because both
+move together. It surfaces the moment one side is *stored*: a digest, a golden file,
+a checksum pinned in one place and checked in another. And **testthat forces
+`LC_COLLATE=C`** via `local_reproducible_output()`, so a value pinned outside the
+suite and verified inside it is the shape that fails — which is the normal shape for
+a golden.
+
+The wider rule below covers why a global-dispatching call cannot be reasoned about
+locally; this is the instance worth knowing by name, because the sort looks pure.
+
+*6 lines of evidence for this rule are in `conventions/code-check-r.md`, which `/code-check` reads in full.*
+
 ### A library call that dispatches on a global option is not a pure function
 
 A function whose *units* or *algorithm* are chosen by a session-wide setting behaves
@@ -2038,6 +2067,27 @@ The same trap sits in any `do.call(rbind, lapply(split(...)))` that recovers ord
 `names()` rather than from an index column. Carrying the index as data is what makes the
 reassembly checkable; `use.names = FALSE` only helps when order is already correct.
 
+### `tolerance` in testthat is RELATIVE, so it pins a published figure far more loosely than it looks
+
+`expect_equal(x, 12.529, tolerance = 2e-2)` accepts anything within **two percent** — so a
+figure published to three decimals survives drifting to `12.629`. A test written to pin a
+number in a document is then satisfied by a number that is visibly not it.
+
+Tightening the tolerance is not the fix either: the artifact carries its own rounding, so
+`1e-4` starts failing on correct data (measured: `-0.31553` against a published `-0.316`).
+Compare at the **published precision** instead — round the computed value to however many
+decimals the document prints, then compare exactly:
+
+```r
+dp <- function(v) { v <- sub("%$", "", trimws(v))
+                    if (!grepl("\\.", v)) 0L else nchar(sub(".*\\.", "", v)) }
+expect_equal(round(computed, dp(printed)), as.numeric(sub("%$", "", printed)), tolerance = 1e-9)
+```
+
+Caught 2026-09-20 in fly#58, on a guard whose whole purpose was to stop a note publishing a
+figure the data does not support. Prove it by planting a wrong value at the precision the
+document prints — a tolerance that survives that plant is decoration.
+
 
 # Code Check — Shell
 
@@ -2422,7 +2472,7 @@ alias" below, arriving through PATH order rather than through a function — and
   - Worth running whenever a PR deliberately does *not* close the issue it references. When it
     is meant to close it, the field failing to list it is the same check pointing the other way.
 
-*29 lines of evidence for this rule are in `conventions/code-check-shell.md`, which `/code-check` reads in full.*
+*35 lines of evidence for this rule are in `conventions/code-check-shell.md`, which `/code-check` reads in full.*
 
 ### On a fork, `main` may track upstream by design — comparing it answers nothing
 
@@ -4013,6 +4063,46 @@ and then never read through it.
 
 *6 lines of evidence for this rule are in `conventions/code-check-spatial.md`, which `/code-check` reads in full.*
 
+### GDAL reserves 3,276 MB per process before reading a cell, and PSOCK workers outlive their master
+
+Two independent reasons a parallel raster job uses far more memory than its data, both
+measured 2026-09-20 on a 64 GB machine (fly#58) while a sweep was killed four times.
+
+**`terra::gdalCache()` defaults to 3,276 MB — per process.** With `terraOptions()$memfrac`
+at 0.5 alongside it, a master plus two PSOCK workers can reserve about 10 GB before
+touching a raster. Cap both in **every** process the script starts, workers included:
+`terra::gdalCache(128)` and `terraOptions(memfrac = 0.05, memmax = 1)`. This is distinct
+from the `memfrac` entry above, which is about results terra *keeps* in memory; this is a
+reservation made before any result exists. The "not from library code" caveat there still
+applies — cap it in the script you own, not in a package.
+
+**A PSOCK worker is started detached (`PPID 1`), so killing the master leaves every worker
+alive**, each holding its own copy of the loaded package (measured 400–600 MB with
+`pkgload::load_all()`, 1.3 GB under load). Those orphans then cause the *next* kill. Three
+kills were blamed on other sessions before `ps -o ppid` showed the 2.6 GB was this script's
+own corpses. Reap before each attempt — and note the pattern matches any session's workers,
+which is a hazard on a shared machine; register your own PIDs (`clusterCall(cl, Sys.getpid)`)
+if one is running.
+
+And **freeing memory is not returning it.** After `rm()` + `gc()` the R heap read 0.11 GB
+while process RSS stayed at 3.30 GB, because R does not hand memory back to the OS — and RSS
+is what the OOM killer reads. The fix is to not build the peak: cache the expensive
+selection so a resume never rebuilds it (3.3 GB and a minute became 0.105 GB and seconds).
+
+### `terra::distance(x, target = NA)` measures FROM the NA cells, so every data cell reads 0
+
+Reaching for it to answer "how far is each data cell from the nearest nodata" gives the
+opposite: `distance()` fills the **target** cells with their distance to the nearest
+non-target, so data cells come back `0` and any `dist < threshold` test is true everywhere.
+Invert the mask first — `terra::distance(terra::ifel(is.na(r), 1, NA), target = NA)`.
+
+The tell was the answer, not the code: it marked **99.999%** of a 1.44-million-frame
+catalogue as a candidate, which is implausible enough to be the instrument rather than the
+world (fly#58, 2026-09-20; the corrected form returns 113). Same family as "The probe is
+broken before the world is" in `code-check.md` — print a positive control before believing
+a distance surface, since both the broken and the working form return a plausible-looking
+raster of numbers.
+
 
 # Code Check Conventions
 
@@ -4290,7 +4380,7 @@ cache key and the request on the wire. If it reaches neither, the two runs are o
 and the comparison cannot fail — say the property holds by construction rather than
 dressing a tautology as evidence.
 
-*11 recorded instances of this are in `conventions/code-check.md`, which `/code-check` reads in full.*
+*12 recorded instances of this are in `conventions/code-check.md`, which `/code-check` reads in full.*
 
 ### A guard's scope, escape hatches, and remedies
 
@@ -4520,7 +4610,7 @@ unchanged — the carriage-return count is the check that fires. Afterwards asse
 count per row and the reader's column names, because a column shift produces data that
 still parses.
 
-*13 recorded instances of this are in `conventions/code-check.md`, which `/code-check` reads in full.*
+*14 recorded instances of this are in `conventions/code-check.md`, which `/code-check` reads in full.*
 
 ### A wrapper's exit is not the work
 
