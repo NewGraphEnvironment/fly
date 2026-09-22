@@ -3,6 +3,7 @@
 **F**ootprints from **L**egacy aerial photograph**Y**
 
 <!-- badges: start -->
+[![R-CMD-check](https://github.com/NewGraphEnvironment/fly/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/NewGraphEnvironment/fly/actions/workflows/R-CMD-check.yaml)
 <!-- badges: end -->
 
 A toolkit for working with British Columbia's historic aerial photography — from finding the frames that cover your study area to turning them into map-ready georeferenced images.

@@ -6,6 +6,40 @@
 # derived from, so "the cap sits above the largest legitimate value" is a computation here
 # rather than a recollection. See `inst/notes/border-masking.md`.
 
+test_that("GDAL is new enough for the flood fill `fly_mask()` depends on", {
+  # `fly_mask()` passes `-alg floodfill` to nearblack and nothing checks the GDAL
+  # version, so on a build without the option the call fails -- and the failure is
+  # swallowed: `fly_mask()` wraps it in `tryCatch()` and returns `masked = FALSE` with
+  # a reason, so the examples and the vignette pass while writing unmasked output and
+  # the mask tests fail on their fraction assertions, naming a number rather than a
+  # cause. This names the cause. It does not arrive first -- `checking examples` runs
+  # before `checking tests` -- so read it as the explanation for the failures above it.
+  #
+  # The floor is **3.8**, read from GDAL's own `nearblack.rst`, where `-alg` carries
+  # `.. versionadded:: 3.8`. An earlier draft of this used 3.7 -- the figure this repo's
+  # own conventions carry -- which would have passed on a GDAL that does not have the
+  # option, i.e. a guard failing toward pass on exactly the release that matters.
+  #
+  # Not a skip. There is no version of this package that works below the floor, so a
+  # runner that drops under it is a finding, not a configuration to tolerate.
+  # Strip a dev/beta suffix before parsing. `package_version()` does not tolerate one --
+  # it ERRORS on "3.9.0beta1" and "3.11.0-dev" (measured), which would turn a correct
+  # package red on a runner carrying a pre-release GDAL. That is this guard failing in
+  # the one direction a version premise must not fail in.
+  raw  <- sf::sf_extSoftVersion()[["GDAL"]]
+  num  <- sub("[^0-9.].*$", "", raw)
+  # And assert the strip produced something parseable, so a version string shaped in
+  # some way not anticipated here names itself instead of erroring three lines down.
+  # Residual, stated rather than engineered around: a pre-release of the floor itself
+  # ("3.8.0dev", a build that may predate the `-alg` commit) strips to "3.8.0" and
+  # passes. Narrowing that would reject legitimate dev builds of later releases, which
+  # is the more likely runner.
+  expect_match(num, "^[0-9]+([.][0-9]+)+$")
+  expect_gte(package_version(num), package_version("3.8.0"),
+             label = paste0("GDAL ", raw))
+})
+
+
 # A frame with a black collar, a bright interior, and a dark blob INSIDE the frame that
 # touches no edge.
 #

@@ -1,12 +1,12 @@
 test_that("fly_georef returns expected columns", {
+  skip_if_offline()
   centroids <- sf::st_read(testdata_path("photo_centroids.gpkg"), quiet = TRUE)
-  dest_fetch <- file.path(tempdir(), "fly_georef_test_fetch")
-  unlink(dest_fetch, recursive = TRUE)
+  dest_fetch <- withr::local_tempdir()
 
   fetched <- fly_fetch(centroids[1, ], type = "thumbnail",
                        dest_dir = dest_fetch)
-  dest_georef <- file.path(tempdir(), "fly_georef_test_out")
-  unlink(dest_georef, recursive = TRUE)
+  skip_if_not(all(fetched$success), "thumbnail not reachable")
+  dest_georef <- withr::local_tempdir()
 
   result <- suppressWarnings(fly_georef(fetched, centroids[1, ],
                        dest_dir = dest_georef))
@@ -15,14 +15,14 @@ test_that("fly_georef returns expected columns", {
 })
 
 test_that("fly_georef produces georeferenced TIFFs", {
+  skip_if_offline()
   centroids <- sf::st_read(testdata_path("photo_centroids.gpkg"), quiet = TRUE)
-  dest_fetch <- file.path(tempdir(), "fly_georef_test_tiff_fetch")
-  unlink(dest_fetch, recursive = TRUE)
+  dest_fetch <- withr::local_tempdir()
 
   fetched <- fly_fetch(centroids[1, ], type = "thumbnail",
                        dest_dir = dest_fetch)
-  dest_georef <- file.path(tempdir(), "fly_georef_test_tiff_out")
-  unlink(dest_georef, recursive = TRUE)
+  skip_if_not(all(fetched$success), "thumbnail not reachable")
+  dest_georef <- withr::local_tempdir()
 
   result <- suppressWarnings(fly_georef(fetched, centroids[1, ],
                        dest_dir = dest_georef))
@@ -48,18 +48,23 @@ test_that("fly_georef skips failed fetches", {
 })
 
 test_that("fly_georef skips existing when overwrite is FALSE", {
+  skip_if_offline()
   centroids <- sf::st_read(testdata_path("photo_centroids.gpkg"), quiet = TRUE)
-  dest_fetch <- file.path(tempdir(), "fly_georef_overwrite_fetch")
-  unlink(dest_fetch, recursive = TRUE)
+  dest_fetch <- withr::local_tempdir()
 
   fetched <- fly_fetch(centroids[1, ], type = "thumbnail",
                        dest_dir = dest_fetch)
-  dest_georef <- file.path(tempdir(), "fly_georef_overwrite_out")
-  unlink(dest_georef, recursive = TRUE)
+  skip_if_not(all(fetched$success), "thumbnail not reachable")
+  dest_georef <- withr::local_tempdir()
 
   # First run
   suppressWarnings(fly_georef(fetched, centroids[1, ], dest_dir = dest_georef))
   f <- list.files(dest_georef, full.names = TRUE)[1]
+  # `list.files()[1]` is NA when nothing was written, `file.mtime(NA)` is NA, and
+  # `expect_equal(NA, NA)` passes -- so without this the block below can compare
+  # nothing and report success. Pinned as a premise because the test's whole subject is
+  # a file NOT being rewritten, which is indistinguishable from a file never written.
+  expect_false(is.na(f))
   mtime1 <- file.mtime(f)
   Sys.sleep(1)
 
@@ -76,14 +81,14 @@ test_that("fly_georef rejects bad input", {
 })
 
 test_that("fly_georef extent matches footprint", {
+  skip_if_offline()
   centroids <- sf::st_read(testdata_path("photo_centroids.gpkg"), quiet = TRUE)
-  dest_fetch <- file.path(tempdir(), "fly_georef_extent_fetch")
-  unlink(dest_fetch, recursive = TRUE)
+  dest_fetch <- withr::local_tempdir()
 
   fetched <- fly_fetch(centroids[1, ], type = "thumbnail",
                        dest_dir = dest_fetch)
-  dest_georef <- file.path(tempdir(), "fly_georef_extent_out")
-  unlink(dest_georef, recursive = TRUE)
+  skip_if_not(all(fetched$success), "thumbnail not reachable")
+  dest_georef <- withr::local_tempdir()
 
   result <- suppressWarnings(fly_georef(fetched, centroids[1, ],
                        dest_dir = dest_georef))
@@ -100,17 +105,17 @@ test_that("fly_georef extent matches footprint", {
 })
 
 test_that("fly_georef accepts rotation parameter", {
+  skip_if_offline()
   centroids <- sf::st_read(testdata_path("photo_centroids.gpkg"), quiet = TRUE)
-  dest_fetch <- file.path(tempdir(), "fly_georef_rot_fetch")
-  unlink(dest_fetch, recursive = TRUE)
+  dest_fetch <- withr::local_tempdir()
 
   fetched <- fly_fetch(centroids[1, ], type = "thumbnail",
                        dest_dir = dest_fetch)
+  skip_if_not(all(fetched$success), "thumbnail not reachable")
 
   # Each rotation value should produce a valid georef
   for (rot in c(0, 90, 180, 270)) {
-    dest_georef <- file.path(tempdir(), paste0("fly_georef_rot_", rot))
-    unlink(dest_georef, recursive = TRUE)
+    dest_georef <- withr::local_tempdir()
     result <- suppressWarnings(fly_georef(fetched, centroids[1, ],
                          dest_dir = dest_georef, rotation = rot))
     expect_true(result$success[1], info = paste("rotation =", rot))
@@ -128,14 +133,14 @@ test_that("fly_georef rejects invalid rotation", {
 })
 
 test_that("fly_georef auto rotation uses bearing", {
+  skip_if_offline()
   centroids <- sf::st_read(testdata_path("photo_centroids.gpkg"), quiet = TRUE)
-  dest_fetch <- file.path(tempdir(), "fly_georef_auto_fetch")
-  unlink(dest_fetch, recursive = TRUE)
+  dest_fetch <- withr::local_tempdir()
 
   fetched <- fly_fetch(centroids[1, ], type = "thumbnail",
                        dest_dir = dest_fetch)
-  dest_georef <- file.path(tempdir(), "fly_georef_auto_out")
-  unlink(dest_georef, recursive = TRUE)
+  skip_if_not(all(fetched$success), "thumbnail not reachable")
+  dest_georef <- withr::local_tempdir()
 
   # Default is "auto" — should work with film_roll + frame_number
   result <- suppressWarnings(fly_georef(fetched, centroids[1, ],
@@ -144,14 +149,14 @@ test_that("fly_georef auto rotation uses bearing", {
 })
 
 test_that("fly_georef reads rotation from column", {
+  skip_if_offline()
   centroids <- sf::st_read(testdata_path("photo_centroids.gpkg"), quiet = TRUE)
-  dest_fetch <- file.path(tempdir(), "fly_georef_rotcol_fetch")
-  unlink(dest_fetch, recursive = TRUE)
+  dest_fetch <- withr::local_tempdir()
 
   fetched <- fly_fetch(centroids[1, ], type = "thumbnail",
                        dest_dir = dest_fetch)
-  dest_georef <- file.path(tempdir(), "fly_georef_rotcol_out")
-  unlink(dest_georef, recursive = TRUE)
+  skip_if_not(all(fetched$success), "thumbnail not reachable")
+  dest_georef <- withr::local_tempdir()
 
   # Add rotation column
   centroids$rotation <- 90

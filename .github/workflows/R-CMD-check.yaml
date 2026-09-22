@@ -1,0 +1,184 @@
+# Workflow derived from https://github.com/r-lib/actions/tree/v2/examples
+# Need help debugging build failures? Start at https://github.com/r-lib/actions#where-to-find-help
+#
+# Until this existed, `.github/workflows/` held only pkgdown — so a green PR check meant
+# the docs site built, and nothing else. `R CMD check` had never run anywhere but the
+# author's machine, and neither had the test suite. v0.9.0 changed the ring every
+# footprint gets, and with it `fly_bearing()`, `fly_georef()`, `fly_rectangles()`,
+# `fly_is_square()` and `fly_coverage()` -- on that evidence alone (fly#52).
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+name: R-CMD-check.yaml
+
+permissions: read-all
+
+jobs:
+  R-CMD-check:
+    runs-on: ${{ matrix.config.os }}
+
+    name: ${{ matrix.config.os }} (${{ matrix.config.r }})
+
+    strategy:
+      fail-fast: false
+      matrix:
+        # Three platforms at R release, and the platform axis is the one that earns its
+        # runner time here. `fly` reaches GDAL through `sf::gdal_utils()` for warp,
+        # translate and `nearblack` — and `fly_mask()` asks for `-alg floodfill`, which
+        # GDAL's own nearblack.rst marks `versionadded:: 3.8`. The three platforms
+        # ship GDAL from three different sources (apt, and the CRAN macOS and Windows
+        # binaries), so this is the axis that would see such a regression at all.
+        #
+        # What makes the premise in `test-fly_mask.R` worth its line is that the
+        # failure is NOT loud: `fly_mask()` wraps the nearblack call in `tryCatch()`
+        # and returns `masked = FALSE` with a reason (R/fly_mask.R:165-172), and
+        # `fly_georef()` does the same (R/fly_georef.R:382-389). So on an old GDAL the
+        # examples and the vignette pass while writing unmasked output, and the mask
+        # tests fail on their fraction assertions -- naming a number, not a cause. The
+        # premise names the cause; it does not arrive first, because `checking
+        # examples` runs before `checking tests`. ubuntu-24.04 ships 3.8.4.
+        #
+        # R `devel` and `oldrel-1` are deliberately absent. `fly` is not going to CRAN,
+        # so devel's upcoming-change warnings buy little, and `oldrel-1` is R 4.4 —
+        # far above the declared `Depends: R (>= 4.1)`, so it would not test that claim
+        # either. Adding them is one line each if that reasoning ever changes.
+        config:
+          - {os: ubuntu-latest,  r: 'release'}
+          - {os: macos-latest,   r: 'release'}
+          - {os: windows-latest, r: 'release'}
+
+    # The r-lib example sets none, so a PR pushed three times queues nine jobs -- each
+    # of which builds the vignette twice against the live BC catalogue. Superseded runs
+    # are cancelled; a cancelled run reads as `cancelled`, not `failure`, which
+    # `gh-pr-merge` step 10 already distinguishes.
+    # `matrix.config.os` is in the group ON PURPOSE. A job-level group is evaluated per
+    # matrix job, so a group string that does not vary with the matrix puts all three
+    # runners in one group and `cancel-in-progress` makes them cancel EACH OTHER -- and
+    # a cancelled run reads as `cancelled`, not `failure`, so the symptom is two
+    # platforms quietly never reporting.
+    concurrency:
+      group: check-${{ github.workflow }}-${{ github.ref }}-${{ matrix.config.os }}
+      cancel-in-progress: true
+
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      R_KEEP_PKG_SOURCE: yes
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: r-lib/actions/setup-pandoc@v2
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: ${{ matrix.config.r }}
+          use-public-rspm: true
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: any::rcmdcheck
+          needs: check
+
+      # `error-on` is left at the action's default of "warning", which is the whole
+      # point of clearing `R/fly_mask.R`'s non-ASCII WARNING in the same PR that added
+      # this file. The alternative was to land at "error", which passes with a WARNING
+      # present -- that is what makes it tempting, and what makes it weak: it would also
+      # have passed over the NEXT warning, and nobody would have known. gq#51 took that
+      # route and is still open.
+      #
+      # Note the action sets `_R_CHECK_CRAN_INCOMING_=false` and
+      # `_R_CHECK_FORCE_SUGGESTS_=false` unless the caller already has. So `--as-cran`
+      # here does NOT run the CRAN-incoming URL check, and the NOTE a local run reports
+      # from it is not one this workflow will ever see. A local `rcmdcheck()` without
+      # those two env vars is measuring a different check than this step runs.
+      #
+      # An outage at the BC Data Catalogue must not redden this gate, and that took a
+      # change to the suite rather than a claim about it. `R CMD check` runs every
+      # example, builds the vignette and then rebuilds it, and runs the tests -- all
+      # three of which fetch thumbnails, on all three runners, on every push and PR.
+      #
+      # The EXAMPLES were always safe, because none errors on a failed fetch:
+      # `fly_fetch()` returns `success = FALSE` (R/fly_fetch.R:104), `fly_georef()`
+      # skips a failed row (R/fly_georef.R:314), and `fly_mask()` has an explicit
+      # zero-length return whose own comment names the roxygen example as the caller
+      # that reaches it (R/fly_mask.R:98).
+      #
+      # The TESTS were not. Seven blocks in test-fly_georef.R fetched with no guard at
+      # all, four of them asserting `result$success` directly on a fresh download.
+      # Measured by routing HTTP at a dead port: the file as it stood gave **FAIL 11**,
+      # and with `skip_if_offline()` + `skip_if_not(all(fetched$success))` added — the
+      # pattern the two #49-era blocks below them already used — it gives FAIL 0,
+      # SKIP 9. Without that, a catalogue hiccup would have reddened three runners on
+      # an unrelated diff, which is how a gate teaches people to ignore it.
+      #
+      # The cost of the fix is that a silent outage now looks like a pass, which is what
+      # the next step is for.
+      - uses: r-lib/actions/check-r-package@v2
+        with:
+          build_args: 'c("--no-manual")'
+
+      # A skip is invisible in a green tick, and `fly` has two kinds that matter: the
+      # live-catalogue tests in test-fly_georef.R skip on `skip_if_offline()` and on a
+      # thumbnail that did not arrive, and test-fly_camera_patb.R:239 carries an
+      # unconditional `skip_on_ci()`. Without them being reported, "the guards ran and
+      # passed" and "the guards never executed" produce the same green tick — which is
+      # the state fly#52 exists to end, one level in.
+      #
+      # `check-r-package@v2` ALREADY cats the raw testthat output in a step of its own
+      # ("Show testthat output", `find ... -name 'testthat.Rout*' -exec cat`), so this is
+      # not the only thing putting skips in the log and should not claim to be. What it
+      # adds is two things that step cannot: the skip block on its own rather than
+      # buried at the end of a few thousand collapsed lines, and a FAILURE when the
+      # output is not there to read. The action's version ends in `|| true`, so a step
+      # that found nothing and a suite that skipped nothing look identical in it.
+      #
+      # Written in R rather than `find | xargs grep` for one reason only: no shell
+      # quoting layer, one code path on all three runners. NOT because bash is
+      # unavailable on Windows -- it is, the runners ship Git Bash and the action's own
+      # step above uses `shell: bash` with `find` on every platform.
+      - name: Report skipped tests
+        if: ${{ !cancelled() }}
+        shell: Rscript {0}
+        run: |
+          rcheck <- list.dirs("check", recursive = FALSE)
+          tdirs  <- file.path(rcheck, "tests")
+          tdirs  <- tdirs[dir.exists(tdirs)]
+
+          # No tests/ at all means the check never got that far -- the build failed, and
+          # that failure is already red above. Say so and stop, rather than adding a
+          # second red tick that describes a symptom instead of a cause.
+          if (!length(tdirs)) {
+            cat("no tests/ under check/ -- the check step did not reach the test stage\n")
+            quit(save = "no")
+          }
+
+          # tests/ existing with no .Rout is the state worth failing on. `R CMD check`
+          # copies tests/ in BEFORE running them, so this covers more than one cause --
+          # this step reading the wrong path, the test stage crashing, a step timeout --
+          # and it does not try to say which. What it refuses to do is report nothing
+          # about nothing, which is what a silently-empty reporting step does.
+          outs <- list.files(tdirs, pattern = "[.]Rout", full.names = TRUE, recursive = TRUE)
+          if (!length(outs)) {
+            stop("tests/ is present under check/ but holds no .Rout -- this step cannot ",
+                 "see the test output and is reporting nothing about nothing")
+          }
+
+          hit <- FALSE
+          for (f in outs) {
+            x <- readLines(f, warn = FALSE)
+            i <- grep("Skipped tests", x, fixed = TRUE)
+            if (length(i)) {
+              hit <- TRUE
+              cat("==", f, "\n")
+              cat(x[i[1]:length(x)], sep = "\n")
+              cat("\n")
+            }
+          }
+          if (!hit) {
+            cat("No skip block in", length(outs), ".Rout file(s).\n")
+            cat("test-fly_camera_patb.R:239 carries an unconditional skip_on_ci(), so",
+                "zero skips on a runner is surprising -- read the check log above.\n")
+          }
