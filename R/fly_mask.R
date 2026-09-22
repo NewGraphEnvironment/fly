@@ -290,7 +290,7 @@ fly_mask_one <- function(src, out, threshold, max_interior = fly_mask_max_interi
       basename(src), ": the mask covers ", round(frac_in * 100, 1), "% of the frame's ",
       "interior (", round(frac * 100, 1), "% overall) at threshold ", threshold,
       ", above the ", round(max_interior * 100, 1), "% a frame border can account for. ",
-      "That is a flood into the image, not a collar. Left unmasked — lower ",
+      "That is a flood into the image, not a collar. Left unmasked \u2014 lower ",
       "`threshold`, or accept the border. See `inst/notes/border-masking.md`.",
       call. = FALSE
     )
