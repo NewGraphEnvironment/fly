@@ -351,6 +351,57 @@ enumeration rather than on a quiet round — which is the rule once a defect has
 inside a fix, and one was (the concurrency group).
 
 
+## What the first CI run found — two real defects, neither predicted
+
+Run [35680424973](https://github.com/NewGraphEnvironment/fly/actions/runs/35680424973),
+on the workflow-only commit. It went red, which was the point — the non-ASCII WARNING was
+still in the tree and `error-on: "warning"` rejected it on all three platforms. **That is
+the gate demonstrated on a runner rather than asserted locally.**
+
+It also reported `1 ERROR`, and that was not part of the plan.
+
+### `test-fly_footprint.R` — a premise that is a property of the BLAS
+
+"a rotated ring is exactly closed at every bearing" failed on **all three** runners, on its
+last line: `expect_false(all(recomputed_ok))`. That is the anti-vacuity premise — it
+asserts the *pre-fly#26* recomputed close still fails somewhere in a 720-bearing sweep, so
+that the test cannot quietly become decoration.
+
+`xy %*% rot` computes rows independently, and whether an optimised implementation blocks or
+vectorises them differently is a property of the BLAS. Measured:
+
+| machine | bearings where the recomputed close differs |
+|---|---|
+| author's (arm64 macOS, libRlapack) | **342 of 720** |
+| ubuntu-latest, macos-latest, windows-latest | **0 of 720** |
+
+So the premise is true on the machine it was written on and false on every runner. Split
+into its own `test_that()` that **skips** when the defect is unreachable, naming the sweep
+size. It still asserts where it can fire, and the workflow's skip-report step prints the
+skip on every run — so "this machine cannot reach the defect" is visible rather than
+silent. Deleting it was the other option and is worse: on a machine that can reach it, it
+does its job.
+
+### `test-fly_georef_mask.R` — Windows disagrees with a documented invariant
+
+Windows only: masking a **grayscale** frame yields **2 bands** against 1 with masking off.
+ubuntu and macOS both give 1. So `CLAUDE.md`'s Key Decision that *"output band counts do
+not change"* — the stated reason masking could default to on without moving
+`stac_airphoto_bc` — was measured on one platform and written down unconditionally. RGB is
+unaffected: 4 on every runner.
+
+Filed as [#68](https://github.com/NewGraphEnvironment/fly/issues/68). Here the observed
+Windows value is **pinned**, not skipped: nothing goes unasserted, and the test goes red if
+that platform moves in either direction — including the direction where #68 is fixed, which
+makes this line the thing that says so. `skip()` was the alternative and is worse twice
+over, since it unwinds the whole `test_that()` and would have taken the RGB iteration and
+the collar measurements with it.
+
+**Both are pre-existing and neither was reachable from this machine.** That is the whole
+argument for the three-platform matrix, made by the matrix on its first run rather than by
+anyone's reasoning about it.
+
+
 ## Errors Encountered
 
 | Error | Resolution |

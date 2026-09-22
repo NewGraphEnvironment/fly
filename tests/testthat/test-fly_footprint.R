@@ -987,9 +987,27 @@ test_that("a rotated ring is exactly closed at every bearing", {
   expect_true(all(!is.na(closed_rect)))
   expect_true(all(closed_rect))
 
-  # Premise: closing by copy is what makes this hold. Recomputing the fifth vertex the
-  # way the pre-fly#26 code did fails somewhere in this sweep — if it ever stops
-  # failing, this test has become decoration and the comment above is wrong.
+})
+
+
+test_that("the pre-fly#26 recomputed close is still reachable on this machine", {
+  # Premise for the sweep above: closing by copy is what makes it hold, because
+  # recomputing the fifth vertex the way the pre-fly#26 code did fails somewhere in the
+  # sweep. If that ever stops being true, the test above has become decoration.
+  #
+  # **It is a property of the BLAS, not of the code**, which is why it lives here rather
+  # than inside that test. `xy %*% rot` computes rows independently and an optimised
+  # implementation may block or vectorise them differently; a reference one need not.
+  # Measured 2026-09-21: 342 of 720 bearings differ on the author's machine (arm64
+  # macOS, libRlapack) and **0 of 720** on all three GitHub runners -- where asserting
+  # it took the whole check red on ubuntu, macOS and Windows alike, on this workflow's
+  # first run.
+  #
+  # So it skips rather than asserting where the defect is unreachable, and the skip is
+  # printed by the workflow's "Report skipped tests" step on every run. A premise that
+  # cannot fire is worth saying out loud; it is not worth failing over, and it is not
+  # worth deleting -- on a machine that CAN reach it, it still does its job.
+  bearings <- seq(0, 359.5, by = 0.5)
   recomputed_ok <- vapply(bearings, function(b) {
     xy <- matrix(c(-1000,-1000, 1000,-1000, 1000,1000, -1000,1000, -1000,-1000),
                  ncol = 2, byrow = TRUE)
@@ -997,5 +1015,10 @@ test_that("a rotated ring is exactly closed at every bearing", {
     r <- xy %*% matrix(c(cos(rad), sin(rad), -sin(rad), cos(rad)), nrow = 2)
     identical(r[1, ], r[5, ])
   }, logical(1))
+
+  if (all(recomputed_ok)) {
+    skip(paste0("this BLAS closes `xy %*% rot` exactly at all ", length(bearings),
+                " bearings, so the pre-fly#26 defect is unreachable here"))
+  }
   expect_false(all(recomputed_ok))
 })

@@ -83,8 +83,13 @@ diff — fly#52's own complaint in a new form.
 
 - [ ] Poll sparsely with `gh run view <id> --json status,conclusion` — never
       `gh run watch`
-- [ ] The first run (workflow only) is **red** on the non-ASCII WARNING — that is the
-      gate being demonstrated, not a defect. Record the run ID
+- [x] The first run (workflow only) is **red** on the non-ASCII WARNING — the gate
+      demonstrated on a runner. Run
+      [35680424973](https://github.com/NewGraphEnvironment/fly/actions/runs/35680424973)
+- [x] It also found two pre-existing defects neither reachable from this machine: a
+      BLAS-dependent premise in `test-fly_footprint.R` (342/720 locally, 0/720 on every
+      runner) and a Windows-only band count contradicting a documented invariant
+      ([#68](https://github.com/NewGraphEnvironment/fly/issues/68))
 - [ ] All three jobs green on the second. **Discriminator for a red run**: re-run the
       failed job once. Reproducible is a finding (GDAL portability, a platform bug);
       not reproducible is catalogue flake, and gets filed rather than worked around
