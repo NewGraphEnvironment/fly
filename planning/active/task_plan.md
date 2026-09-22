@@ -21,20 +21,24 @@ Outcome: `R CMD check` runs on ubuntu, macOS and Windows at R release for every 
 
 ## Phase 1: Measure the check before writing any workflow
 
-- [ ] Run `devtools::check(args = c("--no-manual", "--as-cran"))`, capture output under
-      the scratchpad, grep for `WARNING|NOTE|ERROR`
-- [ ] Record every WARNING and NOTE verbatim in `findings.md`, each with a verdict:
+- [x] Run `rcmdcheck` with the action's exact defaults, capture output under the
+      scratchpad, grep for `WARNING|NOTE|ERROR` — **0 errors, 1 warning, 1 note**
+- [x] Record every WARNING and NOTE verbatim in `findings.md`, each with a verdict:
       fix now / accept as NOTE / out of scope
-- [ ] Record the wall-clock the check took — it sets the expectation for three runners
-- [ ] Confirm the predicted em-dash WARNING and `utils`/`stats` NOTE actually appear.
-      If either does not, say so rather than carrying the prediction forward
+- [x] Record the wall-clock the check took — **243 s** locally with deps installed
+- [x] Confirm the predictions. **Both were wrong and are recorded as wrong**: the
+      non-ASCII WARNING names only `R/fly_mask.R` (the other two files already use
+      `\u2014`, and the probe's `deparse()` un-escaped them), and the `utils`/`stats`
+      NOTE does not exist — they are base packages
 
 ## Phase 2: Clear what Phase 1 found, so the gate can sit at WARNING
 
-- [ ] Replace em dashes in the **string literals** of `R/fly_footprint.R`,
-      `R/fly_georef.R`, `R/fly_mask.R` with `--`. Comments and roxygen untouched — the
-      check does not see them
-- [ ] Add `stats` and `utils` to `DESCRIPTION` Imports
+- [ ] `R/fly_mask.R:293` — the one flagged character, written as `\u2014` to match the
+      eleven escapes `R/fly_footprint.R` and `R/fly_georef.R` already carry. `\u2014`
+      rather than `--` because it keeps the rendered message byte-identical, so no
+      consumer can notice; `test-fly_mask.R:158` greps the same string
+- [ ] ~~Add `stats` and `utils` to `DESCRIPTION` Imports~~ — dropped, Phase 1 showed
+      `checking dependencies in R code ... OK`
 - [ ] `devtools::document()`, reading what it prints
 - [ ] Full suite green, confirming no test regex was crossing an em dash
 - [ ] `devtools::check()` reports **0 WARNINGs**; residual NOTEs recorded with a reason
