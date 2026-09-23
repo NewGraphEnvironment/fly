@@ -607,6 +607,48 @@ If it died in dependency setup, rerun once. If it dies the same way again it is 
 upstream CDN, and the honest move is to say so and stop — not to keep spending runs on
 something no change in the repo can fix.
 
+## A job-level `concurrency` group must vary with the matrix, or the jobs cancel each other
+
+`concurrency` at the **job** level is evaluated **per matrix job**, so a group string that
+does not vary with the matrix puts every runner in one group — and with
+`cancel-in-progress: true` they cancel each other. At most one platform runs per push,
+which is the entire justification for having a matrix.
+
+```yaml
+# WRONG: identical for all three entries
+concurrency:
+  group: check-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# right
+  group: check-${{ github.workflow }}-${{ github.ref }}-${{ matrix.config.os }}
+```
+
+`fail-fast: false` does not help — that governs failures, not cancellation.
+
+**It fails in the quiet direction.** A cancelled run reports `cancelled`, not `failure`,
+which `/gh-pr-merge` step 10 correctly reads as `⊘ superseded` — so two platforms that
+never ran look like two platforms that were superseded by a newer push. Nothing is red and
+nothing says the coverage was lost.
+
+The decisive evidence is GitHub's own context-availability table: `matrix` is listed for
+`jobs.<job_id>.concurrency` and **not** for the top-level `concurrency`. If it were not
+evaluated per job, the context could not be in scope there.
+
+```bash
+curl -s https://raw.githubusercontent.com/github/docs/main/content/actions/reference/workflows-and-actions/contexts.md \
+  | grep 'concurrency'
+```
+
+Cheapest confirmation on a live workflow: the first run's job list. Three jobs
+`in_progress` at once is the pass; one running while two read `cancelled` is this.
+
+The entries above concern cancellation **between pushes**, which is the behaviour you
+want. This is cancellation **within one push**, which is never what you want.
+
+*4 lines of evidence for this rule are in `conventions/ci-monitoring.md`, which `/code-check` reads in full.*
+
+
 
 # Code Check — R packages
 
@@ -1463,9 +1505,7 @@ Generalises well past `sf`: `stringsAsFactors` historically, `OutDec`, `digits`,
 anything reading `TZ`. Ask of any library call in package code: *what could a caller
 have set that changes this answer?*
 
-Caught 2026-09-01 in trap#25 while replacing a time-based tolerance with a
-distance-based one — the gate was the whole point of the change, and it would have
-been unitless in half the sessions that ran it.
+*11 lines of evidence for this rule are in `conventions/code-check-r.md`, which `/code-check` reads in full.*
 
 ### `identical(-0, 0)` is TRUE in R, and the two still digest differently
 
@@ -1832,6 +1872,68 @@ expect_false(grepl("forbidden", paste(deparse(body(planted)), collapse = "\n"), 
 ```
 
 
+### `deparse()` re-encodes non-ASCII, so it answers about itself rather than the file
+
+The entry above is one blind spot in `deparse()` as a probe; this is the other, and it
+fires in **both** directions on the same question. `deparse()` renders a `\uXXXX` escape
+back as the literal character, and re-escapes a literal character on the way out. So a
+parse-and-deparse scan for non-ASCII in R code reports **the existing fix as the defect**,
+and the same scan run after fixing reports the fix as not having happened.
+
+```r
+# file contains:  "elevation \u2014 without it ..."
+d <- unlist(lapply(as.list(parse("R/f.R")), deparse))
+grepl("\u2014", d)                         # TRUE  -- but the file has no raw em dash
+```
+
+What `R CMD check` actually runs is line-based over the raw file and **skips comments**:
+
+```r
+tools:::.check_package_ASCII_code(".", FALSE)   # FALSE is what the check passes
+#> "R/fly_mask.R"                                # respect_quotes = TRUE gives character(0)
+```
+
+Measured 2026-09-21 in fly#52: the deparse probe named three files, the check named one.
+Of 30 non-ASCII lines in the one real offender, 29 were comments and correctly ignored;
+the offender was a **string literal**. Two of the three "defects" were `\u2014` escapes —
+i.e. the remedy the check itself recommends, reported as the problem.
+
+- **Use the check's own predicate** for this class, not a reconstruction of it.
+- **When verifying a string's content, compare VALUES, never a deparse.** Pull the literal
+  out of the parse tree and test it; `grepl("\u2014", deparse(body(f)))` is `FALSE` after
+  a correct `\uXXXX` fix and reads as "the message changed", which it did not.
+- The general form: a probe that round-trips through a printer is measuring the printer.
+  `format()`, `dput()`, `as.character()` on a factor and `print()` all have a version of
+  this.
+
+### `package_version()` errors on a pre-release version string
+
+Not `NA` — an error. So a version floor asserted with it turns a correct package red on
+any host carrying a dev or beta build:
+
+```r
+package_version("3.9.0beta1")      # Error: invalid version specification
+package_version("3.11.0-dev")      # Error
+numeric_version("3.9.0beta1", strict = FALSE)   # NA -- also not usable in a comparison
+```
+
+`GDALVersionInfo("RELEASE_NAME")` emits exactly those shapes, and so do several
+`*_extSoftVersion()` accessors. Strip the suffix and assert what the strip produced, so a
+shape nobody anticipated names itself rather than erroring three lines later:
+
+```r
+num <- sub("[^0-9.].*$", "", raw)
+expect_match(num, "^[0-9]+([.][0-9]+)+$")
+expect_gte(package_version(num), package_version("3.8.0"), label = paste("GDAL", raw))
+```
+
+Drive it against the shapes that must be **rejected** as well as accepted — a version
+premise that only ever passes is decoration, and the rejected set is where the floor
+number itself gets checked.
+
+*4 lines of evidence for this rule are in `conventions/code-check-r.md`, which `/code-check` reads in full.*
+
+
 ### `tryCatch(warning = )` DISCARDS the value the expression produced
 
 A `warning =` handler is not a filter — it replaces the whole expression, so a call that
@@ -2087,6 +2189,81 @@ expect_equal(round(computed, dp(printed)), as.numeric(sub("%$", "", printed)), t
 Caught 2026-09-20 in fly#58, on a guard whose whole purpose was to stop a note publishing a
 figure the data does not support. Prove it by planting a wrong value at the precision the
 document prints — a tolerance that survives that plant is decoration.
+
+### `cli` reads `{.name}` as a STYLE, not a variable, and a fold can swallow an interpolation
+
+Two ways a `cli` message loses a value. One is loud, one is silent, and the silent one
+comes first in the usual debugging order.
+
+**Silent.** A `{...}` expression placed immediately after a `cli` line-fold (a trailing
+backslash inside the string) can render as nothing. The message prints with a hole in
+it — `"decade split accounts for 393,677 of "` — which reads as a broken *total*, so the
+first instinct is to go looking at the arithmetic rather than at the format string.
+
+**Loud, since cli 3.4.** A name beginning with a dot is parsed as a cli style:
+
+```r
+.n <- 42; cli::cli_alert_info("count {.n}")
+#> Error: Invalid cli literal: `{.n}` starts with a dot.
+```
+
+That bites exactly when you apply the fix for the first problem — compute the value into
+a variable first — and reach for a dot-prefixed name out of habit.
+
+Do both: format the value in R and hand `cli` a plain variable, and do not start its name
+with a dot. `{(.n)}` and `{ .n}` also parse, but a name without the dot is the form that
+does not need explaining.
+
+*4 lines of evidence for this rule are in `conventions/code-check-r.md`, which `/code-check` reads in full.*
+
+### `[[` on a named ATOMIC vector with an absent key is an error, not `NULL`
+
+A list returns `NULL` for a missing `[[` key. An atomic vector raises — so a
+lookup written against a config list aborts the moment the same mapping is
+stored as a named character vector, which is the idiomatic way to write a small
+key→value table in package code.
+
+```r
+x <- c(fiss_site = "method_for_wetted_width")
+x[["cabin_visit"]]              #> Error: subscript out of bounds
+x["cabin_visit"]                #> <NA>  — a named NA, length 1, not empty
+x[names(x) == "cabin_visit"]    #> named character(0)
+```
+
+All three spellings look like "look this key up". Only the third gives the
+zero-length answer `%in%` then reads as "this key exempts nothing":
+
+```r
+exempt <- s$field %in% x[names(x) == key]   # all FALSE when key is absent
+```
+
+`x[key]` is the trap in the middle — it returns a length-1 `NA`, so
+`%in%` matches any `NA` in the left operand rather than nothing.
+
+*5 lines of evidence for this rule are in `conventions/code-check-r.md`, which `/code-check` reads in full.*
+
+### `data.frame()` recycles a scalar against a zero-length column
+
+It does not yield a 0-row frame — it raises, because a length-1 column and a
+length-0 column cannot be recycled together:
+
+```r
+data.frame(section = "Photos", item = character(0), write_in = logical(0))
+#> Error: arguments imply differing number of rows: 1, 0
+```
+
+So a constructor that is correct for every non-empty case dies on the empty one,
+and it dies *inside* `data.frame()` — before whatever guard downstream was
+written to report the empty set by name. Return an explicit 0-row frame first:
+
+```r
+if (!length(items)) {
+  return(data.frame(section = character(0), item = character(0),
+                    write_in = logical(0), stringsAsFactors = FALSE))
+}
+```
+
+*6 lines of evidence for this rule are in `conventions/code-check-r.md`, which `/code-check` reads in full.*
 
 
 # Code Check — Shell
@@ -2453,6 +2630,21 @@ alias" below, arriving through PATH order rather than through a function — and
   git push -u origin "$BRANCH" || { echo "push failed"; exit 1; }
   ```
 - **Before `gh pr merge`, verify the branch is fully pushed.** `gh pr merge` merges the REMOTE branch — commits made locally but never pushed are silently excluded, so the PR merges "successfully" while `main` is missing work you know you committed. Check `git status -sb` shows no `ahead N` before merging (or that `git rev-list --count @{u}..HEAD` is 0). Worse: if you then delete the local branch (`--delete-branch`, or a follow-up `git branch -D`), the unpushed commits become **dangling** — recoverable via `git reflog` / `git fsck --lost-found` then `git cherry-pick`, but only if you notice they're missing. The same check belongs in the `gh-pr-merge` skill's pre-merge step.
+
+- **A HEAD-vs-origin check cannot see work that was never committed.** The rule above verifies the
+  branch is fully pushed with `git rev-list --count @{u}..HEAD` — which answers "is HEAD on origin?",
+  not "is my work on HEAD?". When a `git commit` *fails*, the changes stay staged, HEAD does not move,
+  and the next `git push` trivially succeeds: the count is 0 and the check passes on a branch carrying
+  none of your work. The failure directions differ — unpushed commits are recoverable from reflog,
+  whereas this pushes a branch that never had the work — so verify the commit landed on its own terms:
+  ```bash
+  git commit -F msg.txt || exit 1          # a failed commit must stop the script
+  git show --stat HEAD                     # and say what it actually contains
+  ```
+  Any `git commit -m "$(...)"` whose substitution can fail belongs behind this, because the failure is
+  a shell parse error, not a git error.
+
+*5 lines of evidence for this rule are in `conventions/code-check-shell.md`, which `/code-check` reads in full.*
 
 - **GitHub does not parse negation in a closing keyword, so "does not close #N" closes #N.**
   The grep this skill prescribes above finds the line and a human reads it as a denial;
@@ -4103,6 +4295,36 @@ broken before the world is" in `code-check.md` — print a positive control befo
 a distance surface, since both the broken and the working form return a plausible-looking
 raster of numbers.
 
+### `summarise()` on a grouped `sf` returns an `sf`, and the geometry rides into your CSV
+
+`dplyr::summarise()` dispatches to `summarise.sf` on an `sf` object. Two things follow,
+and neither is announced:
+
+- It computes its **own** aggregate union of the group's geometries, on top of whatever
+  you asked for. Measured over 3,000 groups: 22.96 s against 18.11 s for the same
+  summary on a plain tibble — the union is being done twice.
+- It returns an `sf`, so the result carries a geometry column. Joined onto a plain
+  frame it is now a list-column there, and `readr::write_csv()` does **not** reject an
+  `sfc` — it deparses it as `"list(c(...))"`. The artifact silently gains a junk column,
+  and a rename step downstream gains a second one.
+
+Neither shows up in a row count, a record count, or any assertion about values. It is
+visible in the **column set**, which is why a regression check on a tabular artifact
+should compare names and order, not just the rows and the numbers it knows to look at.
+
+When you want an aggregate of geometry but a tabular result, drop the class first and
+keep the geometry as an ordinary column:
+
+```r
+tbl <- tibble(id = x$id, g = sf::st_geometry(x))
+tbl |> group_by(id) |> summarise(area = as.numeric(sf::st_area(sf::st_union(g))))
+```
+
+`sf::st_drop_geometry()` after the fact also works, and still pays for the redundant
+union.
+
+*4 lines of evidence for this rule are in `conventions/code-check-spatial.md`, which `/code-check` reads in full.*
+
 
 # Code Check Conventions
 
@@ -4380,7 +4602,7 @@ cache key and the request on the wire. If it reaches neither, the two runs are o
 and the comparison cannot fail — say the property holds by construction rather than
 dressing a tautology as evidence.
 
-*12 recorded instances of this are in `conventions/code-check.md`, which `/code-check` reads in full.*
+*13 recorded instances of this are in `conventions/code-check.md`, which `/code-check` reads in full.*
 
 ### A guard's scope, escape hatches, and remedies
 
@@ -4483,7 +4705,7 @@ several sources — a rule promoted out of its instances, a summary over a measu
 execute it against each source rather than against itself: the compression reads correct on
 its own, and the condition it dropped is visible only in the thing it compressed.
 
-*25 recorded instances of this are in `conventions/code-check.md`, which `/code-check` reads in full.*
+*26 recorded instances of this are in `conventions/code-check.md`, which `/code-check` reads in full.*
 
 ### A fix lands in one of two callers that share a harness
 
@@ -4797,7 +5019,7 @@ a document that parses is not a document carrying its fields. And never rebuild 
 by splitting a joined string whose separator can occur inside the parts: carry the
 structure from where it was built, or the split invents members that were never there.
 
-*9 recorded instances of this are in `conventions/code-check.md`, which `/code-check` reads in full.*
+*10 recorded instances of this are in `conventions/code-check.md`, which `/code-check` reads in full.*
 
 ### One fact derived twice
 
@@ -5553,6 +5775,14 @@ issue bodies, PR text, reading, planning. If an edit cannot wait, kill the run
 rather than let it produce a result that has to be re-litigated. And when a long run
 fails, get the `file:line` before forming any theory: a mid-flight edit and a real
 regression look identical in a summary line.
+
+**It is not only test runners.** `Rscript file.R` parses incrementally too, so editing
+any long-running script mid-run resumes the parser at a byte offset into shifted
+content. The tell is different and worse: a **syntax error quoting a line that does not
+exist**, which reads as a defect in code that is fine. The moving-denominator tell above
+needs two runs to see; this one arrives looking like an answer.
+
+*6 lines of evidence for this rule are in `conventions/karpathy.md`, which `/code-check` reads in full.*
 
 ## 6. Subagents Are Evidence, Not Dependencies
 
