@@ -234,6 +234,18 @@ warped band list. That is what let masking default to on without moving `stac_ai
 Grayscale keeps `-dstnodata 0`, the weaker contract — fly#56. Do not re-derive the collar's
 shape from geometry or re-propose a circle; read `inst/notes/border-masking.md`
 
+  **That band-count claim is platform-conditional and was written as if it were not**
+(fly#68, 2026-09-21). It was measured on macOS; the three-platform CI added in fly#52
+found on its first run that **Windows yields 2 bands for a masked grayscale frame**
+against 1 with masking off. ubuntu and macOS give 1; RGB is 4 everywhere. So the stated
+reason masking could default to on — that `stac_airphoto_bc` need not move — does not
+hold for grayscale produced on Windows. A second symptom from the same root, on the same
+runner: GDAL reports *"Value 0 in the source dataset has been changed to 1 ... to avoid
+being treated as NoData"*, so genuine zeros are silently shifted in the warped output.
+`test-fly_georef_mask.R` **pins** the observed Windows value rather than skipping it, so
+it reddens if that platform moves in either direction — including the direction where
+fly#68 is fixed. Do not re-state the invariant unconditionally while fly#68 is open
+
 - **`flying_height` is held against `scale x focal_length` before the DEM route believes it,
 and the one identifiable error is repaired** (v0.12.0, #54) — the catalogue's `FLYING_HEIGHT`
 is 3.28084² = 10.764 times too large on 1,589 film frames (13 rolls, 1974-2005), a
