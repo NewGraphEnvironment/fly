@@ -1,0 +1,30 @@
+# ------------------------------------------------
+# CITATION.cff file created with {cffr} R package
+# See also: https://docs.ropensci.org/cffr/
+# ------------------------------------------------
+ 
+cff-version: 1.2.0
+message: 'To cite package "fly" in publications use:'
+type: software
+license: MIT
+title: 'fly: Historic Airphoto Footprints, Selection and Georeferencing for British
+  Columbia'
+version: 0.14.1
+abstract: Estimate ground footprints from airphoto centroids and scale, compute coverage
+  of areas of interest, select minimum photo sets using greedy set-cover, fetch scans
+  and flight metadata from the BC Data Catalogue, and georeference the images onto
+  their estimated footprints.
+authors:
+- family-names: Irvine
+  given-names: Allan
+  email: al@newgraphenvironment.com
+  orcid: https://orcid.org/0000-0002-3495-2128
+repository-code: https://github.com/NewGraphEnvironment/fly
+url: https://newgraphenvironment.github.io/fly/
+date-released: '2026-09-21'
+contact:
+- family-names: Irvine
+  given-names: Allan
+  email: al@newgraphenvironment.com
+  orcid: https://orcid.org/0000-0002-3495-2128
+
