@@ -210,7 +210,9 @@ fly_height_slip_factor <- function() 3.28084^2
 # frames land at 0.80-1.32 once repaired against 10.0-15.8 before. The UPPER edge sits in
 # the trough between that mass and the next one out, centred on 2.0, which is a 305 mm lens
 # catalogued as 153 — a frame the DEM route would draw at twice its true width, and the
-# nominal route gets right because it never reads `focal_length`. The lower edge is that
+# nominal route gets right because it never reads `focal_length`. For about half of that
+# mass: fly#60's frame spacing shows 105 of its 209 sampled frames carry the right height
+# and a wrong scale, which the nominal route draws at half width (fly#72). The lower edge is that
 # factor inverted, because the error is a ratio either way; it is set by symmetry and not
 # by a trough, since ordinary frames simply thin out below 0.8 with no second mass at 0.5.
 # See `inst/notes/terrain-correction.md`.
@@ -225,6 +227,32 @@ fly_height_ratio_band <- function() c(1 / 1.6, 1.6)
 # frame having no reported scale worth comparing against, and for those it is judged before
 # a DEM window is ever built from the height in question.
 fly_flying_height_max <- function() 16000
+
+# Roll-heights whose `flying_height` disagreement was settled by measurement (fly#60).
+#
+# fly#54 left the lower tail — film frames reading under half the height their scale
+# implies — refused, because pooled, x10.764, x10 and x2 each explained a comparable share.
+# Per roll they do not: the lower tail is 42 rolls, nearly each carrying one height, and two
+# instruments that read none of the disputed fields settle 22 roll-heights — the scanned
+# logbooks at `flight_log_url`, whose TRUE HEIGHT column the catalogue transcribed, and the
+# spacing between frames adjacent by number, which must imply the ~60% forward overlap the
+# flight was designed to. `factor` names the defect: 10 or 100 where digits were dropped (a
+# logbook "20.0", thousands of feet, catalogued as 2,000 ft), 1 where the logbook confirms
+# the height and the SCALE is the wrong field. `height_m` is the height used — the logbook's,
+# converted, since the catalogue's rounding survives multiplying by the factor.
+#
+# Keyed on roll, height, lens and scale together, so the table reaches only the frames it
+# was measured on. Every lower-tail roll-height it does not correct is listed with its
+# reason in `flying_height_rolls_excluded.csv`: an unlisted roll is unmeasured, not clean.
+# Produced by `data-raw/height_calibrate-lower_tail_rolls.R`; see
+# `inst/notes/terrain-correction.md`.
+fly_height_roll_table <- function() {
+  path <- system.file("extdata/flying_height_rolls.csv", package = "fly")
+  if (!nzchar(path)) {
+    stop("`flying_height_rolls.csv` is missing from the installed package.", call. = FALSE)
+  }
+  utils::read.csv(path, colClasses = c(film_roll = "character", cause = "character"))
+}
 
 # The DEM-aligned grid a single footprint is counted against.
 #
@@ -655,6 +683,14 @@ fly_is_square <- function(footprints) {
 #'     `height_agl` is the height used. Your `flying_height` column is **not**
 #'     overwritten, so on these rows `flying_height - height_agl` is not the ground
 #'     elevation}
+#'   \item{`"corrected_roll_table"`}{they disagree, and the frame sits on one of
+#'     the roll-heights in `inst/extdata/flying_height_rolls.csv`, which the
+#'     province's flight logbooks and the spacing between adjacent frames settled
+#'     (fly#60): a height with one or two digits dropped (a logbook "20.0",
+#'     thousands of feet, catalogued as 2,000 ft), or a correct height beside a
+#'     wrong `scale`. Sized from the measured height; matched on `film_roll`,
+#'     `flying_height`, `focal_length` and `scale` together, so it needs a
+#'     `film_roll` column. As with the slip, `flying_height` is not overwritten}
 #'   \item{`"implausible"`}{they disagree some other way, or `flying_height` is
 #'     above 16,000 m or below the terrain. Nothing can say whether the height, the
 #'     scale or the focal length is the wrong one — a 305 mm lens catalogued as
@@ -1081,8 +1117,48 @@ fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL,
     # `r_reported > 0`: terrain at or above the aircraft is already its own case below,
     # with its own warning, and stays there.
     disputed <- comparable & is.finite(r_reported) & r_reported > 0 & !in_band(r_reported)
-    slipped <- disputed & in_band(r_repaired)
+
+    # A frame on a roll-height the logbooks and frame spacing have settled (fly#60).
+    # Consulted before #54's repair, since it names the cause for these frames rather than
+    # inferring one. A height slip must still reconcile THIS frame's ratio, as #54's does;
+    # a factor of 1 says the scale is the wrong field, so the ratio against that scale is
+    # exactly what cannot be asked of it — but that height must still clear the ground.
+    #
+    # Not only `disputed` frames: a height with two digits dropped sits BELOW the terrain
+    # (bc7280 is catalogued at 60 m), which `disputed` hands to the terrain-above-aircraft
+    # case, so the table would never reach the frames it was measured on.
+    out_of_band <- comparable & is.finite(r_reported) & !in_band(r_reported)
+    tab_factor <- rep(NA_real_, n)
+    tab_height <- rep(NA_real_, n)
+    if ("film_roll" %in% names(centroids_sf) && any(out_of_band)) {
+      tab <- fly_height_roll_table()
+      # Every number formatted the same way on both sides. `read.csv()` gives the table's
+      # columns as integers and the frame's arrive as doubles, and `paste()` writes those
+      # differently once they are round enough: 100000L is "100000", 100000 is "1e+05".
+      num <- function(x) formatC(as.numeric(x), format = "f", digits = 3)
+      tab_key <- paste(tab$film_roll, num(tab$flying_height), num(tab$focal_length),
+                       num(tab$scale_n))
+      frame_key <- paste(as.character(centroids_sf$film_roll), num(fh),
+                         num(centroids_sf$focal_length), num(scale_num))
+      hit <- match(frame_key, tab_key)
+      # `match()` pairs NA with NA, and `paste()` turns NA into the string "NA", so a frame
+      # missing any key column is kept off the table explicitly rather than by luck.
+      keyed <- !is.na(centroids_sf$film_roll) & is.finite(fh) &
+        is.finite(centroids_sf$focal_length) & is.finite(scale_num)
+      hit[!keyed | !out_of_band] <- NA_integer_
+      tab_factor <- tab$factor[hit]
+      tab_height <- tab$height_m[hit]
+    }
+    # The logbook's height, converted — not the catalogue's times the factor, which carries
+    # the catalogue's rounding: bc7280's 20,000 ft is catalogued as 60 m, and x100 of that
+    # is 96 m short.
+    r_tabled <- (tab_height - first$elev) / nominal_agl
+    tabled <- out_of_band & is.finite(tab_factor) &
+      ((tab_factor == 1 & r_reported > 0) | (tab_factor > 1 & in_band(r_tabled)))
+
+    slipped <- disputed & !tabled & in_band(r_repaired)
     fh_used <- fh
+    fh_used[tabled] <- tab_height[tabled]
     fh_used[slipped] <- fh[slipped] / fly_height_slip_factor()
     # The ceiling needs no terrain, so it applies whether or not the DEM covers the frame \u2014
     # except to a frame that HAS a scale to be held against and could not be, because the
@@ -1092,7 +1168,7 @@ fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL,
     # findable as `no_dem_coverage`, which is the documented way to learn the DEM needs to
     # be bigger.
     untested <- comparable & !is.finite(first$elev)
-    implausible <- (disputed & !slipped) |
+    implausible <- (disputed & !slipped & !tabled) |
       (dem_eligible & !untested & is.finite(fh_used) & fh_used > fly_flying_height_max())
     height_refused <- implausible
 
@@ -1212,6 +1288,18 @@ fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL,
         call. = FALSE
       )
     }
+    roll_tabled <- corrected & tabled
+    if (any(roll_tabled)) {
+      warning(
+        sum(roll_tabled), " of ", sum(dem_eligible), " frames sit on a roll whose ",
+        "`flying_height` disagreement was settled by the flight logbooks and the spacing ",
+        "between frames (`flying_height_rolls.csv`): a height with dropped digits, or a ",
+        "correct height beside a wrong `scale`. Sized from the measured height; ",
+        "`flying_height` is left as supplied and `height_agl` is the height used. ",
+        "See `height_source`.",
+        call. = FALSE
+      )
+    }
     if (any(implausible)) {
       warning(
         sum(implausible), " of ", sum(dem_eligible), " frames have a `flying_height` that ",
@@ -1279,6 +1367,7 @@ fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL,
 
     height_source[corrected] <- "reported"
     height_source[repaired] <- "corrected_unit_slip"
+    height_source[roll_tabled] <- "corrected_roll_table"
     height_source[implausible] <- "implausible"
     # Terrain at or above the aircraft is a height that was supplied and rejected, so it is
     # findable the same way. Missing or zero metadata is not: there was no height to doubt.

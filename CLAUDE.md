@@ -50,6 +50,12 @@ the note and NEWS quote. Ships `inst/extdata/flying_height_sweep.csv` and
 `flying_height_population.csv`, which `test-fly_footprint_height.R` reads so the three constants
 are checked against the data. Use a PSOCK cluster for remote DEM reads — `mclapply()` forks
 abort on GDAL's curl handles on macOS while the wrapper exits 0
+- `data-raw/height_calibrate-lower_tail_rolls.R` — settles the lower tail of `flying_height`
+per roll (fly#60) with adjacent-frame spacing and the hand transcription of the province's
+logbook scans in `data-raw/flying_height_logbooks.csv`, which is an input and is never
+regenerated. Writes `inst/extdata/flying_height_rolls.csv` and
+`flying_height_rolls_excluded.csv`; `test-fly_footprint_height_rolls.R` holds both to the
+sweep
 - `height_fixture()` and `flat_dem()` in `tests/testthat/setup.R` — eight frames over level
 ground, each reaching one height check by a stated route; rows 7 and 8 exist because two
 deliberate defects survived the first six
@@ -268,6 +274,30 @@ picking one, and do not re-derive the band without the sweep. Classification hap
 first DEM pass and **before** the second, and a camera-table frame over the ceiling is never
 seeded — classifying after both passes returns the right footprint and still fetches 110 km of
 terrain per frame, so the test asserts on the grids. Read `inst/notes/terrain-correction.md`
+
+- **The lower tail of `flying_height` is settled per roll, from the logbooks, and 389 of
+the 1,001 frames it settled were never a height error** (v0.15.0, #60) — #54 left 1,962 film frames
+under half their nominal height `"implausible"` because ×10.764, ×10 and ×2 fit equally
+pooled. That was the wrong unit: they are 42 rolls, nearly each carrying one round-feet
+height, so 77 roll-heights. Two witnesses that read none of the disputed fields — spacing
+between frames adjacent by number against the ~60% designed overlap, and the TRUE HEIGHT
+column of the logbook scans at `flight_log_url` — settle 22 roll-heights (1,001 frames):
+10 dropped a digit, 1 dropped two, and **11 carry the right height beside a wrong
+`scale`**, where #54's fallback to nominal was the defect. `fly_footprint()` reads
+`flying_height_rolls.csv` and marks them `"corrected_roll_table"`.
+
+  **Four things are load-bearing.** The shipped height is the **logbook's**, converted,
+never the catalogue's times the factor — `bc7280`'s 20,000 ft is catalogued as 60 m and
+×100 of that is 96 m short. The key is roll, height, lens and scale with numbers
+**formatted identically** on both sides, since `paste()` spells 100000L and 100000
+differently. The table reaches frames catalogued **below the terrain**, which is how a
+height missing two digits arrives, so it is gated on the band and not on `disputed`. And
+every excluded roll-height carries the reason that actually fired — no page, rows that
+disagree, a row not read are three states, and an earlier draft folded them into one.
+Spacing separates readings ~1.6× apart and no closer, so it cannot tell ×10 from ×10.764;
+the logbook can. The control roll `bc78065` suggests #54's own factor is ×10 on pre-2000
+rolls (fly#71), and half the r ≈ 2 mass is a wrong scale, not a mislabelled lens (fly#72).
+Do not change `fly_height_slip_factor()` from this; read `inst/notes/terrain-correction.md`
 
 ## Gotchas
 
