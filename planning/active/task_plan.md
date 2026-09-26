@@ -81,12 +81,12 @@ but the 2003/2005 rolls stay findable only in prose.
 ## Phases
 
 ### Phase 1: Read the pre-2000 logbooks blind
-- [ ] Fetch the five pages above into `data-raw/.cache/logbooks/` with the script's existing
+- [x] Fetch the five pages above into `data-raw/.cache/logbooks/` with the script's existing
   `fetch_logbooks()`. It is guarded by `dir.exists`, so call it for these rolls explicitly
-- [ ] Transcribe them through a subagent. It gets the image paths and the CSV column spec, and
+- [x] Transcribe them through a subagent. It gets the image paths and the CSV column spec, and
   it gets **no catalogue heights**, as fly#60 did. Append the rows to
   `data-raw/flying_height_logbooks.csv` with `control = FALSE`
-- [ ] Record the reading in `findings.md`: which factor each roll names, and the `bcb98013` typo
+- [x] Record the reading in `findings.md`: which factor each roll names, and the `bcb98013` typo
 
 ### Phase 2: Tests first
 - [ ] `test-fly_footprint_height_rolls.R`: allow a factor below 1. A frame on a tabled 1/10
