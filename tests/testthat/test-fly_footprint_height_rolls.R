@@ -144,8 +144,8 @@ test_that("the table is consulted for every class of input", {
   rf <- roll_fixture()
   shapes <- list(
     plain = rf,
-    tibble = sf::st_as_sf(tibble::as_tibble(rf)),
-    grouped = sf::st_as_sf(dplyr::group_by(tibble::as_tibble(rf), .data$film_roll))
+    tibble = sf::st_as_sf(dplyr::as_tibble(rf)),
+    grouped = sf::st_as_sf(dplyr::group_by(dplyr::as_tibble(rf), .data$film_roll))
   )
   expect_true(inherits(shapes$tibble, "tbl_df"))
   expect_true(inherits(shapes$grouped, "grouped_df"))
