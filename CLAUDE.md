@@ -299,7 +299,7 @@ the logbook can. Half the r ≈ 2 mass is a wrong scale, not a mislabelled lens 
 `inst/notes/terrain-correction.md`
 
 - **#54's slipped frames are ÷10 wherever a logbook reads them, tabled where spacing
-agrees, and ÷10.764 stays for the rest** (fly#71) — the same logbooks, read blind against the 1,589, put the crew's height
+agrees, and ÷10.764 stays for the rest** (v0.16.0, #71) — the same logbooks, read blind against the 1,589, put the crew's height
 at the catalogue's divided by 10 on every slipped roll a page covers bar a one-frame typo
 (`bc78065`, `bc78078`, `bc79027`, `bc79103`, `bcc00085`), 6.7-7.6% above ÷10.764 on each. So 6
 roll-heights (299 frames) ride `flying_height_rolls.csv` at factor **0.1**, and both tables carry a
