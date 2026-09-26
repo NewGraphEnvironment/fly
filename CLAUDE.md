@@ -921,6 +921,9 @@ Copy the script and run the copy (`cp scripts/x.R "$TMPDIR/x_frozen.R" && Rscrip
 ### A range total taken as the difference of two large running totals loses the small ranges
 Sum a range directly (segment tree, per-range `sum()`, or grouped sums) rather than as `cumsum[hi] - cumsum[lo]` when ranges are small relative to the running total.
 
+### A `pkg::` call in a test passes `devtools::test()` and fails `R CMD check` if `pkg` is undeclared
+`R CMD check` warns "'::' or ':::' import not declared from" for any package a test reaches with `::` that `DESCRIPTION` does not list, and under `error-on: "warning"` that reddens every runner.
+
 # Code Check — Shell
 Tool-level traps in bash, sed, git and `gh`, and in the host toolchain those commands depend on.
 
