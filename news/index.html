@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fly</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.15.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.16.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,15 @@
 
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="development version" id="fly-development-version">fly (development version)<a class="anchor" aria-label="anchor" href="#fly-development-version"></a></h2>
+<div class="section level3">
+<h3 id="id_0160-development-version">0.16.0 (2026-09-26)<a class="anchor" aria-label="anchor" href="#id_0160-development-version"></a></h3>
+<ul><li>
+<strong>Where a logbook reads <a href="https://github.com/NewGraphEnvironment/fly/issues/54" class="external-link">#54</a>’s slipped frames, their height is ÷10, not ÷10.764, and those roll-heights are now carried in the roll table</strong> (<a href="https://github.com/NewGraphEnvironment/fly/issues/71" class="external-link">#71</a>). <a href="https://github.com/NewGraphEnvironment/fly/issues/54" class="external-link">#54</a> divides <code>flying_height</code> by 3.28084² on 1,589 film frames, and ÷10 lands every one of them in the band just as well, so the terrain could not choose. The logbook pages covering the slipped frames of five rolls were fetched and read blind, with the catalogue values withheld from the reader. On four (<code>bc78078</code>, <code>bc79027</code>, <code>bc79103</code>, <code>bcc00085</code>), and on the fly#60 control <code>bc78065</code>, the crew’s height is the catalogue’s ÷10: within 0.01%, and 0.9% off on <code>bc79027</code>. It sits 6.7–7.6% above ÷10.764 on every one. On the tabled roll-heights <a href="https://github.com/NewGraphEnvironment/fly/issues/54" class="external-link">#54</a> was drawing frames <strong>7.6–9.9% narrow</strong> (15–19% in area); width follows height above ground, so the error exceeds the 7.6% gap between the factors</li>
+<li>
+<strong>Six roll-heights (299 frames, 1978–2000) ship in <code>flying_height_rolls.csv</code> at factor 0.1</strong>, cause <code>height_decimal_dropped</code>, and become <code>height_source == "corrected_roll_table"</code>. The roll-table gate in <code><a href="../reference/fly_footprint.html">fly_footprint()</a></code> now reads <code>factor != 1</code> where it read <code>&gt; 1</code>. The old form silently handed a factor below 1 back to <a href="https://github.com/NewGraphEnvironment/fly/issues/54" class="external-link">#54</a>’s repair, and a test goes red under it. Both roll tables gain a <strong><code>tail</code></strong> column (<code>"lower"</code> for fly#60, <code>"upper"</code> for <a href="https://github.com/NewGraphEnvironment/fly/issues/54" class="external-link">#54</a>’s slipped frames)</li>
+<li>
+<strong><code>fly_height_slip_factor()</code> is unchanged, on purpose.</strong> The 1,290 slipped frames the table does not reach stay on ÷10.764, each listed in <code>flying_height_rolls_excluded.csv</code> with a reason saying so. The five 2003 rolls have no logbook link, carry measured per-frame heights, and fit ÷10.764 better. <code>bcc05001</code> has no logbook either and is undecided: its heights land on round 500-ft altitudes under ÷10, while its ratio to scale favours ÷10.764. <code>bc79027</code> reads ÷10, but spacing rejects it, because its own page logs 80% forward overlap. <code>bcb98013</code> frame 52 is a leading-digit typo that no factor fits. That frame and <code>bc5596</code>, which has no page, are <a href="https://github.com/NewGraphEnvironment/fly/issues/74" class="external-link">#74</a>. The lower-tail rows of both tables are unchanged. <code>data-raw/height_calibrate-lower_tail_rolls.R</code> now settles both tails through one function and reproduces every figure</li>
+</ul></div>
 <div class="section level3">
 <h3 id="id_0150-development-version">0.15.0 (2026-09-26)<a class="anchor" aria-label="anchor" href="#id_0150-development-version"></a></h3>
 <ul><li>
