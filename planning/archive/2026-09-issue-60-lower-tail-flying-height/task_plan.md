@@ -75,14 +75,14 @@ Three instruments, each independent of the fields in dispute, all public:
 - [x] `inst/notes/terrain-correction.md`: replace "three remedies the terrain cannot tell apart" with the per-roll finding, each instrument's control result, and its bound (spacing cannot split 10 from 10.764)
 - [x] CLAUDE.md Key Decisions entry; Architecture line for the new script/CSVs
 - [x] Edit #60 body with the per-roll finding (not a comment); file follow-ups for unexplained rolls and for the near_upper 305-as-153 mass if not handled
-- [ ] NEWS.md + version bump as the final commit
+- [x] NEWS.md + version bump as the final commit
 
 ## Validation
 
-- [ ] Tests pass (`devtools::test()`; `NOT_CRAN=true` for single-file reruns)
-- [ ] `/code-check` clean on each commit
-- [ ] PWF checkboxes match landed work
-- [ ] `/planning-archive` on completion
+- [x] Tests pass (`devtools::test()`; `NOT_CRAN=true` for single-file reruns)
+- [x] `/code-check` clean on each commit
+- [x] PWF checkboxes match landed work
+- [x] `/planning-archive` on completion
 
 ## Critical files
 `R/fly_footprint.R` (lines ~200–230 constants, ~1060–1130 classification, ~1282 height_source),
