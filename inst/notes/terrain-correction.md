@@ -209,8 +209,10 @@ plain feet instead leaves r at 3.02–4.71, and **0 of the 1,589** inside the ba
 So `fly_footprint(dem = )` compares the two after its first DEM pass. Inside
 `fly_height_ratio_band()` the height is used as reported. Outside it, dividing by
 `fly_height_slip_factor()` is tried, and where that lands inside the band the frame is sized
-from the corrected height. Otherwise the frame falls back to nominal scale. `height_source`
-records which — `"reported"`, `"corrected_unit_slip"`, `"implausible"` — and the caller's
+from the corrected height. Otherwise the frame falls back to nominal scale — unless its roll
+was settled by measurement, which fly#60 added and the section after this one describes.
+`height_source` records which — `"reported"`, `"corrected_unit_slip"`,
+`"corrected_roll_table"`, `"implausible"` — and the caller's
 `flying_height` column is never overwritten, so `flying_height - height_agl` is **not** the
 ground elevation on a corrected row.
 
@@ -231,25 +233,22 @@ Four things here were measured and each is load-bearing:
   **r = 2, and of the 223 frames sampled beyond r 1.8 in that stratum, 209 are catalogued
   at 153 mm**: a 305 mm lens recorded as a 153. The DEM route draws those at twice their
   true width; the nominal route gets them right, because it never reads `focal_length`.
-  Falling back is therefore the correct answer there and not merely the cautious one. The
+  Falling back is therefore the correct answer there and not merely the cautious one.
+  **Only for about half of them** — fly#60 measured the spacing between adjacent frames, and
+  105 of the 209 frames in that mass fit their *reported* height, with a scale recorded at
+  half its denominator, so the fallback draws those at half width (fly#72). 91 of the 105 are
+  on 1972–76 rolls, but the split is per roll, not by year. The
   lower edge is the same factor inverted, since the error is a ratio either way — set by
   symmetry, not by a trough: ordinary frames thin out steadily below 0.8 and there is no
   second mass at 0.5.
 - **The repair fires on nothing else.** Of 2,733 sampled frames outside the band and not
   slipped, dividing by 10.764 brings none inside it.
 
-**The slip appears to run the other way as well, and that is deliberately not repaired.**
-1,963 frames read under half their nominal height, 1,962 of them sampled as the lower tail
-(the other was already in the random draw). Multiplying by 10.764 brings 726 of those into
-the band — but multiplying by **10** brings 729 (a dropped digit in a height in feet:
-609 m is 2,000 ft), and for a different set of rolls doubling brings 799 (a 153 mm lens
-catalogued as 305 would do that, and 519 of them are catalogued at 305 — but 280 are at 153,
-which that reading cannot explain). Nor does 10.764 sort the lower tail the way it sorts the
-upper one: it scatters the 1,962 from −0.70 to 5.38, leaving 130 still below the band and
-1,106 above it, where the forward repair puts all 1,589 at 0.80–1.32 with the nearest
-unslipped frame at 6.69 and the nearest slipped one at 10.01. Three remedies the
-terrain cannot tell apart, so none is applied and those frames come back `"implausible"`
-at nominal scale. Do not "finish" this by picking one.
+**The lower tail is not the slip run backwards, and half its frames were settled per roll by
+fly#60** — see the next section. Pooled, ×10.764, ×10 and ×2 each brought a comparable
+share of the 1,962 frames under half their nominal height into the band, and the terrain
+could not choose. That was the wrong unit: the tail is 42 rolls, and each roll is one
+measurement.
 
 **The ceiling, `fly_flying_height_max()`, is a backstop and not a discriminator.** A digital
 frame's `scale` is a nominal figure a third of its true image scale, so there is nothing to
@@ -266,6 +265,85 @@ right footprint and still pays for the wrong one.
 scale is the wrong one, falling back to nominal is the worse choice, and nothing here can
 know. That is why the `"implausible"` warning names no cause, and why the frames are
 flagged rather than silently resized.
+
+## The lower tail, settled per roll (fly#60)
+
+The 1,962 film frames reading under half the height their scale implies sit on **42 rolls**,
+and nearly every roll carries one `flying_height` — a planned altitude in round feet (609 m is
+2,000 ft). So the tail is 77 roll-heights, not 1,962 frames, and two instruments that read
+none of the three disputed fields settle 22 of them — 1,001 of the 1,962 frames.
+
+**Frame spacing.** Frames one number apart on a roll are an air base apart, and a flight is
+designed to about 60% forward overlap, so the base against the along-track width a reading
+implies says whether that reading is the one the aircraft flew. Checked on known answers
+before anything was read from the tail:
+
+| control | implied overlap, median [10–90%] |
+|---|---|
+| random in-band frames, as reported | 0.63 [0.59–0.69], n 2,481 |
+| #54 slipped frames, after ÷10.764 | 0.62 [0.58–0.66], n 1,589 |
+| the same, as reported | 0.97 |
+
+The acceptance window is the random frames' own 2.5–97.5%, 0.557–0.780, applied to a
+roll-height's median. **Spacing separates readings about 1.6 times apart and no closer**:
+every reading whose ratio lands in the band implies nearly the nominal width, so it cannot
+tell ×10 from ×10.764 (7.6%), and it cannot tell a doubled height from a halved lens.
+
+**The logbooks.** `flight_log_url` links scanned logbook pages whose TRUE HEIGHT column is
+thousands of feet above sea level — the figure the catalogue transcribed. 120 pages were read
+by hand into `data-raw/flying_height_logbooks.csv`, with the catalogue values of three control
+rolls withheld from the reader. The two clean controls read back exactly (`bcc228` 12.650 and
+14.0 against 3,856 and 4,267 m; the `bc7349/7350` page 20.0 against 6,096 m). The third was a
+#54 slipped roll, and it said something #54 did not know — below.
+
+**The rule, fixed before any roll-height was classified:** the logbook covers at least half
+its frames and at least 90% of those name one factor of 1, 10 or 100; no legible logbook
+focal length contradicts the catalogue's; and spacing under the logbook's height is inside
+the window. Two witnesses, independent of each other and of the fields in dispute.
+
+| verdict | roll-heights | frames |
+|---|---|---|
+| a digit dropped, ×10 (logbook "20.0" catalogued as 2,000 ft) | 10 | 511 |
+| two digits dropped, ×100 (`bc7280`, 60 m catalogued, 20,000 ft logged) | 1 | 101 |
+| **height right, scale wrong** — the logbook confirms the height, spacing accepts it | 11 | 389 |
+| excluded, each with its reason in `flying_height_rolls_excluded.csv` | 55 | 961 |
+
+The third row is a remedy the issue did not list, and it inverts the fallback: for those
+frames it is the **scale** that is wrong, so nominal scale draws them two to ten times too
+wide, while the height #54 refused was right all along. The excluded reasons are 30 with no
+logbook page covering the frames, 8 where spacing rejects the logbook's height, 5 where the
+covering row's height or frame range was not read, 4 where the logbook's height is no named
+multiple, 2 where covering rows disagree, 2 under half covered, and 4 where the logbook names a
+different lens — `bc79086` an 85 mm, `bc80001`, `bcc162` and `bc81026` a 153 catalogued as
+305 — for which nominal scale is already right.
+
+**×10.764 is refused wherever a logbook reads the lower tail**: the logged figure is exactly
+ten times the catalogued one in round feet (`bc79122` 21,000; `bc7584` 20,000; `bc81013`
+27,000; `bc77014` 28,000), where the inverse slip would give 22,604 and the like. And the
+height shipped is the **logbook's**, converted, never the catalogue's times the factor: the
+catalogue stores whole metres of a converted figure, so `bc7280`'s 20,000 ft is 60 m, and
+×100 of that is 96 m short.
+
+`fly_footprint(dem = )` consults `inst/extdata/flying_height_rolls.csv` before #54's repair,
+keyed on roll, height, lens and scale together — which reaches exactly the 1,001 measured
+frames — and marks those frames `"corrected_roll_table"`. A height slip must still reconcile
+the frame's own ratio, as #54's does. A scale-wrong row cannot be asked that, since the ratio
+is against the wrong scale, but its height must clear the ground. The table also reaches a
+frame whose catalogued height sits *below* the terrain, which is how a height missing two
+digits arrives. **Only on the DEM route**: without `dem`, a scale-wrong frame is still sized
+from its wrong scale.
+
+**What the controls said about #54.** Roll `bc78065`'s 1:2000 frames are catalogued at 4,115 m
+(13,500 ft), and its logbook reads **1.35** — 1,350 ft. That is a decimal point, ×10, not
+×10.764. Round feet agree across the planned-altitude rolls #54 repairs (under ÷10, `bc5596`
+8,600, `bc78078` 3,100, `bc79103` 7,200, `bcc00085` 18,000–19,000; not under ÷10.764), while
+the 2003 rolls, which carry measured per-frame heights, fit ÷10.764 better. Both factors put
+all 1,589 frames in the band, which is why #54 could not see it. Recorded as fly#71, not
+changed here.
+
+Reproduce with `data-raw/height_calibrate-lower_tail_rolls.R`, which prints every figure in
+this section; `test-fly_footprint_height_rolls.R` holds the table to the sweep and the
+logbook heights it was measured from.
 
 ## What a partially covered footprint costs (fly#58)
 

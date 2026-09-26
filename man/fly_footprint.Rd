@@ -220,6 +220,14 @@ do; sized from \code{flying_height} as supplied}
 \code{height_agl} is the height used. Your \code{flying_height} column is \strong{not}
 overwritten, so on these rows \code{flying_height - height_agl} is not the ground
 elevation}
+\item{\code{"corrected_roll_table"}}{they disagree, and the frame sits on one of
+the roll-heights in \code{inst/extdata/flying_height_rolls.csv}, which the
+province's flight logbooks and the spacing between adjacent frames settled
+(fly#60): a height with one or two digits dropped (a logbook "20.0",
+thousands of feet, catalogued as 2,000 ft), or a correct height beside a
+wrong \code{scale}. Sized from the measured height; matched on \code{film_roll},
+\code{flying_height}, \code{focal_length} and \code{scale} together, so it needs a
+\code{film_roll} column. As with the slip, \code{flying_height} is not overwritten}
 \item{\code{"implausible"}}{they disagree some other way, or \code{flying_height} is
 above 16,000 m or below the terrain. Nothing can say whether the height, the
 scale or the focal length is the wrong one — a 305 mm lens catalogued as

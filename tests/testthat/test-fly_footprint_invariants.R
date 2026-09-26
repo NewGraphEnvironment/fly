@@ -43,7 +43,8 @@ test_that("every frame gets a basis, and the reporting columns keep their types"
     # A height is named as the source of `height_agl` exactly where there is one (fly#54).
     # "implausible" is the other way round: it says why there is NOT one, and like
     # `width_source` it survives an empty geometry for that reason.
-    has_height <- fp$height_source %in% c("reported", "corrected_unit_slip")
+    has_height <- fp$height_source %in%
+      c("reported", "corrected_unit_slip", "corrected_roll_table")
     expect_identical(has_height, !is.na(fp$height_agl), info = nm)
     expect_identical(has_height, fp$footprint_terrain %in% "dem_agl", info = nm)
     # The invariant fly#37 violated: handed a POLYGON, fly_footprint() returned
