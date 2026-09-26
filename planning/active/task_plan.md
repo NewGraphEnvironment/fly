@@ -50,26 +50,26 @@ Three instruments, each independent of the fields in dispute, all public:
    — read the stated altitude by eye for the 42 rolls.
 
 ## Phase 1: Instruments and their controls (data-raw only)
-- [ ] `data-raw/height_calibrate-lower_tail_rolls.R` (loads source via `pkgload::load_all()`, reads the #54 cache + sweep; no refetch of what is cached)
-- [ ] Per-roll table: n, distinct heights, H in ft, roundness of H·k in ft for k ∈ {1, 2, 10, 10.764}, median/IQR of k
-- [ ] Spacing: implied forward overlap per roll under nominal, reported and each remedy, using only frames adjacent by frame number (same rule as `fly_bearing()`), reusing `fly_bearing()`'s adjacency logic rather than re-deriving it
-- [ ] Spacing **positive controls before reading the lower tail**: random in-band set (expect ~60% under reported), #54 slipped set after ÷10.764 (known answer), near_upper r≈2 mass (expect nominal ~60%, DEM route wrong); print them first and stop if the controls fail
-- [ ] Fetch `flight_log_url` for the 42 rolls via WFS (`bcdata::filter`, not constructed paths); cache JPGs under gitignored `data-raw/.cache/logbooks/`; include 3–4 control rolls (random + #54 slipped) to establish what the logbook altitude means (ASL/AGL, ft/m)
-- [ ] Read logbook pages; record roll, page, stated altitude, units, reader note in a transcription CSV
+- [x] `data-raw/height_calibrate-lower_tail_rolls.R` (loads source via `pkgload::load_all()`, reads the #54 cache + sweep; no refetch of what is cached)
+- [x] Per-roll table: n, distinct heights, H in ft, roundness of H·k in ft for k ∈ {1, 2, 10, 10.764}, median/IQR of k
+- [x] Spacing: implied forward overlap per roll under nominal, reported and each remedy, using only frames adjacent by frame number (same rule as `fly_bearing()`), reusing `fly_bearing()`'s adjacency logic rather than re-deriving it
+- [x] Spacing **positive controls before reading the lower tail**: random in-band set (expect ~60% under reported), #54 slipped set after ÷10.764 (known answer), near_upper r≈2 mass (expect nominal ~60%, DEM route wrong); print them first and stop if the controls fail
+- [x] Fetch `flight_log_url` for the 42 rolls via WFS (`bcdata::filter`, not constructed paths); cache JPGs under gitignored `data-raw/.cache/logbooks/`; include 3–4 control rolls (random + #54 slipped) to establish what the logbook altitude means (ASL/AGL, ft/m)
+- [x] Read logbook pages; record roll, page, stated altitude, units, reader note in a transcription CSV
 
 ## Phase 2: Verdict per roll
-- [ ] Classify each of the 42 rolls: factor supported by ≥2 independent instruments → correction row; otherwise excluded with reason (disagree / unreadable log / no adjacent frames / unexplained factor)
-- [ ] Ship `inst/extdata/flying_height_rolls.csv` (film_roll, flying_height, factor, cause, evidence columns per instrument) and `flying_height_rolls_excluded.csv` (film_roll, flying_height, reason)
-- [ ] Re-check against the full population: a roll+height key must match only the lower-tail frames it was measured on (count frames the key would touch in the cache vs frames measured)
-- [ ] If no roll reaches two instruments: skip Phase 3, go to Phase 4 as measurement-only
+- [x] Classify each of the 42 rolls: factor supported by ≥2 independent instruments → correction row; otherwise excluded with reason (disagree / unreadable log / no adjacent frames / unexplained factor)
+- [x] Ship `inst/extdata/flying_height_rolls.csv` (film_roll, flying_height, factor, cause, evidence columns per instrument) and `flying_height_rolls_excluded.csv` (film_roll, flying_height, reason)
+- [x] Re-check against the full population: a roll+height key must match only the lower-tail frames it was measured on (count frames the key would touch in the cache vs frames measured)
+- [x] If no roll reaches two instruments: skip Phase 3, go to Phase 4 as measurement-only
 
 ## Phase 3: `fly_footprint()` consults the table (tests first)
-- [ ] Failing tests in `tests/testthat/test-fly_footprint_height.R`: a fixture row on a tabled roll+height is sized from the corrected height with `height_source == "corrected_roll_table"`; same roll at a different height is untouched; an excluded roll stays `"implausible"`; the table-corrected frame is classified before the second DEM pass (assert on the grids, as #54's test does)
-- [ ] Table constants read by internal `fly_height_roll_table()` in `R/fly_footprint.R`; applied where `slipped` is computed (~line 1082), only to frames still `disputed` and only where the corrected r lands in band
-- [ ] Exclude the new class from `unusable` by name (CLAUDE.md gotcha: `unusable` is a residual)
-- [ ] Warning reports table-corrected count once; roxygen for `height_source` documents the new value
-- [ ] Test reads the shipped CSV and recomputes each row's factor from `flying_height_sweep.csv` so the table is checked against data, not trusted; restore-the-bug proof for each new assertion
-- [ ] `centroid_shapes()` sweep covers the new column path (tibble / bcdc_sf)
+- [x] Failing tests in `tests/testthat/test-fly_footprint_height.R`: a fixture row on a tabled roll+height is sized from the corrected height with `height_source == "corrected_roll_table"`; same roll at a different height is untouched; an excluded roll stays `"implausible"`; the table-corrected frame is classified before the second DEM pass (assert on the grids, as #54's test does)
+- [x] Table constants read by internal `fly_height_roll_table()` in `R/fly_footprint.R`; applied where `slipped` is computed (~line 1082), only to frames still `disputed` and only where the corrected r lands in band
+- [x] Exclude the new class from `unusable` by name (CLAUDE.md gotcha: `unusable` is a residual)
+- [x] Warning reports table-corrected count once; roxygen for `height_source` documents the new value
+- [x] Test reads the shipped CSV and recomputes each row's factor from `flying_height_sweep.csv` so the table is checked against data, not trusted; restore-the-bug proof for each new assertion
+- [x] `centroid_shapes()` sweep covers the new column path (tibble / bcdc_sf)
 
 ## Phase 4: Record
 - [ ] `inst/notes/terrain-correction.md`: replace "three remedies the terrain cannot tell apart" with the per-roll finding, each instrument's control result, and its bound (spacing cannot split 10 from 10.764)

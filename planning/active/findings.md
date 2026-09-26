@@ -81,3 +81,77 @@ frame, so the spacing instrument needs no network. `flight_log_url` points at JP
 
 | Error | Resolution |
 |-------|------------|
+
+## Phase 1 — instruments and controls (2026-09-26)
+
+Script: `data-raw/height_calibrate-lower_tail_rolls.R`. Logbook transcription:
+`data-raw/flying_height_logbooks.csv` (120 pages, 193 rows; three parallel readers, catalogue
+values for CONTROL_ rolls withheld).
+
+**Spacing controls (implied forward overlap, median [10-90%]):** random in-band as reported
+0.63 [0.59-0.69] n=2481; #54 slipped after /10.764 0.62 [0.58-0.66] n=1589, as reported 0.97.
+Window set from the random frames' 2.5-97.5%: 0.557-0.780.
+
+**The note's r~2 claim is half wrong.** near_upper r>1.8 at 153 mm splits per roll: 1978-81
+rolls fit nominal (305 catalogued as 153 — nominal right), but the 1972-76 bc5xxx rolls
+(bc5702, bc5699, bc5642, bc5648, bc5510...) fit the REPORTED height with nominal implying ~20%
+overlap: the scale is wrong, and the fallback draws them at half width. Follow-up issue.
+
+**Logbook controls:** bcc228 reads 12.650 / 14.0 (3,856 / 4,267 m catalogued — exact);
+bc7349 page (served as bc7350's URL) 20.0 = 6,096 m exact. So TRUE HEIGHT is thousands of feet
+MSL and the catalogue converts it faithfully when read right. bc78065 (a #54 slipped roll) reads
+**1.35** = 1,350 ft where the catalogue holds 13,500 ft (4,115 m): a decimal slip, x10, not
+x10.764.
+
+**#54's factor, cross-checked by round feet:** pre-2000 slipped roll-heights land on exact
+round feet under /10 (bc5596 8,600; bc78065 1,350; bc78078 3,100; bc79103 7,200; bcc00085
+18,000/18,500/19,000) and not under /10.764. The 2003 rolls carry measured per-frame heights,
+round under neither. Follow-up issue — changing a shipped constant is out of scope here.
+
+## Phase 2 — verdict
+
+Rule fixed before classification: logbook covers >= 50% of the roll-height's frames and >= 90%
+of those agree on a named factor (1, 10, 100); no legible logbook focal contradicts the
+catalogue; spacing under the corrected height inside the window.
+
+| cause | roll-heights | frames |
+|---|---|---|
+| height_digit_dropped (x10) | 10 | 511 |
+| height_two_digits_dropped (x100, bc7280) | 1 | 101 |
+| scale_wrong (height verified, factor 1) | 11 | 389 |
+| excluded | 55 | 961 |
+
+Excluded reasons: no logbook row 36, spacing rejects 8, not a named multiple 4, different lens 4
+(bc79086 85 mm, bc80001/bcc162/bc81026 153 mm — nominal already right), under half covered 3.
+On the four-field key `fly_footprint()` matches (roll, height, lens, scale) the corrections
+reach exactly the 1,001 measured frames. A two-field key reached 1,025: the 24 extra are bc5655
+frames at the same height and 1:7200, which the catalogued scale_n (75062) keeps off the table.
+(An earlier draft here credited the "disputed only" condition; code-check round 1 corrected it.)
+
+Round 1 also found the shipped height must be the LOGBOOK's, converted (`height_m`), not the
+catalogue's times the factor: bc7280's 20,000 ft is catalogued as 60 m, and x100 of that is
+6,000 m against 6,096.
+
+x10.764 is refused for every lower-tail roll the logbook reads: the logbook gives round feet
+exactly x10 (bc79122 21,000; bc7584 20,000; bc81013 27,000; bc77014 28,000).
+
+## Code-check (Phase 1-3), 2026-09-26
+
+| Round | Findings | Fixed | Inside previous fix? |
+|---|---|---|---|
+| 1 | 1 bug, 3 fragile | 4 | — |
+| 2 | 2 fragile | 2 | n |
+| 3 | 2 bug, 1 fragile | 3 | **y** — the reason labels round 1 had repaired still merged three logbook states into "no row covers" |
+
+Mechanism (round 3's naming): one fact in two representations with nothing checking they agree —
+catalogue x factor vs logbook height; illegible vs conflicting focal; 2- vs 4-field grouping;
+reason string vs the predicate that fired; the test's height_source list vs the function's;
+100000L vs 100000.
+
+Ended by enumeration, not a quiet round: every one of the 77 shipped labels (22 accepts, 55
+exclusion reasons) re-derived from the per-frame logbook states by an independent predicate,
+with the overlap window recomputed from scratch — 77 of 77 agree; the 30 "no page" keys are
+all-`none` at the frame level. Every figure in the note's fly#60 section traced to the script
+output or the CSVs. Round 3 corrected the exclusions to 30 no page / 8 spacing / 5 not read /
+4 no named multiple / 4 lens / 2 disagree / 2 under half, and the note's shares to 22 of 77
+roll-heights, 1,001 of 1,962 frames.
