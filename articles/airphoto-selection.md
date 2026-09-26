@@ -480,9 +480,9 @@ georef[, c("airp_id", "dest", "success")]
 #> # A tibble: 3 × 3
 #>   airp_id dest                                 success
 #>     <int> <chr>                                <lgl>  
-#> 1  699370 /tmp/RtmpVp8qpS/bc5282_176_thumb.tif TRUE   
-#> 2  699415 /tmp/RtmpVp8qpS/bc5282_221_thumb.tif TRUE   
-#> 3  699426 /tmp/RtmpVp8qpS/bc5282_232_thumb.tif TRUE
+#> 1  699370 /tmp/RtmpZ2gih1/bc5282_176_thumb.tif TRUE   
+#> 2  699415 /tmp/RtmpZ2gih1/bc5282_221_thumb.tif TRUE   
+#> 3  699426 /tmp/RtmpZ2gih1/bc5282_232_thumb.tif TRUE
 ```
 
 The georeferenced TIFFs inherit whatever basis
@@ -591,12 +591,13 @@ the wrong way round, which would draw a 1:35000 frame 110 km across. A
 film frame states its height twice, once as `flying_height` and once as
 scale times focal length, so the two are compared. Where dividing by
 that factor brings them back into agreement the corrected height is used
-and the frame is marked `"corrected_unit_slip"`. On 22 roll-heights the
+and the frame is marked `"corrected_unit_slip"`. On 28 roll-heights the
 province’s flight logbooks and the spacing between adjacent frames
-settled the disagreement — dropped digits in the height, or a right
-height beside a wrong scale — and those frames are sized from the
-measured height and marked `"corrected_roll_table"`. Where they disagree
-any other way nothing can say which is wrong, so the frame is sized from
+settled the disagreement — dropped digits in the height, a height ten
+times too large where the factor is 10 and not 10.76, or a right height
+beside a wrong scale — and those frames are sized from the measured
+height and marked `"corrected_roll_table"`. Where they disagree any
+other way nothing can say which is wrong, so the frame is sized from
 nominal scale and marked `"implausible"`. Your `flying_height` column is
 never overwritten. The bundled frames all agree with their own scale:
 
