@@ -9,7 +9,7 @@ of each airphoto, based on film negative dimensions and the reported scale."><me
 
     <a class="navbar-brand me-2" href="../index.html">fly</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.14.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.15.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -267,6 +267,16 @@ do; sized from <code>flying_height</code> as supplied</p></dd>
 <code>height_agl</code> is the height used. Your <code>flying_height</code> column is <strong>not</strong>
 overwritten, so on these rows <code>flying_height - height_agl</code> is not the ground
 elevation</p></dd>
+
+<dt><code>"corrected_roll_table"</code></dt>
+<dd><p>they disagree, and the frame sits on one of
+the roll-heights in <code>inst/extdata/flying_height_rolls.csv</code>, which the
+province's flight logbooks and the spacing between adjacent frames settled
+(fly#60): a height with one or two digits dropped (a logbook "20.0",
+thousands of feet, catalogued as 2,000 ft), or a correct height beside a
+wrong <code>scale</code>. Sized from the measured height; matched on <code>film_roll</code>,
+<code>flying_height</code>, <code>focal_length</code> and <code>scale</code> together, so it needs a
+<code>film_roll</code> column. As with the slip, <code>flying_height</code> is not overwritten</p></dd>
 
 <dt><code>"implausible"</code></dt>
 <dd><p>they disagree some other way, or <code>flying_height</code> is

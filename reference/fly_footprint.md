@@ -268,6 +268,18 @@ terrain and as scale times focal length, so the two are compared, and
   height used. Your `flying_height` column is **not** overwritten, so on
   these rows `flying_height - height_agl` is not the ground elevation
 
+- `"corrected_roll_table"`:
+
+  they disagree, and the frame sits on one of the roll-heights in
+  `inst/extdata/flying_height_rolls.csv`, which the province's flight
+  logbooks and the spacing between adjacent frames settled (fly#60): a
+  height with one or two digits dropped (a logbook "20.0", thousands of
+  feet, catalogued as 2,000 ft), or a correct height beside a wrong
+  `scale`. Sized from the measured height; matched on `film_roll`,
+  `flying_height`, `focal_length` and `scale` together, so it needs a
+  `film_roll` column. As with the slip, `flying_height` is not
+  overwritten
+
 - `"implausible"`:
 
   they disagree some other way, or `flying_height` is above 16,000 m or

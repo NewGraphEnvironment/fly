@@ -2,6 +2,74 @@
 
 ## fly (development version)
 
+### 0.15.0 (2026-09-26)
+
+- **Half of the lower tail of `flying_height` is now settled per roll,
+  and 389 of those 1,001 frames were never a height error**
+  ([\#60](https://github.com/NewGraphEnvironment/fly/issues/60)).
+  [\#54](https://github.com/NewGraphEnvironment/fly/issues/54) left
+  1,962 film frames reading under half the height their scale implies as
+  `"implausible"`, because ×10.764, ×10 and ×2 each explained a
+  comparable share when pooled. Per roll they do not: the tail is 42
+  rolls, nearly each carrying one height, so it is 77 roll-heights
+  rather than 1,962 frames. Two instruments that read none of the three
+  disputed fields settle 22 of them (1,001 frames): the province’s
+  **scanned flight logbooks** at `flight_log_url`, whose TRUE HEIGHT
+  column the catalogue transcribed, and the **spacing between frames
+  adjacent by number**, which must imply the ~60% forward overlap a
+  flight is designed to
+- New `height_source` value **`"corrected_roll_table"`**, read from the
+  new `inst/extdata/flying_height_rolls.csv` and keyed on `film_roll`,
+  `flying_height`, `focal_length` and `scale` together, which reaches
+  exactly the 1,001 measured frames. Ten roll-heights (511 frames)
+  dropped a digit, a logbook “20.0” in thousands of feet catalogued as
+  2,000 ft; one (`bc7280`, 101 frames) dropped two, 60 m catalogued
+  where 20,000 ft was flown. **Eleven (389 frames) carry the right
+  height beside a wrong `scale`**, which is a remedy the issue did not
+  list: for those the fallback
+  [\#54](https://github.com/NewGraphEnvironment/fly/issues/54) chose was
+  the defect, drawing them two to ten times too wide. The height used is
+  always the logbook’s, converted, never the catalogue’s times the
+  factor, since the catalogue’s rounding survives the multiplication and
+  left `bc7280` 96 m short. Needs a `film_roll` column and a `dem`;
+  without a DEM a wrong-scale frame is still sized from its scale
+- **Every lower-tail roll-height the table does not correct is listed
+  with its reason** in `flying_height_rolls_excluded.csv` (55
+  roll-heights, 961 frames — 30 with no logbook page, 8 where spacing
+  rejects the logbook’s height, 5 where the covering row was not read, 4
+  no named multiple, 4 where the logbook names a different lens and
+  nominal scale is already right, 2 where covering rows disagree, 2
+  under half covered), so an unlisted roll reads as unmeasured rather
+  than clean. The test suite recomputes every row from the shipped sweep
+  and asserts the two files partition the census exactly; every one of
+  the 77 labels was re-derived from the per-frame logbook states by an
+  independent predicate, and all agree
+- **Both instruments were held to known answers first.** Spacing reads
+  0.63 on random in-band frames and 0.62 on
+  [\#54](https://github.com/NewGraphEnvironment/fly/issues/54)’s slipped
+  frames after repair, against 0.97 before. The logbooks were
+  transcribed with three control rolls’ catalogue values withheld, and
+  the two clean ones read back to the metre. The rule — logbook covers
+  half the frames and 90% agree on a factor of 1, 10 or 100; no legible
+  logbook lens contradicts the catalogue; spacing inside the random
+  frames’ own 2.5–97.5% — was fixed before any roll was classified.
+  `data-raw/height_calibrate-lower_tail_rolls.R` reproduces all of it,
+  and `data-raw/flying_height_logbooks.csv` is the transcription
+- **×10.764 is refused wherever a logbook reads the lower tail**, and
+  the third control suggests it is not the whole story on the upper side
+  either: [\#54](https://github.com/NewGraphEnvironment/fly/issues/54)’s
+  slipped roll `bc78065` logs 1,350 ft where the catalogue holds 13,500,
+  a decimal point rather than a unit conversion, and the
+  planned-altitude rolls
+  [\#54](https://github.com/NewGraphEnvironment/fly/issues/54) repairs
+  land on round feet under ÷10 but not ÷10.764. Filed as
+  [\#71](https://github.com/NewGraphEnvironment/fly/issues/71), not
+  changed here. And the note’s claim that the mass beyond r ≈ 2 is a
+  mislabelled lens, so nominal scale is right there, holds for about
+  half of it: spacing puts 105 of its 209 sampled frames, identified per
+  roll, at a wrong scale that the fallback draws at half width —
+  [\#72](https://github.com/NewGraphEnvironment/fly/issues/72)
+
 ### 0.14.1 (2026-09-21)
 
 - **`R CMD check` now runs in CI, on three platforms**
