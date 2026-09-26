@@ -72,9 +72,9 @@ Three instruments, each independent of the fields in dispute, all public:
 - [x] `centroid_shapes()` sweep covers the new column path (tibble / bcdc_sf)
 
 ## Phase 4: Record
-- [ ] `inst/notes/terrain-correction.md`: replace "three remedies the terrain cannot tell apart" with the per-roll finding, each instrument's control result, and its bound (spacing cannot split 10 from 10.764)
-- [ ] CLAUDE.md Key Decisions entry; Architecture line for the new script/CSVs
-- [ ] Edit #60 body with the per-roll finding (not a comment); file follow-ups for unexplained rolls and for the near_upper 305-as-153 mass if not handled
+- [x] `inst/notes/terrain-correction.md`: replace "three remedies the terrain cannot tell apart" with the per-roll finding, each instrument's control result, and its bound (spacing cannot split 10 from 10.764)
+- [x] CLAUDE.md Key Decisions entry; Architecture line for the new script/CSVs
+- [x] Edit #60 body with the per-roll finding (not a comment); file follow-ups for unexplained rolls and for the near_upper 305-as-153 mass if not handled
 - [ ] NEWS.md + version bump as the final commit
 
 ## Validation

@@ -15,3 +15,4 @@
 - /code-check: 3 rounds, 8 findings fixed; ended by enumerating all 77 labels against an independent predicate (77/77)
 - Filed follow-ups #71 (#54's /10.764 looks like /10 on pre-2000 rolls) and #72 (half the r~2 mass is a wrong scale)
 - Suite: 2,279 passed, 0 failed
+- Phase 4: note section, CLAUDE.md Key Decision + Architecture, #60 body outcome; follow-ups #71 #72 filed
