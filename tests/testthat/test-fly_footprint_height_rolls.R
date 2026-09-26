@@ -3,7 +3,9 @@
 # fly#54 left the lower tail — frames reading under half the height their scale implies —
 # "implausible", because three remedies fit it equally when pooled. Per roll they do not:
 # the scanned logbooks and the spacing between adjacent frames settle 22 roll-heights,
-# shipped in `inst/extdata/flying_height_rolls.csv`. These tests hold `fly_footprint()` to
+# shipped in `inst/extdata/flying_height_rolls.csv`. fly#71 read the same logbooks against
+# #54's slipped frames and added the 1978-2000 roll-heights whose height is ten times too
+# large, where #54 divides by 10.764. These tests hold `fly_footprint()` to
 # that table and hold the table to the sweep it was measured from.
 #
 # Every fixture row is keyed to a REAL table row, over level ground, so each expected
@@ -186,44 +188,105 @@ test_that("the table holds against the sweep and the logbooks it was measured fr
   excl <- utils::read.csv(system.file("extdata/flying_height_rolls_excluded.csv",
                                       package = "fly"))
   s <- utils::read.csv(system.file("extdata/flying_height_sweep.csv", package = "fly"))
-  lt <- s[s$set == "lower_tail", ]
+  band <- fly_height_ratio_band()
+  in_band <- function(r) r >= band[1] & r <= band[2]
+  # Two sets, one per tail: fly#60's lower tail, and fly#71's #54-slipped frames — the upper
+  # tail that dividing by 10.764 brings into the band.
+  up <- s[s$set == "upper_tail", ]
+  up <- up[in_band((up$flying_height / fly_height_slip_factor() - up$elev) /
+                     (up$scale_n * up$focal_length / 1000)), ]
+  sets <- list(lower = s[s$set == "lower_tail", ], upper = up)
+  expect_identical(nrow(sets$upper), 1589L)   # premise: #54's census
 
-  # Contract: the named slips, one cause each, and nothing else.
-  expect_setequal(unique(tab$factor), c(1, 10, 100))
+  # Contract: the named slips, one cause each, and nothing else. The upper tail names only
+  # 1/10: a logbook confirming 10.764 is excluded, since #54's repair already sizes it.
+  expect_setequal(unique(tab$tail), c("lower", "upper"))
+  expect_setequal(unique(excl$tail), c("lower", "upper"))
+  expect_setequal(unique(tab$factor[tab$tail == "lower"]), c(1, 10, 100))
+  expect_setequal(unique(tab$factor[tab$tail == "upper"]), 0.1)
   expect_identical(tab$cause, c(`1` = "scale_wrong", `10` = "height_digit_dropped",
-                                `100` = "height_two_digits_dropped")[as.character(tab$factor)],
+                                `100` = "height_two_digits_dropped",
+                                `0.1` = "height_decimal_dropped")[as.character(tab$factor)],
                    ignore_attr = TRUE)
   expect_false(anyNA(tab))
   expect_false(anyNA(excl$reason) || any(!nzchar(excl$reason)))
+  # An excluded slipped roll-height is still repaired by #54, and its reason says so.
+  expect_true(all(grepl("10.764", excl$reason[excl$tail == "upper"], fixed = TRUE)))
+  expect_false(any(grepl("10.764", excl$reason[excl$tail == "lower"], fixed = TRUE)))
 
-  # Every lower-tail roll-height is either corrected or excluded with a reason — never both,
-  # never neither — and the frame counts reconcile to the census exactly.
   key <- function(d) paste(d$film_roll, d$flying_height, d$focal_length, d$scale_n)
-  lt_keys <- table(key(lt))
   expect_length(intersect(key(tab), key(excl)), 0)
-  expect_setequal(c(key(tab), key(excl)), names(lt_keys))
-  expect_identical(as.integer(lt_keys[key(tab)]), as.integer(tab$frames_measured))
-  expect_identical(as.integer(lt_keys[key(excl)]), as.integer(excl$frames_measured))
-  expect_identical(sum(tab$frames_measured) + sum(excl$frames_measured), nrow(lt))
+  for (tl in names(sets)) {
+    set <- sets[[tl]]
+    tb <- tab[tab$tail == tl, ]
+    ex <- excl[excl$tail == tl, ]
+    # Every roll-height of the set is either corrected or excluded with a reason — never
+    # both, never neither — and the frame counts reconcile to the census exactly.
+    set_keys <- table(key(set))
+    expect_setequal(c(key(tb), key(ex)), names(set_keys))
+    expect_identical(as.integer(set_keys[key(tb)]), as.integer(tb$frames_measured), info = tl)
+    expect_identical(as.integer(set_keys[key(ex)]), as.integer(ex$frames_measured), info = tl)
+    expect_identical(sum(tb$frames_measured) + sum(ex$frames_measured), nrow(set), info = tl)
 
-  # Each row's corrected ratio recomputed from the sweep, at the precision it is published.
-  for (i in seq_len(nrow(tab))) {
-    d <- lt[key(lt) == key(tab)[i], ]
-    r <- median((tab$height_m[i] - d$elev) / (d$scale_n * d$focal_length / 1000))
-    expect_equal(round(r, 3), tab$r_corrected[i], tolerance = 1e-9, info = key(tab)[i])
-    # A height-slip row must land in the band; a scale-wrong row by definition does not.
-    band <- fly_height_ratio_band()
-    if (tab$factor[i] == 1) {
-      expect_true(r < band[1], info = key(tab)[i])
-    } else {
-      expect_true(r >= band[1] && r <= band[2], info = key(tab)[i])
+    # Each row's corrected ratio recomputed from the sweep, at the precision it is published.
+    for (i in seq_len(nrow(tb))) {
+      d <- set[key(set) == key(tb)[i], ]
+      expect_gt(nrow(d), 0)
+      r <- median((tb$height_m[i] - d$elev) / (d$scale_n * d$focal_length / 1000))
+      expect_equal(round(r, 3), tb$r_corrected[i], tolerance = 1e-9, info = key(tb)[i])
+      # A height-slip row must land in the band; a scale-wrong row by definition does not.
+      if (tb$factor[i] == 1) {
+        expect_true(r < band[1], info = key(tb)[i])
+      } else {
+        expect_true(in_band(r), info = key(tb)[i])
+      }
+      # The height used is the logbook's, converted; and it is the catalogue's times the
+      # factor to within the catalogue's rounding, which is what makes the factor the
+      # defect's name.
+      expect_equal(tb$height_m[i], round(tb$logbook_ft[i] * 0.3048, 1), info = key(tb)[i])
+      expect_true(abs(tb$height_m[i] / (tb$flying_height[i] * tb$factor[i]) - 1) <= 0.02,
+                  info = key(tb)[i])
     }
-    # The height used is the logbook's, converted; and it is the catalogue's times the factor
-    # to within the catalogue's rounding, which is what makes the factor the defect's name.
-    expect_equal(tab$height_m[i], round(tab$logbook_ft[i] * 0.3048, 1), info = key(tab)[i])
-    expect_true(abs(tab$height_m[i] / (tab$flying_height[i] * tab$factor[i]) - 1) <= 0.02,
-                info = key(tab)[i])
   }
+  # fly#71's finding, pinned: on every tabled slipped roll-height the logbook sits within
+  # 1% of the catalogue divided by 10, and over 6% above it divided by 10.764 — which is
+  # the height #54 drew these frames from.
+  u <- tab[tab$tail == "upper", ]
+  expect_true(all(abs(u$height_m / (u$flying_height / 10) - 1) < 0.01))
+  expect_true(all(u$height_m / (u$flying_height / fly_height_slip_factor()) - 1 > 0.06))
+})
+
+
+test_that("a factor below 1 is applied ahead of #54's slip, and only where it is tabled", {
+  skip_if_no_terra()
+  # fly#71: a 1978 roll #54 divides by 10.764 whose logbook says 10 — bc78065 is
+  # catalogued at 4,115 m where the crew wrote 1,350 ft. A factor below 1 must reach the
+  # table exactly as one above it does; the gate once accepted only `factor > 1`, which
+  # handed these frames to #54's repair and drew them 7.6-9.9% narrow.
+  testthat::local_mocked_bindings(
+    fly_height_roll_table = function() {
+      data.frame(
+        film_roll = "bc78065", flying_height = 4115L, focal_length = 153L, scale_n = 2000L,
+        factor = 0.1, height_m = 411.5, stringsAsFactors = FALSE
+      )
+    }
+  )
+  rf <- roll_fixture()[c(1, 1), ]
+  rf$film_roll <- c("bc78065", "bc78066")     # the second shares everything but the roll
+  rf$scale <- "1:2000"
+  rf$focal_length <- 153
+  rf$flying_height <- 4115
+  dem <- roll_dem(50)
+  # Premise: both readings land in the band here, so nothing but the table separates them.
+  band <- fly_height_ratio_band()
+  nominal <- 2000 * 0.153
+  expect_true(all(c(411.5 - 50, 4115 / fly_height_slip_factor() - 50) / nominal >= band[1] &
+                    c(411.5 - 50, 4115 / fly_height_slip_factor() - 50) / nominal <= band[2]))
+  fp <- suppressWarnings(fly_footprint(rf, dem = dem))
+  expect_identical(fp$height_source, c("corrected_roll_table", "corrected_unit_slip"))
+  expect_equal(fp$height_agl[1], 411.5 - 50)
+  expect_equal(fp$height_agl[2], 4115 / fly_height_slip_factor() - 50)
+  expect_identical(fp$flying_height, rf$flying_height)
 })
 
 

@@ -295,9 +295,22 @@ height missing two digits arrives, so it is gated on the band and not on `disput
 every excluded roll-height carries the reason that actually fired — no page, rows that
 disagree, a row not read are three states, and an earlier draft folded them into one.
 Spacing separates readings ~1.6× apart and no closer, so it cannot tell ×10 from ×10.764;
-the logbook can. The control roll `bc78065` suggests #54's own factor is ×10 on pre-2000
-rolls (fly#71), and half the r ≈ 2 mass is a wrong scale, not a mislabelled lens (fly#72).
-Do not change `fly_height_slip_factor()` from this; read `inst/notes/terrain-correction.md`
+the logbook can. Half the r ≈ 2 mass is a wrong scale, not a mislabelled lens (fly#72). Read
+`inst/notes/terrain-correction.md`
+
+- **#54's slipped frames are ÷10 wherever a logbook reads them, tabled where spacing
+agrees, and ÷10.764 stays for the rest** (fly#71) — the same logbooks, read blind against the 1,589, put the crew's height
+at the catalogue's divided by 10 on every slipped roll a page covers bar a one-frame typo
+(`bc78065`, `bc78078`, `bc79027`, `bc79103`, `bcc00085`), 6.7-7.6% above ÷10.764 on each. So 6
+roll-heights (299 frames) ride `flying_height_rolls.csv` at factor **0.1**, and both tables carry a
+`tail` column. **`fly_height_slip_factor()` was deliberately not changed**: the six 2003/2005
+rolls have no logbook link (the 2003 ones carry measured per-frame heights and fit 10.764 better;
+`bcc05001` lands on round feet under ÷10 and is undecided), so they and
+three stragglers (1,290 frames) stay on it, each listed in `_excluded.csv` with a reason saying
+so. The roll-table gate in `fly_footprint()` is `tab_factor != 1`, never `> 1`: `> 1` silently
+handed a 0.1 row back to #54's repair. `bc79027` reads ÷10 but spacing rejects it, because its page
+logs 80% overlap against the ~60% window. `bcb98013` frame 52 is a leading-digit typo that no
+factor recovers. Neither case moved the rule
 
 ## Gotchas
 

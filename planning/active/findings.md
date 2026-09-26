@@ -81,7 +81,7 @@ the images and the column spec only, with no catalogue values. The rows are appe
 | bcc00085 | 54,860 / 56,390 / 57,910 | 18,000 / 18,500 / 19,000 | | ≤0.01% | +7.64% |
 | bcb98013 f52 | 97,924 | 24,000 | 7,315.2 | −25% | −20% |
 
-- ÷10 is exact to 1e-4 on six of the seven pre-2000 roll-heights. bc79027 is 0.9% off
+- ÷10 is exact to 1e-4 on six of the seven 1978-2000 roll-heights (bcc00085 is 2000, so "pre-2000" in the issue is loose). bc79027 is 0.9% off
   (19,995 = 6,560 ft ×10), inside the script's 2% rounding tolerance. ÷10.764 misses every one
   by 6.7–7.6%.
 - bcb98013 fits no named factor. Its page is also headed roll **15BCB99013**, flight
@@ -89,3 +89,33 @@ the images and the column spec only, with no catalogue values. The rows are appe
   (26,000 ft) the roll's other frames carry. Either the catalogue links the wrong scan, or the page
   belongs to a sibling roll. Frame 52 stays on #54's ÷10.764, which gives 9,097 m against the
   7,924 m its roll-mates carry.
+
+## Verdict after the script rerun (2026-09-26)
+
+- **28 roll-heights corrected (1,300 frames)**: the 22 lower-tail rows unchanged, plus 6 upper-tail
+  rows at factor 0.1, `height_decimal_dropped`, covering **299 frames** (bc78065, bc78078, bc79103,
+  and bcc00085 ×3). The corrections reach exactly 1,300 frames in the whole catalogue.
+- **Upper tail excluded: 466 roll-heights, 1,290 frames**, all still repaired by #54's ÷10.764.
+  464 have no logbook page: the six 2003/2005 rolls, whose per-frame measured heights give each
+  frame its own roll-height, and bc5596. Of the other two, bcb98013 f52 fits no named factor.
+  **bc79027 reads 1/10 in the logbook, but spacing rejects it**: overlap under the corrected
+  height is 0.82 against the random-frame window, and its own page records "80% fwd overlap". So
+  the spacing is right and the 60% design assumption does not hold for this roll. The rule fixed
+  in fly#60 is not moved for one roll; it stays on ÷10.764.
+- The lower-tail rows of both tables are identical to main on every original column
+  (`all.equal` TRUE after dropping `tail`).
+- Plan review (Plan agent): adopted accepting only 1/10 in the upper tail. A logbook that
+  confirms 10.764 is excluded with the reason "logbook confirms #54's 10.764" and not relabelled.
+  Also adopted: the accounting test split by tail, and the lint on the long roxygen line. Not
+  applicable: the 1/K round-trip blocker, since the factor is carried as an index and 1/K is never
+  shipped. Recorded: bc78065 is the reading that produced the hypothesis, so only the five newly
+  read rolls are independent confirmation.
+- Checked end to end against the shipped table: a bc78065 1:2000 frame over 50 m ground gives
+  `corrected_roll_table` with `height_agl` 361.5 (logbook 1,350 ft). A bcc03004 frame stays
+  `corrected_unit_slip` at 6,605.6.
+
+## Errors Encountered
+
+| Error | Resolution |
+|-------|------------|
+| The pinned ÷10.764 assertion was written with the wrong sign (logbook is 7.6% *above* ÷K) | Flipped to `> 0.06`; suite then green |

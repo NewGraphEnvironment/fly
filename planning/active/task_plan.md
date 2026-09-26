@@ -89,39 +89,39 @@ but the 2003/2005 rolls stay findable only in prose.
 - [x] Record the reading in `findings.md`: which factor each roll names, and the `bcb98013` typo
 
 ### Phase 2: Tests first
-- [ ] `test-fly_footprint_height_rolls.R`: allow a factor below 1. A frame on a tabled 1/10
+- [x] `test-fly_footprint_height_rolls.R`: allow a factor below 1. A frame on a tabled 1/10
   roll-height is sized from `height_m`, so it is `corrected_roll_table` and not
   `corrected_unit_slip`. A 2003 frame still takes ÷10.764
-- [ ] Mutation check: restore `tab_factor > 1` and confirm the new test goes red
-- [ ] Update the sweep-holding test. Every upper-tail slipped roll-height is either tabled or
+- [x] Mutation check: restore `tab_factor > 1` and confirm the new test goes red
+- [x] Update the sweep-holding test. Every upper-tail slipped roll-height is either tabled or
   excluded (per the gate decision). The factor set becomes `c(1, 10, 100)` plus whatever the
   logbooks name for the upper tail
 
 ### Phase 3: Code
-- [ ] `R/fly_footprint.R`: `tab_factor > 1` → `tab_factor != 1` in `tabled`. Update the comments
+- [x] `R/fly_footprint.R`: `tab_factor > 1` → `tab_factor != 1` in `tabled`. Update the comments
   and the roll-table warning text, which says "dropped digits", to cover a height recorded ten
   times too large
-- [ ] Update the `fly_height_slip_factor()` comment. Its claims "the only candidate that survives
+- [x] Update the `fly_height_slip_factor()` comment. Its claims "the only candidate that survives
   the terrain" and "fires on the 1,589 and on nothing else" now hold only for the frames the
   table does not reach
-- [ ] `fly_height_roll_table()` roxygen/comment: `factor` can be below 1
+- [x] `fly_height_roll_table()` roxygen/comment: `factor` can be below 1
 
 ### Phase 4: Calibration script and shipped tables
-- [ ] Refactor stages 4–5 of `height_calibrate-lower_tail_rolls.R` into one function run over
+- [x] Refactor stages 4–5 of `height_calibrate-lower_tail_rolls.R` into one function run over
   a set and its named factors: lower tail `c(1, 10, 100)`, slipped upper tail `c(1/10, 1/K)`.
   The rule stays the one fixed in fly#60 (≥50% covered, ≥90% agree, no lens conflict, spacing
   fits). New causes: `height_decimal_added` (1/10) and `unit_slip` (1/K)
-- [ ] Print round-feet distance under ÷10 and ÷K as a non-gating witness. State that spacing
+- [x] Print round-feet distance under ÷10 and ÷K as a non-gating witness. State that spacing
   cannot separate 7.6%
-- [ ] Rerun the script. Regenerate `flying_height_rolls.csv` and `_excluded.csv`, and diff the
+- [x] Rerun the script. Regenerate `flying_height_rolls.csv` and `_excluded.csv`, and diff the
   lower-tail rows, which must come back unchanged
-- [ ] Run `devtools::test()` and `lintr`
+- [x] Run `devtools::test()` and `lintr`
 
 ### Phase 5: Docs
-- [ ] `inst/notes/terrain-correction.md`: replace the fly#71 paragraph with the result
-- [ ] Add a CLAUDE.md Key Decision line
-- [ ] Draft the NEWS entry. The version bump is left to `/gh-pr-merge`
-- [ ] File a follow-up issue for `bcb98013` frame 52 (a typo that #54's ÷10.764 draws ~15% wide)
+- [x] `inst/notes/terrain-correction.md`: replace the fly#71 paragraph with the result
+- [x] Add a CLAUDE.md Key Decision line
+- [x] Draft the NEWS entry (in the PR body). NEWS and the version bump are written by `/gh-pr-merge`
+- [x] File a follow-up issue ([fly#74](https://github.com/NewGraphEnvironment/fly/issues/74)) for `bcb98013` frame 52 (a typo that #54's ÷10.764 draws ~15% wide)
   and for bc5596 (×10 of its neighbours, no logbook), unless the logbook settles the first
 
 ## Verification
@@ -133,7 +133,7 @@ but the 2003/2005 rolls stay findable only in prose.
 
 ## Validation
 
-- [ ] Tests pass
-- [ ] `/code-check` clean on each commit
+- [x] Tests pass
+- [x] `/code-check` clean on each commit
 - [ ] PWF checkboxes match landed work
 - [ ] `/planning-archive` on completion
