@@ -233,10 +233,12 @@ test_that("the key matches however round the numbers are", {
   # `paste()` writes 100000L as "100000" and 100000 as "1e+05". No shipped row is round
   # enough to show it, so the table is replaced with one that is.
   testthat::local_mocked_bindings(
-    fly_height_roll_table = function() data.frame(
-      film_roll = "bcx1", flying_height = 1000L, focal_length = 153L, scale_n = 100000L,
-      factor = 10L, height_m = 15240, stringsAsFactors = FALSE
-    )
+    fly_height_roll_table = function() {
+      data.frame(
+        film_roll = "bcx1", flying_height = 1000L, focal_length = 153L, scale_n = 100000L,
+        factor = 10L, height_m = 15240, stringsAsFactors = FALSE
+      )
+    }
   )
   rf <- roll_fixture()[1, ]
   rf$film_roll <- "bcx1"
