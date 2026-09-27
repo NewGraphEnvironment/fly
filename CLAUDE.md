@@ -1080,6 +1080,9 @@ Supply a default ssh command only when `GIT_SSH_COMMAND`, `core.sshCommand` and 
 ### `curl -o` without `-L` saves the redirect page as the download
 `curl` does not follow redirects unless it is given `-L`, and it exits 0 on a 3xx.
 
+### `conda run` captures its child's output, so a pipe gets nothing
+`conda run -n env cmd` buffers the child's stdout and re-emits it, and that re-emission does not reach a pipe.
+
 # Code Check — Spatial
 terra, sf, bcdata, GDAL/OGR CLIs.
 
@@ -1225,6 +1228,9 @@ Apply a displacement in the CRS it was measured in: transform the point there, a
 
 ### Writing KML: `<color>` is `aabbggrr`, and a remote icon href renders nothing offline
 Do the hex swap in **one** helper and omit `<Icon><href>` entirely.
+
+### `rio cogeo validate` exits 0 when the file is NOT a valid COG
+It reports the verdict in text and returns success either way, so the exit status carries no information at all:
 
 # Code Check Conventions
 Structured checklist for reviewing diffs before commit.
