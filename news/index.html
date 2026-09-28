@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fly</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.17.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.18.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,13 +37,16 @@
 
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="development version" id="fly-development-version">fly (development version)<a class="anchor" aria-label="anchor" href="#fly-development-version"></a></h2>
+<div class="section level3">
+<h3 id="id_0180-development-version">0.18.0 (2026-09-28)<a class="anchor" aria-label="anchor" href="#id_0180-development-version"></a></h3>
 <ul><li>
 <strong>Half the r ≈ 2 mass was a wrong scale, not a mislabelled lens, and it is now drawn at its true width</strong> (<a href="https://github.com/NewGraphEnvironment/fly/issues/72" class="external-link">#72</a>). v0.12.0 said the film frames around twice their nominal scale were a 305 mm lens catalogued as 153, so falling back to nominal scale was right. The flight logbooks and the spacing between adjacent frames, read per roll-height over all 252 sampled frames beyond the band, split it: <strong>24 roll-heights (120 sampled frames; their keys reach at most 3,227 catalogue frames, fewer once terrain brings some inside the band, where they were already sized from their height) carry the height the crew flew beside a <code>scale</code> recorded too small</strong> — mostly 1972–76 rolls at half the true denominator — and ship in <code>flying_height_rolls.csv</code> at factor 1, <code>scale_wrong</code>, under a new <code>tail</code> value, <code>"near_upper"</code>. The fallback drew them at 1/r of their width, half at r = 2; they are now <code>"corrected_roll_table"</code> and sized from their height. On 21 roll-heights (82 frames) the logbook writes a 12” lens, which confirms the lens reading there, and those stay on nominal scale, as do the rest; each is listed in <code>flying_height_rolls_excluded.csv</code> with its reason.</li>
 <li>
 <strong>The logbook height alone cannot tell the two defects apart</strong> — a wrong lens and a wrong scale both mean the crew flew the catalogued height — so for this tail the rule, fixed before the run, also requires the spacing to <em>reject</em> nominal scale, not merely fit the reported height. The near_upper set is a 600-frame sample, not a census; <code>inst/notes/terrain-correction.md</code> states what it does not reach.</li>
 <li>
 <code>data-raw/flying_height_logbooks.csv</code> gains 185 rows from 142 newly read page files covering 54 roll labels. The readers worked blind; two things were added at merge and say so in their <code>note</code>: the 18 heights on 1984–86 sheets that write whole feet rather than thousands, and two rows marking the interior of a strip whose height changes along it as covered but unread. On these pages <code>focal_mm</code> is filled only where a focal length is written, never inferred from the camera model.</li>
-</ul><div class="section level3">
+</ul></div>
+<div class="section level3">
 <h3 id="id_0170-development-version">0.17.0 (2026-09-27)<a class="anchor" aria-label="anchor" href="#id_0170-development-version"></a></h3>
 <ul><li>
 <strong>A frame beside a disputed roll-height on the same roll is now a third witness, and it settles five roll-heights no logbook does</strong> (<a href="https://github.com/NewGraphEnvironment/fly/issues/74" class="external-link">#74</a>). The rule was fixed before it was run. A neighbour one frame away, on the same roll, lens and scale, must itself sit in the band, and the catalogue’s height must stand in an <strong>exact</strong> named relation to it: ×10, ÷10, ÷100, ×10.764 or one leading digit. Exact means within what storing whole metres of a 0.3048 m/ft conversion can move a figure, and the catalogue both rounds and truncates. A figure converted at 3.28 ft/m can only be refused by it, never wrongly accepted. Every neighbour naming a relation must name the same one, and spacing must agree. A logbook vetoes it only by naming a different factor. The rule was run over all 521 roll-heights the logbook leaves excluded, in both tails. <code>bc5596</code> 204–211 (26,212 m, ten times frame 203) and <code>bcb98013</code> frame 52 (97,924 m, a leading 9 on its neighbours’ 7,924) leave <a href="https://github.com/NewGraphEnvironment/fly/issues/54" class="external-link">#54</a>’s ÷10.764, which drew them 10.3–11.2% narrow and 17.1% wide in linear size. Three lower-tail roll-heights beyond the issue come out of <code>"implausible"</code>: <code>bc7675</code> 609 → 6,096 m, <code>bc87070</code> 396 → 3,962 m and <code>bcc822</code> 701 → 7,010 m. The logbook corroborates each in rows its own rule could not accept</li>

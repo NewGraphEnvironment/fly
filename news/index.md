@@ -2,6 +2,8 @@
 
 ## fly (development version)
 
+### 0.18.0 (2026-09-28)
+
 - **Half the r ≈ 2 mass was a wrong scale, not a mislabelled lens, and
   it is now drawn at its true width**
   ([\#72](https://github.com/NewGraphEnvironment/fly/issues/72)).
