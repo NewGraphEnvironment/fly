@@ -266,8 +266,8 @@ legitimate height is 14,630 m, so no bound separates them — `fly_flying_height
 backstop for digital frames (whose `scale` is not an image scale; 94% would be refused on it)
 and catches nothing in today's catalogue. The rule is **per frame, never per roll**: 1,208 clean
 frames share a slipped roll. The band's **upper edge sits in a trough** before a mass at r = 2
-that is a 305 mm lens catalogued as 153, which the DEM route drew at twice its width and nominal
-gets right — the lower edge is the same factor by symmetry, not a trough. And the slip's
+— half of it a 305 mm lens catalogued as 153, which the DEM route drew at twice its width and
+nominal gets right, and half a wrong `scale`, which fly#72 tables — the lower edge is the same factor by symmetry, not a trough. And the slip's
 apparent mirror image is **deliberately not repaired**: x10.764, x10 and x2 each bring ~730-800
 of the lower tail into the band and the terrain cannot choose (fly#60). Do not "finish" that by
 picking one, and do not re-derive the band without the sweep. Classification happens after the
@@ -329,6 +329,17 @@ figure converted at 3.28 ft/m (20,000 ft as 6,098) falls outside and refuses, wh
 outcome today. ×10.764 is named so a neighbour confirming #54
 *can* contradict one naming ×10 — without it the tolerance guarded nothing. Blind to a roll
 whose every frame carries the defect, which is most of the upper tail
+
+- **The r ≈ 2 mass is two defects that `r` cannot separate, and neither is applied unwitnessed**
+(v0.18.0, #72) — a 305 mm lens catalogued as 153 and a right height beside a `scale` at half its
+denominator both put a frame at r = 2. Settled per roll-height over the 252 sampled frames beyond
+the band: 24 roll-heights (120 frames; keys reaching at most 3,227 in the catalogue — terrain lowers r, so
+some are already in band) table at factor 1 under
+`tail = "near_upper"`; 21 carry a logbook writing a 12" lens and stay on nominal. **The logbook
+height is not a discriminator here** — both readings predict the crew flew the catalogued height —
+so the near_upper rule also requires spacing to **reject** nominal, fixed before the run. Logbook
+`focal_mm` on these pages is filled only where a focal length is written, never inferred from a
+camera model. A sample, not a census; read `inst/notes/terrain-correction.md`
 
 ## Gotchas
 

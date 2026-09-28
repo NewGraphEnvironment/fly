@@ -231,13 +231,13 @@ Four things here were measured and each is load-bearing:
   inside the band have a median of 1.05 and run 0.83–1.51 (5–95%). The next mass out is
   centred on
   **r = 2, and of the 223 frames sampled beyond r 1.8 in that stratum, 209 are catalogued
-  at 153 mm**: a 305 mm lens recorded as a 153. The DEM route draws those at twice their
-  true width; the nominal route gets them right, because it never reads `focal_length`.
-  Falling back is therefore the correct answer there and not merely the cautious one.
-  **Only for about half of them** — fly#60 measured the spacing between adjacent frames, and
-  105 of the 209 frames in that mass fit their *reported* height, with a scale recorded at
-  half its denominator, so the fallback draws those at half width (fly#72). 91 of the 105 are
-  on 1972–76 rolls, but the split is per roll, not by year. The
+  at 153 mm**. This was first read as a 305 mm lens recorded as a 153 — which the DEM route
+  draws at twice its true width and the nominal route gets right — and so falling back was
+  called the correct answer there rather than merely the cautious one. **That is true of
+  about half of it.** Spacing and the logbooks split the mass into two defects that read
+  alike from `r` (fly#72, below): a wrong lens, which the fallback sizes correctly, and a
+  right height beside a `scale` recorded at half its denominator, which the fallback drew at
+  half width and the roll table now corrects. The
   lower edge is the same factor inverted, since the error is a ratio either way — set by
   symmetry, not by a trough: ordinary frames thin out steadily below 0.8 and there is no
   second mass at 0.5.
@@ -485,6 +485,78 @@ not exact to the metre, nothing here chooses between them.
 
 Reproduce with `data-raw/height_calibrate-lower_tail_rolls.R` (Stage 5b), which prints every
 figure in this section and stops unless both controls return their neighbours' heights.
+
+## The r ≈ 2 mass is two defects, settled per roll (fly#72)
+
+**Verified:** 2026-09-27 · **Issues:** fly#72 (from fly#54, fly#60) · **Produced by:**
+`data-raw/height_calibrate-lower_tail_rolls.R`, set `near_upper`
+
+fly#54 set the band's upper edge in a trough before a mass at r = 2 and called the mass a
+305 mm lens catalogued as 153. fly#60's spacing split it instead: of the 209 sampled frames
+beyond r 1.8 at 153 mm, 90 give the designed ~60% forward overlap under nominal scale (the
+lens reading), 105 give it under the **reported** height with nominal implying ~20%, and 14
+fit neither. The generator stops if its spacing no longer reproduces that 90 / 105 / 14.
+
+The same two witnesses fly#60 used then settle it per roll-height, over every sampled frame
+beyond the band (252 frames, 53 rolls, 58 roll-heights, all lenses). New logbook pages were
+transcribed blind — readers given only the images, one control sheet each, all three read
+back as catalogued — into `data-raw/flying_height_logbooks.csv`. One thing changed in how:
+`focal_mm` is filled only where a focal length is **written**, never inferred from a camera
+model, because on this set the lens is the question.
+
+**The logbook height cannot separate the two readings.** A lens catalogued wrong and a scale
+catalogued wrong both predict the crew flew the catalogued height, so factor 1 "agrees" on
+both. What separates them is a legible lens and the spacing. So for `near_upper` the rule,
+fixed before the run, adds one condition to fly#60's: spacing must fit the reported height
+**and reject nominal scale** — fitting alone would not do, since a lens roll's reported
+height implies ~0.80 overlap and the window's top is 0.78. A legible logbook scale equal to
+the catalogue's would veto a row; no sampled page writes a scale, so it never fired.
+
+The result:
+
+| outcome | roll-heights | frames |
+|---|---|---|
+| tabled, factor 1, `scale_wrong` | 24 | 120 |
+| excluded: logbook writes a 12" lens | 21 | 82 |
+| excluded: spacing rejects the reported height | 7 | 31 |
+| excluded: logbook lens and spacing disagree | 1 | 2 |
+| excluded: logbook height not the catalogue's | 3 | 8 |
+| excluded: logbook height not read | 1 | 5 |
+| excluded: no logbook page | 1 | 4 |
+
+- The 24 are 20 roll-heights at 153 mm (107 frames, sixteen of them 1972–76 `bc54xx`–`bc57xx`,
+  plus `bc5138`, `bc78110`, `bc79039`, `bc79141`) and 4 at 305 mm (13 frames: `bc7692`,
+  `bc85079`, `bc85080`, `bc85081`). Three of the 305 mm ones sit at r 1.65–1.69, not 2: the
+  scale is the wrong field there too, but not by a factor of two, so `scale_wrong` names the
+  field and not the ratio.
+- Their keys reach **3,227** catalogue frames. That is an upper bound on what moves:
+  terrain *lowers* r below its above-sea-level value, and the table is consulted only
+  outside the band, so a frame on a tabled key over high enough ground (287–2,636 m,
+  depending on the roll) is inside it and was already sized from its reported height —
+  the same height the table gives it, so nothing changes there. In the sample, 120 of the
+  132 frames on the tabled keys are beyond the band; the 12 inside are all on `bc85079`,
+  `bc85080` and `bc85081`. The frames beyond it were drawn by the fallback at 1/r of their
+  width — half, at r = 2; they are now drawn from the height the crew flew.
+- The 82 frames whose logbooks write a 12" lens are the lens reading with a witness spacing
+  never saw — the issue's lens rolls `bc78051`, `bc79072` and `bc80122` among them. Nominal
+  scale remains right for them.
+- `bc80048` fits neither story: its logbook writes 6", and spacing fits neither reading —
+  0.79 under nominal and 0.89 under the reported height, both above the 0.78 top of the
+  window. It stays on nominal because nothing here justifies moving it, not because the
+  spacing supports nominal.
+  `bc79043` is the reverse — 12" written, spacing fitting the reported height — and is
+  excluded with a reason saying the witnesses disagree.
+
+**Bound.** `near_upper` is a 600-frame sample of 2 < r above sea level ≤ 3, not a census.
+Not measured: roll-heights no sampled frame sits on; the 505 `upper_tail` census frames that
+#54 does not repair; and frames just under the stratum's floor. The largest known group is
+there: **1,534 frames on nine 1985 rolls** (`bc85063`–`bc85091`) at 6,096 m, 305 mm and
+1:10000, whose ratio above sea level is 1.999 against the sample's lowest 2.025. Two of them
+turned up among the random draws beyond the band (`bc85083` r 1.73, `bc85090` r 1.63), their
+neighbours `bc85080` and `bc85081` log 20,000 ft in the pages read here, and the tabled
+`bc85079`–`bc85081` are the same camera, lens and scale — so they are likely the same
+`scale_wrong`, and unmeasured. A third random frame, `bc5703` (1:6000, 153 mm, r 1.99), looks
+like the 1972–76 group. An unlisted roll-height stays on nominal scale.
 
 ## What a partially covered footprint costs (fly#58)
 
