@@ -31,30 +31,30 @@ frames); scope = every out-of-band roll-height in the sweep's 600-frame `near_up
 (all lenses), with unsampled roll-heights stated as a bound.
 
 ## Phase 1: Fetch and transcribe the near_upper logbooks
-- [ ] Make `fetch_logbooks()` fetch rolls missing from the cache (not only when the dir is absent), and call it for the out-of-band near_upper rolls
-- [ ] Record which of the 44 rolls have no `flight_log_url` / failed fetch
-- [ ] Transcribe every fetched page into `data-raw/flying_height_logbooks.csv`, same schema, **blind**: readers get only the image paths, never catalogue height/scale/lens (2–3 unnamed general-purpose subagents, each writing rows to a scratch file; merged and spot-checked by me)
-- [ ] Re-read the fly#60 control rolls (`bcc228`, `bc7349`) in the same batch as a reader check; note `scale_as_written` where legible (reported, not gated)
+- [x] Make `fetch_logbooks()` fetch rolls missing from the cache (not only when the dir is absent), and call it for the out-of-band near_upper rolls
+- [x] Record which of the 44 rolls have no `flight_log_url` / failed fetch
+- [x] Transcribe every fetched page into `data-raw/flying_height_logbooks.csv`, same schema, **blind**: readers get only the image paths, never catalogue height/scale/lens (2–3 unnamed general-purpose subagents, each writing rows to a scratch file; merged and spot-checked by me)
+- [x] Re-read the fly#60 control rolls (`bcc228`, `bc7349`) in the same batch as a reader check; note `scale_as_written` where legible (reported, not gated)
 
 ## Phase 2: Generator — settle near_upper per roll-height
-- [ ] In `height_calibrate-lower_tail_rolls.R`, define the set: `near_upper` frames with r > band[2]; run `settle(near, named = 1, tail = "near_upper")`, rule fixed before running (fly#60's: ≥50% covered, ≥90% agreeing, no legible focal conflict, spacing in window)
-- [ ] Controls before the verdict: spacing on the issue's split (lens rolls fit nominal, scale rolls fit reported), plus the existing controls unchanged
-- [ ] Sibling witness not applied to near_upper (no height relation); `sibling_reason` states why; excluded reason suffixed "nominal scale still applies"
-- [ ] Extend `cause`, the census `stopifnot`s and the key-uniqueness check to three tails; regenerate both CSVs; confirm lower/upper rows are byte-identical to before (diff)
-- [ ] Record printed numbers (frames/roll-heights settled, lens vs scale split, catalogue reach) in findings.md
+- [x] In `height_calibrate-lower_tail_rolls.R`, define the set: `near_upper` frames with r > band[2]; run `settle(near, named = 1, tail = "near_upper")`, rule fixed before running (fly#60's: ≥50% covered, ≥90% agreeing, no legible focal conflict, spacing in window)
+- [x] Controls before the verdict: spacing on the issue's split (lens rolls fit nominal, scale rolls fit reported), plus the existing controls unchanged
+- [x] Sibling witness not applied to near_upper (no height relation); `sibling_reason` states why; excluded reason suffixed "nominal scale still applies"
+- [x] Extend `cause`, the census `stopifnot`s and the key-uniqueness check to three tails; regenerate both CSVs; confirm lower/upper rows are byte-identical to before (diff)
+- [x] Record printed numbers (frames/roll-heights settled, lens vs scale split, catalogue reach) in findings.md
 
 ## Phase 3: Tests
-- [ ] Widen tail setequal to three values; census reconciliation loop over `near_upper` set; factor-1 row ⇒ r beyond the band on its own tail's side
-- [ ] A near_upper tabled frame (real table row, r ≈ 2) is `corrected_roll_table`, sized from the reported height at ~2× the nominal width; the same frame off the table stays `implausible`/nominal — restore-the-bug check that the test reddens without the row
-- [ ] An excluded near_upper roll-height naming 305 mm in its logbook stays nominal
+- [x] Widen tail setequal to three values; census reconciliation loop over `near_upper` set; factor-1 row ⇒ r beyond the band on its own tail's side
+- [x] A near_upper tabled frame (real table row, r ≈ 2) is `corrected_roll_table`, sized from the reported height at ~2× the nominal width; the same frame off the table stays `implausible`/nominal — restore-the-bug check that the test reddens without the row
+- [x] An excluded near_upper roll-height naming 305 mm in its logbook stays nominal
 
 ## Phase 4: Docs
-- [ ] Rewrite the r≈2 claims: `fly_height_ratio_band()` comment (R/fly_footprint.R ~223), roll-table comment (~254), roxygen (~700–737 incl. frame counts), `inst/notes/terrain-correction.md` (~233 and roll-table section)
-- [ ] NEWS entry derived from the regenerated tables; CLAUDE.md Key Decisions entry; `devtools::document()`
+- [x] Rewrite the r≈2 claims: `fly_height_ratio_band()` comment (R/fly_footprint.R ~223), roll-table comment (~254), roxygen (~700–737 incl. frame counts), `inst/notes/terrain-correction.md` (~233 and roll-table section)
+- [x] NEWS entry derived from the regenerated tables; CLAUDE.md Key Decisions entry; `devtools::document()`
 
 ## Validation
 
-- [ ] Tests pass
-- [ ] `/code-check` clean on each commit
-- [ ] PWF checkboxes match landed work
+- [x] Tests pass
+- [x] `/code-check` clean on each commit
+- [x] PWF checkboxes match landed work
 - [ ] `/planning-archive` on completion
