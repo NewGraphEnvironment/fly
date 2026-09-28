@@ -79,17 +79,17 @@ The shipped height is the sibling's catalogued height.
 - [x] `devtools::document()`, full `devtools::test()`, `lintr::lint_package()`.
 
 ## Phase 4: Record
-- [ ] `inst/notes/terrain-correction.md`: add a fly#74 section with the rule, the two-neighbour
+- [x] `inst/notes/terrain-correction.md`: add a fly#74 section with the rule, the two-neighbour
       finding on `bc5596`, the whole-metre tolerance and why it separates them, the population
       result, and what it cannot do (it cannot tell ×10 from ×10.764 without an exact
       neighbour). Update the fly#71 bullets that say "(fly#74)".
-- [ ] NEWS.md entry (no version bump). CLAUDE.md Key Decisions gets a short fly#74 bullet
+- [x] NEWS.md entry (no version bump). CLAUDE.md Key Decisions gets a short fly#74 bullet
       pointing at the note.
-- [ ] Edit the issue body to add the two-neighbour finding (spec, not comment).
+- [x] Edit the issue body to add the two-neighbour finding (spec, not comment).
 
 ## Validation
 - [ ] Tests pass
-- [ ] `/code-check` clean on each commit
+- [x] `/code-check` clean on each commit
 - [ ] PWF checkboxes match landed work
 - [ ] `/planning-archive` on completion
 

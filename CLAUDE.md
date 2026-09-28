@@ -312,6 +312,24 @@ handed a 0.1 row back to #54's repair. `bc79027` reads ÷10 but spacing rejects 
 logs 80% overlap against the ~60% window. `bcb98013` frame 52 is a leading-digit typo that no
 factor recovers. Neither case moved the rule
 
+- **A same-roll adjacent frame is a third witness, and its tolerance is the catalogue's
+storage, not 2%** (#74) — where no logbook settles a roll-height, a frame one number away on the
+same roll, lens and scale, itself in band, whose height the catalogue's stands in an
+**exact** relation to (×10, ÷10, ÷100, ×10.764, one leading digit) settles it at the
+neighbour's height, with spacing agreeing and a logbook vetoing only by naming a different
+factor. Rule fixed before running, run over all 521 excluded roll-heights: 5 settle (138
+frames), `bc5596` and `bcb98013` plus `bc7675`/`bc87070`/`bcc822` in the lower tail, each
+corroborated by a logbook row its own rule could not accept. **The tolerance is load-bearing
+in both directions.** `bc5596` 204–211 sit between 2,621 m (×10 to 2 m) and 2,438 m (×10.764
+to 30 m, 0.12%), so at 2% the two neighbours name different relations and the generator's
+control stops. And the catalogue **truncates** as well as rounds (2,000 ft is 609 on
+`bc5449`), so `exact()` is `big − k·small ∈ [−(1 + k/2), k + 1/2]`; the rounding-only form
+refused `bc7675`, and a test pins it. That bound covers 0.3048 m/ft conversions only; a
+figure converted at 3.28 ft/m (20,000 ft as 6,098) falls outside and refuses, which moves no
+outcome today. ×10.764 is named so a neighbour confirming #54
+*can* contradict one naming ×10 — without it the tolerance guarded nothing. Blind to a roll
+whose every frame carries the defect, which is most of the upper tail
+
 ## Gotchas
 
 - `.lintr` must be single-line DCF format — multi-line breaks newer lintr versions
