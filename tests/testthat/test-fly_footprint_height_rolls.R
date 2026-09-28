@@ -190,20 +190,24 @@ test_that("the table holds against the sweep and the logbooks it was measured fr
   s <- utils::read.csv(system.file("extdata/flying_height_sweep.csv", package = "fly"))
   band <- fly_height_ratio_band()
   in_band <- function(r) r >= band[1] & r <= band[2]
-  # Two sets, one per tail: fly#60's lower tail, and fly#71's #54-slipped frames — the upper
-  # tail that dividing by 10.764 brings into the band.
+  # Three sets, one per tail: fly#60's lower tail, fly#71's #54-slipped frames — the upper
+  # tail that dividing by 10.764 brings into the band — and fly#72's near_upper frames beyond
+  # the band, the r ~ 2 mass.
   up <- s[s$set == "upper_tail", ]
   up <- up[in_band((up$flying_height / fly_height_slip_factor() - up$elev) /
                      (up$scale_n * up$focal_length / 1000)), ]
-  sets <- list(lower = s[s$set == "lower_tail", ], upper = up)
+  nu <- s[s$set == "near_upper", ]
+  nu <- nu[(nu$flying_height - nu$elev) / (nu$scale_n * nu$focal_length / 1000) > band[2], ]
+  sets <- list(lower = s[s$set == "lower_tail", ], upper = up, near_upper = nu)
   expect_identical(nrow(sets$upper), 1589L)   # premise: #54's census
+  expect_identical(nrow(sets$near_upper), 252L)
 
   # Contract: the named slips, one cause each, and nothing else. The upper tail names only
   # 1/10 by factor: a logbook confirming 10.764 is excluded, since #54's repair already sizes
   # it. The one relation that is not a factor is a leading digit, which only a same-roll
   # sibling can name (fly#74), so its row carries the ratio it implies and a cause saying so.
-  expect_setequal(unique(tab$tail), c("lower", "upper"))
-  expect_setequal(unique(excl$tail), c("lower", "upper"))
+  expect_setequal(unique(tab$tail), c("lower", "upper", "near_upper"))
+  expect_setequal(unique(excl$tail), c("lower", "upper", "near_upper"))
   expect_true(all(tab$witness %in% c("logbook", "sibling")))
   # An excluded row says why each witness passed it over: the logbook in `reason`, the
   # same-roll sibling in `sibling_reason`.
@@ -212,6 +216,9 @@ test_that("the table holds against the sweep and the logbooks it was measured fr
   expect_true(all(tab$witness[digit] == "sibling"))
   expect_setequal(unique(tab$factor[tab$tail == "lower" & !digit]), c(1, 10, 100))
   expect_setequal(unique(tab$factor[tab$tail == "upper" & !digit]), 0.1)
+  # near_upper names only 1: the height was flown and the scale is the wrong field (fly#72).
+  expect_setequal(unique(tab$factor[tab$tail == "near_upper"]), 1)
+  expect_true(all(tab$witness[tab$tail == "near_upper"] == "logbook"))
   expect_identical(tab$cause[!digit],
                    c(`1` = "scale_wrong", `10` = "height_digit_dropped",
                      `100` = "height_two_digits_dropped",
@@ -230,7 +237,9 @@ test_that("the table holds against the sweep and the logbooks it was measured fr
   expect_false(anyNA(excl$reason) || any(!nzchar(excl$reason)))
   # An excluded slipped roll-height is still repaired by #54, and its reason says so.
   expect_true(all(grepl("10.764", excl$reason[excl$tail == "upper"], fixed = TRUE)))
-  expect_false(any(grepl("10.764", excl$reason[excl$tail == "lower"], fixed = TRUE)))
+  expect_false(any(grepl("10.764", excl$reason[excl$tail != "upper"], fixed = TRUE)))
+  # An excluded near_upper roll-height stays on nominal scale, and its reason says so.
+  expect_true(all(grepl("nominal scale", excl$reason[excl$tail == "near_upper"], fixed = TRUE)))
 
   key <- function(d) paste(d$film_roll, d$flying_height, d$focal_length, d$scale_n)
   expect_length(intersect(key(tab), key(excl)), 0)
@@ -247,13 +256,19 @@ test_that("the table holds against the sweep and the logbooks it was measured fr
     expect_identical(sum(tb$frames_measured) + sum(ex$frames_measured), nrow(set), info = tl)
 
     # Each row's corrected ratio recomputed from the sweep, at the precision it is published.
+    # The generator takes it from the logbook height unrounded and `height_m` is published to
+    # 0.1 m, so a ratio on a half-way third decimal can round either side (bc5648, bc79039):
+    # held to within one unit in the third decimal, not to the digit.
     for (i in seq_len(nrow(tb))) {
       d <- set[key(set) == key(tb)[i], ]
       expect_gt(nrow(d), 0)
       r <- median((tb$height_m[i] - d$elev) / (d$scale_n * d$focal_length / 1000))
-      expect_equal(round(r, 3), tb$r_corrected[i], tolerance = 1e-9, info = key(tb)[i])
-      # A height-slip row must land in the band; a scale-wrong row by definition does not.
-      if (tb$factor[i] == 1) {
+      expect_true(abs(r - tb$r_corrected[i]) <= 0.001, info = key(tb)[i])
+      # A height-slip row must land in the band; a scale-wrong row by definition does not,
+      # and stays on the side of the band its tail came from.
+      if (tb$factor[i] == 1 && tl == "near_upper") {
+        expect_true(r > band[2], info = key(tb)[i])
+      } else if (tb$factor[i] == 1) {
         expect_true(r < band[1], info = key(tb)[i])
       } else {
         expect_true(in_band(r), info = key(tb)[i])
@@ -400,4 +415,63 @@ test_that("the key matches however round the numbers are", {
   fp <- suppressWarnings(fly_footprint(rf, dem = roll_dem()))
   expect_identical(fp$height_source, "corrected_roll_table")
   expect_equal(fp$height_agl, 15240 - 300)
+})
+
+
+# fly#72: the r ~ 2 mass. bc5509 is catalogued at 6,553 m, 153 mm, 1:16000, and its logbook
+# reads 21,500 ft (6,553.2 m) — its camera line names no focal length, so the spacing is what
+# accepted it: the height is right and the scale is half its true denominator. bc78051 sits in the same mass and its logbook writes a 12" lens, so it is the
+# other half — a lens catalogued wrong, which nominal scale already sizes.
+near_fixture <- function() {
+  rf <- roll_fixture()[c(1, 1), ]
+  rf$film_roll <- c("bc5509", "bc78051")
+  rf$scale <- c("1:16000", "1:20000")
+  rf$focal_length <- 153
+  rf$flying_height <- c(6553, 6858)
+  rf
+}
+
+test_that("a near_upper frame with a wrong scale is drawn from its height (fly#72)", {
+  skip_if_no_terra()
+  tab <- fly_height_roll_table()
+  excl <- utils::read.csv(system.file("extdata/flying_height_rolls_excluded.csv",
+                                      package = "fly"))
+  key <- function(roll, h, f, s) paste(roll, h, f, s)
+  k <- key(c("bc5509", "bc78051"), c(6553, 6858), 153, c(16000, 20000))
+  # Premise: one real table row and one real exclusion for a different lens, both ABOVE the
+  # band here, where #54's repair cannot reach them (r / 10.764 is far under it).
+  expect_identical(k %in% key(tab$film_roll, tab$flying_height, tab$focal_length, tab$scale_n),
+                   c(TRUE, FALSE))
+  ex <- excl[key(excl$film_roll, excl$flying_height, excl$focal_length, excl$scale_n) == k[2], ]
+  expect_match(ex$reason, "different lens", fixed = TRUE)
+  nominal <- c(16000, 20000) * 0.153
+  r <- (c(6553, 6858) - 300) / nominal
+  band <- fly_height_ratio_band()
+  expect_true(all(r > band[2]))
+  expect_true(all(r / fly_height_slip_factor() < band[1]))
+
+  fp <- suppressWarnings(fly_footprint(near_fixture(), dem = roll_dem()))
+  expect_identical(fp$height_source, c("corrected_roll_table", "implausible"))
+  expect_equal(fp$height_agl[1], 21500 * 0.3048 - 300)
+  # Drawn at the width its height implies — about 2.6 times what the fallback drew.
+  w <- roll_width(fp)
+  expect_equal(w[1], 9 * 0.0254 * (21500 * 0.3048 - 300) / 0.153, tolerance = 1e-3)
+  flat <- fly_footprint(near_fixture())
+  expect_gt(w[1] / roll_width(flat)[1], 2.5)
+  # The lens roll keeps the nominal-scale footprint exactly.
+  expect_equal(w[2], roll_width(flat)[2])
+  expect_identical(fp$flying_height, near_fixture()$flying_height)
+})
+
+
+test_that("without its table row a near_upper frame falls back to nominal scale", {
+  skip_if_no_terra()
+  # The defect fly#72 repairs, restored: the same frame, with the table emptied of it.
+  tab <- fly_height_roll_table()
+  testthat::local_mocked_bindings(
+    fly_height_roll_table = function() tab[tab$tail != "near_upper", ]
+  )
+  fp <- suppressWarnings(fly_footprint(near_fixture()[1, ], dem = roll_dem()))
+  expect_identical(fp$height_source, "implausible")
+  expect_equal(roll_width(fp), roll_width(fly_footprint(near_fixture()[1, ])))
 })

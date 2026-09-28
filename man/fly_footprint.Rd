@@ -227,16 +227,20 @@ elevation}
 the roll-heights in \code{inst/extdata/flying_height_rolls.csv}, which the
 province's flight logbooks, or failing them an adjacent frame on the same
 roll in an exact named relation, together with the spacing between adjacent
-frames, settled (fly#60, fly#71, fly#74): a height with one or two digits dropped (a logbook "20.0",
+frames, settled (fly#60, fly#71, fly#72, fly#74): a height with one or two digits dropped (a logbook "20.0",
 thousands of feet, catalogued as 2,000 ft), a height recorded ten times too
-large, a leading digit added, or a correct height beside a wrong \code{scale}. Checked before the
+large, a leading digit added, or a correct height beside a wrong \code{scale} —
+on either side of the band, including frames around twice their nominal
+scale whose \code{scale} is recorded at half its denominator. Checked before the
 10.76 slip above. Sized from the measured height; matched on \code{film_roll},
 \code{flying_height}, \code{focal_length} and \code{scale} together, so it needs a
 \code{film_roll} column. As with the slip, \code{flying_height} is not overwritten}
 \item{\code{"implausible"}}{they disagree some other way, or \code{flying_height} is
 above 16,000 m or below the terrain. Nothing can say whether the height, the
 scale or the focal length is the wrong one — a 305 mm lens catalogued as
-153 looks the same from here — so the height is not used: a film frame
+153 and a scale recorded at half its denominator look the same from here,
+and the roll table separates them only where it was measured — so the
+height is not used: a film frame
 falls back to nominal scale, and a digital frame with no other route has no
 footprint}
 \item{\code{NA}}{no height was judged: no \code{dem}, a frame the DEM route does not
@@ -248,7 +252,8 @@ all for another reason), one the DEM does not cover, or \code{flying_height} or
 
 Measured over the whole catalogue, the two corrections for a height that is too
 large apply to those 1,589 frames and to nothing else: 308 by the roll table,
-the rest by 10.76. A digital frame's \code{scale} is a nominal figure, not
+the rest by 10.76. (The table's factor-1 rows correct a scale, not a height, so
+they are not among them.) A digital frame's \code{scale} is a nominal figure, not
 its image scale, so it is not compared: only the 16,000 m ceiling, or terrain at
 or above the aircraft, can refuse one. To list the frames worth a second look:
 \code{dplyr::filter(fp, height_source != "reported")}.

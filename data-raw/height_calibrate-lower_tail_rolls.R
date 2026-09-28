@@ -10,6 +10,11 @@
 # and which a divisor of 10 lands in the band just as well. Both tails go through one
 # function, `settle()`, and into the same two tables, with a `tail` column saying which.
 #
+# fly#72 adds a third set: the `near_upper` frames beyond the band, the r ~ 2 mass the note
+# once called a 305 mm lens catalogued as 153. Spacing says that is true of about half; on
+# the other half the catalogued height is the one flown and `scale` is the wrong field. The
+# logbooks are read against it the same way, with 1 the only factor named.
+#
 # Everything here is public. It reads what `height_calibrate-flying_height_slip.R` cached
 # (`data-raw/.cache/centroids/`, every frame's x/y/frame_number) and shipped
 # (`inst/extdata/flying_height_sweep.csv`, terrain under the sampled frames) — run that
@@ -133,6 +138,12 @@ message(sprintf("frames: nominal fits %d, reported fits %d, neither %d",
                 sum(mis_rolls$n[mis_rolls$fits == "nominal"]),
                 sum(mis_rolls$n[mis_rolls$fits == "reported"]),
                 sum(mis_rolls$n[mis_rolls$fits == "neither"])))
+# fly#72 was opened on this split, and the verdict below is read against it: the spacing must
+# still divide these 209 frames the way the issue reports before any logbook is consulted.
+split_n <- tapply(mis_rolls$n, mis_rolls$fits, sum)
+if (!identical(as.integer(split_n[c("nominal", "reported", "neither")]), c(90L, 105L, 14L))) {
+  stop("near_upper spacing split no longer reproduces fly#72's 90 / 105 / 14")
+}
 
 # ---------------------------------------------------------------------------
 # Stage 3 — the lower tail, per roll
@@ -218,17 +229,37 @@ fetch_logbooks <- function(rolls) {
                   length(rolls), sum(status %in% 200L), sum(!status %in% 200L)))
   invisible(u)
 }
-# Fetched only when the cache is absent; the fly#71 pages were added by the same function
-# for the slipped rolls. Delete the directory to refetch everything.
-if (!dir.exists(LOG_DIR)) {
-  fetch_logbooks(unique(c(rolls$film_roll, s$film_roll[s$set == "upper_tail"])))
-}
+# Fetched for every roll with no page in the cache: the lower tail (fly#60), #54's slipped
+# frames (fly#71) and the near_upper frames beyond the band (fly#72). A roll the catalogue
+# links no page for is queried again on each run, which costs one request and changes
+# nothing. Delete the directory to refetch everything.
+want <- unique(c(rolls$film_roll, s$film_roll[s$set == "upper_tail"],
+                 s$film_roll[s$set == "near_upper" & is.finite(s$r) & s$r > band[2]]))
+cached <- if (dir.exists(LOG_DIR)) unique(sub("__.*", "", list.files(LOG_DIR))) else character()
+if (length(setdiff(want, cached))) fetch_logbooks(setdiff(want, cached))
 
 logs <- read.csv("data-raw/flying_height_logbooks.csv", colClasses = "character")
 logs$frame_from <- as.integer(logs$frame_from)
 logs$frame_to <- as.integer(logs$frame_to)
 logs$log_ft <- as.numeric(logs$height_ft_interpreted)
 logs$log_focal <- as.numeric(logs$focal_mm)
+# A page's photo scale, read only where the field STARTS with it ("1:15,000 (project line)",
+# "SCALE: 1:52,000 (title)", "(1:15,000) in project line"): a scale quoted inside a remark
+# ("not requested at 1:40,000") is not the one flown, and would veto a row by accident.
+# One thousands style per figure — commas, spaces, or none, in groups of three — and no digit
+# may follow it, however spaced: "1:15,000 123" or "1:15840 12 frames" is read as no scale
+# at all rather than swallowed into 15,000,123 or cut short. A missed scale only withholds a
+# veto; a misread one could fire it.
+scale_pat <- paste0(
+  "^\\s*\\(?\\s*(?:scale\\s*:\\s*)?1\\s*:\\s*",
+  "([0-9]{1,3}(?:,[0-9]{3})+|[0-9]{1,3}(?: [0-9]{3})+|[0-9]+)",
+  "(?![0-9]|,[0-9]|\\s+[0-9])"
+)
+scale_hit <- regmatches(logs$scale_as_written,
+                        regexec(scale_pat, logs$scale_as_written, perl = TRUE, ignore.case = TRUE))
+logs$log_scale <- vapply(scale_hit, function(m) {
+  if (length(m) < 2) NA_real_ else as.numeric(gsub("[, ]", "", m[2]))
+}, numeric(1))
 
 # --- Controls: rolls whose answer is known, read blind -------------------------
 # The two clean rolls must read back exactly as catalogued. bc78065 is a #54 slipped roll.
@@ -269,6 +300,7 @@ settle <- function(set, named, tail) {
   stopifnot(nrow(lt) == nrow(set))
   lt$log_ft <- NA_real_
   lt$log_focal <- NA_real_
+  lt$log_scale <- NA_real_
   # What the logbook says about each frame, as one of four states — never folded into "no
   # height", which is how an earlier version reported frames under a conflict or an unread
   # row as frames no logbook page covered (code-check round 3):
@@ -288,6 +320,10 @@ settle <- function(set, named, tail) {
       lt$log_ft[i] <- logs$log_ft[hit[1]]
       foc <- unique(logs$log_focal[hit][is.finite(logs$log_focal[hit])])
       if (length(foc) == 1) lt$log_focal[i] <- foc
+      # The photo scale where the page writes one ("1:15,840", "SCALE: 1:31,680"): the one
+      # field that states the value fly#72 disputes. Read as the digits after "1:".
+      sc <- unique(logs$log_scale[hit][is.finite(logs$log_scale[hit])])
+      if (length(sc) == 1) lt$log_scale[i] <- sc
     } else if (length(hit)) {
       lt$log_state[i] <- "conflict"
     } else if (length(cover) || lt$film_roll[i] %in% unparsed_roll) {
@@ -336,6 +372,11 @@ settle <- function(set, named, tail) {
       # Only a LEGIBLE focal length that differs counts against the row; a blank or unread
       # one says nothing either way.
       n_focal_conflict = sum(is.finite(d$log_focal) & !d$focal_agrees),
+      # A legible logbook scale, against the catalogue's and against twice it (fly#72).
+      n_scale_read = sum(is.finite(d$log_scale)),
+      n_scale_same = sum(is.finite(d$log_scale) & abs(d$log_scale / d$scale_n - 1) <= 0.02),
+      n_scale_double = sum(is.finite(d$log_scale) & abs(d$log_scale / (2 * d$scale_n) - 1) <= 0.02),
+      p_nominal = median(d$p_nominal, na.rm = TRUE),
       n_base = sum(is.finite(d$base[agree])),
       p_corrected = if (any(agree)) median(1 - d$base[agree] / (FORMAT_M * (h_true - d$elev[agree]) /
                                                                 d$f_m[agree]), na.rm = TRUE) else NA_real_,
@@ -349,11 +390,24 @@ settle <- function(set, named, tail) {
   list(verdict = verdict, frames = lt)
 }
 
+# The near_upper frames beyond the band (fly#72): the r ~ 2 mass the note called a 305 mm lens
+# catalogued as 153, which spacing splits in two. Only a factor of 1 is named: the question is
+# whether the crew flew the catalogued height, in which case the SCALE is the wrong field and
+# the nominal fallback draws the frame at half width. A logbook naming a 12" lens is the other
+# half, and condition 2 below already excludes it as a different defect. The sweep holds a
+# 600-frame SAMPLE of this stratum (2 < r above sea level <= 3), not a census, so a roll-height
+# no sampled frame sits on is unmeasured here.
+near <- s[s$set == "near_upper" & is.finite(s$r) & s$r > band[2], ]
+message(sprintf("\n== near_upper beyond the band: %d frames on %d rolls ==", nrow(near),
+                length(unique(near$film_roll))))
+
 lower_v <- settle(lower, named = c(1, 10, 100), tail = "lower")
 upper_v <- settle(upper, named = c(1 / 10, 1 / K), tail = "upper")
+near_v <- settle(near, named = 1, tail = "near_upper")
 saveRDS(list(verdict = lower_v$verdict, frames = lower_v$frames),
         "data-raw/.cache/lower_tail_verdict.rds")
 saveRDS(upper_v, "data-raw/.cache/upper_tail_verdict.rds")
+saveRDS(near_v, "data-raw/.cache/near_upper_verdict.rds")
 
 # The control fly#60 read blind must now settle as a slipped roll, at x0.1.
 ctl78 <- upper_v$verdict[upper_v$verdict$film_roll == "bc78065", ]
@@ -377,18 +431,34 @@ if (!(nrow(ctl78) == 1 && isTRUE(all.equal(ctl78$factor, 0.1)))) {
 # SCALE is the wrong field, and the fallback to nominal scale is what draws those frames
 # wrong. Among the slipped frames, spacing cannot tell 1/10 from 1/10.764 (7.6% apart), so
 # there condition 3 is a sanity check and the logbook alone decides the factor.
+#
+# The near_upper frames (fly#72) go through the same rule unchanged, with 1 the only factor
+# named. There condition 3 is the discriminating witness rather than a sanity check: the two
+# readings on offer, the catalogued height and nominal scale, are a factor of ~2 apart, which
+# spacing separates. A factor-1 row there is the upper-side mirror of the lower tail's
+# `scale_wrong`: the same cause, from the other side of the band.
 
-v <- rbind(lower_v$verdict, upper_v$verdict)
+v <- rbind(lower_v$verdict, upper_v$verdict, near_v$verdict)
 v$covered <- v$n_logbook / v$n
 v$agreeing <- ifelse(v$n_logbook > 0, v$n_agree / v$n_logbook, 0)
 v$focal_conflict <- v$n_focal_conflict > 0
 v$spacing_ok <- fits(v$p_corrected)
+# near_upper (fly#72): the logbook height cannot tell the two readings apart — a 305 mm lens
+# catalogued as 153 ALSO flew the catalogued height — so factor 1 agrees on lens rolls too.
+# What separates them is the spacing, and there it must do both halves: fit the reported
+# height AND reject nominal scale, the same test the issue's split was made with. Fitting
+# alone is not enough: on a lens roll the reported height implies ~0.80 overlap, and the
+# window's top is 0.78. And a legible logbook scale equal to the catalogue's vetoes the row,
+# since `scale` is the field the row says is wrong.
+nu_row <- v$tail == "near_upper"
+v$spacing_ok[nu_row] <- v$spacing_ok[nu_row] & !fits(v$p_nominal[nu_row])
+v$scale_veto <- nu_row & v$n_scale_same > 0
 is_f <- function(f) is.finite(v$factor) & abs(v$factor - f) < 1e-9
 # A slipped roll-height whose logbook names 1/10.764 is not tabled: #54's repair already
 # sizes it from the same height, and tabling it would relabel frames without moving them.
 v$confirms_54 <- v$tail == "upper" & is_f(1 / K)
 v$accept <- is.finite(v$factor) & v$covered >= 0.5 & v$agreeing >= 0.9 &
-  !v$focal_conflict & v$spacing_ok & !v$confirms_54
+  !v$focal_conflict & v$spacing_ok & !v$confirms_54 & !v$scale_veto
 # Where the logbook read under half the frames, the reason names the state most of the
 # unread frames are in — the predicate that actually fired, not the one next to it.
 unread_state <- ifelse(v$n_conflict >= v$n_uninterpreted & v$n_conflict > 0, "conflict",
@@ -401,7 +471,12 @@ v$reason <- dplyr::case_when(
   v$n_logbook == 0 ~ "no logbook page covers these frames",
   v$covered < 0.5 ~ "logbook covers under half the frames",
   !is.finite(v$factor) | v$agreeing < 0.9 ~ "logbook height is not a named multiple of the catalogue's",
+  v$focal_conflict & nu_row & fits(v$p_corrected) & !fits(v$p_nominal) ~
+    "logbook names a different lens and spacing fits the reported height; the two disagree",
   v$focal_conflict ~ "logbook names a different lens; nominal scale already sizes it",
+  v$scale_veto ~ "logbook writes the catalogue's scale",
+  nu_row & fits(v$p_corrected) & fits(v$p_nominal) ~
+    "spacing fits both the reported height and nominal scale",
   v$n_base == 0 ~ "no adjacent frames to measure spacing on",
   TRUE ~ "spacing rejects the logbook's height"
 )
@@ -527,6 +602,12 @@ v$sibling_frame <- NA_real_
 v$sibling_reason <- NA_character_
 v$sibling_rel <- NA_character_
 for (i in which(!v$accept)) {
+  # A near_upper roll-height's height is not what is in dispute — its scale is — so there is
+  # no relation between heights for a neighbour to name.
+  if (v$tail[i] == "near_upper") {
+    v$sibling_reason[i] <- "not applied: the scale is disputed, not the height"
+    next
+  }
   sb <- sibling(i)
   v$sibling_reason[i] <- sb$reason
   if (!sb$ok) next
@@ -573,6 +654,9 @@ if (!c2_ok) {
 # the table is not read as a list of frames drawn at nominal scale.
 up <- v$tail == "upper" & !v$accept & v$reason != "logbook confirms #54's 10.764"
 v$reason[up] <- paste0(v$reason[up], "; #54's 10.764 still applies")
+# Likewise a near_upper roll-height left out is drawn at nominal scale, as it was before.
+nu <- v$tail == "near_upper" & !v$accept & !grepl("nominal scale", v$reason, fixed = TRUE)
+v$reason[nu] <- paste0(v$reason[nu], "; nominal scale still applies")
 v$cause <- dplyr::case_when(
   !v$accept ~ NA_character_,
   is_f(1) ~ "scale_wrong",
@@ -603,7 +687,7 @@ excluded_out <- excluded_out[order(excluded_out$tail, excluded_out$film_roll,
                                    excluded_out$flying_height), ]
 stopifnot(nrow(rolls_out) + nrow(excluded_out) == nrow(v),
           sum(rolls_out$frames_measured) + sum(excluded_out$frames_measured) ==
-            nrow(lower) + nrow(upper))
+            nrow(lower) + nrow(upper) + nrow(near))
 
 message(sprintf("\n== verdict: %d roll-heights corrected (%d frames), %d excluded (%d frames) ==",
                 nrow(rolls_out), sum(rolls_out$frames_measured),
@@ -625,7 +709,8 @@ reach <- vapply(seq_len(nrow(rolls_out)), function(i) {
 stopifnot(all(reach >= rolls_out$frames_measured))
 message(sprintf("frames the corrections reach in the whole catalogue: %d (measured: %d)",
                 sum(reach), sum(rolls_out$frames_measured)))
-# The two tails cannot share a key: a height cannot be both under and over the band.
+# The tails cannot share a key: a height cannot be both under and over the band, and a
+# near_upper roll-height (2 < r above sea level <= 3) cannot be a slipped one (> 3).
 stopifnot(!anyDuplicated(key4(v$film_roll, v$flying_height, v$focal_length, v$scale_n)))
 
 write.csv(rolls_out, "inst/extdata/flying_height_rolls.csv", row.names = FALSE, na = "")

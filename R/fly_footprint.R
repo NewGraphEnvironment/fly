@@ -220,13 +220,17 @@ fly_height_slip_factor <- function() 3.28084^2
 # whose reported height is at most twice what their scale implies sit inside this band
 # (98.7% of all 1.44 million, weighting in the strata above that), and the 1,589 slipped
 # frames land at 0.80-1.32 once repaired against 10.0-15.8 before. The UPPER edge sits in
-# the trough between that mass and the next one out, centred on 2.0, which is a 305 mm lens
-# catalogued as 153 — a frame the DEM route would draw at twice its true width, and the
-# nominal route gets right because it never reads `focal_length`. For about half of that
-# mass: fly#60's frame spacing shows 105 of its 209 sampled frames carry the right height
-# and a wrong scale, which the nominal route draws at half width (fly#72). The lower edge is that
-# factor inverted, because the error is a ratio either way; it is set by symmetry and not
-# by a trough, since ordinary frames simply thin out below 0.8 with no second mass at 0.5.
+# the trough between that mass and the next one out, centred on 2.0. That mass is two
+# defects that read alike here (fly#72). On some rolls it is a 305 mm lens catalogued as
+# 153, which the DEM route would draw at twice its true width and the nominal route gets
+# right because it never reads `focal_length`: the logbooks write a 12" lens on 21 sampled
+# roll-heights. On others the height and lens are right and `scale` is recorded at half its
+# denominator, which the nominal route draws at half width: those roll-heights, settled by
+# the logbooks and frame spacing, are carried in `flying_height_rolls.csv` at factor 1.
+# Neither reading is safe to apply unwitnessed, so the band stays where it is and the
+# table decides per roll. The lower edge is that factor inverted, because the error is a
+# ratio either way; it is set by symmetry and not by a trough, since ordinary frames
+# simply thin out below 0.8 with no second mass at 0.5.
 # See `inst/notes/terrain-correction.md`.
 fly_height_ratio_band <- function() c(1 / 1.6, 1.6)
 
@@ -252,7 +256,9 @@ fly_flying_height_max <- function() 16000
 # logbook "20.0", thousands of feet, catalogued as 2,000 ft), 1 where the logbook confirms
 # the height and the SCALE is the wrong field, and 0.1 where the height is ten times too
 # LARGE. That last case is fly#71: rolls flown before 2003 that #54 divides by 10.764. `tail` records
-# which side of the band the roll-height came from. `height_m` is the height used — the logbook's,
+# which side of the band the roll-height came from: `lower`, `upper` (#54's slipped frames), or
+# `near_upper` (fly#72) — the r ~ 2 mass, where a factor of 1 is the same `scale_wrong` cause
+# reached from above the band, and the only factor named there. `height_m` is the height used — the logbook's,
 # converted, since the catalogue's rounding survives multiplying by the factor.
 #
 # fly#74 added a third witness where no logbook settles a roll-height: a frame adjacent by
@@ -264,9 +270,10 @@ fly_flying_height_max <- function() 16000
 # ratio it implies rather than a named slip; only `factor != 1` is read from it here.
 #
 # Keyed on roll, height, lens and scale together, so the table reaches only the frames it
-# was measured on. Every lower-tail roll-height it does not correct, and every #54-slipped one
-# it does not reach, is listed with its reason in `flying_height_rolls_excluded.csv`: an
-# unlisted roll is unmeasured, not clean.
+# was measured on. Every lower-tail roll-height it does not correct, every #54-slipped one
+# it does not reach, and every sampled near_upper one it leaves on nominal scale, is listed
+# with its reason in `flying_height_rolls_excluded.csv`: an unlisted roll is unmeasured, not
+# clean. The near_upper rows come from a 600-frame sample of that stratum, not a census.
 # Produced by `data-raw/height_calibrate-lower_tail_rolls.R`; see
 # `inst/notes/terrain-correction.md`.
 fly_height_roll_table <- function() {
@@ -714,16 +721,20 @@ fly_is_square <- function(footprints) {
 #'     the roll-heights in `inst/extdata/flying_height_rolls.csv`, which the
 #'     province's flight logbooks, or failing them an adjacent frame on the same
 #'     roll in an exact named relation, together with the spacing between adjacent
-#'     frames, settled (fly#60, fly#71, fly#74): a height with one or two digits dropped (a logbook "20.0",
+#'     frames, settled (fly#60, fly#71, fly#72, fly#74): a height with one or two digits dropped (a logbook "20.0",
 #'     thousands of feet, catalogued as 2,000 ft), a height recorded ten times too
-#'     large, a leading digit added, or a correct height beside a wrong `scale`. Checked before the
+#'     large, a leading digit added, or a correct height beside a wrong `scale` —
+#'     on either side of the band, including frames around twice their nominal
+#'     scale whose `scale` is recorded at half its denominator. Checked before the
 #'     10.76 slip above. Sized from the measured height; matched on `film_roll`,
 #'     `flying_height`, `focal_length` and `scale` together, so it needs a
 #'     `film_roll` column. As with the slip, `flying_height` is not overwritten}
 #'   \item{`"implausible"`}{they disagree some other way, or `flying_height` is
 #'     above 16,000 m or below the terrain. Nothing can say whether the height, the
 #'     scale or the focal length is the wrong one — a 305 mm lens catalogued as
-#'     153 looks the same from here — so the height is not used: a film frame
+#'     153 and a scale recorded at half its denominator look the same from here,
+#'     and the roll table separates them only where it was measured — so the
+#'     height is not used: a film frame
 #'     falls back to nominal scale, and a digital frame with no other route has no
 #'     footprint}
 #'   \item{`NA`}{no height was judged: no `dem`, a frame the DEM route does not
@@ -735,7 +746,8 @@ fly_is_square <- function(footprints) {
 #'
 #' Measured over the whole catalogue, the two corrections for a height that is too
 #' large apply to those 1,589 frames and to nothing else: 308 by the roll table,
-#' the rest by 10.76. A digital frame's `scale` is a nominal figure, not
+#' the rest by 10.76. (The table's factor-1 rows correct a scale, not a height, so
+#' they are not among them.) A digital frame's `scale` is a nominal figure, not
 #' its image scale, so it is not compared: only the 16,000 m ceiling, or terrain at
 #' or above the aircraft, can refuse one. To list the frames worth a second look:
 #' `dplyr::filter(fp, height_source != "reported")`.
