@@ -277,23 +277,26 @@ two are compared, and `height_source` records the outcome:
   `inst/extdata/flying_height_rolls.csv`, which the province's flight
   logbooks, or failing them an adjacent frame on the same roll in an
   exact named relation, together with the spacing between adjacent
-  frames, settled (fly#60, fly#71, fly#74): a height with one or two
-  digits dropped (a logbook "20.0", thousands of feet, catalogued as
+  frames, settled (fly#60, fly#71, fly#72, fly#74): a height with one or
+  two digits dropped (a logbook "20.0", thousands of feet, catalogued as
   2,000 ft), a height recorded ten times too large, a leading digit
-  added, or a correct height beside a wrong `scale`. Checked before the
-  10.76 slip above. Sized from the measured height; matched on
-  `film_roll`, `flying_height`, `focal_length` and `scale` together, so
-  it needs a `film_roll` column. As with the slip, `flying_height` is
-  not overwritten
+  added, or a correct height beside a wrong `scale` — on either side of
+  the band, including frames around twice their nominal scale whose
+  `scale` is recorded at half its denominator. Checked before the 10.76
+  slip above. Sized from the measured height; matched on `film_roll`,
+  `flying_height`, `focal_length` and `scale` together, so it needs a
+  `film_roll` column. As with the slip, `flying_height` is not
+  overwritten
 
 - `"implausible"`:
 
   they disagree some other way, or `flying_height` is above 16,000 m or
   below the terrain. Nothing can say whether the height, the scale or
   the focal length is the wrong one — a 305 mm lens catalogued as 153
-  looks the same from here — so the height is not used: a film frame
-  falls back to nominal scale, and a digital frame with no other route
-  has no footprint
+  and a scale recorded at half its denominator look the same from here,
+  and the roll table separates them only where it was measured — so the
+  height is not used: a film frame falls back to nominal scale, and a
+  digital frame with no other route has no footprint
 
 - `NA`:
 
@@ -305,10 +308,11 @@ two are compared, and `height_source` records the outcome:
 
 Measured over the whole catalogue, the two corrections for a height that
 is too large apply to those 1,589 frames and to nothing else: 308 by the
-roll table, the rest by 10.76. A digital frame's `scale` is a nominal
-figure, not its image scale, so it is not compared: only the 16,000 m
-ceiling, or terrain at or above the aircraft, can refuse one. To list
-the frames worth a second look:
+roll table, the rest by 10.76. (The table's factor-1 rows correct a
+scale, not a height, so they are not among them.) A digital frame's
+`scale` is a nominal figure, not its image scale, so it is not compared:
+only the 16,000 m ceiling, or terrain at or above the aircraft, can
+refuse one. To list the frames worth a second look:
 `dplyr::filter(fp, height_source != "reported")`.
 
 **Still assumed, with or without a DEM:** the camera points straight
