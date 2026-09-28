@@ -955,6 +955,9 @@ Sum a range directly (segment tree, per-range `sum()`, or grouped sums) rather t
 ### A `pkg::` call in a test passes `devtools::test()` and fails `R CMD check` if `pkg` is undeclared
 `R CMD check` warns "'::' or ':::' import not declared from" for any package a test reaches with `::` that `DESCRIPTION` does not list, and under `error-on: "warning"` that reddens every runner.
 
+### Inside a dplyr verb, a column named like a local variable wins
+Inject a local value into a data-masked verb with `!!x` or `.env$x`, never a bare `x`: `transmute(d, aoi_id = id)` inside `for (id in ids)` reads the frame's own `id` column whenever one exists, with no warning, and the result is well-typed and plausible.
+
 # Code Check — Shell
 Tool-level traps in bash, sed, git and `gh`, and in the host toolchain those commands depend on.
 
@@ -1249,6 +1252,12 @@ Do the hex swap in **one** helper and omit `<Icon><href>` entirely.
 
 ### `rio cogeo validate` exits 0 when the file is NOT a valid COG
 It reports the verdict in text and returns success either way, so the exit status carries no information at all:
+
+### `terra::rast()` on a SpatRaster returns an empty template, not a copy
+Pass a SpatRaster through as is (`if (inherits(x, "SpatRaster")) x else terra::rast(x)`): `rast(x)` on one builds a new raster with the same geometry and **no values**, so a function that normalises its input with `terra::rast()` silently receives an all-empty grid when handed an object rather …
+
+### `terra::rasterize(filename = , datatype = <integer>)` writes the background as 0, not NA
+Rasterise in memory and then `writeRaster(datatype = …)`: written directly through `filename` with an integer `datatype` (INT1U, INT2S), cells no polygon covers come out as 0, while the file's NoData is 255, so they read back as data (terra 1.9.46 and 1.9.50; rspatial/terra#2195).
 
 # Code Check Conventions
 Structured checklist for reviewing diffs before commit.
@@ -1924,6 +1933,8 @@ would, X is not evidence.
 
 When the user pushes back on an inference, re-derive rather than defend. The
 conclusion often survives; the reasoning that reaches it is usually different.
+
+*5 lines of evidence for this rule are in `conventions/karpathy.md`, which `/code-check` reads in full.*
 
 ### Documents that share an ancestor corroborate nothing
 
