@@ -44,16 +44,16 @@ A roll-height the logbook rule excluded is settled by a sibling only if all of t
 The shipped height is the sibling's catalogued height.
 
 ## Phase 1: Tests first (fail until the table carries sibling rows)
-- [ ] `test-fly_footprint_height_rolls.R`: extend the contract. There are two witnesses
+- [x] `test-fly_footprint_height_rolls.R`: extend the contract. There are two witnesses
       (`logbook`, `sibling`). Causes grow by `height_leading_digit_added` / `_dropped`. Sibling
       rows have `logbook_ft` NA and `height_m` equal to the sibling's catalogued height. The
       factor/cause pairing is checked per witness.
-- [ ] Pin both issue cases against the table: `bc5596` 26212 → 2621, factor 0.1;
+- [x] Pin both issue cases against the table: `bc5596` 26212 → 2621, factor 0.1;
       `bcb98013` 97924 → 7924, leading digit.
-- [ ] A fixture test checks that a sibling-tabled frame becomes `corrected_roll_table` and is
+- [x] A fixture test checks that a sibling-tabled frame becomes `corrected_roll_table` and is
       sized from `height_m`, ahead of #54. Only the tabled key moves; a frame differing in
       height or scale does not.
-- [ ] Pin the rule against the population with the sweep plus the table: every sibling row's
+- [x] Pin the rule against the population with the sweep plus the table: every sibling row's
       corrected ratio is recomputed from the sweep. The frame count still reconciles to the
       census (tabled + excluded == set).
 
