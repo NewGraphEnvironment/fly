@@ -2,6 +2,8 @@
 
 ## fly (development version)
 
+### 0.17.0 (2026-09-27)
+
 - **A frame beside a disputed roll-height on the same roll is now a
   third witness, and it settles five roll-heights no logbook does**
   ([\#74](https://github.com/NewGraphEnvironment/fly/issues/74)). The
