@@ -254,7 +254,8 @@ rolls flown between 1974 and 2005 — a feet-to-metres conversion applied
 the wrong way round, which draws a 1:35000 frame 110 km across. On six
 roll-heights flown 1978-2000 the flight logbooks show the factor is
 exactly 10 instead (fly#71), and those frames are carried in the roll
-table below. A film frame states its height above ground twice, as
+table below, as are two more that the same roll's adjacent frames settle
+(fly#74). A film frame states its height above ground twice, as
 `flying_height` minus terrain and as scale times focal length, so the
 two are compared, and `height_source` records the outcome:
 
@@ -274,13 +275,15 @@ two are compared, and `height_source` records the outcome:
 
   they disagree, and the frame sits on one of the roll-heights in
   `inst/extdata/flying_height_rolls.csv`, which the province's flight
-  logbooks and the spacing between adjacent frames settled (fly#60,
-  fly#71): a height with one or two digits dropped (a logbook "20.0",
-  thousands of feet, catalogued as 2,000 ft), a height recorded ten
-  times too large, or a correct height beside a wrong `scale`. Checked
-  before the 10.76 slip above. Sized from the measured height; matched
-  on `film_roll`, `flying_height`, `focal_length` and `scale` together,
-  so it needs a `film_roll` column. As with the slip, `flying_height` is
+  logbooks, or failing them an adjacent frame on the same roll in an
+  exact named relation, together with the spacing between adjacent
+  frames, settled (fly#60, fly#71, fly#74): a height with one or two
+  digits dropped (a logbook "20.0", thousands of feet, catalogued as
+  2,000 ft), a height recorded ten times too large, a leading digit
+  added, or a correct height beside a wrong `scale`. Checked before the
+  10.76 slip above. Sized from the measured height; matched on
+  `film_roll`, `flying_height`, `focal_length` and `scale` together, so
+  it needs a `film_roll` column. As with the slip, `flying_height` is
   not overwritten
 
 - `"implausible"`:
@@ -301,7 +304,7 @@ two are compared, and `height_source` records the outcome:
   16,000 m is `"implausible"` even where `focal_length` is missing
 
 Measured over the whole catalogue, the two corrections for a height that
-is too large apply to those 1,589 frames and to nothing else: 299 by the
+is too large apply to those 1,589 frames and to nothing else: 308 by the
 roll table, the rest by 10.76. A digital frame's `scale` is a nominal
 figure, not its image scale, so it is not compared: only the 16,000 m
 ceiling, or terrain at or above the aircraft, can refuse one. To list

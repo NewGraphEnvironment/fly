@@ -2,6 +2,45 @@
 
 ## fly (development version)
 
+- **A frame beside a disputed roll-height on the same roll is now a
+  third witness, and it settles five roll-heights no logbook does**
+  ([\#74](https://github.com/NewGraphEnvironment/fly/issues/74)). The
+  rule was fixed before it was run. A neighbour one frame away, on the
+  same roll, lens and scale, must itself sit in the band, and the
+  catalogue’s height must stand in an **exact** named relation to it:
+  ×10, ÷10, ÷100, ×10.764 or one leading digit. Exact means within what
+  storing whole metres of a 0.3048 m/ft conversion can move a figure,
+  and the catalogue both rounds and truncates. A figure converted at
+  3.28 ft/m can only be refused by it, never wrongly accepted. Every
+  neighbour naming a relation must name the same one, and spacing must
+  agree. A logbook vetoes it only by naming a different factor. The rule
+  was run over all 521 roll-heights the logbook leaves excluded, in both
+  tails. `bc5596` 204–211 (26,212 m, ten times frame 203) and `bcb98013`
+  frame 52 (97,924 m, a leading 9 on its neighbours’ 7,924) leave
+  [\#54](https://github.com/NewGraphEnvironment/fly/issues/54)’s
+  ÷10.764, which drew them 10.3–11.2% narrow and 17.1% wide in linear
+  size. Three lower-tail roll-heights beyond the issue come out of
+  `"implausible"`: `bc7675` 609 → 6,096 m, `bc87070` 396 → 3,962 m and
+  `bcc822` 701 → 7,010 m. The logbook corroborates each in rows its own
+  rule could not accept
+- **The tolerance is the catalogue’s storage, not the logbook’s 2%, and
+  that is load-bearing.** `bc5596` 204–211 sit between 2,621 m and
+  2,438 m. The first is ×10 to 2 m; the second is ×10.764 to 30 m, only
+  0.12%. At 2% the two neighbours name different relations, and the
+  generator’s control stops the run. The first form assumed rounding
+  only. Code review found truncated heights (2,000 ft stored as 609 m),
+  and that form had refused `bc7675`; the corrected form changes that
+  outcome and no other
+- `flying_height_rolls.csv` gains **`witness`** (`"logbook"` \|
+  `"sibling"`) and **`sibling_frame`**. A sibling row ships the
+  neighbour’s catalogued height and has no `logbook_ft`. A leading-digit
+  row’s `factor` is the ratio it implies, and its cause is
+  `height_leading_digit_added`. `flying_height_rolls_excluded.csv` gains
+  **`sibling_reason`**. The table now reaches 1,438 frames (1,130 lower,
+  308 upper), and 1,281 slipped frames stay on ÷10.764. No change to
+  [`fly_footprint()`](https://newgraphenvironment.github.io/fly/reference/fly_footprint.md)’s
+  logic
+
 ### 0.16.0 (2026-09-26)
 
 - **Where a logbook reads
