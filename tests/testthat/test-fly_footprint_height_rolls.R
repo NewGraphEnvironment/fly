@@ -205,7 +205,9 @@ test_that("the table holds against the sweep and the logbooks it was measured fr
   expect_setequal(unique(tab$tail), c("lower", "upper"))
   expect_setequal(unique(excl$tail), c("lower", "upper"))
   expect_true(all(tab$witness %in% c("logbook", "sibling")))
-  expect_true(all(excl$witness %in% c("logbook", "sibling")))
+  # An excluded row says why each witness passed it over: the logbook in `reason`, the
+  # same-roll sibling in `sibling_reason`.
+  expect_false(anyNA(excl$sibling_reason) || any(!nzchar(excl$sibling_reason)))
   digit <- grepl("leading_digit", tab$cause, fixed = TRUE)
   expect_true(all(tab$witness[digit] == "sibling"))
   expect_setequal(unique(tab$factor[tab$tail == "lower" & !digit]), c(1, 10, 100))
@@ -221,7 +223,7 @@ test_that("the table holds against the sweep and the logbooks it was measured fr
   expect_equal(tab$factor[digit], round(tab$height_m[digit] / tab$flying_height[digit], 6))
   # A row carries the witness that settled it, and nothing from the one that did not.
   lb <- tab$witness == "logbook"
-  expect_false(anyNA(tab[lb, ]))
+  expect_false(anyNA(tab[lb, setdiff(names(tab), "sibling_frame")]))
   expect_true(all(is.na(tab$logbook_ft[!lb])))
   expect_true(all(is.finite(tab$sibling_frame[!lb])) && all(is.na(tab$sibling_frame[lb])))
   expect_false(anyNA(tab[!lb, setdiff(names(tab), c("logbook_ft", "frames_logbook"))]))
@@ -259,14 +261,17 @@ test_that("the table holds against the sweep and the logbooks it was measured fr
       # The height used is the logbook's, converted; and it is the catalogue's times the
       # factor to within the catalogue's rounding, which is what makes the factor the
       # defect's name. A sibling row ships the sibling's catalogued height, and a factor
-      # relation to it is exact to the whole-metre rounding on both sides (fly#74).
+      # relation to it is exact to what storing whole metres can move a figure, rounded or
+      # truncated: big - k small in [-(1 + k/2), k + 1/2] (fly#74).
       if (tb$witness[i] == "logbook") {
         expect_equal(tb$height_m[i], round(tb$logbook_ft[i] * 0.3048, 1), info = key(tb)[i])
         expect_true(abs(tb$height_m[i] / (tb$flying_height[i] * tb$factor[i]) - 1) <= 0.02,
                     info = key(tb)[i])
       } else if (!grepl("leading_digit", tb$cause[i], fixed = TRUE)) {
-        k <- 1 / tb$factor[i]
-        expect_lte(abs(tb$flying_height[i] - k * tb$height_m[i]), 0.5 * (k + 1))
+        hs <- c(tb$flying_height[i], tb$height_m[i])
+        k <- max(tb$factor[i], 1 / tb$factor[i])
+        r <- max(hs) - k * min(hs)
+        expect_true(r >= -(1 + k / 2) && r <= k + 1 / 2, info = key(tb)[i])
       }
     }
   }
@@ -279,7 +284,7 @@ test_that("the table holds against the sweep and the logbooks it was measured fr
 })
 
 
-test_that("a same-roll sibling settles the two roll-heights no logbook does (fly#74)", {
+test_that("a same-roll sibling settles roll-heights no logbook does (fly#74)", {
   tab <- fly_height_roll_table()
   excl <- utils::read.csv(system.file("extdata/flying_height_rolls_excluded.csv",
                                       package = "fly"))
@@ -306,6 +311,15 @@ test_that("a same-roll sibling settles the two roll-heights no logbook does (fly
   expect_equal(b$height_m, 7924)
   expect_identical(b$cause, "height_leading_digit_added")
   expect_identical(b$frames_measured, 1L)
+  # bc7675 609 m: 2,000 ft TRUNCATED (609.6), beside frame 214 at 6,096 m (20,000 ft). The
+  # residual 6096 - 10 x 609 = 6 m is past what rounding alone allows (5.5), so a tolerance
+  # that assumes the catalogue only rounds refuses the one row here that needs truncation.
+  t7 <- row("bc7675 609 305 16000")
+  expect_identical(t7$witness, "sibling")
+  expect_equal(t7$height_m, 6096)
+  expect_equal(t7$factor, 10)
+  expect_equal(t7$sibling_frame, 214)
+  expect_gt(6096 - 10 * 609, 0.5 * 11)   # premise: rounding alone would refuse it
   expect_false(any(key(excl) %in% key(rbind(a[, c("film_roll", "flying_height",
                                                   "focal_length", "scale_n")],
                                             b[, c("film_roll", "flying_height",

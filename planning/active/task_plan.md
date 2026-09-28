@@ -58,25 +58,25 @@ The shipped height is the sibling's catalogued height.
       census (tabled + excluded == set).
 
 ## Phase 2: Generator (`data-raw/height_calibrate-lower_tail_rolls.R`)
-- [ ] Add a Stage 4b `sibling()` implementing rules 1–6 over `frames` (the centroid cache)
+- [x] Add a Stage 4b `sibling()` implementing rules 1–6 over `frames` (the centroid cache)
       for the roll-heights `v` did not accept, in both tails. The rule block is written as a
       comment before the code, as in Stage 5.
-- [ ] Controls, which must return known answers before anything ships. `bc5596` 26212 names
+- [x] Controls, which must return known answers before anything ships. `bc5596` 26212 names
       ×10 from frame 203 and nothing from 212 (the 10.764 near-miss is rejected by the rounding
       tolerance). `bcb98013` 97924 names the leading digit from 51 and 53. `stop()` otherwise.
-- [ ] Add a `witness` column (`logbook` | `sibling`) to both shipped CSVs. Sibling-excluded
+- [x] Add a `witness` column (`logbook` | `sibling`) to both shipped CSVs. Sibling-excluded
       rows keep their logbook reason. Accepted sibling rows move from excluded to rolls. The
       reconciliation `stopifnot`s and the key-reach check stay.
-- [ ] Run the generator and record every printed figure (how many roll-heights and frames it
+- [x] Run the generator and record every printed figure (how many roll-heights and frames it
       settles per tail and relation, and what it refuses and why) in `findings.md`.
-- [ ] Regenerate `flying_height_rolls.csv` / `_excluded.csv`.
+- [x] Regenerate `flying_height_rolls.csv` / `_excluded.csv`.
 
 ## Phase 3: Package code and docs
-- [ ] `fly_height_roll_table()` reads `witness` as character. Its comment (R/fly_footprint.R
+- [x] `fly_height_roll_table()` reads `witness` as character. Its comment (R/fly_footprint.R
       ~243) and the `height_source` roxygen (~703) name the sibling witness. No change to the
       application logic (`tab_factor != 1` + band check already covers it). Verify rather
       than assume.
-- [ ] `devtools::document()`, full `devtools::test()`, `lintr::lint_package()`.
+- [x] `devtools::document()`, full `devtools::test()`, `lintr::lint_package()`.
 
 ## Phase 4: Record
 - [ ] `inst/notes/terrain-correction.md`: add a fly#74 section with the rule, the two-neighbour
@@ -94,3 +94,8 @@ The shipped height is the sibling's catalogued height.
 - [ ] `/planning-archive` on completion
 
 Gate decisions (2026-09-27): rule runs over every excluded roll-height in both tails; a logbook vetoes only if it names a different factor.
+
+**Plan corrections during the run** (see findings.md): x10.764 was added as an upper-tail
+sibling relation, so the tolerance guards something. Rule 3's "exact" became the catalogue's
+actual storage (rounds or truncates): big − k·small ∈ [−(1 + k/2), k + 1/2]. The excluded
+table carries `sibling_reason` rather than `witness`.

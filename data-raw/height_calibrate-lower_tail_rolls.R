@@ -405,6 +405,170 @@ v$reason <- dplyr::case_when(
   v$n_base == 0 ~ "no adjacent frames to measure spacing on",
   TRUE ~ "spacing rejects the logbook's height"
 )
+# Numbers formatted as `fly_footprint()` formats them, so the two keys cannot spell one
+# value two ways (100000L is "100000" to `paste()`, 100000 is "1e+05").
+num <- function(x) formatC(as.numeric(x), format = "f", digits = 3)
+key4 <- function(roll, h, f, sc) paste(roll, num(h), num(f), num(sc))
+
+# ---------------------------------------------------------------------------
+# Stage 5b — a third witness: the same roll's adjacent frames (fly#74)
+# ---------------------------------------------------------------------------
+#
+# Some roll-heights no logbook settles are one digit away from the frame beside them: bc5596
+# 204-211 read 26,212 m where frame 203 reads 2,621, and bcb98013 frame 52 reads 97,924 where
+# frames 51 and 53 read 7,924. The rule, fixed before it was run over the population, and run
+# over EVERY roll-height the logbook rule left excluded, in both tails:
+#   1. adjacent: a frame numbered one away from a frame of the roll-height, on the same roll,
+#      lens and scale, at a different height — the adjacency `fly_bearing()` demands;
+#   2. that neighbour's height is itself in the band, against this roll-height's own median
+#      terrain (neighbours are not sampled, so this is a proxy; `fly_footprint()` holds each
+#      frame to the band again);
+#   3. the catalogue height stands in an EXACT named relation to it: upper tail x10, x10.764
+#      or one leading digit added; lower tail /10, /100 or the leading digit dropped. x10.764
+#      is named for the reason the logbook names it: a neighbour confirming #54 must be able
+#      to contradict one naming x10, and a roll-height every neighbour puts at x10.764 is left
+#      to #54's repair, which already sizes it from the same height. Exact means within
+#      what the catalogue's storage of a converted figure can move it: it keeps whole
+#      metres, sometimes ROUNDED and sometimes TRUNCATED (2,000 ft = 609.6 m is stored as
+#      609 on bc5449, whose logbook this table already reads). So with the larger height
+#      `big`, the smaller `small`, and each off its true value by a in [-0.5, 1),
+#      big - k small lies in [-(1 + k/2), k + 1/2]; and string identity for the digits.
+#      That covers figures converted at 0.3048 m/ft. Some were converted at 3.28 ft/m and
+#      rounded (20,000 ft is 6,098 on 2,677 frames), which can put a genuine relation
+#      outside the bound: such a pair is REFUSED, never wrongly accepted, and no pair in
+#      today's data sits between the bound and twice its width (code-check round 4);
+#      Not the logbook's 2%: bc5596 204-211 sit between 2,621 m (x10 to 2 m) and 2,438 m
+#      (x10.764 to 30 m, 0.12%), and 2% lets both name a relation;
+#   4. every in-band neighbour that names a relation names the same one, at one height, and
+#      at least one does. A neighbour naming nothing is a new leg, not a contradiction;
+#   5. a logbook that named a factor for these frames named this one. A logbook that names
+#      none vetoes nothing — it is evidence for no repair, #54's included;
+#   6. spacing under the sibling's height inside the window, as for the logbook.
+# The height shipped is the sibling's catalogued height.
+
+frames$scale_n <- suppressWarnings(as.numeric(sub("^1:", "", frames$scale)))
+cat_key <- key4(frames$film_roll, frames$flying_height, frames$focal_length, frames$scale_n)
+cols_lt <- c("film_roll", "flying_height", "focal_length", "scale_n", "frame_number", "elev",
+             "base", "f_m", "nominal_agl")
+lt_all <- rbind(lower_v$frames[, cols_lt], upper_v$frames[, cols_lt])
+lt_key <- key4(lt_all$film_roll, lt_all$flying_height, lt_all$focal_length, lt_all$scale_n)
+digits <- function(x) formatC(x, format = "d", big.mark = "")
+
+# The relation `h` stands in to sibling height `sib`, named as the factor that takes the
+# catalogue to the truth (the table's `factor`), or NA. Heights are whole metres.
+relation <- function(h, sib, tail) {
+  exact <- function(big, small, k) {
+    r <- big - k * small
+    r >= -(1 + k / 2) && r <= k + 1 / 2
+  }
+  hd <- digits(h)
+  sd <- digits(sib)
+  if (tail == "upper") {
+    named <- c(x10 = exact(h, sib, 10), xK = exact(h, sib, K),
+               digit = nchar(hd) == nchar(sd) + 1 && substring(hd, 2) == sd)
+  } else {
+    named <- c(d10 = exact(sib, h, 10), d100 = exact(sib, h, 100),
+               digit = nchar(sd) == nchar(hd) + 1 && substring(sd, 2) == hd)
+  }
+  names(named)[named]
+}
+rel_factor <- function(rel, h, sib) {
+  switch(rel, x10 = 1 / 10, xK = 1 / K, d10 = 10, d100 = 100, digit = round(sib / h, 6))
+}
+
+sibling <- function(i) {
+  out <- list(ok = FALSE, reason = NA_character_, factor = NA_real_, height = NA_real_,
+              rel = NA_character_, frame = NA_real_, p = NA_real_, r = NA_real_)
+  k <- key4(v$film_roll[i], v$flying_height[i], v$focal_length[i], v$scale_n[i])
+  own <- frames[cat_key == k, ]
+  d <- lt_all[lt_key == k, ]
+  nb <- frames[frames$film_roll == v$film_roll[i] &
+                 frames$focal_length == v$focal_length[i] &
+                 frames$scale_n %in% v$scale_n[i] &
+                 frames$flying_height != v$flying_height[i] &
+                 frames$frame_number %in% c(own$frame_number - 1, own$frame_number + 1), ]
+  if (!nrow(nb)) return(modifyList(out, list(reason = "no adjacent frame at another height")))
+  nominal <- v$scale_n[i] * v$focal_length[i] / 1000
+  nb <- nb[in_band((nb$flying_height - median(d$elev)) / nominal), ]
+  if (!nrow(nb)) return(modifyList(out, list(reason = "no adjacent frame in band")))
+  rels <- lapply(nb$flying_height, function(sib) relation(v$flying_height[i], sib, v$tail[i]))
+  naming <- lengths(rels) > 0
+  if (!any(naming)) {
+    return(modifyList(out, list(reason = "no adjacent frame in an exact named relation")))
+  }
+  named <- unlist(rels[naming])
+  sib_h <- unique(nb$flying_height[naming])
+  if (any(lengths(rels) > 1) || length(unique(named)) > 1 || length(sib_h) > 1) {
+    return(modifyList(out, list(reason = "adjacent frames name different relations")))
+  }
+  if (named[1] == "xK") {
+    return(modifyList(out, list(reason = "adjacent frames confirm #54's 10.764")))
+  }
+  f <- rel_factor(named[1], v$flying_height[i], sib_h)
+  if (is.finite(v$log_factor[i]) && abs(v$log_factor[i] - f) > 1e-9) {
+    return(modifyList(out, list(reason = "logbook names a different factor")))
+  }
+  base_ok <- is.finite(d$base)
+  p <- NA_real_
+  if (any(base_ok)) {
+    p <- median(1 - d$base[base_ok] / (FORMAT_M * (sib_h - d$elev[base_ok]) / d$f_m[base_ok]))
+  }
+  out <- modifyList(out, list(factor = f, height = sib_h, rel = named[1],
+                              frame = min(nb$frame_number[naming]), p = p,
+                              r = median((sib_h - d$elev) / d$nominal_agl)))
+  if (!any(base_ok)) return(modifyList(out, list(reason = "no adjacent frames to measure spacing on")))
+  if (!fits(p)) return(modifyList(out, list(reason = "spacing rejects the sibling's height")))
+  modifyList(out, list(ok = TRUE))
+}
+
+v$log_factor <- v$factor
+v$witness <- ifelse(v$accept, "logbook", NA_character_)
+v$sibling_frame <- NA_real_
+v$sibling_reason <- NA_character_
+v$sibling_rel <- NA_character_
+for (i in which(!v$accept)) {
+  sb <- sibling(i)
+  v$sibling_reason[i] <- sb$reason
+  if (!sb$ok) next
+  v$accept[i] <- TRUE
+  v$witness[i] <- "sibling"
+  v$reason[i] <- NA_character_
+  v$factor[i] <- sb$factor
+  v$height_m[i] <- sb$height
+  v$sibling_frame[i] <- sb$frame
+  v$sibling_rel[i] <- sb$rel
+  v$log_ft[i] <- NA_real_
+  v$n_agree[i] <- NA_integer_
+  v$p_corrected[i] <- sb$p
+  v$r_corrected[i] <- sb$r
+}
+sib <- v[which(v$witness == "sibling"), ]
+message(sprintf("\n== sibling witness: %d roll-heights settled (%d frames) of %d the logbook left ==",
+                nrow(sib), sum(sib$n), sum(!is.na(v$sibling_reason)) + nrow(sib)))
+print(sib[, c("tail", "film_roll", "flying_height", "focal_length", "scale_n", "n",
+              "sibling_rel", "sibling_frame", "height_m", "p_corrected", "r_corrected")],
+      row.names = FALSE)
+print(table(v$tail, v$sibling_reason))
+print(tapply(v$n, list(v$tail, v$sibling_reason), sum))
+
+# Controls: the two cases fly#74 was opened on must return what their neighbours say, and
+# bc5596's other neighbour (2,438 m, frame 212, which 10.764 reaches to 0.12%) must name
+# nothing under the rounding tolerance.
+ctl_sib <- function(roll, h) v[v$film_roll == roll & v$flying_height == h, ]
+c1 <- ctl_sib("bc5596", 26212)
+c2 <- ctl_sib("bcb98013", 97924)
+c1_ok <- nrow(c1) == 1 && identical(c1$witness, "sibling") && c1$height_m == 2621 &&
+  c1$sibling_frame == 203 && isTRUE(all.equal(c1$factor, 0.1)) &&
+  length(relation(26212, 2438, "upper")) == 0
+if (!c1_ok) {
+  stop("sibling control bc5596 does not settle at x10 from frame 203")
+}
+c2_ok <- nrow(c2) == 1 && identical(c2$witness, "sibling") && c2$height_m == 7924 &&
+  identical(c2$sibling_rel, "digit")
+if (!c2_ok) {
+  stop("sibling control bcb98013 does not settle at its neighbours' 7,924 m")
+}
+
 # An excluded slipped roll-height is not refused: #54's repair still sizes it. Say so, so
 # the table is not read as a list of frames drawn at nominal scale.
 up <- v$tail == "upper" & !v$accept & v$reason != "logbook confirms #54's 10.764"
@@ -414,15 +578,17 @@ v$cause <- dplyr::case_when(
   is_f(1) ~ "scale_wrong",
   is_f(10) ~ "height_digit_dropped",
   is_f(100) ~ "height_two_digits_dropped",
-  is_f(1 / 10) ~ "height_decimal_dropped"
+  is_f(1 / 10) ~ "height_decimal_dropped",
+  v$sibling_rel %in% "digit" & v$tail == "upper" ~ "height_leading_digit_added",
+  v$sibling_rel %in% "digit" & v$tail == "lower" ~ "height_leading_digit_dropped"
 )
 stopifnot(!anyNA(v$cause[v$accept]))
 
 rolls_out <- data.frame(
   tail = v$tail,
   film_roll = v$film_roll, flying_height = v$flying_height, focal_length = v$focal_length,
-  scale_n = v$scale_n, factor = v$factor, cause = v$cause, logbook_ft = v$log_ft,
-  height_m = v$height_m,
+  scale_n = v$scale_n, factor = v$factor, cause = v$cause, witness = v$witness,
+  logbook_ft = v$log_ft, sibling_frame = v$sibling_frame, height_m = v$height_m,
   frames_measured = v$n, frames_logbook = v$n_agree,
   overlap_corrected = round(v$p_corrected, 3), r_corrected = round(v$r_corrected, 3)
 )[v$accept, ]
@@ -430,7 +596,8 @@ rolls_out <- rolls_out[order(rolls_out$tail, rolls_out$film_roll, rolls_out$flyi
 excluded_out <- data.frame(
   tail = v$tail,
   film_roll = v$film_roll, flying_height = v$flying_height, focal_length = v$focal_length,
-  scale_n = v$scale_n, frames_measured = v$n, reason = v$reason
+  scale_n = v$scale_n, frames_measured = v$n, reason = v$reason,
+  sibling_reason = v$sibling_reason
 )[!v$accept, ]
 excluded_out <- excluded_out[order(excluded_out$tail, excluded_out$film_roll,
                                    excluded_out$flying_height), ]
@@ -449,10 +616,6 @@ print(rolls_out, row.names = FALSE)
 
 # The key reaches only the frames it was measured on: count what each row would touch
 # across the whole catalogue, on the same four fields `fly_footprint()` matches.
-# Numbers formatted as `fly_footprint()` formats them, so the two keys cannot spell one
-# value two ways (100000L is "100000" to `paste()`, 100000 is "1e+05").
-num <- function(x) formatC(as.numeric(x), format = "f", digits = 3)
-key4 <- function(roll, h, f, sc) paste(roll, num(h), num(f), num(sc))
 key_all <- key4(frames$film_roll, frames$flying_height, frames$focal_length,
                 suppressWarnings(as.numeric(sub("^1:", "", frames$scale))))
 reach <- vapply(seq_len(nrow(rolls_out)), function(i) {
