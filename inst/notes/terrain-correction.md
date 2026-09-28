@@ -555,7 +555,7 @@ there: **1,534 frames on nine 1985 rolls** (`bc85063`–`bc85091`) at 6,096 m, 3
 turned up among the random draws beyond the band (`bc85083` r 1.73, `bc85090` r 1.63), their
 neighbours `bc85080` and `bc85081` log 20,000 ft in the pages read here, and the tabled
 `bc85079`–`bc85081` are the same camera, lens and scale — so they are likely the same
-`scale_wrong`, and unmeasured. A third random frame, `bc5703` (1:6000, 153 mm, r 1.99), looks
+`scale_wrong`, and unmeasured (fly#78). A third random frame, `bc5703` (1:6000, 153 mm, r 1.99), looks
 like the 1972–76 group. An unlisted roll-height stays on nominal scale.
 
 ## What a partially covered footprint costs (fly#58)

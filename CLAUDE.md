@@ -250,7 +250,7 @@ runner: GDAL reports *"Value 0 in the source dataset has been changed to 1 ... t
 being treated as NoData"*, so genuine zeros are silently shifted in the warped output.
 `test-fly_georef_mask.R` **pins** the observed Windows value rather than skipping it, so
 it reddens if that platform moves in either direction — including the direction where
-fly#68 is fixed. Do not re-state the invariant unconditionally while fly#68 is open
+fly#68 is fixed. Do not re-state the invariant unconditionally while fly#56 is open (it absorbed fly#68)
 
 - **`flying_height` is held against `scale x focal_length` before the DEM route believes it,
 and the one identifiable error is repaired** (v0.12.0, #54) — the catalogue's `FLYING_HEIGHT`
