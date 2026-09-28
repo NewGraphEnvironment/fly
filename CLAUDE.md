@@ -313,7 +313,7 @@ logs 80% overlap against the ~60% window. `bcb98013` frame 52 is a leading-digit
 factor recovers. Neither case moved the rule
 
 - **A same-roll adjacent frame is a third witness, and its tolerance is the catalogue's
-storage, not 2%** (#74) — where no logbook settles a roll-height, a frame one number away on the
+storage, not 2%** (v0.17.0, #74) — where no logbook settles a roll-height, a frame one number away on the
 same roll, lens and scale, itself in band, whose height the catalogue's stands in an
 **exact** relation to (×10, ÷10, ÷100, ×10.764, one leading digit) settles it at the
 neighbour's height, with spacing agreeing and a logbook vetoing only by naming a different
