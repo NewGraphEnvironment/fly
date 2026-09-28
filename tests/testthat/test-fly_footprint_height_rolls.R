@@ -199,16 +199,34 @@ test_that("the table holds against the sweep and the logbooks it was measured fr
   expect_identical(nrow(sets$upper), 1589L)   # premise: #54's census
 
   # Contract: the named slips, one cause each, and nothing else. The upper tail names only
-  # 1/10: a logbook confirming 10.764 is excluded, since #54's repair already sizes it.
+  # 1/10 by factor: a logbook confirming 10.764 is excluded, since #54's repair already sizes
+  # it. The one relation that is not a factor is a leading digit, which only a same-roll
+  # sibling can name (fly#74), so its row carries the ratio it implies and a cause saying so.
   expect_setequal(unique(tab$tail), c("lower", "upper"))
   expect_setequal(unique(excl$tail), c("lower", "upper"))
-  expect_setequal(unique(tab$factor[tab$tail == "lower"]), c(1, 10, 100))
-  expect_setequal(unique(tab$factor[tab$tail == "upper"]), 0.1)
-  expect_identical(tab$cause, c(`1` = "scale_wrong", `10` = "height_digit_dropped",
-                                `100` = "height_two_digits_dropped",
-                                `0.1` = "height_decimal_dropped")[as.character(tab$factor)],
+  expect_true(all(tab$witness %in% c("logbook", "sibling")))
+  # An excluded row says why each witness passed it over: the logbook in `reason`, the
+  # same-roll sibling in `sibling_reason`.
+  expect_false(anyNA(excl$sibling_reason) || any(!nzchar(excl$sibling_reason)))
+  digit <- grepl("leading_digit", tab$cause, fixed = TRUE)
+  expect_true(all(tab$witness[digit] == "sibling"))
+  expect_setequal(unique(tab$factor[tab$tail == "lower" & !digit]), c(1, 10, 100))
+  expect_setequal(unique(tab$factor[tab$tail == "upper" & !digit]), 0.1)
+  expect_identical(tab$cause[!digit],
+                   c(`1` = "scale_wrong", `10` = "height_digit_dropped",
+                     `100` = "height_two_digits_dropped",
+                     `0.1` = "height_decimal_dropped")[as.character(tab$factor[!digit])],
                    ignore_attr = TRUE)
-  expect_false(anyNA(tab))
+  expect_identical(tab$cause[digit],
+                   ifelse(tab$tail[digit] == "upper", "height_leading_digit_added",
+                          "height_leading_digit_dropped"))
+  expect_equal(tab$factor[digit], round(tab$height_m[digit] / tab$flying_height[digit], 6))
+  # A row carries the witness that settled it, and nothing from the one that did not.
+  lb <- tab$witness == "logbook"
+  expect_false(anyNA(tab[lb, setdiff(names(tab), "sibling_frame")]))
+  expect_true(all(is.na(tab$logbook_ft[!lb])))
+  expect_true(all(is.finite(tab$sibling_frame[!lb])) && all(is.na(tab$sibling_frame[lb])))
+  expect_false(anyNA(tab[!lb, setdiff(names(tab), c("logbook_ft", "frames_logbook"))]))
   expect_false(anyNA(excl$reason) || any(!nzchar(excl$reason)))
   # An excluded slipped roll-height is still repaired by #54, and its reason says so.
   expect_true(all(grepl("10.764", excl$reason[excl$tail == "upper"], fixed = TRUE)))
@@ -242,18 +260,88 @@ test_that("the table holds against the sweep and the logbooks it was measured fr
       }
       # The height used is the logbook's, converted; and it is the catalogue's times the
       # factor to within the catalogue's rounding, which is what makes the factor the
-      # defect's name.
-      expect_equal(tb$height_m[i], round(tb$logbook_ft[i] * 0.3048, 1), info = key(tb)[i])
-      expect_true(abs(tb$height_m[i] / (tb$flying_height[i] * tb$factor[i]) - 1) <= 0.02,
-                  info = key(tb)[i])
+      # defect's name. A sibling row ships the sibling's catalogued height, and a factor
+      # relation to it is exact to what storing whole metres can move a figure, rounded or
+      # truncated: big - k small in [-(1 + k/2), k + 1/2] (fly#74).
+      if (tb$witness[i] == "logbook") {
+        expect_equal(tb$height_m[i], round(tb$logbook_ft[i] * 0.3048, 1), info = key(tb)[i])
+        expect_true(abs(tb$height_m[i] / (tb$flying_height[i] * tb$factor[i]) - 1) <= 0.02,
+                    info = key(tb)[i])
+      } else if (!grepl("leading_digit", tb$cause[i], fixed = TRUE)) {
+        hs <- c(tb$flying_height[i], tb$height_m[i])
+        k <- max(tb$factor[i], 1 / tb$factor[i])
+        r <- max(hs) - k * min(hs)
+        expect_true(r >= -(1 + k / 2) && r <= k + 1 / 2, info = key(tb)[i])
+      }
     }
   }
   # fly#71's finding, pinned: on every tabled slipped roll-height the logbook sits within
   # 1% of the catalogue divided by 10, and over 6% above it divided by 10.764 — which is
   # the height #54 drew these frames from.
-  u <- tab[tab$tail == "upper", ]
+  u <- tab[tab$tail == "upper" & tab$witness == "logbook", ]
   expect_true(all(abs(u$height_m / (u$flying_height / 10) - 1) < 0.01))
   expect_true(all(u$height_m / (u$flying_height / fly_height_slip_factor()) - 1 > 0.06))
+})
+
+
+test_that("a same-roll sibling settles roll-heights no logbook does (fly#74)", {
+  tab <- fly_height_roll_table()
+  excl <- utils::read.csv(system.file("extdata/flying_height_rolls_excluded.csv",
+                                      package = "fly"))
+  key <- function(d) paste(d$film_roll, d$flying_height, d$focal_length, d$scale_n)
+  row <- function(k) tab[key(tab) == k, ]
+  # bc5596 204-211: 26,212 m, ten times frame 203's 2,621 m to within the rounding, and no
+  # logbook page. Frame 212 on the other side reads 2,438 m, which 10.764 reaches to 0.12%,
+  # so the sibling that names the relation is 203 and the height is its height.
+  a <- row("bc5596 26212 153 12000")
+  expect_identical(nrow(a), 1L)
+  expect_identical(a$witness, "sibling")
+  expect_identical(a$tail, "upper")
+  expect_equal(a$height_m, 2621)
+  expect_equal(a$factor, 0.1)
+  expect_identical(a$cause, "height_decimal_dropped")
+  expect_equal(a$sibling_frame, 203)
+  expect_identical(a$frames_measured, 8L)
+  # bcb98013 frame 52: 97,924 m is 7,924 with a leading 9, and frames 51 and 53 both read
+  # 7,924. Its linked logbook page reads 24,000 ft, which names no factor, so it vetoes
+  # nothing.
+  b <- row("bcb98013 97924 153 40000")
+  expect_identical(nrow(b), 1L)
+  expect_identical(b$witness, "sibling")
+  expect_equal(b$height_m, 7924)
+  expect_identical(b$cause, "height_leading_digit_added")
+  expect_identical(b$frames_measured, 1L)
+  # bc7675 609 m: 2,000 ft TRUNCATED (609.6), beside frame 214 at 6,096 m (20,000 ft). The
+  # residual 6096 - 10 x 609 = 6 m is past what rounding alone allows (5.5), so a tolerance
+  # that assumes the catalogue only rounds refuses the one row here that needs truncation.
+  t7 <- row("bc7675 609 305 16000")
+  expect_identical(t7$witness, "sibling")
+  expect_equal(t7$height_m, 6096)
+  expect_equal(t7$factor, 10)
+  expect_equal(t7$sibling_frame, 214)
+  expect_gt(6096 - 10 * 609, 0.5 * 11)   # premise: rounding alone would refuse it
+  expect_false(any(key(excl) %in% key(rbind(a[, c("film_roll", "flying_height",
+                                                  "focal_length", "scale_n")],
+                                            b[, c("film_roll", "flying_height",
+                                                  "focal_length", "scale_n")]))))
+})
+
+
+test_that("a sibling-tabled frame is sized from the sibling's height, ahead of #54", {
+  skip_if_no_terra()
+  rf <- roll_fixture()[c(1, 1, 1, 1), ]
+  rf$film_roll <- c("bc5596", "bc5596", "bcb98013", "bcb98013")
+  rf$scale <- c("1:12000", "1:12000", "1:40000", "1:40000")
+  rf$focal_length <- 153
+  # The second and fourth differ from a tabled key by one metre, so only #54 reaches them.
+  rf$flying_height <- c(26212, 26213, 97924, 97925)
+  dem <- roll_dem(800)
+  fp <- suppressWarnings(fly_footprint(rf, dem = dem))
+  expect_identical(fp$height_source, c("corrected_roll_table", "corrected_unit_slip",
+                                       "corrected_roll_table", "corrected_unit_slip"))
+  expect_equal(fp$height_agl, c(2621 - 800, 26213 / fly_height_slip_factor() - 800,
+                                7924 - 800, 97925 / fly_height_slip_factor() - 800))
+  expect_identical(fp$flying_height, rf$flying_height)
 })
 
 

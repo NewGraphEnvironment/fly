@@ -210,7 +210,8 @@ inheriting whatever is wrong with it, and the catalogue's is about 10.76 times
 1974 and 2005 — a feet-to-metres conversion applied the wrong way round, which
 draws a 1:35000 frame 110 km across. On six roll-heights flown 1978-2000 the flight
 logbooks show the factor is exactly 10 instead (fly#71), and those frames are
-carried in the roll table below. A film frame states its height above
+carried in the roll table below, as are two more that the same roll's
+adjacent frames settle (fly#74). A film frame states its height above
 ground twice, as \code{flying_height} minus terrain and as scale times focal length,
 so the two are compared, and \code{height_source} records the outcome:
 
@@ -224,10 +225,11 @@ overwritten, so on these rows \code{flying_height - height_agl} is not the groun
 elevation}
 \item{\code{"corrected_roll_table"}}{they disagree, and the frame sits on one of
 the roll-heights in \code{inst/extdata/flying_height_rolls.csv}, which the
-province's flight logbooks and the spacing between adjacent frames settled
-(fly#60, fly#71): a height with one or two digits dropped (a logbook "20.0",
+province's flight logbooks, or failing them an adjacent frame on the same
+roll in an exact named relation, together with the spacing between adjacent
+frames, settled (fly#60, fly#71, fly#74): a height with one or two digits dropped (a logbook "20.0",
 thousands of feet, catalogued as 2,000 ft), a height recorded ten times too
-large, or a correct height beside a wrong \code{scale}. Checked before the
+large, a leading digit added, or a correct height beside a wrong \code{scale}. Checked before the
 10.76 slip above. Sized from the measured height; matched on \code{film_roll},
 \code{flying_height}, \code{focal_length} and \code{scale} together, so it needs a
 \code{film_roll} column. As with the slip, \code{flying_height} is not overwritten}
@@ -245,7 +247,7 @@ all for another reason), one the DEM does not cover, or \code{flying_height} or
 }
 
 Measured over the whole catalogue, the two corrections for a height that is too
-large apply to those 1,589 frames and to nothing else: 299 by the roll table,
+large apply to those 1,589 frames and to nothing else: 308 by the roll table,
 the rest by 10.76. A digital frame's \code{scale} is a nominal figure, not
 its image scale, so it is not compared: only the 16,000 m ceiling, or terrain at
 or above the aircraft, can refuse one. To list the frames worth a second look:

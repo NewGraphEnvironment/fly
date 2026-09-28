@@ -205,11 +205,12 @@ fly_dem_coverage_min <- function() 0.95
 # choose between them. The logbooks can: on five of the six rolls before 2003 whose
 # slipped frames a page covers, the crew's height is the catalogue's divided by 10, to 0.9%
 # (the sixth is a one-frame typo no factor fits), and the roll-heights that also pass the
-# spacing check are carried in `flying_height_rolls.csv`, which is consulted first. What
-# reaches this factor is the 2003-2005 rolls, which have no logbook (the 2003 ones carry
-# measured per-frame heights and fit 10.764 better; `bcc05001` is undecided), plus 19
-# older frames the table does not reach, each listed with its reason in
-# `flying_height_rolls_excluded.csv`.
+# spacing check are carried in `flying_height_rolls.csv`, which is consulted first. Two more
+# are settled there by the same roll's adjacent frames (fly#74): `bc5596` 204-211, ten times
+# frame 203, and that one-frame typo. What reaches this factor is the 2003-2005 rolls, which
+# have no logbook (the 2003 ones carry measured per-frame heights and fit 10.764 better;
+# `bcc05001` is undecided), plus the 10 frames of `bc79027` whose spacing rejects its
+# logbook, each listed with its reason in `flying_height_rolls_excluded.csv`.
 fly_height_slip_factor <- function() 3.28084^2
 
 # How far a frame's height above ground may sit from `scale x focal_length` before the DEM
@@ -254,6 +255,14 @@ fly_flying_height_max <- function() 16000
 # which side of the band the roll-height came from. `height_m` is the height used — the logbook's,
 # converted, since the catalogue's rounding survives multiplying by the factor.
 #
+# fly#74 added a third witness where no logbook settles a roll-height: a frame adjacent by
+# number on the same roll, lens and scale, itself in band, whose height the catalogue's stands
+# in an EXACT relation to (x10, /10, /100 to what storing whole metres of a 0.3048 m/ft
+# conversion, rounded or truncated, can move a figure, or one leading digit).
+# `witness` says which settled a row; a sibling row ships the sibling's catalogued height,
+# names it in `sibling_frame`, and has no `logbook_ft`. A leading-digit row's `factor` is the
+# ratio it implies rather than a named slip; only `factor != 1` is read from it here.
+#
 # Keyed on roll, height, lens and scale together, so the table reaches only the frames it
 # was measured on. Every lower-tail roll-height it does not correct, and every #54-slipped one
 # it does not reach, is listed with its reason in `flying_height_rolls_excluded.csv`: an
@@ -266,7 +275,7 @@ fly_height_roll_table <- function() {
     stop("`flying_height_rolls.csv` is missing from the installed package.", call. = FALSE)
   }
   utils::read.csv(path, colClasses = c(film_roll = "character", cause = "character",
-                                       tail = "character"))
+                                       tail = "character", witness = "character"))
 }
 
 # The DEM-aligned grid a single footprint is counted against.
@@ -688,7 +697,8 @@ fly_is_square <- function(footprints) {
 #' 1974 and 2005 — a feet-to-metres conversion applied the wrong way round, which
 #' draws a 1:35000 frame 110 km across. On six roll-heights flown 1978-2000 the flight
 #' logbooks show the factor is exactly 10 instead (fly#71), and those frames are
-#' carried in the roll table below. A film frame states its height above
+#' carried in the roll table below, as are two more that the same roll's
+#' adjacent frames settle (fly#74). A film frame states its height above
 #' ground twice, as `flying_height` minus terrain and as scale times focal length,
 #' so the two are compared, and `height_source` records the outcome:
 #'
@@ -702,10 +712,11 @@ fly_is_square <- function(footprints) {
 #'     elevation}
 #'   \item{`"corrected_roll_table"`}{they disagree, and the frame sits on one of
 #'     the roll-heights in `inst/extdata/flying_height_rolls.csv`, which the
-#'     province's flight logbooks and the spacing between adjacent frames settled
-#'     (fly#60, fly#71): a height with one or two digits dropped (a logbook "20.0",
+#'     province's flight logbooks, or failing them an adjacent frame on the same
+#'     roll in an exact named relation, together with the spacing between adjacent
+#'     frames, settled (fly#60, fly#71, fly#74): a height with one or two digits dropped (a logbook "20.0",
 #'     thousands of feet, catalogued as 2,000 ft), a height recorded ten times too
-#'     large, or a correct height beside a wrong `scale`. Checked before the
+#'     large, a leading digit added, or a correct height beside a wrong `scale`. Checked before the
 #'     10.76 slip above. Sized from the measured height; matched on `film_roll`,
 #'     `flying_height`, `focal_length` and `scale` together, so it needs a
 #'     `film_roll` column. As with the slip, `flying_height` is not overwritten}
@@ -723,7 +734,7 @@ fly_is_square <- function(footprints) {
 #' }
 #'
 #' Measured over the whole catalogue, the two corrections for a height that is too
-#' large apply to those 1,589 frames and to nothing else: 299 by the roll table,
+#' large apply to those 1,589 frames and to nothing else: 308 by the roll table,
 #' the rest by 10.76. A digital frame's `scale` is a nominal figure, not
 #' its image scale, so it is not compared: only the 16,000 m ceiling, or terrain at
 #' or above the aircraft, can refuse one. To list the frames worth a second look:
@@ -1108,8 +1119,9 @@ fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL,
     # two are compared, and a frame outside `fly_height_ratio_band()` is not sized from
     # its `flying_height` as it stands. Where dividing by `fly_height_slip_factor()` brings
     # it back inside, that is the slip and the corrected height is used; measured over the
-    # whole catalogue the repair fires on the 1,589 and on nothing else, less the 299 on
-    # 1978-2000 rolls whose logbooks say x10, which the roll table takes first (fly#71).
+    # whole catalogue the repair fires on the 1,589 and on nothing else, less the 308 the
+    # roll table takes first: 299 on 1978-2000 rolls whose logbooks say x10 (fly#71), and 9
+    # an adjacent frame on the same roll settles (fly#74).
     # Anywhere else the two disagree and nothing here can say which is wrong, so the frame
     # falls back to nominal scale, exactly as one with unusable metadata does.
     #
@@ -1316,9 +1328,10 @@ fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL,
     if (any(roll_tabled)) {
       warning(
         sum(roll_tabled), " of ", sum(dem_eligible), " frames sit on a roll whose ",
-        "`flying_height` disagreement was settled by the flight logbooks and the spacing ",
-        "between frames (`flying_height_rolls.csv`): a height with dropped digits or ",
-        "recorded ten times too large, or a ",
+        "`flying_height` disagreement was settled by the flight logbooks or an adjacent ",
+        "frame on the same roll, and the spacing between frames ",
+        "(`flying_height_rolls.csv`): a height with dropped digits, recorded ten times ",
+        "too large or with a leading digit added, or a ",
         "correct height beside a wrong `scale`. Sized from the measured height; ",
         "`flying_height` is left as supplied and `height_agl` is the height used. ",
         "See `height_source`.",

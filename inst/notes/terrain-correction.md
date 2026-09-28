@@ -326,7 +326,8 @@ catalogue stores whole metres of a converted figure, so `bc7280`'s 20,000 ft is 
 
 `fly_footprint(dem = )` consults `inst/extdata/flying_height_rolls.csv` before #54's repair,
 keyed on roll, height, lens and scale together — which reaches exactly the 1,001 measured
-frames (1,300 since fly#71 added the upper tail, below) — and marks those frames
+frames (1,300 since fly#71 added the upper tail, and 1,438 since fly#74 added a same-roll
+witness, both below) — and marks those frames
 `"corrected_roll_table"`. A height slip must still reconcile
 the frame's own ratio, as #54's does. A scale-wrong row cannot be asked that, since the ratio
 is against the wrong scale, but its height must clear the ground. The table also reaches a
@@ -369,7 +370,8 @@ frames become `"corrected_roll_table"` and are sized from the logbook's height. 
 whose logbook named 1/10.764 would be excluded ("logbook confirms #54's 10.764") rather than
 tabled, since the repair already sizes it. No roll did.
 
-**Where #54's factor still applies, 1,290 frames**, each listed in
+**Where #54's factor still applied, 1,290 frames** (1,281 since fly#74 settled two of the
+roll-heights below), each listed in
 `flying_height_rolls_excluded.csv` with a reason ending "#54's 10.764 still applies":
 
 - **The six 2003/2005 rolls** (`bcc03004/06/07/08/46`, `bcc05001`; 1,271 frames) have no logbook
@@ -381,7 +383,7 @@ tabled, since the repair already sizes it. No roll did.
   logbook to decide between them it stays on #54's factor.
 - **`bc5596` frames 204–211** have no logbook page. Their 26,212 m is ten times the
   2,621 m of frames 141–203 on the same roll, which points to ÷10, but a same-roll sibling is not
-  one of the two instruments (fly#74).
+  one of the two instruments. Settled by fly#74 (next section).
 - **`bc79027`**: the logbook reads 1/10, but **spacing rejects it**. The implied overlap is 0.82,
   outside the 0.557–0.780 window. The page itself records "80% fwd overlap", so the spacing is
   right and this roll does not fit the window's ~60% design assumption. The rule fixed in fly#60
@@ -389,11 +391,100 @@ tabled, since the repair already sizes it. No roll did.
 - **`bcb98013` frame 52** is not a slip. The other 207 frames on the roll read 7,924 m, and 97,924
   is that figure with a leading 9. Neither factor recovers it: ÷10.764 gives 9,097 m, about 17% wide
   in linear size. The page the catalogue links is headed roll 15BCB**99**013, flown 1999 at
-  24,000 ft, so it may not be this roll's page at all (fly#74).
+  24,000 ft, so it may not be this roll's page at all. Settled by fly#74 (next section).
 
 Reproduce with `data-raw/height_calibrate-lower_tail_rolls.R`, which prints every figure in
 this section; `test-fly_footprint_height_rolls.R` holds the table to the sweep and the
 logbook heights it was measured from.
+
+## A third witness: the same roll's adjacent frame (fly#74)
+
+fly#71 left two slipped roll-heights on ÷10.764 that the evidence said were wrong, and neither
+fits the logbook rule. `bc5596` 204–211 have no logbook page. `bcb98013` frame 52's page reads
+24,000 ft, which names no factor. Both point at a witness the rule did not have: **the frame
+beside them on the same roll**. The rule below was fixed before it was run, and then run over
+every roll-height the logbook rule leaves excluded, in both tails, not just the two it was
+written from.
+
+A roll-height is settled by a sibling only where:
+
+1. a frame numbered one away, on the same roll, lens and scale, carries a different height.
+   That is the adjacency `fly_bearing()` demands;
+2. that neighbour's height is itself in the band, against this roll-height's own median
+   terrain. Neighbours are not sampled, so this is a proxy; `fly_footprint()` holds every
+   frame to the band again;
+3. the catalogue's height stands in an **exact** named relation to it. The upper tail names
+   ×10, ×10.764 and one leading digit added; the lower tail names ÷10, ÷100 and the leading
+   digit dropped. *Exact* means within what storing whole metres can move a converted figure,
+   and string identity for the digits. The catalogue sometimes rounds and sometimes
+   **truncates**: 2,000 ft (609.6 m) is 609 on `bc5449`, a row the logbook already settles. With
+   each figure off its true value by a ∈ [−0.5, 1), the larger height less k times the smaller
+   lies in [−(1 + k/2), k + 1/2]. That covers figures converted at 0.3048 m/ft. Some were
+   converted at 3.28 ft/m and rounded (20,000 ft is 6,098 m on 2,677 frames). Such a figure
+   can put a genuine relation outside the bound, so it is refused, never wrongly accepted.
+   Enumerating every adjacent pair of the 521 roll-heights finds none between the bound and
+   twice its width;
+4. every in-band neighbour that names a relation names the same one, at one height, and at
+   least one does. A neighbour naming nothing is a new leg at a new altitude, not a
+   contradiction. A unanimous ×10.764 is left to #54's repair, as it is for the logbook;
+5. where the logbook named a factor for these frames, it named this one. **A logbook that
+   names no factor vetoes nothing**: it is evidence for no repair, #54's included;
+6. spacing under the sibling's height sits inside the random-frame window.
+
+The height shipped is the sibling's catalogued height. `witness` in `flying_height_rolls.csv`
+says which instrument settled a row, and `sibling_frame` names the neighbour.
+`flying_height_rolls_excluded.csv` gains `sibling_reason` beside the logbook's `reason`, so
+every excluded row says why each witness passed it over.
+
+**Why the tolerance is the catalogue's storage and not the logbook's 2%.** `bc5596` 204–211 read
+26,212 m, between frame 203 at 2,621 m and frame 212 at 2,438 m. 212's height is the logbook's
+8,000 ft, so that neighbour is sound. 26,212 is ten times 2,621 to 2 m, and it is also 10.764
+times 2,438 to 30 m, which is 0.12%. Under 2% both neighbours name a relation and they name
+different ones. Under the storage tolerance, [−6.4, 11.3] m at k = 10.764, only 203 does. Measured by mutation: with `exact()`
+swapped for 2%, `bc5596` is refused as "adjacent frames name different relations" and the
+generator stops at its control. Round feet agree, though they gate nothing: ÷10 gives 2,621.2 m,
+which is 8,600 ft to 0.3 ft, while ÷10.764 gives 7,989 ft, 11 ft short of 8,000.
+
+**The tolerance was corrected once, after the first run, and the correction is recorded
+here.** As first fixed, it assumed the catalogue only rounds, |h − k·s| ≤ 0.5(k + 1). Code review
+found the truncation above in rows that owe nothing to Stage 5b. The rounding-only form wrongly
+refused `bc7675` 609 m: its neighbour, frame 214, reads 6,096 m, exactly 20,000 ft, and
+6,096 − 10 × 609 = 6 m against a limit of 5.5. The other witnesses agree on the relation. The
+logbook names ×10 on all 34 frames it reads, and was refused only for covering 40%, though its
+20,200 ft (6,157 m) sits 1.0% above the sibling's height, so it agrees on the factor rather than
+the height. Spacing under 6,096 m gives 0.616. The corrected form changes that outcome and no other, and both
+controls hold under it. Its evidence is the catalogue's storage, not the Stage 5b result, which
+is why it was taken rather than held to "fixed before looking".
+
+**What it settles: 5 roll-heights, 138 frames, of the 521 the logbook leaves.**
+
+| tail | roll | catalogue m | lens | scale | frames | relation | from frame | height m | overlap |
+|---|---|---|---|---|---|---|---|---|---|
+| lower | `bc7675` | 609 | 305 | 1:16000 | 84 | ÷10 | 214 | 6,096 | 0.616 |
+| lower | `bc87070` | 396 | 153 | 1:23000 | 34 | ÷10 | 203 | 3,962 | 0.597 |
+| lower | `bcc822` | 701 | 305 | 1:15000 | 11 | ÷10 | 119 | 7,010 | 0.613 |
+| upper | `bc5596` | 26,212 | 153 | 1:12000 | 8 | ×10 | 203 | 2,621 | 0.619 |
+| upper | `bcb98013` | 97,924 | 153 | 1:40000 | 1 | leading digit | 51 | 7,924 | 0.656 |
+
+The three lower-tail rows were not in the issue, and the logbook corroborates each one
+independently in a way its own rule could not accept. `bc7675`'s is covered above. On `bc87070` the row covering 169–202 reads
+13.0, which is 13,000 ft or 3,962 m, but its frame range was transcribed "169-20?", so the rule
+counts it as not read. On `bcc822` the crew wrote "2300" for 120–130, between rows of 22,500
+and 23,000 ft. The catalogue copied the dropped zero: 701 m is 2,300 ft.
+
+What it refuses, as roll-heights / frames: in the lower tail, 10 / 486 have no adjacent frame
+at another height, 6 / 99 have no adjacent frame in an exact relation, and 36 / 247 have no
+adjacent frame in band. In the upper tail, 1 / 10 have no exact relation (`bc79027`), and
+463 / 1,271 have no adjacent frame in band. Those are the 2003/2005 rolls, where every
+neighbour is slipped too.
+
+**What it cannot do.** It speaks only where a neighbour at the right height happens to sit
+one frame away. It is blind to a roll whose every frame carries the defect, and that is most
+of the upper tail. Spacing still cannot separate ×10 from ×10.764, so wherever the relation is
+not exact to the metre, nothing here chooses between them.
+
+Reproduce with `data-raw/height_calibrate-lower_tail_rolls.R` (Stage 5b), which prints every
+figure in this section and stops unless both controls return their neighbours' heights.
 
 ## What a partially covered footprint costs (fly#58)
 
