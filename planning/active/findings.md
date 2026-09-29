@@ -86,6 +86,18 @@ one the old `-dstnodata 0` output wrote as nodata.
 - The tail is one roll: bcb94081 frames 040-053 (1994) hold 1-3.5% true black each.
 - **Mask declined on 0 of 264.**
 
+**Output-side pass (docs review round 1 flagged the source count as a proxy; round 2
+found the fix measured one bearing only):** the 182 calibration grayscale frames warped
+twice, old options (`-srcalpha -dstnodata 0`) against new, on sf's GDAL 3.8.5. **0 pixels
+deleted at either bearing measured.** Axis-aligned: 161 frames rewritten 0→1, 242,439 px, median 47,
+max 3.6% — identical to the source count. At 30°: 41 frames, 12,682 px, median 13, max
+0.26%. Every opaque 0 in the new output is accounted for at both.
+Synthetic check on 3.8.5: masked `-srcalpha -dstnodata 0` → 1; unmasked `-dstnodata 0` → 1;
+`-srcnodata 0 -dstnodata 0` → nodata. So the 0→1 rewrite of #68 is not
+Windows-specific. Whether GDAL prints it depends on the build: sf's 3.8.5 is silent,
+Homebrew's GDAL 3.13 CLI prints it (review round 2). The source-side figures below are an upper
+bound, kept for the record.
+
 **Whole directory today (10,105; 3,751 grayscale, 6,354 RGB):** 3,506 of 3,751 grayscale
 frames lose some zero, median 3.1e-05, max 3.5%, 34 above 0.1%. **Declined on 0 of 10,105.**
 

@@ -58,23 +58,23 @@ Absorbs #68 (Windows band count) and #69 (mask-or-nodata fallback).
 - [x] Tests green; `lintr::lint_package()` clean.
 
 ## Phase 4: Downstream check (read-only on other repos)
-- [ ] Georef a few bundled grayscale frames with the new build; run `stac_airphoto_bc`'s
+- [x] Georef a few bundled grayscale frames with the new build; run `stac_airphoto_bc`'s
   `scripts/03_cog.py` `write_cog()` + `check_same_raster()` on them from scratch space
   (its conda env), without writing into that repo. Record result.
-- [ ] File a `stac_airphoto_bc` issue: grey outputs become gray+alpha 2-band; its
+- [x] File a `stac_airphoto_bc` issue: grey outputs become gray+alpha 2-band; its
   `tests/test_cog.py` "grey frame with nodata 0" fixture describes the old shape.
-- [ ] File an issue in the private sibling that pins `fly_georef_warp_opts()`'s table and
+- [x] File an issue in the private sibling that pins `fly_georef_warp_opts()`'s table and
   calls `fly:::georef_one()`: its guard will now (correctly) fail, and the exported
   `fly_georef(mask = "border", srcnodata = ...)` replaces the `:::` reach. Reference kept
   one-directional (backtick `fly#56` there; nothing named from fly).
 
 ## Phase 5: Docs and record
-- [ ] `inst/notes/border-masking.md`: rewrite "Nothing downstream changes band count" to
+- [x] `inst/notes/border-masking.md`: rewrite "Nothing downstream changes band count" to
   the new unconditional invariant (grayscale 2, RGB 4, all platforms); add the Phase 1
   measurements with producers; the fallback semantics.
-- [ ] CLAUDE.md Key Decision for #23: replace the platform-conditional band-count
+- [x] CLAUDE.md Key Decision for #23: replace the platform-conditional band-count
   paragraph (fly#68) with the new invariant and the #69 decision.
-- [ ] NEWS.md entry (breaking, band count named first). Version bump left to `/gh-pr-merge`.
+- [x] NEWS.md entry (breaking, band count named first). Version bump left to `/gh-pr-merge`.
 
 ## Validation
 - [ ] Tests pass (`devtools::test()`), including the restore-the-bug checks above

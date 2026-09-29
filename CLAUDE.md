@@ -43,6 +43,10 @@ the cap 0.05, and the two readings of the sweep that were wrong first.
 `data-raw/mask_calibrate-border_threshold.R` reproduces everything from a directory of
 thumbnails, and `inst/extdata/mask_border_sweep.csv` ships the result so the test suite
 recomputes both constants rather than trusting them
+- `data-raw/mask_measure-interior_zeros.R` — the two measurements fly#56 took before changing
+the output contract: true black the old grayscale `-dstnodata 0` deleted, and how often
+`fly_mask_one()` declines. PSOCK over a thumbnail directory; refuses to report if any frame
+errored, because a closure missing on the workers once made every frame "error" and print zeros
 - `data-raw/height_calibrate-flying_height_slip.R` — pulls every catalogue centroid by year
 (1.67 million, cached under the gitignored `data-raw/.cache/`), samples MRDEM under the 7,156
 frames that decide the `flying_height` constants, and prints a producer line for every figure
@@ -235,22 +239,31 @@ of 264 frames** had under a tenth of theirs masked. `fly_mask()` replaces it wit
 seeded from the image border, so interior dark water survives — on bcb90128_213 a plain
 threshold takes 7.7% and this takes 2.5%, and the missing 5% is a lake.
 
-  **Output band counts do not change**, because `-srcalpha` excludes the alpha band from the
-warped band list. That is what let masking default to on without moving `stac_airphoto_bc`.
-Grayscale keeps `-dstnodata 0`, the weaker contract — fly#56. Do not re-derive the collar's
-shape from geometry or re-propose a circle; read `inst/notes/border-masking.md`
+  Masking does not change the band count, because `-srcalpha` excludes the alpha band from
+the warped band list. Do not re-derive the collar's shape from geometry or re-propose a
+circle; read `inst/notes/border-masking.md`
 
-  **That band-count claim is platform-conditional and was written as if it were not**
-(fly#68, 2026-09-21). It was measured on macOS; the three-platform CI added in fly#52
-found on its first run that **Windows yields 2 bands for a masked grayscale frame**
-against 1 with masking off. ubuntu and macOS give 1; RGB is 4 everywhere. So the stated
-reason masking could default to on — that `stac_airphoto_bc` need not move — does not
-hold for grayscale produced on Windows. A second symptom from the same root, on the same
-runner: GDAL reports *"Value 0 in the source dataset has been changed to 1 ... to avoid
-being treated as NoData"*, so genuine zeros are silently shifted in the warped output.
-`test-fly_georef_mask.R` **pins** the observed Windows value rather than skipping it, so
-it reddens if that platform moves in either direction — including the direction where
-fly#68 is fixed. Do not re-state the invariant unconditionally while fly#56 is open (it absorbed fly#68)
+- **Every georef output carries one alpha band, and `srcnodata` backs a declined mask**
+(v0.19.0, #56, absorbing #68 and #69) — grayscale warps with `-dstalpha` like RGB, so it
+is **2 bands (Gray + Alpha, no NoData), RGB 4** — measured on macOS / sf's GDAL 3.8.5,
+and `test-fly_georef_mask.R` asserts it unconditionally so the three-platform CI decides
+the rest; do not restate it as cross-platform fact from one machine, which is #68's error. v0.11.0 kept grayscale on
+`-dstnodata 0` so `stac_airphoto_bc` need not move, and that contract failed twice: GDAL
+**rewrote** (silently on sf's 3.8.5) genuine black as 1 to dodge the nodata value — measured on the output,
+**161 of 182** calibration grayscale frames warped axis-aligned (up to 3.6%) and 41 at a
+30-degree bearing (up to 0.26%); an early draft measured 30 degrees alone and quoted it as
+the loss, which is wrong for every bearingless thumbnail (isotropic pixels; an anisotropic
+scan resamples even axis-aligned) — and it was not one number, since the
+Windows runner gave 2 bands masked (#68). A UInt16 output's alpha is 0/65535, not 0/255.
+
+  `fly_georef()` **accepts** `mask = "border"` with `srcnodata`: `fly_georef_warp_opts()`
+is an `else if`, so `-srcnodata` reaches only a frame whose mask declined and never sits
+beside `-srcalpha`, which would delete the interior black the mask kept. The v0.11.0
+refusal rested on the premise that both reached GDAL; they never did. Keep the `else if`
+— it is now the whole of the safety. A decline with no `srcnodata` warns, because that
+collar is written as data. The mask declined **0 of 10,105** public thumbnails, so the
+fallback's reach is non-Byte scans nothing public can fixture. Read
+`inst/notes/border-masking.md`
 
 - **`flying_height` is held against `scale x focal_length` before the DEM route believes it,
 and the one identifiable error is repaired** (v0.12.0, #54) — the catalogue's `FLYING_HEIGHT`

@@ -73,7 +73,8 @@ test_that("srcnodata is the fallback: live exactly where the mask did not run", 
 
 test_that("every output carries a real alpha band and nothing is marked by value", {
   # fly#56. `-dstnodata 0` on grayscale made a genuine 0 inside the frame indistinguishable
-  # from fill, and the GDAL on the Windows CI runner shifted real zeros to 1 instead (fly#68).
+  # from fill, so GDAL rewrote real zeros as 1 (measured on 3.8.5; printed on the Windows
+  # runner in fly#68), or deleted them where `-srcnodata 0` was also given.
   # Alpha is the only fill marker, for every band count, masked or not.
   for (nb in c(1L, 2L, 3L, 4L)) {
     for (masked in c(TRUE, FALSE)) {
@@ -206,7 +207,7 @@ opaque <- function(path, full = 255) {
 }
 
 
-test_that("end to end, every output carries alpha: grayscale 2 bands, RGB 4, on every platform", {
+test_that("end to end, every output carries alpha: grayscale 2 bands, RGB 4, on this platform too", {
   skip_if_no_terra()
   ring <- collar_ring()
 
@@ -249,8 +250,9 @@ test_that("true black inside a grayscale frame is written as opaque data, not as
   skip_if_no_terra()
 
   # The output-side collision fly#56 exists to fix. Under `-dstnodata 0` the 11x11 block
-  # of real zeros below was written as nodata: indistinguishable from the fill, or shifted
-  # to 1 by the GDAL on the Windows CI runner. With alpha it keeps value 0 and alpha 255.
+  # of real zeros below came out as 1 — GDAL moving it off the nodata value, silently on
+  # 3.8.5 — or as nodata where `-srcnodata 0` was also given. With alpha it keeps value 0
+  # and alpha 255.
   src <- collar_frame(tempfile(fileext = ".tif"), 1L, hole = TRUE)
   out <- tempfile(fileext = ".tif")
   # `srcnodata` too: on a frame the mask accepts it must not reach GDAL, or it deletes
@@ -267,8 +269,8 @@ test_that("true black inside a grayscale frame is written as opaque data, not as
   pts <- expand.grid(x = 1.2e6 + c(-20, 0, 20), y = 9e5 + c(-20, 0, 20))
   v <- terra::extract(r, as.matrix(pts))
   expect_true(all(v[[2]] == 255))
-  # Exactly 0: not NA (read as nodata, the old contract) and not 1 (GDAL's shift of real
-  # zeros away from a nodata of 0, seen on the Windows CI runner in fly#68).
+  # Exactly 0: not NA (read as nodata) and not 1 (GDAL's rewrite of a real 0 away from a
+  # nodata of 0, what the old default path actually did on 3.8.5 and on the fly#68 runner).
   expect_false(anyNA(v[[1]]))
   expect_true(all(v[[1]] == 0))
 })

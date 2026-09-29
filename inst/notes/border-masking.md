@@ -213,33 +213,72 @@ property; skipping would cost a georeferenceable frame.
 
 **A mask fraction of zero is not a warning.** 27 of 264 frames legitimately have no collar.
 
-## Nothing downstream changes band count
+## Output shape: every output carries one alpha band
 
-Verified end to end on sf's GDAL 3.8.5:
+Since fly#56 (v0.19.0), measured on macOS with sf's GDAL 3.8.5 (the test suite asserts the
+same counts on the three CI platforms):
 
 ```
-gray 1 band -> nearblack -setalpha -> 2 -> translate -of VRT (+GCPs) -> warp -srcalpha -dstnodata 0 -> 1 band out
-rgb  3 band -> nearblack -setalpha -> 4 -> translate -of VRT (+GCPs) -> warp -srcalpha -dstalpha    -> 4 bands out
+gray 1 band -> nearblack -setalpha -> 2 -> translate -of VRT (+GCPs) -> warp -srcalpha -dstalpha -> 2 bands out
+rgb  3 band -> nearblack -setalpha -> 4 -> translate -of VRT (+GCPs) -> warp -srcalpha -dstalpha -> 4 bands out
 ```
 
 `-srcalpha` forces the last band to be read as alpha and excludes it from the warped band
-list, so today's output contract holds on both paths. The GCP step is a **VRT**, which
-carries a `<GCPList>` that gdalwarp reads — so masking removes a full-size temp copy
-rather than adding one. At 9600 x 9000 x 4 that is the difference between roughly 350 MB
-and 700 MB of scratch per frame.
+list, so masking does not change the band count: a Byte grayscale or RGB source comes out
+with its own bands plus one alpha, masked or not, and no `NoData Value`. The GCP step is a
+**VRT**, which carries a `<GCPList>` that gdalwarp reads — so masking removes a full-size
+temp copy rather than adding one. At 9600 x 9000 x 4 that is the difference between
+roughly 350 MB and 700 MB of scratch per frame. The alpha band's opaque value is its
+datatype's maximum: 255 on Byte, **65535 on a UInt16 output** — read alpha as "0 is fill",
+never as "255 is opaque".
 
-Two wrinkles, both measured:
+**Before v0.19.0 grayscale was `-dstnodata 0`, 1 band.** That was kept in v0.11.0 so the
+mask could ship without moving `stac_airphoto_bc`, and it was wrong on two counts:
 
-- On a **grayscale** source `-setalpha` writes `ColorInterp=Undefined` on band 2, not
-  `Alpha`. RGB gets `Alpha` correctly. `-srcalpha` works either way because it forces the
-  last band regardless — but nothing may key on `ColorInterp` for the grayscale path.
-- Grayscale output carries `-dstnodata 0` rather than an alpha band, which is strictly
-  weaker: it cannot express partial coverage at the mask boundary, and a genuine 0-valued
-  pixel inside the frame is indistinguishable from a masked one — the same class of defect
-  the mask exists to fix, on the output side. 182 of the 264 measured frames are grayscale.
-  Changing it moves the band count of every grayscale output from 1 to 2, which
-  `stac_airphoto_bc` consumes, so it is tracked separately as fly#56 rather than bundled
-  here.
+- **It was not one number.** The three-platform CI added in fly#52 found on its first run
+  that the Windows runner gave 2 bands for a masked grayscale frame against 1 with masking
+  off, while ubuntu and macOS gave 1 (fly#68). Which count a caller got depended on the
+  GDAL build, not on the frame.
+- **It collided with content — by rewriting it, not deleting it.** A genuine 0 inside the
+  frame is the nodata value, so GDAL moves it to **1** to keep it from reading as fill. The
+  Windows runner printed this (*"Value 0 in the source dataset has been changed to 1 ... to
+  avoid being treated as NoData"*, fly#68); sf's GDAL 3.8.5 on macOS does the same and says
+  nothing. Only where `srcnodata = "0"` was also given is the 0 deleted instead. Measured
+  on the output by `data-raw/mask_measure-interior_zeros.R`: the 182 calibration grayscale
+  frames masked and warped twice, old options against new, on one grid.
+
+  | warp | frames with black rewritten as 1 | pixels | median per frame | max of a frame |
+  | --- | --- | --- | --- | --- |
+  | axis-aligned (a frame with no flight bearing) | **161 of 182** | 242,439 | 47 | **3.6%** |
+  | rotated 30 degrees | 41 of 182 | 12,682 | 13 | 0.26% |
+
+  None was deleted on this, the default, path. The worst frames are all one 1994 roll,
+  bcb94081. The loss depends on the bearing because an axis-aligned warp of these frames
+  lands output cells on source pixels, so bilinear resampling reproduces every value, while
+  a rotated one mixes neighbours and a lone 0 among brighter pixels comes out non-zero. So
+  the source-side count (an opaque 0 after masking) is exact for an axis-aligned warp and
+  an upper bound for a rotated one — **for isotropic pixels**, which these 1250 x 1250
+  thumbnails on square footprints have by construction. A 9600 x 9000 scan on a square
+  footprint resamples even axis-aligned: in a probe with 200 isolated zeros, 200 x 200
+  kept all 200 and 200 x 188 kept none. An earlier draft of this note measured only 30 degrees
+  and quoted it as the loss. Silent value corruption in kind — the class of defect fly#23
+  fixed on the input side (`srcnodata = "0"` deleting real black), reintroduced on the
+  output.
+
+What the alpha band does **not** buy is partial coverage: the section below measures two
+distinct output alpha values on a rotated warp, 0 and 255, so do not cite fractional alpha
+at the mask boundary as a reason for the change.
+
+One wrinkle, measured: on a **grayscale** source `-setalpha` writes `ColorInterp=Undefined`
+on band 2, not `Alpha`. `-srcalpha` works regardless because it forces the last band, and
+the warped output's band 2 is `Alpha` because `-dstalpha` creates it. Nothing may key on
+the *masked intermediate's* `ColorInterp`.
+
+**A consumer that copies the raster must carry the alpha interpretation itself.**
+`stac_airphoto_bc`'s COG writer, run on a v0.19.0 grayscale output, lost it: rasterio
+ignores `colorinterp = (gray, alpha)` on a 2-band in-memory GTiff unless the dataset is
+created with `alpha="YES"`. Its own round-trip check refused the file, so the failure was
+loud (stac_airphoto_bc#36).
 
 ### The warp does not pull masked black into the pixels beside it
 
@@ -269,10 +308,9 @@ Two ways this check goes vacuous, both met on the way to the number above:
 Had a fringe been present the remedy would have been to erode the mask inward by a pixel,
 **not** to change the resampling.
 
-### `-srcnodata` and the mask are mutually exclusive, and GDAL will not tell you
+### `-srcnodata` and the mask are never applied together — so `srcnodata` is a fallback
 
-`fly_georef()` refuses the combination. The reason is **not** that GDAL rejects it — it
-does not. All four forms run clean and produce the expected band count:
+GDAL accepts both at once. All four forms run clean and produce the expected band count:
 
 | warp options | result |
 | --- | --- |
@@ -282,11 +320,10 @@ does not. All four forms run clean and produce the expected band count:
 | `-srcnodata "0 0 0" -dstalpha` (no srcalpha) | ok, 4 bands |
 
 An early draft of this note asserted the three-value form was a length mismatch against a
-four-band source. Measured, it is not, and neither is the four-value form. **The package
-refuses the combination precisely because GDAL accepts it silently.**
+four-band source. Measured, it is not, and neither is the four-value form.
 
-What it silently does, measured on a 100 x 100 synthetic frame with an 8-pixel collar and
-an 11 x 11 block of *true black* (value 0) at the centre:
+What both at once silently does, measured on a 100 x 100 synthetic frame with an 8-pixel
+collar and an 11 x 11 block of *true black* (value 0) at the centre:
 
 | | opaque | transparent |
 | --- | --- | --- |
@@ -294,9 +331,33 @@ an 11 x 11 block of *true black* (value 0) at the centre:
 | plus `-srcnodata "0 0 0"` | **6279** | 3721 |
 
 The difference is 121 pixels — exactly the interior block. Adding `-srcnodata` to a masked
-warp deletes the real black content the mask exists to preserve, which is the defect
-fly#23 was filed about, reintroduced by the option that was supposed to fix it. Nothing is
-reported, so the package raises the error GDAL does not.
+warp deletes the real black content the mask exists to preserve.
+
+**`fly_georef_warp_opts()` never emits both.** It is an `else if`: `-srcalpha` when the frame
+was masked, `-srcnodata` only when it was not. v0.11.0 nonetheless refused
+`mask = "border"` together with `srcnodata` at the `fly_georef()` boundary, on the premise
+that both would reach GDAL. They never did; the refusal only made one combination
+unreachable, and it was the useful one (fly#69, absorbed into fly#56). Tabulated per frame:
+
+| mask ran? | `srcnodata` | warp options | collar |
+| --- | --- | --- | --- |
+| yes | `"0"` | `-srcalpha` (srcnodata unused) | masked |
+| yes | `NULL` | `-srcalpha` | masked |
+| declined | `"0"` | `-srcnodata 0` | exact zeros only |
+| declined | `NULL` | neither | **written as data** — warned since v0.19.0 |
+
+So since v0.19.0 the pair is accepted and `srcnodata` means "for frames whose mask
+declined". "Declined" is `fly_mask_one()` returning `masked = FALSE`, for any of the reasons
+in `fly_mask()`'s `reason` column; an error inside it fails the frame instead. The fallback
+is a weak last resort: it matches **exact** values, so it misses a collar scanned at 3-12,
+and on the frame it reaches it also deletes true black — the 121-pixel row above.
+
+How much it matters, measured by `data-raw/mask_measure-interior_zeros.R`: the mask
+declined **0 of 264** calibration thumbnails and **0 of all 10,105** in the directory
+today. Every thumbnail is 8-bit and none trips the interior cap, so on this population the
+fallback never fires. Its reach is the decline paths thumbnails cannot exercise — a
+non-Byte full-resolution scan above all — which is the population the section below says
+this note cannot reach.
 
 ## What was tried and rejected
 

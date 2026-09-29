@@ -157,9 +157,10 @@ about, for film as well as digital.
 \enumerate{
 \item \strong{Warp fill} — GDAL creates pixels outside the rotated source frame. Every output
 carries an alpha band (\code{-dstalpha}) marking them, so \strong{grayscale is written as 2
-bands and RGB as 4}, on every platform. Grayscale used \verb{-dstnodata 0} before
-v0.19.0, which wrote any genuine 0 inside the frame as nodata or, on the GDAL build
-the Windows CI runner carries, shifted it to 1; a value cannot be both content and
+bands and RGB as 4} for a Byte grayscale or RGB source. Grayscale used
+\verb{-dstnodata 0} before v0.19.0, and GDAL kept a genuine 0 inside the frame from
+reading as fill by rewriting it as 1 — silently on sf's GDAL 3.8.5 — or, where
+\code{srcnodata = "0"} was also given, deleted it. A value cannot be both content and
 the fill marker.
 \item \strong{The frame collar} — film holder edges, fiducial marks and chamfered corners.
 Since v0.11.0 this is \code{\link[=fly_mask]{fly_mask()}}: a flood fill seeded from the image border, so
