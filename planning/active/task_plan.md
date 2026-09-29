@@ -24,16 +24,16 @@ Absorbs #68 (Windows band count) and #69 (mask-or-nodata fallback).
   only to frames whose mask declined. No new `mask` value.
 
 ## Phase 1: Measure first
-- [ ] `data-raw/mask_measure-interior_zeros.R`: over the 264 thumbnails
+- [x] `data-raw/mask_measure-interior_zeros.R`: over the 264 thumbnails
   (`stac_airphoto_bc/data/raw/thumbs`, read-only), for each grayscale frame count pixels
   exactly 0 that the threshold-16 floodfill mask does **not** remove — the real content
   `-dstnodata 0` loses today. Report frames affected / 182 and pixel fractions (median,
   max). Producer line for each figure.
-- [ ] Mask decline rate: count frames where `fly_mask_one()` declines at the shipped
+- [x] Mask decline rate: count frames where `fly_mask_one()` declines at the shipped
   constants (cap from `inst/extdata/mask_border_sweep.csv` offline, plus a live run of
   `fly_mask_one()` over the 264 for the other paths). State what thumbnails cannot speak
   to (non-Byte full-res scans are the decline path most likely to matter).
-- [ ] Record both in `findings.md`.
+- [x] Record both in `findings.md`.
 
 ## Phase 2: Tests first (red)
 - [ ] Rewrite warp-opts table tests: `-dstalpha` for every band count, `-dstnodata`

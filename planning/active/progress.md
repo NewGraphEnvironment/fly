@@ -8,3 +8,5 @@
 - Created branch `56-georef-output-contract-a-real-alpha-band` off main
 - Scaffolded PWF baseline from issue #56 with approved phases
 - Next: start Phase 1
+- Phase 1: measured interior zeros and mask decline over 264 calibration + 10,105 current
+  thumbnails (findings.md). Plan review returned; dispositions in review-plan.md

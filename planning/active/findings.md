@@ -70,7 +70,39 @@ Acceptance, in addition to the grayscale work above:
 - Measure the **mask decline rate** first; it decides how much the fallback matters. A 6-frame downstream probe saw 1 of 6 consistent with a decline, which is not a rate.
 
 
+## Phase 1 measurements (2026-09-28)
+
+Producer: `data-raw/mask_measure-interior_zeros.R` over
+`stac_airphoto_bc/data/raw/thumbs` (read-only), 8 PSOCK workers, 2.5 min. Per-frame CSV in
+`data-raw/.cache/mask_interior_zeros.csv` (gitignored). Counted on the SOURCE after
+`fly_mask_one()` at threshold 16: a pixel exactly 0 and still opaque in the masked copy is
+one the old `-dstnodata 0` output wrote as nodata.
+
+**Calibration set (the 264 of `mask_border_sweep.csv`; 182 grayscale, 82 RGB):**
+- 172 of 182 grayscale frames carry some source pixel at exactly 0; the mask removes some
+  of those zeros on 170 (they are collar), and leaves opaque zeros on **161 of 182**.
+- Lost share of frame over those 161: median **3.0e-05** (median 47 pixels of 1.56 M),
+  max **3.5%**; **12** frames above 0.1%. Total 242,439 pixels.
+- The tail is one roll: bcb94081 frames 040-053 (1994) hold 1-3.5% true black each.
+- **Mask declined on 0 of 264.**
+
+**Whole directory today (10,105; 3,751 grayscale, 6,354 RGB):** 3,506 of 3,751 grayscale
+frames lose some zero, median 3.1e-05, max 3.5%, 34 above 0.1%. **Declined on 0 of 10,105.**
+
+Reading: the collision is near-universal in *incidence* and small in *extent* — a few dozen
+pixels on most frames, percent-level on a dark roll. The fallback (#69) never fires on
+thumbnails: every thumbnail is 8-bit and none trips the interior cap. Its reach is the
+paths thumbnails cannot exercise — non-Byte full-resolution scans and unreadable sources —
+which nothing public here can measure (the catalogue carries no full-res URL; see the
+calibration script header).
+
+Grayscale output with -dstalpha on a UInt16 source: alpha is 0/65535, not 0/255 (measured
+on a synthetic INT2U frame). Consumers must read alpha as "0 = fill", not "255 = opaque".
+
 ## Errors Encountered
 
 | Error | Resolution |
 |-------|------------|
+| PSOCK workers: `could not find function "measure_one"` on every frame, report printed zeros | `clusterExport()`; script now stops if any frame errored |
+| fallback test: both legs identical | terra writes `NAflag = NA` on UInt16 as nodata 0, which GDAL honours regardless; fixture uses `NAflag = 65535` |
+| fallback test: opaque count 0 | UInt16 alpha is 65535; `opaque(full =)` |
