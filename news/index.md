@@ -2,6 +2,8 @@
 
 ## fly (development version)
 
+### 0.19.0 (2026-09-28)
+
 - **Breaking: grayscale georeferenced output is now 2 bands, Gray +
   Alpha, where it was 1 band with `NoData = 0`**
   ([\#56](https://github.com/NewGraphEnvironment/fly/issues/56)).
