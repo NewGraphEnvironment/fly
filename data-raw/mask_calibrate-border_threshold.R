@@ -279,8 +279,9 @@ for (src in reps) {
   has_gcp <- any(grepl("GCP", readLines(v, warn = FALSE)))
 
   o <- file.path(work, "chk_warp.tif")
-  opts <- c("-t_srs", "EPSG:3005", "-r", "bilinear", "-srcalpha")
-  opts <- if (nb0 >= 3) c(opts, "-dstalpha") else c(opts, "-dstnodata", "0")
+  # The package's own option vector, not a copy of it: this line hard-coded the pre-fly#56
+  # grayscale fill (`-dstnodata 0`) and would have kept printing the old band count.
+  opts <- fly_georef_warp_opts(nb0, NULL, masked = TRUE)
   sf::gdal_utils("warp", source = v, destination = o, options = opts)
 
   cat(sprintf("src bands %d -> nearblack %d [%s] -> vrt gcps %s -> warp %d bands\n",
