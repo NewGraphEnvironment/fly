@@ -77,9 +77,9 @@ Absorbs #68 (Windows band count) and #69 (mask-or-nodata fallback).
 - [x] NEWS.md entry (breaking, band count named first). Version bump left to `/gh-pr-merge`.
 
 ## Validation
-- [ ] Tests pass (`devtools::test()`), including the restore-the-bug checks above
+- [x] Tests pass (`devtools::test()`), including the restore-the-bug checks above
 - [ ] Three-platform CI green on the PR (the Windows 2-band pin is gone, so this is the
       real test of #68)
-- [ ] `/code-check` clean on each commit
-- [ ] PWF checkboxes match landed work
-- [ ] `/planning-archive` on completion, then `/gh-pr-push`
+- [x] `/code-check` clean on each commit
+- [x] PWF checkboxes match landed work
+- [x] `/planning-archive` on completion, then `/gh-pr-push`
