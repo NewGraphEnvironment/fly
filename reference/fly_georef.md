@@ -53,8 +53,8 @@ fly_georef(
   How to handle the black collar around the exposed frame. `"border"`
   (default) masks it with
   [`fly_mask()`](https://newgraphenvironment.github.io/fly/reference/fly_mask.md);
-  `"none"` reproduces the pre-0.11.0 warp exactly, including its
-  `srcnodata` handling.
+  `"none"` warps unmasked, applying `srcnodata` to every frame as before
+  v0.11.0. Output carries an alpha band either way.
 
 - mask_threshold:
 
@@ -64,14 +64,16 @@ fly_georef(
 
 - srcnodata:
 
-  Source nodata value passed to GDAL warp, matched **exactly**. Now
-  defaults to `NULL`, and is an error alongside `mask = "border"` — the
-  two are different answers to one question and combining them silently
-  undoes the mask (see **Nodata handling**). It reached `"0"` before
-  v0.11.0, which was close to useless: scanned black runs 3-12, so it
-  masked a median of 0.16% of a frame against the 3.11% actually there,
-  and 128 of 264 measured frames had under a tenth of their collar
-  removed.
+  Source nodata value passed to GDAL warp, matched **exactly**, or
+  `NULL` (default). With `mask = "none"` it applies to every frame. With
+  `mask = "border"` it is the **fallback**: it applies only to a frame
+  whose mask
+  [`fly_mask()`](https://newgraphenvironment.github.io/fly/reference/fly_mask.md)
+  declined, and never alongside a mask that ran (see **Nodata
+  handling**). On its own it is close to useless as a collar mask:
+  scanned black runs 3-12, so `"0"` masked a median of 0.16% of a frame
+  against the 3.11% actually there, and 128 of 264 measured frames had
+  under a tenth of their collar removed.
 
 - rotation:
 
@@ -195,9 +197,14 @@ about, for film as well as digital.
 **Nodata handling:** two sources of unwanted black pixels, handled
 separately.
 
-1.  **Warp fill** — GDAL creates black pixels outside the rotated source
-    frame. RGB images get an alpha band (`-dstalpha`); grayscale use
-    `dstnodata=0`. Unchanged.
+1.  **Warp fill** — GDAL creates pixels outside the rotated source
+    frame. Every output carries an alpha band (`-dstalpha`) marking
+    them, so **grayscale is written as 2 bands and RGB as 4** for a Byte
+    grayscale or RGB source. Grayscale used `-dstnodata 0` before
+    v0.19.0, and GDAL kept a genuine 0 inside the frame from reading as
+    fill by rewriting it as 1 — silently on sf's GDAL 3.8.5 — or, where
+    `srcnodata = "0"` was also given, deleted it. A value cannot be both
+    content and the fill marker.
 
 2.  **The frame collar** — film holder edges, fiducial marks and
     chamfered corners. Since v0.11.0 this is
@@ -215,14 +222,32 @@ so it did not mask the borders — and the real black it was said to cost
 is a median 0.16% of the frame, which *is* the collar rather than
 shadow.
 
-**`srcnodata` and `mask = "border"` are mutually exclusive, and GDAL
-will not say so.** All combinations of `-srcalpha` and `-srcnodata` run
-clean and return the expected band count. What they do is delete the
-interior black the mask exists to keep: on a synthetic frame carrying an
-11x11 block of true black, adding `-srcnodata "0 0 0"` to the masked
-warp removed exactly those 121 pixels. So `fly_georef()` raises the
-error GDAL does not. Pass `mask = "none"` to get the old behaviour,
-`srcnodata` and all.
+**`srcnodata` with `mask = "border"` is a per-frame fallback, never a
+second mask.**
+[`fly_mask()`](https://newgraphenvironment.github.io/fly/reference/fly_mask.md)
+declines some frames — among them an unreadable or non-8-bit source, and
+a mask that floods into the interior;
+[`fly_mask()`](https://newgraphenvironment.github.io/fly/reference/fly_mask.md)'s
+`reason` column lists every path — and a declined frame is warped
+unmasked. Given no `srcnodata`, its collar is written as opaque data.
+Given one, the declined frame is warped with `-srcnodata` and every
+masked frame with `-srcalpha` alone. The two are never handed to GDAL
+together, because GDAL would apply both and the mask would lose: on a
+synthetic frame carrying an 11x11 block of true black, adding
+`-srcnodata "0 0 0"` to the masked warp removed exactly those 121
+pixels. Before v0.19.0 this pair was refused on the premise that both
+reached GDAL; they never did.
+
+"Declined" means
+[`fly_mask()`](https://newgraphenvironment.github.io/fly/reference/fly_mask.md)
+returned `masked = FALSE`; an error inside it fails the frame instead. A
+declined frame given no `srcnodata` is warned about, since its collar
+reaches the output as data. The fallback is a weak last resort: it
+matches **exact** values only, so it catches a collar written at exactly
+0 and misses one scanned at 3-12, and on the frame it reaches it also
+removes any true black inside the frame. On all 10,105 public thumbnails
+measured (the 264 `mask_threshold` was calibrated on among them), the
+mask declined none.
 
 **Accuracy:** footprints assume a nadir camera angle, and without `dem`
 they also assume flat terrain. Passing `dem` sizes each frame from its
@@ -260,6 +285,6 @@ georef
 #> # A tibble: 2 × 4
 #>   airp_id source                               dest                      success
 #>     <int> <chr>                                <chr>                     <lgl>  
-#> 1  699426 /tmp/Rtmpxy2euN/bc5282_232_thumb.jpg /tmp/Rtmpxy2euN/bc5282_2… TRUE   
-#> 2  699425 /tmp/Rtmpxy2euN/bc5282_231_thumb.jpg /tmp/Rtmpxy2euN/bc5282_2… TRUE   
+#> 1  699426 /tmp/RtmpdHGE9o/bc5282_232_thumb.jpg /tmp/RtmpdHGE9o/bc5282_2… TRUE   
+#> 2  699425 /tmp/RtmpdHGE9o/bc5282_231_thumb.jpg /tmp/RtmpdHGE9o/bc5282_2… TRUE   
 ```

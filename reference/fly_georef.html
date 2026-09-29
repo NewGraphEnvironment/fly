@@ -89,8 +89,8 @@ exist.</p></dd>
 
 <dt id="arg-mask">mask<a class="anchor" aria-label="anchor" href="#arg-mask"></a></dt>
 <dd><p>How to handle the black collar around the exposed frame. <code>"border"</code>
-(default) masks it with <code><a href="fly_mask.html">fly_mask()</a></code>; <code>"none"</code> reproduces the pre-0.11.0 warp
-exactly, including its <code>srcnodata</code> handling.</p></dd>
+(default) masks it with <code><a href="fly_mask.html">fly_mask()</a></code>; <code>"none"</code> warps unmasked, applying <code>srcnodata</code>
+to every frame as before v0.11.0. Output carries an alpha band either way.</p></dd>
 
 
 <dt id="arg-mask-threshold">mask_threshold<a class="anchor" aria-label="anchor" href="#arg-mask-threshold"></a></dt>
@@ -99,13 +99,13 @@ to <code><a href="fly_mask.html">fly_mask()</a></code>; the default is measured,
 
 
 <dt id="arg-srcnodata">srcnodata<a class="anchor" aria-label="anchor" href="#arg-srcnodata"></a></dt>
-<dd><p>Source nodata value passed to GDAL warp, matched <strong>exactly</strong>. Now
-defaults to <code>NULL</code>, and is an error alongside <code>mask = "border"</code> — the two are
-different answers to one question and combining them silently undoes the mask (see
-<strong>Nodata handling</strong>). It reached <code>"0"</code> before v0.11.0, which was close to useless:
-scanned black runs 3-12, so it masked a median of 0.16% of a frame against the 3.11%
-actually there, and 128 of 264 measured frames had under a tenth of their collar
-removed.</p></dd>
+<dd><p>Source nodata value passed to GDAL warp, matched <strong>exactly</strong>, or
+<code>NULL</code> (default). With <code>mask = "none"</code> it applies to every frame. With
+<code>mask = "border"</code> it is the <strong>fallback</strong>: it applies only to a frame whose mask
+<code><a href="fly_mask.html">fly_mask()</a></code> declined, and never alongside a mask that ran (see <strong>Nodata handling</strong>).
+On its own it is close to useless as a collar mask: scanned black runs 3-12, so
+<code>"0"</code> masked a median of 0.16% of a frame against the 3.11% actually there, and 128
+of 264 measured frames had under a tenth of their collar removed.</p></dd>
 
 
 <dt id="arg-rotation">rotation<a class="anchor" aria-label="anchor" href="#arg-rotation"></a></dt>
@@ -196,8 +196,13 @@ therefore georeferenced as though the flight line ran due north.
 same roll, so this is the ordinary result of georeferencing a single frame on
 its own, or a sample of a roll rather than a contiguous run. It is warned
 about, for film as well as digital.</p>
-<p><strong>Nodata handling:</strong> two sources of unwanted black pixels, handled separately.</p><ol><li><p><strong>Warp fill</strong> — GDAL creates black pixels outside the rotated source frame. RGB
-images get an alpha band (<code>-dstalpha</code>); grayscale use <code>dstnodata=0</code>. Unchanged.</p></li>
+<p><strong>Nodata handling:</strong> two sources of unwanted black pixels, handled separately.</p><ol><li><p><strong>Warp fill</strong> — GDAL creates pixels outside the rotated source frame. Every output
+carries an alpha band (<code>-dstalpha</code>) marking them, so <strong>grayscale is written as 2
+bands and RGB as 4</strong> for a Byte grayscale or RGB source. Grayscale used
+<code>-dstnodata 0</code> before v0.19.0, and GDAL kept a genuine 0 inside the frame from
+reading as fill by rewriting it as 1 — silently on sf's GDAL 3.8.5 — or, where
+<code>srcnodata = "0"</code> was also given, deleted it. A value cannot be both content and
+the fill marker.</p></li>
 <li><p><strong>The frame collar</strong> — film holder edges, fiducial marks and chamfered corners.
 Since v0.11.0 this is <code><a href="fly_mask.html">fly_mask()</a></code>: a flood fill seeded from the image border, so
 only darkness <em>reachable from the edge</em> is masked and interior dark water survives.</p></li>
@@ -207,12 +212,23 @@ of losing real black pixels. Measured over 264 thumbnails, <strong>both halves w
 exact-zero matching removed a median of 0.16% of a frame where 3.11% of collar was
 present, so it did not mask the borders — and the real black it was said to cost is a
 median 0.16% of the frame, which <em>is</em> the collar rather than shadow.</p>
-<p><strong><code>srcnodata</code> and <code>mask = "border"</code> are mutually exclusive, and GDAL will not say so.</strong>
-All combinations of <code>-srcalpha</code> and <code>-srcnodata</code> run clean and return the expected band
-count. What they do is delete the interior black the mask exists to keep: on a synthetic
-frame carrying an 11x11 block of true black, adding <code>-srcnodata "0 0 0"</code> to the masked
-warp removed exactly those 121 pixels. So <code>fly_georef()</code> raises the error GDAL does not.
-Pass <code>mask = "none"</code> to get the old behaviour, <code>srcnodata</code> and all.</p>
+<p><strong><code>srcnodata</code> with <code>mask = "border"</code> is a per-frame fallback, never a second mask.</strong>
+<code><a href="fly_mask.html">fly_mask()</a></code> declines some frames — among them an unreadable or non-8-bit source, and a
+mask that floods into the interior; <code><a href="fly_mask.html">fly_mask()</a></code>'s <code>reason</code> column lists every path —
+and a declined frame is warped unmasked. Given no
+<code>srcnodata</code>, its collar is written as opaque data. Given one, the declined frame is
+warped with <code>-srcnodata</code> and every masked frame with <code>-srcalpha</code> alone. The two are
+never handed to GDAL together, because GDAL would apply both and the mask would lose:
+on a synthetic frame carrying an 11x11 block of true black, adding <code>-srcnodata "0 0 0"</code>
+to the masked warp removed exactly those 121 pixels. Before v0.19.0 this pair was
+refused on the premise that both reached GDAL; they never did.</p>
+<p>"Declined" means <code><a href="fly_mask.html">fly_mask()</a></code> returned <code>masked = FALSE</code>; an error inside it fails the
+frame instead. A declined frame given no <code>srcnodata</code> is warned about, since its collar
+reaches the output as data. The fallback is a weak last resort: it matches <strong>exact</strong>
+values only, so it catches a collar written at exactly 0 and misses one scanned at
+3-12, and on the frame it reaches it also removes any true black inside the frame. On
+all 10,105 public thumbnails measured (the 264 <code>mask_threshold</code> was calibrated on among
+them), the mask declined none.</p>
 <p><strong>Accuracy:</strong> footprints assume a nadir camera angle, and without <code>dem</code>
 they also assume flat terrain. Passing <code>dem</code> sizes each frame from its
 height above ground, which on steep ground is the larger of the two error
@@ -248,8 +264,8 @@ of <code><a href="fly_footprint.html">fly_footprint()</a></code>.</p>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;"># A tibble: 2 × 4</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   airp_id source                               dest                      success</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>     <span style="color: #949494; font-style: italic;">&lt;int&gt;</span> <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>                                <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>                     <span style="color: #949494; font-style: italic;">&lt;lgl&gt;</span>  </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">1</span>  <span style="text-decoration: underline;">699</span>426 /tmp/Rtmpxy2euN/bc5282_232_thumb.jpg /tmp/Rtmpxy2euN/bc5282_2… TRUE   </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">2</span>  <span style="text-decoration: underline;">699</span>425 /tmp/Rtmpxy2euN/bc5282_231_thumb.jpg /tmp/Rtmpxy2euN/bc5282_2… TRUE   </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">1</span>  <span style="text-decoration: underline;">699</span>426 /tmp/RtmpdHGE9o/bc5282_232_thumb.jpg /tmp/RtmpdHGE9o/bc5282_2… TRUE   </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">2</span>  <span style="text-decoration: underline;">699</span>425 /tmp/RtmpdHGE9o/bc5282_231_thumb.jpg /tmp/RtmpdHGE9o/bc5282_2… TRUE   </span>
 <span class="r-in"><span></span></span>
 </code></pre></div>
     </div>
