@@ -195,7 +195,9 @@ test_that("a mapping that would stretch the image is refused, not written squash
   # sides, so rotation 270 pairs them isotropically and the file is written.
   ok <- ring(hc = 1000, ha = 500)
   out <- tempfile(fileext = ".tif")
-  expect_true(georef_one(src, ok, out, rotation = fly_digital_rotation()))
+  # `mask = "none"`: a UInt32 fixture the border mask declines, which `georef_one()`
+  # warns about (fly#56).
+  expect_true(georef_one(src, ok, out, rotation = fly_digital_rotation(), mask = "none"))
   expect_true(file.exists(out))
 
   # The same image on the same footprint at rotation 0 pairs 100 px with the 2000 m edge
@@ -221,7 +223,11 @@ test_that("a mapping that would stretch the image is refused, not written squash
   terra::writeRaster(terra::rast(nrows = 100, ncols = 100, vals = seq_len(10000)),
                      square_image, overwrite = TRUE)
   out4 <- tempfile(fileext = ".tif")
-  expect_no_warning(res4 <- georef_one(square_image, sq, out4, rotation = 0))
+  # `mask = "none"`: the fixture is UInt32, which the border mask declines, and
+  # `georef_one()` warns about a decline with no `srcnodata` (fly#56). The aspect guard under test runs before masking either way.
+  expect_no_warning(
+    res4 <- georef_one(square_image, sq, out4, rotation = 0, mask = "none")
+  )
   expect_true(res4)
 })
 
@@ -255,7 +261,8 @@ test_that("a film scan carrying the negative's rebate still georeferences", {
 
   for (rot in c(0, 90, 180, 270)) {
     out <- tempfile(fileext = ".tif")
-    expect_no_warning(res <- georef_one(src, sq, out, rotation = rot))
+    # `mask = "none"` for the same reason as above: a UInt32 fixture the mask declines.
+    expect_no_warning(res <- georef_one(src, sq, out, rotation = rot, mask = "none"))
     expect_true(res)
   }
 })

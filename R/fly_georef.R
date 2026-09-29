@@ -15,17 +15,17 @@
 #'   exist.
 #' @param overwrite If `FALSE` (default), skip files that already exist.
 #' @param mask How to handle the black collar around the exposed frame. `"border"`
-#'   (default) masks it with [fly_mask()]; `"none"` reproduces the pre-0.11.0 warp
-#'   exactly, including its `srcnodata` handling.
+#'   (default) masks it with [fly_mask()]; `"none"` warps unmasked, applying `srcnodata`
+#'   to every frame as before v0.11.0. Output carries an alpha band either way.
 #' @param mask_threshold How close to black a pixel must be to count as collar. Passed
 #'   to [fly_mask()]; the default is measured, see there.
-#' @param srcnodata Source nodata value passed to GDAL warp, matched **exactly**. Now
-#'   defaults to `NULL`, and is an error alongside `mask = "border"` — the two are
-#'   different answers to one question and combining them silently undoes the mask (see
-#'   **Nodata handling**). It reached `"0"` before v0.11.0, which was close to useless:
-#'   scanned black runs 3-12, so it masked a median of 0.16% of a frame against the 3.11%
-#'   actually there, and 128 of 264 measured frames had under a tenth of their collar
-#'   removed.
+#' @param srcnodata Source nodata value passed to GDAL warp, matched **exactly**, or
+#'   `NULL` (default). With `mask = "none"` it applies to every frame. With
+#'   `mask = "border"` it is the **fallback**: it applies only to a frame whose mask
+#'   [fly_mask()] declined, and never alongside a mask that ran (see **Nodata handling**).
+#'   On its own it is close to useless as a collar mask: scanned black runs 3-12, so
+#'   `"0"` masked a median of 0.16% of a frame against the 3.11% actually there, and 128
+#'   of 264 measured frames had under a tenth of their collar removed.
 #' @param dem Optional elevation raster passed to [fly_footprint()], sizing each
 #'   frame from its height above ground instead of the reported scale. See the
 #'   **Terrain** section of [fly_footprint()].
@@ -127,8 +127,12 @@
 #'
 #' **Nodata handling:** two sources of unwanted black pixels, handled separately.
 #'
-#' 1. **Warp fill** — GDAL creates black pixels outside the rotated source frame. RGB
-#'    images get an alpha band (`-dstalpha`); grayscale use `dstnodata=0`. Unchanged.
+#' 1. **Warp fill** — GDAL creates pixels outside the rotated source frame. Every output
+#'    carries an alpha band (`-dstalpha`) marking them, so **grayscale is written as 2
+#'    bands and RGB as 4**, on every platform. Grayscale used `-dstnodata 0` before
+#'    v0.19.0, which wrote any genuine 0 inside the frame as nodata or, on the GDAL build
+#'    the Windows CI runner carries, shifted it to 1; a value cannot be both content and
+#'    the fill marker.
 #' 2. **The frame collar** — film holder edges, fiducial marks and chamfered corners.
 #'    Since v0.11.0 this is [fly_mask()]: a flood fill seeded from the image border, so
 #'    only darkness *reachable from the edge* is masked and interior dark water survives.
@@ -140,12 +144,24 @@
 #' present, so it did not mask the borders — and the real black it was said to cost is a
 #' median 0.16% of the frame, which *is* the collar rather than shadow.
 #'
-#' **`srcnodata` and `mask = "border"` are mutually exclusive, and GDAL will not say so.**
-#' All combinations of `-srcalpha` and `-srcnodata` run clean and return the expected band
-#' count. What they do is delete the interior black the mask exists to keep: on a synthetic
-#' frame carrying an 11x11 block of true black, adding `-srcnodata "0 0 0"` to the masked
-#' warp removed exactly those 121 pixels. So `fly_georef()` raises the error GDAL does not.
-#' Pass `mask = "none"` to get the old behaviour, `srcnodata` and all.
+#' **`srcnodata` with `mask = "border"` is a per-frame fallback, never a second mask.**
+#' [fly_mask()] declines some frames — among them an unreadable or non-8-bit source, and a
+#' mask that floods into the interior; `fly_mask()`'s `reason` column lists every path —
+#' and a declined frame is warped unmasked. Given no
+#' `srcnodata`, its collar is written as opaque data. Given one, the declined frame is
+#' warped with `-srcnodata` and every masked frame with `-srcalpha` alone. The two are
+#' never handed to GDAL together, because GDAL would apply both and the mask would lose:
+#' on a synthetic frame carrying an 11x11 block of true black, adding `-srcnodata "0 0 0"`
+#' to the masked warp removed exactly those 121 pixels. Before v0.19.0 this pair was
+#' refused on the premise that both reached GDAL; they never did.
+#'
+#' "Declined" means [fly_mask()] returned `masked = FALSE`; an error inside it fails the
+#' frame instead. A declined frame given no `srcnodata` is warned about, since its collar
+#' reaches the output as data. The fallback is a weak last resort: it matches **exact**
+#' values only, so it catches a collar written at exactly 0 and misses one scanned at
+#' 3-12, and on the frame it reaches it also removes any true black inside the frame. On
+#' all 10,105 public thumbnails measured (the 264 `mask_threshold` was calibrated on among
+#' them), the mask declined none.
 #'
 #' **Accuracy:** footprints assume a nadir camera angle, and without `dem`
 #' they also assume flat terrain. Passing `dem` sizes each frame from its
@@ -179,15 +195,9 @@ fly_georef <- function(fetch_result, photos_sf,
   }
 
   mask <- match.arg(mask)
-  # Refused rather than silently dropped. GDAL accepts both together and then deletes the
-  # interior black the mask exists to preserve, reporting nothing - so a caller who set
-  # `srcnodata` deliberately must be told their instruction and the mask disagree, not
-  # have one of them quietly win.
-  if (identical(mask, "border") && !is.null(srcnodata)) {
-    stop("`srcnodata` and `mask = \"border\"` are two answers to one question and GDAL ",
-         "applies both: the mask keeps interior black and `srcnodata` then deletes it, ",
-         "silently. Drop `srcnodata`, or pass `mask = \"none\"` to use it.", call. = FALSE)
-  }
+  # `srcnodata` alongside `mask = "border"` is the fallback for frames whose mask declines,
+  # not a second mask: `fly_georef_warp_opts()` emits one or the other per frame, never
+  # both. Refused before v0.19.0 on the mistaken premise that both reached GDAL (fly#69).
   if (identical(mask, "border")) fly_check_threshold(mask_threshold, "mask_threshold")
 
   auto_rotation <- identical(rotation, "auto")
@@ -476,6 +486,14 @@ georef_one <- function(src, fp, out_file, srcnodata = NULL, rotation = 180,
     if (isTRUE(res$masked) && file.exists(mask_file)) {
       warp_src <- mask_file
       masked <- TRUE
+    } else if (is.null(srcnodata)) {
+      # The worst of the four mask x srcnodata outcomes (fly#69): no mask and no fallback,
+      # so the collar is warped in as opaque data. Not every decline path warns inside
+      # `fly_mask_one()` — a non-Byte source returns quietly — so it is named here.
+      warning(basename(src), ": the frame-border mask declined (", res$reason, ") and ",
+              "no `srcnodata` was given, so the collar is written as image data. Pass ",
+              "`srcnodata` as a fallback for such frames. ",
+              "See `inst/notes/border-masking.md`.", call. = FALSE)
     }
   }
 
@@ -507,15 +525,17 @@ georef_one <- function(src, fp, out_file, srcnodata = NULL, rotation = 180,
 #' [fly_georef_gcps()] is — it is a thing that can be wrong while everything around it
 #' looks healthy, and an option vector is checkable offline where a warped GeoTIFF is not.
 #'
-#' Three rules, and the first is the one that matters:
+#' Three rules:
 #'
 #' * a masked source is read through `-srcalpha`, which forces the LAST band to be the
-#'   alpha band and excludes it from the warped band list. That is what keeps the output
-#'   band count identical to a pre-0.11.0 run — grayscale 1 band, RGB 4.
-#' * `-srcnodata` is emitted only when there is no mask. The two together are refused at
-#'   the `fly_georef()` boundary; this function must not paper over a combination that
-#'   reaches it, so it simply never emits both.
-#' * warp fill is unchanged: `-dstalpha` for RGB, `-dstnodata 0` for grayscale.
+#'   alpha band and excludes it from the warped band list, so masking does not change the
+#'   output band count.
+#' * `-srcnodata` is emitted only when there is no mask. This `else if` is what makes
+#'   `srcnodata` a safe fallback under `mask = "border"`: GDAL given both applies both,
+#'   and `-srcnodata` then deletes the interior black the mask kept.
+#' * warp fill is always `-dstalpha`, so grayscale is 2 bands and RGB 4 (fly#56). Nothing
+#'   is marked by value on the output. A genuine 0 still becomes transparent on the
+#'   `-srcnodata` leg, which reads it as source nodata; that is the fallback's known cost.
 #'
 #' @param n_bands Band count of the source, before any alpha band is appended.
 #' @param srcnodata The `srcnodata` argument, or `NULL`.
@@ -533,7 +553,7 @@ fly_georef_warp_opts <- function(n_bands, srcnodata, masked) {
     opts <- c(opts, "-srcnodata", src_val)
   }
 
-  if (is_rgb) c(opts, "-dstalpha") else c(opts, "-dstnodata", "0")
+  c(opts, "-dstalpha")
 }
 
 #' Convert flight bearing to GCP rotation

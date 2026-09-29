@@ -32,19 +32,19 @@ exist.}
 \item{overwrite}{If \code{FALSE} (default), skip files that already exist.}
 
 \item{mask}{How to handle the black collar around the exposed frame. \code{"border"}
-(default) masks it with \code{\link[=fly_mask]{fly_mask()}}; \code{"none"} reproduces the pre-0.11.0 warp
-exactly, including its \code{srcnodata} handling.}
+(default) masks it with \code{\link[=fly_mask]{fly_mask()}}; \code{"none"} warps unmasked, applying \code{srcnodata}
+to every frame as before v0.11.0. Output carries an alpha band either way.}
 
 \item{mask_threshold}{How close to black a pixel must be to count as collar. Passed
 to \code{\link[=fly_mask]{fly_mask()}}; the default is measured, see there.}
 
-\item{srcnodata}{Source nodata value passed to GDAL warp, matched \strong{exactly}. Now
-defaults to \code{NULL}, and is an error alongside \code{mask = "border"} — the two are
-different answers to one question and combining them silently undoes the mask (see
-\strong{Nodata handling}). It reached \code{"0"} before v0.11.0, which was close to useless:
-scanned black runs 3-12, so it masked a median of 0.16\% of a frame against the 3.11\%
-actually there, and 128 of 264 measured frames had under a tenth of their collar
-removed.}
+\item{srcnodata}{Source nodata value passed to GDAL warp, matched \strong{exactly}, or
+\code{NULL} (default). With \code{mask = "none"} it applies to every frame. With
+\code{mask = "border"} it is the \strong{fallback}: it applies only to a frame whose mask
+\code{\link[=fly_mask]{fly_mask()}} declined, and never alongside a mask that ran (see \strong{Nodata handling}).
+On its own it is close to useless as a collar mask: scanned black runs 3-12, so
+\code{"0"} masked a median of 0.16\% of a frame against the 3.11\% actually there, and 128
+of 264 measured frames had under a tenth of their collar removed.}
 
 \item{rotation}{Image rotation in degrees clockwise. One of \code{"auto"},
 \code{0}, \code{90}, \code{180}, or \code{270}. \strong{Applies only to frames whose footprint was
@@ -155,8 +155,12 @@ about, for film as well as digital.
 
 \strong{Nodata handling:} two sources of unwanted black pixels, handled separately.
 \enumerate{
-\item \strong{Warp fill} — GDAL creates black pixels outside the rotated source frame. RGB
-images get an alpha band (\code{-dstalpha}); grayscale use \code{dstnodata=0}. Unchanged.
+\item \strong{Warp fill} — GDAL creates pixels outside the rotated source frame. Every output
+carries an alpha band (\code{-dstalpha}) marking them, so \strong{grayscale is written as 2
+bands and RGB as 4}, on every platform. Grayscale used \verb{-dstnodata 0} before
+v0.19.0, which wrote any genuine 0 inside the frame as nodata or, on the GDAL build
+the Windows CI runner carries, shifted it to 1; a value cannot be both content and
+the fill marker.
 \item \strong{The frame collar} — film holder edges, fiducial marks and chamfered corners.
 Since v0.11.0 this is \code{\link[=fly_mask]{fly_mask()}}: a flood fill seeded from the image border, so
 only darkness \emph{reachable from the edge} is masked and interior dark water survives.
@@ -169,12 +173,24 @@ exact-zero matching removed a median of 0.16\% of a frame where 3.11\% of collar
 present, so it did not mask the borders — and the real black it was said to cost is a
 median 0.16\% of the frame, which \emph{is} the collar rather than shadow.
 
-\strong{\code{srcnodata} and \code{mask = "border"} are mutually exclusive, and GDAL will not say so.}
-All combinations of \code{-srcalpha} and \code{-srcnodata} run clean and return the expected band
-count. What they do is delete the interior black the mask exists to keep: on a synthetic
-frame carrying an 11x11 block of true black, adding \verb{-srcnodata "0 0 0"} to the masked
-warp removed exactly those 121 pixels. So \code{fly_georef()} raises the error GDAL does not.
-Pass \code{mask = "none"} to get the old behaviour, \code{srcnodata} and all.
+\strong{\code{srcnodata} with \code{mask = "border"} is a per-frame fallback, never a second mask.}
+\code{\link[=fly_mask]{fly_mask()}} declines some frames — among them an unreadable or non-8-bit source, and a
+mask that floods into the interior; \code{fly_mask()}'s \code{reason} column lists every path —
+and a declined frame is warped unmasked. Given no
+\code{srcnodata}, its collar is written as opaque data. Given one, the declined frame is
+warped with \code{-srcnodata} and every masked frame with \code{-srcalpha} alone. The two are
+never handed to GDAL together, because GDAL would apply both and the mask would lose:
+on a synthetic frame carrying an 11x11 block of true black, adding \verb{-srcnodata "0 0 0"}
+to the masked warp removed exactly those 121 pixels. Before v0.19.0 this pair was
+refused on the premise that both reached GDAL; they never did.
+
+"Declined" means \code{\link[=fly_mask]{fly_mask()}} returned \code{masked = FALSE}; an error inside it fails the
+frame instead. A declined frame given no \code{srcnodata} is warned about, since its collar
+reaches the output as data. The fallback is a weak last resort: it matches \strong{exact}
+values only, so it catches a collar written at exactly 0 and misses one scanned at
+3-12, and on the frame it reaches it also removes any true black inside the frame. On
+all 10,105 public thumbnails measured (the 264 \code{mask_threshold} was calibrated on among
+them), the mask declined none.
 
 \strong{Accuracy:} footprints assume a nadir camera angle, and without \code{dem}
 they also assume flat terrain. Passing \code{dem} sizes each frame from its

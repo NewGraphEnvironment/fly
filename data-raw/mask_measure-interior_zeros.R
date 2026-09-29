@@ -3,7 +3,8 @@
 #
 # 1. How much genuine black a grayscale frame loses to `-dstnodata 0`. Until v0.19.0 a
 #    grayscale output marked "no data" by the value 0, so any pixel of real content at
-#    exactly 0 that survived the frame-border mask was written as nodata. Counted on the
+#    exactly 0 that survived the frame-border mask was written as nodata (or, on some GDAL
+#    builds, shifted to 1 to dodge it — either way not the value scanned). Counted on the
 #    SOURCE, after `fly_mask_one()`: a pixel that is 0 and still opaque in the masked copy
 #    is one the old output deleted. Bilinear resampling can also produce a 0 from a
 #    neighbourhood of zeros, so the output-side loss is of the same order but not
@@ -105,7 +106,8 @@ message("wrote ", out_csv)
 report <- function(d, label) {
   cat("\n== ", label, ": ", nrow(d), " frames ==\n", sep = "")
   cat("errors:", sum(grepl("^error:", d$reason)), "\n")
-  cat("bands:\n"); print(table(d$bands, useNA = "ifany"))
+  cat("bands:\n")
+  print(table(d$bands, useNA = "ifany"))
   cat("mask declined:", sum(d$masked %in% FALSE), "of", sum(!is.na(d$masked)), "\n")
   if (any(d$masked %in% FALSE)) print(table(d$reason[d$masked %in% FALSE]))
   g <- d[d$bands %in% 1L, ]

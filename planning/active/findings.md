@@ -106,3 +106,19 @@ on a synthetic INT2U frame). Consumers must read alpha as "0 = fill", not "255 =
 | PSOCK workers: `could not find function "measure_one"` on every frame, report printed zeros | `clusterExport()`; script now stops if any frame errored |
 | fallback test: both legs identical | terra writes `NAflag = NA` on UInt16 as nodata 0, which GDAL honours regardless; fixture uses `NAflag = 65535` |
 | fallback test: opaque count 0 | UInt16 alpha is 65535; `opaque(full =)` |
+
+## Phase 4: downstream COG round trip (2026-09-28)
+
+Producer: `georef_one()` (this branch) on two real grayscale thumbnails
+(`bc5282_231`, `bcb94081_042`), then `stac_airphoto_bc/scripts/03_cog.py`'s own
+`write_cog()` imported from scratch, in its conda env. Nothing written to that repo.
+
+- fly's output is right: 2 bands, `Gray` + `Alpha`, no `NoData Value`.
+- **`03_cog.py` refuses it**, correctly and loudly: `check_same_raster()` reports
+  colorinterp `(gray, alpha)` → `(gray, undefined)`. The loss is in the in-memory GTiff:
+  rasterio ignores `mem.colorinterp = (gray, alpha)` on a 2-band dataset unless it is
+  created with `alpha="YES"`. With that creation option the COG keeps `(gray, alpha)` and
+  mask flags `[per_dataset, alpha]`. RGBA is unaffected (it already publishes).
+- So the downstream change is one creation option in `write_cog()` plus the
+  `tests/test_cog.py` grey fixture, then a full republish of grayscale frames (every
+  `fly_sha` changes, so `02_georef.R` regenerates them anyway).

@@ -36,26 +36,26 @@ Absorbs #68 (Windows band count) and #69 (mask-or-nodata fallback).
 - [x] Record both in `findings.md`.
 
 ## Phase 2: Tests first (red)
-- [ ] Rewrite warp-opts table tests: `-dstalpha` for every band count, `-dstnodata`
+- [x] Rewrite warp-opts table tests: `-dstalpha` for every band count, `-dstnodata`
   never emitted; `-srcalpha` when masked, `-srcnodata` only when unmasked (else-if kept,
   asserted for all four masked × srcnodata rows).
-- [ ] End-to-end: grayscale → 2 bands **unconditionally** (Windows pin removed), RGB → 4;
+- [x] End-to-end: grayscale → 2 bands **unconditionally** (Windows pin removed), RGB → 4;
   masked and unmasked agree; grayscale collar removal now countable via the alpha band
   (same `opaque()` check RGB already has).
-- [ ] New: an interior block of exact 0 in a grayscale frame survives as opaque data
+- [x] New: an interior block of exact 0 in a grayscale frame survives as opaque data
   (the output-side collision this issue exists to fix). Restore `-dstnodata 0` and
   confirm it goes red.
-- [ ] `fly_georef()` accepts `mask = "border"` + `srcnodata`; a frame whose mask declines
+- [x] `fly_georef()` accepts `mask = "border"` + `srcnodata`; a frame whose mask declines
   (synthetic non-Byte or cap-tripping source) gets `-srcnodata`, a masked frame does not.
   Remove the test asserting the refusal.
 
 ## Phase 3: Implement
-- [ ] `fly_georef_warp_opts()`: `-dstalpha` for all inputs; drop the `-dstnodata 0` arm.
-- [ ] Remove the `mask = "border"` + `srcnodata` refusal in `fly_georef()`.
-- [ ] Rewrite roxygen: `@param srcnodata` (fallback where the mask declines), **Nodata
+- [x] `fly_georef_warp_opts()`: `-dstalpha` for all inputs; drop the `-dstnodata 0` arm.
+- [x] Remove the `mask = "border"` + `srcnodata` refusal in `fly_georef()`.
+- [x] Rewrite roxygen: `@param srcnodata` (fallback where the mask declines), **Nodata
   handling** item 1 and the "mutually exclusive" paragraph, `fly_georef_warp_opts()`'s
   three rules. `devtools::document()`.
-- [ ] Tests green; `lintr::lint_package()` clean.
+- [x] Tests green; `lintr::lint_package()` clean.
 
 ## Phase 4: Downstream check (read-only on other repos)
 - [ ] Georef a few bundled grayscale frames with the new build; run `stac_airphoto_bc`'s
