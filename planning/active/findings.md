@@ -186,3 +186,31 @@ whose classification differs between the two surfaces are counted and reported.
 
 Witness disagreement that sends a figure to UNRESOLVED (AC4) is clause 3. Meta disagreeing with
 lidar does not, since it has been observed reading about half of lidar before any frame was sized.
+
+## HRDEM cannot witness MRDEM's radar cells (2026-09-30, `canopy_stage1c.log`, the Stage 1 probe)
+
+- The first lidar-over-radar probe sampled HRDEM's **DSM** coverage and every window came back
+  empty — and `do.call(rbind, <all NULL>)` cached a NULL, so the next line crashed rather than the
+  probe refusing. Guard added: fewer than 30 windows stops and caches nothing.
+- Cause: HRDEM's DSM reaches far past its DTM (partition 1_5: 41 GB of DSM, 5.8 GB of DTM). On
+  radar cells, 2 m texture shows that extra DSM is smooth far-north surface (sd 0–12 m at 2 m lag),
+  not lidar.
+- Sampled on HRDEM's **DTM** coverage: **0 of 3,000** random points over BC sit on MRDEM radar
+  cells. MRDEM took lidar ground everywhere HRDEM had it, so HRDEM is not independent anywhere in
+  BC. (Revelstoke's 87 cells were an edge case of the site window, not a population.)
+
+## Amendment 2 — fixed 2026-09-30, before any frame is sized
+
+Clause 3's witness becomes **LidarBC** (public `stac-elevation-bc` collection, images.a11s.one):
+1 m tiles, a bare-earth DEM and, on 95,888 of 102,460 tiles, a DSM from the same flight, CGVD2013.
+Windows are whole LidarBC tiles (~1.5 km) under random MRDEM radar cells over BC land, newest tile
+with both assets, only radar-sourced MRDEM cells with all four values. Clause 3 itself — the
+through-origin slope of `imaged_over_dtm` on `mrdem_canopy` within [0.67, 1.5] — is unchanged.
+
+Stated before the probe runs, so it cannot be tuned to it:
+- LidarBC is mostly flown 2016 on, MRDEM's radar 2011–2015. Harvest and fire between the two
+  lower the lidar canopy where the radar saw forest, so the slope is **biased low** by disturbance
+  in the gap. It is reported with the tile years and not corrected.
+- `dtm_resid_open` (MRDEM DTM minus lidar ground on cells the lidar calls open, canopy < 1 m) is
+  the datum and ground-model error without canopy; `dtm_resid` over all cells minus it is residual
+  canopy left in MRDEM's DTM.
