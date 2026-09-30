@@ -116,3 +116,73 @@ image scale and fly#58 found almost none DEM-sized).
 - Canopy on source-1 ground is NRCan's model; its X-band bias is unknown. Meta is the check.
 - Cutblock and fire layers are incomplete before ~1950s–1970s; `u` is a lower bound there.
 - The ray-cast shares the vertical-camera, no-tilt model with the package (#10 unchanged).
+
+## Stage 1 probes (2026-09-30, `data-raw/.cache/logs/canopy_stage1.log`)
+
+Versions: DTM etag `1bf05585…-9997`, DSM `83dec85a…-9994`, source `2fe298cc…-20`, all modified
+2026-06-24. Cache key `d2eaafb5`.
+
+- **Sea:** DSM equals DTM at every readable fly#65 sea site (mean difference 0.00, p95 ≤ 0.48 m at
+  Howe Sound). So a DSM changes nothing over sea and fly#65's W/L verdict is surface-independent
+  there. Three sites read nodata in both (as in #65).
+- **Lidar cells (source 10):** MRDEM DSM − DTM equals HRDEM 2 m DSM − DTM averaged to 30 m:
+  6.06/6.11, 1.21/1.22, 2.65/2.65, 17.01/17.02. Confirms source 10 *is* HRDEM there.
+- **Radar cells (source 1):** Revelstoke, the one site where newer lidar covers radar cells (87 of
+  10,201 cells): MRDEM DTM 9.21 m above lidar ground; lidar canopy 20.9 m against MRDEM's 11.3.
+  One site, 87 cells — the reason the lidar-over-radar probe exists.
+- **Noise floor:** the non-forest sites were chosen badly — "okanagan_lake" and "chilko_lake" windows
+  hold forested shore (DSM − DTM mean 6.1 and 4.2 m). Alpine plateau (Spatsizi, radar) reads 1.52 m
+  mean; Chilcotin grassland 4.15 m (Meta 0.49); Peace farmland 3.76 (Meta 4.01).
+- **Meta against lidar:** 3.10/6.11, 0.37/1.22, 2.55/5.06, 0.52/2.65, 13.11/17.02 — Meta reads
+  roughly half of lidar across these sites, consistent with the review's under-read warning. Units
+  are centimetres (carmanah 17.13 m against MRDEM 14.89).
+
+## Amendment 1 — fixed 2026-09-30 after the Stage 1 probes, before any frame is sized
+
+Supersedes "Verdicts, in order" above where they differ; the quantities list stands, with these
+changes. Reasons are in `review-1.md` (B1–B3, G1–G6).
+
+**Instrument roles.** MRDEM DSM is the canopy surface throughout. On lidar cells it is measured
+(epoch of the lidar project). On radar cells it is GLO-30 (2011–2015) and its offset from the DTM is
+NRCan's removal model; the lidar-over-radar probe is the check. Meta is reported and not decisive.
+T_meta is dropped (it would add a canopy height to a DTM that may already hold some).
+
+**Population and sample.** Denominator: every DEM-eligible film frame (#58's definition). Census:
+DSM and DTM overviews read together (`-r average`, identical window and size, asserted on one grid),
+mean canopy under each nominal footprint, `p_census = c̄ / (scale × focal)`. Used only to stratify.
+Sample: single frames drawn at random within strata of `p_census` × scale band, design weight
+`N_h / n_h`. Every percentile below is weighted.
+
+**Per sampled frame:** `fly_footprint()` on DTM and on DSM. Admitted only where both return
+`footprint_terrain == "dem_agl"`, `height_source == "reported"` and `dem_coverage ≥ 0.95`; frames
+whose classification differs between the two surfaces are counted and reported.
+
+1. **MATERIAL** if the weighted 95th percentile of `d_c = side_dtm / side_dsm − 1` is **≥ 1%**.
+   Why 1%: #58's per-corner ray-casting is worth ~2% on every frame and is deferred, so a
+   bias under half that is below what the package already accepts.
+2. **Rectangle model not degraded** if the weighted 95th of `|ρ_dsm|` is no more than the
+   weighted 95th of `|ρ_dtm|` **+ 0.01**, where `ρ_X = sqrt(area W_X / area T_X) − 1`.
+3. **Canopy instrument valid on radar cells** if, over the lidar-over-radar probe windows, the
+   through-origin slope of `imaged_over_dtm` (lidar DSM − MRDEM DTM) on `mrdem_canopy`
+   (MRDEM DSM − DTM) is within **[0.67, 1.5]**. Outside it, MRDEM's DSM misstates the imaged
+   surface on radar cells by more than a third, and the rule treats the canopy magnitude as
+   **UNRESOLVED** there (the lidar-cell share is still judged).
+4. **Epoch**, per photo decade, over admitted sampled frames with `d_c ≥ 0.5%` (capped at 250,
+   drawn with probability proportional to weight): VRI (`VEG_COMP_LYR_R1_POLY`, rank 1) stand
+   origin `O = year(PROJECTED_DATE) − PROJ_AGE_1` and height `h = PROJ_HEIGHT_1` per polygon under
+   the footprint. `c_then = h × (py − O) / (cy − O)` where `O ≤ py` (linear height with age — this
+   understates how short a young stand is, so it understates harm); where `O > py` the stand at the
+   photo was the one since replaced, whose height is unknown, and `c_then = h` (neutral). `cy` =
+   2013 on radar cells. Per frame, DTM error ∝ mean `c_then`, DSM error ∝ mean `(c_then − c_now)`.
+   **Epoch holds for a decade** if the weighted share of its frames where the DSM error exceeds
+   the DTM error is **under 10%**.
+5. **Outcome:**
+   - **NOTHING** — not MATERIAL.
+   - **UNRESOLVED** — MATERIAL, and 3 fails: record the magnitude from lidar cells and the probe.
+   - **RECOMMEND A DSM** — MATERIAL, 2 and 3 hold, and 4 holds for at least one decade:
+     recommended for those decades, documented for the rest.
+   - **DOCUMENT** — MATERIAL, anything else.
+   - Adding a column or changing a default is a schema change and goes to the user at the PR.
+
+Witness disagreement that sends a figure to UNRESOLVED (AC4) is clause 3. Meta disagreeing with
+lidar does not, since it has been observed reading about half of lidar before any frame was sized.
