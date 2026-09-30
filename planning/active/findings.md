@@ -123,3 +123,33 @@ it, so only sea counts as water — correct, since a lake surface sits at its ow
 under either hypothesis) and MRDEM's own near-zero band. Their disagreement is published.
 A frame whose outside-polygon cells are not near-zero is over a land border (Alberta,
 Yukon, Alaska, Washington), not over sea, and is excluded by name with a count.
+
+## Phase 1 probe — what MRDEM holds over sea (2026-09-29)
+
+3 km windows at nine sites, read at full resolution; cells split by the BC terrestrial
+boundary polygon. Producer: the probe script in the session scratchpad, reproduced as
+Stage 1 of `data-raw/dem_measure-coastal_water.R`.
+
+| site | sea cells (median, range) | land cells | exact zeros |
+|---|---|---|---|
+| Hecate Strait (issue's site) | 0.136 m, 0.105..0.174 | — | 0 |
+| Strait of Georgia | 0.137 m, 0.074..0.205 | — | 0 |
+| Dixon Entrance | 0.137 m, 0.119..0.148 | — | 0 |
+| Howe Sound (fjord) | 0.020 m, −1.52..78.1 | median 293 m | 0 |
+| Boundary Bay (tidal flat) | 0.037 m, −1.87..1.07 | — | 0 |
+| Roberts Bank (delta) | 0.072 m, −1.02..2.74 | median 1.14 m | 1 |
+| Queen Charlotte Sound | **all nodata** | — | — |
+| west of Haida Gwaii | **all nodata** | — | — |
+| Knight Inlet (fjord) | — (window all land in polygon) | median 1000 m | 0 |
+
+- The issue's measurement reproduces: 0.105–0.174 m, no exact zeros.
+- **Near-shore sea is ~0.14 m, open water further out is nodata.** So MRDEM carries a sea
+  surface for some distance off the coast and then stops. A frame over the far water sees
+  the fly#58 partial-coverage case, not this one.
+- ~0.1 m is a plausible sea surface against CGVD2013 (mean sea level sits within tens of
+  centimetres of the geoid on this coast). The values are **not** an artefact standing in
+  for nodata; they are an elevation, and a correct one to within the tide.
+- **The near-zero band cannot be the land/water witness.** 14.8% of Roberts Bank *land*
+  cells read |elev| < 1 m (a delta at sea level), and fjord shore cells outside the
+  polygon reach 78 m (polygon/DEM misregistration at a steep shore). The band is published
+  as the second witness, the polygon is the one the rule uses — as fixed above.

@@ -54,13 +54,13 @@ FWA coastline via `bcdata::filter(BBOX(...))` — never the `BBOX(SHAPE,...)` CQ
 MRDEM's own near-zero band.
 
 ## Phase 1: Premise — is sea surface the wrong datum at all?
-- [ ] Write the decision rule into `findings.md` **before** any run: hypothesis W (water-inclusive
+- [x] Write the decision rule into `findings.md` **before** any run: hypothesis W (water-inclusive
       mean, current code) vs L (land-only mean, the issue's reference); the spacing statistic;
       the inland control; the minimum predicted W–L difference the instrument can resolve
-- [ ] Probe MRDEM over water at a few coastal sites (Hecate Strait reproduction, a fjord head,
+- [x] Probe MRDEM over water at a few coastal sites (Hecate Strait reproduction, a fjord head,
       a tidal flat, far offshore) — band values, exact zeros, where nodata begins — so the
       "ocean reads near-zero" claim has a population, not one window
-- [ ] Cross-check the two land/water witnesses on those sites (FWA/bcmaps land polygon vs MRDEM
+- [x] Cross-check the two land/water witnesses on those sites (FWA/bcmaps land polygon vs MRDEM
       near-zero band) and record disagreement; lakes are not water for this question (a lake
       surface is at its own elevation and is correct under either hypothesis)
 

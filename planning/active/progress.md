@@ -9,3 +9,6 @@
 - Created branch `65-a-coastal-frame-is-sized-from-sea-level` off main
 - Scaffolded PWF baseline from issue #65 with approved phases
 - Next: start Phase 1
+- Decision rule committed before any coastal frame measured (fd4b27a)
+- Phase 1 probe: near-shore sea ~0.14 m, open water nodata; near-zero band misclassifies
+  delta land, so the polygon is the witness
