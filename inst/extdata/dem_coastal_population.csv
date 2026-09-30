@@ -1,0 +1,11 @@
+measure,n
+film_dem_eligible,1437147
+film_coastal,95222
+film_coastal_scale_to_15000,56257
+film_coastal_scale_15000_30000,29599
+film_coastal_scale_30000_80000,9315
+film_coastal_scale_over_80000,51
+film_eligible_scale_to_15000,840990
+film_eligible_scale_15000_30000,460886
+film_eligible_scale_30000_80000,135187
+film_eligible_scale_over_80000,84

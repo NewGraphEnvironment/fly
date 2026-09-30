@@ -68,20 +68,20 @@ MRDEM's own near-zero band.
 - [x] New script `data-raw/dem_measure-coastal_water.R` (noun_verb-detail, harness pattern): select
       DEM-eligible film frames (and digital frames that reach the DEM route) whose nominal
       footprint intersects the coastline; publish n and share of the eligible population
-- [ ] For a stratified sample (water fraction × relief × scale, strata from pre-DEM properties),
+- [x] For a stratified sample (water fraction × relief × scale, strata from pre-DEM properties),
       run `fly_footprint(dem=)` on contiguous runs and compute per frame: water fraction (both
       witnesses), W mean, L mean, predicted |W–L| width difference = `w × Δelev / agl`
-- [ ] Publish the distribution of predicted |W–L|; if it sits below the spacing instrument's
+- [x] Publish the distribution of predicted |W–L|; if it sits below the spacing instrument's
       resolution everywhere, record that and skip to Phase 4 with "not resolvable, physics
       favours W" as the finding
 
 ## Phase 3: Verdict — which elevation does the spacing witness accept
-- [ ] On sampled coastal runs with resolvable predicted differences, compute implied forward
+- [x] *(Superseded by Amendment 2 — primary is now a ray-cast of the true footprint; spacing kept as a secondary reading)* On sampled coastal runs with resolvable predicted differences, compute implied forward
       overlap under W and under L; compare each against the inland random control's overlap
       distribution; apply the Phase 1 rule as written
-- [ ] Controls: inland frames must return the known overlap (reuse the lower-tail script's
+- [x] Controls: inland frames must return the known overlap (reuse the lower-tail script's
       `ctl_ok` refusal); rerun on a subset to confirm determinism
-- [ ] Ship the result table(s) as `inst/extdata/dem_coastal_*.csv` via `write_if_changed()` so the
+- [x] Ship the result table(s) as `inst/extdata/dem_coastal_*.csv` via `write_if_changed()` so the
       suite recomputes the published figures
 
 ## Phase 4: Decide and land

@@ -283,3 +283,39 @@ of the two is right is the question the ray-cast settles. TRIM's WCS
 - Population on fly#58's denominator: **1,437,147** eligible film frames (matches
   `dem_coverage_population.csv`), **95,222 coastal (6.63%)** — 1,440 times the 66 frames
   partial coverage reaches.
+
+## Result — full run, 2026-09-30 (log: `data-raw/.cache/logs/dem_coastal_run2.log`)
+
+240 runs (180 coastal in 12 strata, 60 inland), 2,334 frames; 2,304 eligible, 157 excluded
+over a land border, 0 with a ray reaching nodata, **2,124 admitted**; 1,242 coastal frames
+with sea in them on 138 rolls, 592 inland frames on 59 rolls. Controls: flat 1.2e-12; step
+2.6e-4 / 6.4e-5, gap −3.1% / −0.78% (converges). Determinism: three runs deleted and
+re-measured, all three CSVs byte-identical.
+
+| rule | measured | outcome |
+|---|---|---|
+| 1 materiality | d median 0.71%, 95th **3.18%**, max 8.48%; 38.2% of frames over 1% | **material** |
+| 2 area | median \|err\| W 0.34%, L 0.67%, S 0.34%; median(\|W\|−\|L\|) −0.00287 [−0.00358, −0.00226] | **W** |
+| 3 land edge | (incl+excl)/land_T W 4.43%, L 3.67%, S 3.71%; median(W−L) +0.00319 [+0.00240, +0.00427] | **L** (S close) |
+| 4 premise | W area 95th: coastal 2.16% vs inland 3.18% (−1.02); land edge 95th: coastal 15.05% vs inland 15.87% (−0.82) | **no remedy** |
+
+Which way each errs on land: W falsely includes 3.31% of true land area and excludes 0.46%;
+L includes 2.14% and excludes 1.40%. Signed area error by sea fraction: W −0.14% to +0.27%,
+L always negative (−0.29% to −0.72%) — L draws coastal frames too small.
+
+**Reading.** The premise was half right. W *is* the wrong answer for where the land edge
+falls, but by less than the rectangle already misses an inland frame's edge, because both
+are the same defect: a rectangle cannot place four edges over four different elevations,
+which is the per-corner ray-casting fly#10 defers. The sea is one more elevation the
+rectangle averages over, not a special failure. For area, which `fly_coverage()` and
+`fly_overlap()` consume, W is twice as good as the issue's proposed reference. So: no code
+change, and the issue's "footprint drawn too wide" is true of the land edge by a median
+3.3% of land area and false of area.
+
+**`dem_elev_sd` is not the flag review G3 hoped** — coastal medians 14–181 m by sea fraction
+against 113 m inland. The synthetic step shows ~250 m, real shores do not.
+
+**Spacing (secondary), against its predicted bias.** Amendment 2 predicted any lean would be
+toward L. The within-roll slope of p_W on d is **−0.006** (n = 1,240; W predicts 0, L +0.4)
+— on W's side, not L's. With within-roll sd of d only 0.0063 no interval was computed and no
+weight is put on it; recorded because it contradicts the predicted bias.
