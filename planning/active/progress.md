@@ -18,3 +18,14 @@
 - LidarBC probe: sea mostly nodata, remainder −2.533 m → package computes ≈L on LidarBC
 - Script rewritten: ray-cast with flat/step synthetic controls, W/L/S scored on area and
   land edge, runs drawn from whole rolls, smoke mode
+
+## Session 2026-09-30
+
+- Full run (240 runs, 2,334 frames, ~2h on a shared machine); determinism rerun byte-identical
+- /code-check: 4 rounds. R1 mislabelled exclusion, uncounted frames, unimplemented control;
+  R2 defects inside R1's fixes; R3 named the mechanism (copied story paragraph) and found the
+  canopy reversal and the sea-band trend; R4 enumerated 136 claims, no wrong figure, found
+  the relief confound. Filed fly#80 (canopy, package-wide)
+- Note rewritten from producer lines; NEWS/CLAUDE.md/roxygen cut to asserted figures; test
+  rebuilds all 6 note tables row by row (35-line pin, mutation-checked)
+- Full suite 2,691 pass, 0 fail

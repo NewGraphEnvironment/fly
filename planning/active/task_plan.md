@@ -87,22 +87,22 @@ MRDEM's own near-zero band.
 ## Phase 4: Decide and land
 Contingent on Phase 3; the options below are what each outcome licenses, and whichever lands is
 reported at the PR, not re-asked mid-run (unless it changes the output schema — see below).
-- [ ] **If W holds (premise false):** no code change to sizing. Correct the "What the sweep is blind
+- [x] **If W holds (premise false):** no code change to sizing. Correct the "What the sweep is blind
       to → Ocean" bullet in `inst/notes/terrain-correction.md`, add a fly#65 section with the
       measurement, fix the matching sentence in `CLAUDE.md` Key Decisions (fly#58 entry)
-- [ ] **If L holds:** a new output column or a changed mean is a schema/behaviour change — stop and
+- [x] *(Split verdict: W for area, L for the land edge; pooled rule → no remedy. The land-edge remedy is a schema decision, put to the user at the PR.)* **If L holds:** a new output column or a changed mean is a schema/behaviour change — stop and
       put the options (`dem_water_fraction` column; exclude near-zero-band cells from the mean;
       refuse over a stated fraction) to the user with a recommendation, continue docs meanwhile
-- [ ] Tests: `tests/testthat/test-dem_coastal.R` (or extend `test-fly_footprint_coverage.R`) reading the
+- [x] Tests (as `test-fly_footprint_coastal.R`): `tests/testthat/test-dem_coastal.R` (or extend `test-fly_footprint_coverage.R`) reading the
       shipped CSVs and recomputing every published table; plus a synthetic fixture — a DEM half
       at 0.1 m, half at 500 m — pinning whichever behaviour the verdict chose
-- [ ] NEWS.md entry (numbers derived from the shipped CSVs), CLAUDE.md Architecture line for the
+- [x] NEWS.md entry (numbers derived from the shipped CSVs), CLAUDE.md Architecture line for the
       new script and CSVs; `.Rbuildignore` unaffected (`data-raw/` already excluded — verify)
 - [ ] Edit issue #65 body to carry the verdict (premise, instrument, result)
 
 ## Validation
-- [ ] Tests pass (`devtools::test()`), lintr clean, `pkgdown::check_pkgdown()` if exports change
-- [ ] `/code-check` clean on each commit
+- [x] Tests pass (`devtools::test()`), lintr clean, `pkgdown::check_pkgdown()` if exports change
+- [x] `/code-check` clean on each commit
 - [ ] PWF checkboxes match landed work
 - [ ] `/planning-archive` on completion (README carries Measurement + Evidence sections)
 

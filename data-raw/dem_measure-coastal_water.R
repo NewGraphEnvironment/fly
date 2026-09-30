@@ -275,14 +275,16 @@ fc <- flat_control()
 sc <- step_control(32)
 sc4 <- step_control(128)
 pub("  control flat: ray-cast area / rectangle area - 1 = %.2e (must be under 1e-5)", fc)
-pub("  control step: ray-cast area / analytic - 1 = %.2e at 32 rays per edge, %.2e at 128 (must be under 1e-3)",
+pub("  control step: ray-cast area / analytic - 1 = %.2e at 32 rays per edge (must be under 1e-3), %.2e at 128 (under 1e-4)",
     sc[1], sc4[1])
 pub("  control step: (T - W) / a^2 e^2 - 1 = %.2e at 32, %.2e at 128 (the Jensen gap)", sc[2], sc4[2])
 # The step is a discontinuity, and a polygon through rays at a finite spacing cuts the
 # corner where it crosses an edge, so the reproduction is judged by convergence: the gap
 # must be within 5% at the density used and the error must fall at least 3x when the rays
-# are four times denser. A defect in the ray-cast would not converge.
-if (abs(fc) > 1e-5 || abs(sc[1]) > 1e-3 || abs(sc[2]) > 0.05 ||
+# are four times denser. A defect in the ray-cast would not converge. The area check
+# Amendment 2 fixed at 1e-4 is held at 128 rays, where the corner cut is small enough to
+# meet it; at 32 it is 1e-3.
+if (abs(fc) > 1e-5 || abs(sc[1]) > 1e-3 || abs(sc4[1]) > 1e-4 || abs(sc[2]) > 0.05 ||
     abs(sc4[2]) > abs(sc[2]) / 3) {
   stop("the ray-cast does not reproduce its synthetic controls; it is not trusted")
 }
@@ -303,8 +305,8 @@ if (file.exists(SELECTION)) {
 
   # fly#58's eligibility for "the DEM route would size it", unchanged, so the population
   # is counted on the same denominator `dem_coverage_population.csv` publishes. Film only:
-  # a digital frame's `scale` is not an image scale (fly#32), and fly#58 found 6 of 223,667
-  # digital frames DEM-sized at all.
+  # a digital frame's `scale` is not an image scale (fly#32), and fly#58 found only 6 of its
+  # 173 digital candidates DEM-sized at all.
   film <- frames[frames$media %in% fly_film_media() &
                    is.finite(frames$scale_n) & frames$scale_n > 0 &
                    is.finite(frames$flying_height) & frames$flying_height > 0 &
@@ -537,7 +539,10 @@ if (length(todo)) {
 }
 m <- do.call(rbind, lapply(list.files(RUNS_DIR, "\\.rds$", full.names = TRUE), readRDS))
 m <- m[m$run_id %in% runs$run_id, ]
-stopifnot(setequal(unique(m$run_id), unique(runs$run_id)))
+# Frame by frame, not run by run: the cache is keyed on `run_id`, so a selection rebuilt
+# under the same ids would otherwise merge stale runs into the published tables.
+stopifnot(setequal(unique(m$run_id), unique(runs$run_id)), setequal(m$airp_id, runs$airp_id),
+          nrow(m) == nrow(runs), !anyDuplicated(m$airp_id))
 
 # ---------------------------------------------------------------------------
 # Stage 5 — the verdicts, as Amendment 2 states them
@@ -555,13 +560,32 @@ m$edge_s <- (m$incl_s + m$excl_s) / m$land_t
 
 eligible <- m$footprint_terrain %in% "dem_agl" & m$height_source %in% "reported" &
   is.finite(m$dem_coverage) & m$dem_coverage >= fly_dem_coverage_min()
-m$land_border <- eligible & m$n_sea > 0 &
+# Outside the land polygon but not reading as sea: more than 10% of those cells above 2 m,
+# or any nodata. Written as a land-border test (Amendment 2). What it catches was not
+# measured to one cause — most such frames have sea-level outside cells beside a few high
+# ones, but one run carries a flat ~10 m surface outside the polygon — so it is named for
+# what it tests.
+m$outside_not_sea <- eligible & m$n_sea > 0 &
   (m$n_outside_na > 0 | m$n_outside_high > 0.10 * (m$n_sea + m$n_outside_na))
-m$rays_failed <- eligible & !m$land_border & (is.na(m$rays_bad) | m$rays_bad > 0)
-m$admitted <- eligible & !m$land_border & !m$rays_failed & is.finite(m$area_t) &
-  is.finite(m$mean_land)
-pub("  frames sampled %d; eligible %d; excluded over a land border %d; ray met nodata %d; admitted %d",
-    nrow(m), sum(eligible), sum(m$land_border), sum(m$rays_failed), sum(m$admitted))
+m$no_land <- eligible & !m$outside_not_sea & !is.finite(m$mean_land)
+m$rays_failed <- eligible & !m$outside_not_sea & !m$no_land &
+  (is.na(m$rays_bad) | m$rays_bad > 0 | !is.finite(m$area_t))
+m$admitted <- eligible & !m$outside_not_sea & !m$no_land & !m$rays_failed
+# Every frame accounted for exactly once.
+stopifnot(sum(!eligible) + sum(m$outside_not_sea) + sum(m$no_land) + sum(m$rays_failed) +
+            sum(m$admitted) == nrow(m))
+not_el <- table(paste(m$height_source, m$footprint_terrain)[!eligible])
+pub("  frames sampled %d; not eligible %d (%s); outside cells not sea %d (%d of them coastal); all sea, no land cell %d; ray met nodata %d; admitted %d",
+    nrow(m), sum(!eligible), paste(names(not_el), not_el, sep = ": ", collapse = ", "),
+    sum(m$outside_not_sea), sum(m$outside_not_sea & m$coastal), sum(m$no_land),
+    sum(m$rays_failed), sum(m$admitted))
+
+# Control 3 (Amendment 1): the all-cells mean read here under the returned rectangle is the
+# package's elevation, give or take the second-pass rectangle it was sampled on.
+c3 <- abs(m$mean_all - m$elev_w)[m$admitted]
+pub("  control 3: |mean_all - package elevation| median %.3f m, 95th %.2f m, max %.2f m (median must be under 1 m)",
+    stats::median(c3), unname(stats::quantile(c3, .95)), max(c3))
+if (stats::median(c3) >= 1) stop("control 3: the all-cells mean is not the package's elevation")
 
 co <- m[m$admitted & m$coastal & is.finite(m$d) & m$d > 0, ]
 inl <- m[m$admitted & m$set == "inland" & !m$coastal, ]
@@ -625,6 +649,75 @@ pub("  land edge: W coastal 95th %.4f, inland 95th %.4f, excess %+.4f (remedy th
 pub("  PREMISE: remedy warranted on area %s, on land edge %s",
     area_excess > 0.01, edge_excess > 0.02)
 
+# Sensitivity: the verdicts with the `outside_not_sea` frames put back, since what that
+# test caught was not measured to one cause.
+sens <- m[m$outside_not_sea & m$coastal & is.finite(m$d) & m$d > 0 & is.finite(m$area_t) &
+            (m$rays_bad %in% 0), ]
+cs <- rbind(co, sens[, names(co)])
+pub("  admitted coastal: %d with sea and d > 0, %d with sea and d <= 0, %d with no sea cell; admitted non-coastal from coastal runs %d",
+    nrow(co), sum(m$admitted & m$coastal & m$n_sea > 0 & !(m$d > 0)),
+    sum(m$admitted & m$coastal & m$n_sea == 0), sum(m$admitted & m$set == "coastal" & !m$coastal))
+pub("  outside-not-sea frames, per-frame median of outside cells: median %.2f m; over 0.5 m %d, over 1 m %d, over 5 m %d",
+    stats::median(m$sea_median[m$outside_not_sea]), sum(m$sea_median[m$outside_not_sea] > 0.5),
+    sum(m$sea_median[m$outside_not_sea] > 1), sum(m$sea_median[m$outside_not_sea] > 5))
+pub("  with the %d outside-not-sea coastal frames put back: W area 95th %.4f (inland %.4f), land edge 95th %.4f (inland %.4f); median |err| W %.4f L %.4f; edge W %.4f L %.4f",
+    nrow(sens), q(abs(cs$err_w), .95), q(abs(inl$err_w), .95), q(cs$edge_w, .95),
+    q(inl_edge, .95), stats::median(abs(cs$err_w)), stats::median(abs(cs$err_l)),
+    stats::median(cs$edge_w), stats::median(cs$edge_l))
+
+# Canopy sensitivity (round 3). MRDEM is bare earth; where the land carries a canopy the
+# imaged surface sits c metres higher over the land share of the frame. To first order the
+# true footprint's linear size then shrinks by (agl - c (1 - w)) / agl, where agl is the
+# height above the bare-earth mean and w the sea fraction — an approximation, not a
+# re-run ray-cast, and a uniform canopy over all land, which no real shore has.
+canopy <- function(d, c) {
+  k <- d$height_agl / (d$height_agl - c * (1 - d$sea_frac))
+  list(w = (1 + d$err_w) * k - 1, l = (1 + d$err_l) * k - 1)
+}
+for (cm in c(0, 15, 30, 60)) {
+  cc <- canopy(co, cm)
+  ci <- canopy(transform(inl, sea_frac = 0), cm)
+  pub("  canopy %2d m (first-order): median(|W| - |L|) %+.5f; median |W| %.4f |L| %.4f; W area 95th coastal %.4f inland %.4f",
+      cm, stats::median(abs(cc$w) - abs(cc$l)), stats::median(abs(cc$w)), stats::median(abs(cc$l)),
+      q(abs(cc$w), .95), q(abs(ci$w), .95))
+}
+pub("  sample heights above ground: coastal median %.0f m, inland median %.0f m",
+    stats::median(co$height_agl), stats::median(inl$height_agl))
+pub("  relief: dem_elev_sd median coastal %.1f m, inland %.1f m", stats::median(co$dem_elev_sd),
+    stats::median(inl$dem_elev_sd))
+# The premise test pooled; by sea fraction it need not hold (round 3).
+for (b in levels(cut(co$sea_frac, c(0, .1, .25, .5, .75, 1), include.lowest = TRUE))) {
+  x <- co[as.character(cut(co$sea_frac, c(0, .1, .25, .5, .75, 1), include.lowest = TRUE)) %in% b, ]
+  pub("  by sea %-10s n=%4d: W area 95th %.4f, W land edge 95th %.4f (inland %.4f / %.4f)",
+      b, nrow(x), q(abs(x$err_w), .95), q(x$edge_w, .95), q(abs(inl$err_w), .95), q(inl_edge, .95))
+}
+pub("  signed median err by sea band: W %s; L %s",
+    paste(sprintf("%+.4f", tapply(co$err_w, cut(co$sea_frac, c(0, .1, .25, .5, .75, 1), include.lowest = TRUE), stats::median)), collapse = " "),
+    paste(sprintf("%+.4f", tapply(co$err_l, cut(co$sea_frac, c(0, .1, .25, .5, .75, 1), include.lowest = TRUE), stats::median)), collapse = " "))
+pub("  lowest admitted height above ground: %.0f m (coastal %.0f m)",
+    min(m$height_agl[m$admitted]), min(co$height_agl))
+
+# Relief (round 4). The coastal sample is flatter than the inland one, and the premise test
+# pooled them. Matched on `dem_elev_sd`: bins at the coastal quintiles, and the inland 95th
+# re-taken with inland frames weighted to the coastal bin shares.
+rb <- stats::quantile(co$dem_elev_sd, 0:5 / 5)
+rbin <- function(v) cut(v, rb, include.lowest = TRUE)
+co_b <- rbin(co$dem_elev_sd); in_b <- rbin(inl$dem_elev_sd)
+wq <- function(x, w, p) { o <- order(x); cw <- cumsum(w[o]) / sum(w); x[o][which(cw >= p)[1]] }
+keep_in <- !is.na(in_b)
+wt <- as.numeric(table(co_b)[as.character(in_b[keep_in])] / table(in_b)[as.character(in_b[keep_in])])
+pub("  relief-matched inland (weighted to coastal dem_elev_sd quintiles, n=%d of %d): W area 95th %.4f, land edge 95th %.4f (coastal %.4f / %.4f)",
+    sum(keep_in), nrow(inl), wq(abs(inl$err_w[keep_in]), wt, .95), wq(inl_edge[keep_in], wt, .95),
+    q(abs(co$err_w), .95), q(co$edge_w, .95))
+for (b in levels(co_b)) {
+  xc <- co[co_b %in% b, ]; ie <- inl_edge[in_b %in% b]; ia <- abs(inl$err_w[in_b %in% b])
+  pub("  relief bin %-16s coastal n=%4d inland n=%3d: W land edge 95th %.4f vs %.4f (%+.4f); area 95th %.4f vs %.4f",
+      b, nrow(xc), length(ie), q(xc$edge_w, .95), q(ie, .95), q(xc$edge_w, .95) - q(ie, .95),
+      q(abs(xc$err_w), .95), q(ia, .95))
+}
+pub("  W land edge MEDIAN by sea band: %s", paste(sprintf("%.4f", tapply(co$edge_w,
+    cut(co$sea_frac, c(0, .1, .25, .5, .75, 1), include.lowest = TRUE), stats::median)), collapse = " "))
+
 # Signed, by sea fraction — which way W errs.
 bands <- cut(co$sea_frac, c(0, .1, .25, .5, .75, 1), include.lowest = TRUE)
 co$sea_frac_band <- as.character(bands)
@@ -656,7 +749,7 @@ keep <- c("airp_id", "run_id", "stratum", "set", "coastal", "photo_year", "film_
           "n_cells", "n_sea", "n_band", "n_sea_band", "n_outside_high", "n_outside_na",
           "mean_all", "mean_land", "sea_median", "rays_bad", "area_t", "area_w", "area_l",
           "area_s", "land_t", "incl_w", "excl_w", "incl_l", "excl_l", "incl_s", "excl_s",
-          "land_border", "admitted")
+          "outside_not_sea", "no_land", "admitted")
 out <- m[order(m$run_id, m$frame_number), keep]
 num <- vapply(out, is.double, logical(1))
 out[num] <- lapply(out[num], function(x) signif(x, 10))

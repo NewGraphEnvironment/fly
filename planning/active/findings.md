@@ -292,6 +292,17 @@ with sea in them on 138 rolls, 592 inland frames on 59 rolls. Controls: flat 1.2
 2.6e-4 / 6.4e-5, gap −3.1% / −0.78% (converges). Determinism: three runs deleted and
 re-measured, all three CSVs byte-identical.
 
+*Corrected after code-check round 1:* the 157 exclusions labelled "over a land border" are
+152 coastal frames with outside cells at a median 0.09 m, not land borders; renamed
+`outside_not_sea`. (Round 2: "shoreline misregistration" was itself an unmeasured cause —
+42 of 157 have outside medians over 0.5 m, 10 over 5 m, run c052 a flat 9.95 m. The note
+states the spread, not a mechanism.) 23 all-sea frames were dropped uncounted; now
+counted (`no_land`). Accounting: 30 not eligible + 157 + 23 + 0 rays + 2,124 = 2,334. With
+the 151 excluded coastal frames with sea put back: W area 95th 2.38%, land edge 95th 14.77%,
+both still under inland — no verdict moves. Control 3 (promised in Amendment 1, not
+implemented) now runs: median 0.021 m. Step area check held at Amendment 2's 1e-4 at 128
+rays (6.4e-5); 32 rays give 2.6e-4, which that threshold would have failed — disclosed.
+
 | rule | measured | outcome |
 |---|---|---|
 | 1 materiality | d median 0.71%, 95th **3.18%**, max 8.48%; 38.2% of frames over 1% | **material** |
@@ -319,3 +330,36 @@ against 113 m inland. The synthetic step shows ~250 m, real shores do not.
 toward L. The within-roll slope of p_W on d is **−0.006** (n = 1,240; W predicts 0, L +0.4)
 — on W's side, not L's. With within-roll sd of d only 0.0063 no interval was computed and no
 weight is put on it; recorded because it contradicts the predicted bias.
+
+
+## Code-check round 3 — the mechanism, and two conditions the pooled rule hid
+
+Round 3 named the mechanism behind rounds 1–3: one "Reading" paragraph (above) was copied
+into the note, NEWS, CLAUDE.md, roxygen and the test header, and where no producer line
+existed the story filled the gap. Its enumeration table is `review-round3.md`. Measured in
+response (run5 log, all now printed by the script and asserted by the test):
+
+- **Canopy reverses the area verdict.** "Canopy affects W and L alike" was wrong: W and L err
+  in opposite directions. First-order, uniform canopy c on all land: median(|W|−|L|) −0.00287
+  at 0 m, −0.00122 at 15, +0.00014 at 30, +0.00220 at 60. The coastal-vs-inland premise test
+  holds at every c. Filed as a package-wide DTM question, fly#80.
+- **The pooled premise test hides a trend.** W's land-edge 95th by sea band: 13.69, 13.75,
+  15.07, 15.78, **20.81%** (sea > 75%, n = 200) against 15.87% inland. Post hoc; recorded,
+  not acted on. Coastal relief is lower (dem_elev_sd median 81 m vs 113 m).
+- "Per-corner ray-casting would fix it everywhere" and "the sea adds nothing" were never
+  measured and are removed; S (per-side) cuts the median edge error only 4.43% → 3.71%.
+
+The copies in NEWS, CLAUDE.md and roxygen were cut to figures the test asserts, each
+pointing at the note, so there is one copy of the story.
+
+## Code-check round 4 — enumeration ends the loop; relief confounds the pooled pass
+
+Round 4 walked 136 claims across the note, NEWS, CLAUDE.md, roxygen and the test header;
+**no published figure was wrong**. It found dropped qualifiers, a coverage claim the test
+does not back (the test never reads the prose; narrowed), and a post-hoc confound, verified
+in run6: matched for relief (inland weighted to coastal `dem_elev_sd` quintiles) the
+land-edge 95th is 15.06% inland vs 15.05% coastal — the pooled pass disappears — and
+within bins coastal is worse by +9.1, +2.0, +6.5, +5.5 and better by 5.4 (most rugged).
+Area survives matching (2.95% inland vs 2.16% coastal). So the sea worsens W's land edge,
+not its area. The pre-registered rule passed as written; whether the land-edge finding
+warrants a remedy is a schema decision, put to the user at the PR.

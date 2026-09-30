@@ -54,6 +54,12 @@ the note and NEWS quote. Ships `inst/extdata/flying_height_sweep.csv` and
 `flying_height_population.csv`, which `test-fly_footprint_height.R` reads so the three constants
 are checked against the data. Use a PSOCK cluster for remote DEM reads — `mclapply()` forks
 abort on GDAL's curl handles on macOS while the wrapper exits 0
+- `data-raw/dem_measure-coastal_water.R` — fly#65: whether a coastal frame's sea is an error.
+Ray-casts the true footprint of sampled coastal and inland frames onto MRDEM and scores the
+package's land-and-sea mean, the land-only mean and per-side sizing on area and on the land
+edge. Ships `inst/extdata/dem_coastal_frames.csv`, `_population.csv` and `_sites.csv`, which
+`test-fly_footprint_coastal.R` recomputes. `FLY_COASTAL_SMOKE=1` runs a handful of frames
+into a separate cache and writes nothing
 - `data-raw/height_calibrate-lower_tail_rolls.R` — settles the lower tail of `flying_height`
 per roll (fly#60) with adjacent-frame spacing and the hand transcription of the province's
 logbook scans in `data-raw/flying_height_logbooks.csv`, which is an input and is never
@@ -201,9 +207,36 @@ rather than a property of this code.
   digital, 0 of 2,975 random controls. The issue's own "18 of 416" does not reproduce; a
   DEM cropped to that run's AOI is the likely cause and is recorded as inference. So the
   frequency is a property of how the caller crops, not of the catalogue. A near-zero ocean
-  surface (not nodata, and with no exact zeros) is a coverage-1 failure the sweep cannot
-  generate and `dem_coverage` cannot see — out of scope, stated as a bound. Read
+  surface (not nodata, and with no exact zeros) is a coverage-1 case the sweep cannot
+  generate — recorded here as a failure, and fly#65 found it is not one (below). Read
   `inst/notes/terrain-correction.md`
+
+- **A coastal frame's sea is an elevation, and averaging it in stays** (fly#65, no code
+  change) — MRDEM carries near-shore sea at ~0.14 m, which fly#58 called a mean "dragged
+  toward sea level". Over water the imaged surface *is* the sea. Against a **ray-cast of the
+  true footprint** on bare earth, the package's land-and-sea mean (W) beats the land-only
+  mean (L) on area, and L beats W on where the land edge falls. The pre-registered test
+  asked, pooled, whether the sea makes W worse than inland, and it passed, so nothing
+  changed. Two qualifications are recorded, not acted on. Matched for relief (the coastal
+  sample is flatter), the land-edge pass disappears, so the sea does worsen W's land edge,
+  though not its area. And a canopy on the land can reverse the area verdict: first-order
+  only, a DTM effect everywhere, fly#80.
+
+  **Three things are load-bearing.**
+  - The instrument changed before any frame was measured. Adjacent-frame spacing measures
+    when the shutter fired, not what the photo covered, so it is secondary. The ray-cast's
+    flat and step synthetic controls converge.
+  - "Which is right" has two answers, one per consumer: area for
+    `fly_coverage()`/`fly_overlap()`, the land edge for `fly_filter()`/`fly_select()`
+    against a land AOI.
+  - The prose was the defect class. Three review rounds each found published causes,
+    denominators or comparisons written from a story rather than read off a producer line,
+    including inside the previous round's fix. So the note's tables are now rebuilt row by
+    row by the test and counted.
+
+  LidarBC was mostly nodata over sea in the two Howe Sound tiles probed, so the same frame is
+  sized ≈L there and, under 0.95 coverage, warns about interior nodata. Do not "fix" this by
+  masking near-zero cells: in the Roberts Bank window 14.8% of delta land reads under 1 m. Read `inst/notes/terrain-correction.md`
 
 - **Terrain error is a datum offset, not slope** (v0.5.0, #9) — `FLYING_HEIGHT` is metres **above sea level**,
 and reported scale is referenced to an elevation above the ground the photos cover, so it understates footprint

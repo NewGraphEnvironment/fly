@@ -818,12 +818,11 @@ being asked. Reporting the window the caller needs leaves the decision where it 
 ### What the sweep is blind to
 
 - **Ocean.** MRDEM returns a near-zero surface over near-shore water rather than nodata —
-  40,000 cells in Hecate Strait read 0.098 to 0.189 m, with no exact zeros at all. A
-  coastal frame therefore reports `dem_coverage` near 1 while its mean is dragged toward
-  sea level. That is a coverage-1 failure, it cannot be produced by removing cells, and
-  neither `dem_coverage` nor `dem_shortfall_m` can see it — the cells carry data and the
-  extent does span the frame. Not fixed here; filed as fly#65. Note also that the obvious
-  guard for it — counting exact-zero cells — can never fire.
+  40,000 cells in Hecate Strait read 0.098 to 0.189 m, with no exact zeros at all. That is
+  a coverage-1 case removing cells cannot produce, so this sweep cannot reach it. It was
+  recorded here as an error ("a mean dragged toward sea level") and filed as fly#65, which
+  found it is **not** one: the sea surface is an elevation, and on bare earth averaging it
+  in is the better answer for area. See the next section.
 - **The reference is one frame's own full-coverage answer**, which carries MRDEM's own
   vertical error and the ~2% of area that per-corner ray-casting would move. Differences
   below about 1% of width are not resolvable against it and are not read as a knee.
@@ -862,6 +861,254 @@ being asked. Reporting the window the caller needs leaves the decision where it 
   which moved off the DEM. The documented `dem_coverage` filter still excludes it.
 - **The sweep is deterministic.** A resume bug re-ran 40 targets twice; the two runs came
   back byte-identical across every column.
+
+## A coastal frame's sea is an elevation, not a gap (fly#65)
+
+fly#58 recorded that MRDEM carries near-shore sea at ~0.14 m rather than nodata, called the
+result a mean "dragged toward sea level", and fly#65 was filed to measure the damage. Over
+water the surface the photo images **is** the sea, so averaging it in is the package's model
+working, not failing. Measured against a ray-cast of the true footprint on MRDEM's bare
+earth, averaging land and sea (the package) is the better answer for **area**, and the
+land-only mean the issue proposed is better for where the **land edge** falls. Neither
+result is unconditional. The area verdict depends on bare earth being the imaged surface,
+and, matched for relief, the sea does make the land edge worse, although the rule's pooled
+test passed. **No code changed**, because that pooled test said no remedy. The conditions are
+stated below so the decision can be revisited.
+
+Every figure below is printed by `data-raw/dem_measure-coastal_water.R` and can be grepped
+out of its log. The three `inst/extdata/dem_coastal_*.csv` tables ship, and
+`test-fly_footprint_coastal.R` rebuilds every row of every table in this section from them.
+Prose figures are printed by the script and many are asserted by the test, but the test does
+not read the prose, so a prose figure can drift without failing it. The LidarBC and TRIM
+probes are recorded in the fly#65 planning findings and are not re-run by the script.
+
+### What MRDEM holds over sea
+
+Nine 3 km windows, cells split by the BC terrestrial boundary polygon:
+
+| site | sea cells | exact zeros |
+|---|---|---|
+| Hecate Strait (the fly#58 site), Strait of Georgia, Dixon Entrance | median 0.137–0.138 m, range 0.094..0.195 | 0 |
+| Howe Sound (fjord), Boundary Bay (tidal flat), Roberts Bank (delta) | median 0.026–0.073 m, down to −1.5 m | 0 |
+| Queen Charlotte Sound, west of Haida Gwaii | **all nodata** | — |
+
+Near-shore sea is a surface within a few tenths of a metre of CGVD2013's zero, which is
+where the sea is. Open water further out is nodata, so a frame reaching it is fly#58's
+partial-coverage case, not this one. **The near-zero band cannot stand in for a land mask**,
+because 14.8% of Roberts Bank's *land* cells read under 1 m.
+
+**LidarBC behaves differently, in the two tiles probed.** Two 1 m tiles over Howe Sound were aggregated to 20 m, with
+any nodata 1 m cell making the 20 m cell nodata. At that resolution they are 75% and 92%
+nodata over sea, and the remaining sea cells have a median of −2.533 m. So `fly_footprint()`
+on LidarBC averages mostly the land. It reports `dem_coverage` below 1, and where that
+falls under 0.95 it warns about nodata "*inside* its extent". **The same coastal frame is
+sized one way on MRDEM and nearer the other on LidarBC.** TRIM was not characterised: its
+WCS returned 503 at probe time.
+
+### The instrument: a ray-cast, after the first one planned was dropped
+
+The rule was fixed before any coastal frame was measured, then replaced before any was
+measured. The first instrument was adjacent-frame spacing, which settled fly#60. It
+measures **when the shutter fired**, from an intervalometer set to the planned datum or an
+overlap regulator tracking ground texture, and a regulator has nothing to track over water.
+So it could not tell footprint geometry from crew practice at exactly the place the question
+lives. It is kept as a secondary reading only.
+
+The reference is instead the **true footprint** under the vertical camera the package
+already assumes, on the same DEM:
+
+- Each of 128 points on the returned rectangle's boundary (32 per edge) is traced as a ray
+  down from the aircraft. The ray walks down from the window's highest elevation, and the
+  hit is the first level where the terrain reaches it, refined by bisection. So a ridge
+  occludes the valley behind it, as it does in the photo.
+- The ray-cast reproduces a level synthetic DEM to 1e-12.
+- On a DEM stepping from 0 to 500 m through the centroid, the true area is
+  `2a²((H − e)² + H²)`, and the rectangle drawn at the mean is smaller by exactly `a²e²`.
+- At 32 rays per edge, the density every frame was measured at, the polygon cuts the corner
+  where the step crosses an edge, and the area comes out 2.6e-4 off. That is over the 1e-4
+  fixed in advance. It is about 1.3e-4 in linear size, 26 times under the 0.34% median error
+  being measured.
+- At 128 rays per edge the area is 6.4e-5 off, and the Jensen gap goes from 3.1% off to
+  0.78%. The error converges away, and a defect would not. The 1e-4 is held at 128 per edge.
+
+Three candidates are scored against it, all from the same cells:
+
+- **W** is the package: the mean of every cell, sea included.
+- **L** is the land-only mean.
+- **S** moves each side by the mean elevation of the triangle between it and the centroid.
+  S is scored for reference and not shipped.
+
+**There are two metrics, because the package has two kinds of consumer.**
+
+- *Area* is what `fly_coverage()` and `fly_overlap()` sum. It is measured as the linear
+  error `sqrt(area / area_T) − 1`.
+- *The land edge* is what `fly_filter()` and `fly_select()` test against a land AOI. It is
+  measured as the land a rectangle wrongly includes plus the land it wrongly excludes, as a
+  share of the true footprint's land.
+
+In one dimension, with the shoreline under the centroid, W is exact for total length and L
+is exact for the land-side edge. The question is how that plays out on real shores.
+
+### What it found
+
+Coastal frames are **95,222 of 1,437,147** DEM-eligible film frames (**6.63%**), with the
+centroid within the nominal half-diagonal of an FWA coastline. That is about 1,440 times
+the 66 frames partial coverage reaches.
+
+The sample drew 180 coastal runs of ten consecutive frames in 12 scale × coastal-relief
+strata, plus 60 inland control runs. That is 2,400 draws; 66 frames were drawn into two
+runs and measured once, leaving 2,334 frames. Every one is accounted for once:
+
+- **30** did not carry a height believed as catalogued. 13 were DEM-sized from the roll
+  table's corrected height, and 17 were implausible and fell back to nominal scale.
+- **157** had more than 10% of their outside-polygon cells above 2 m, or any at nodata.
+  - The test was written to catch land borders. It is named for what it tests,
+    `outside_not_sea`, not for a cause.
+  - 152 of the 157 are coastal frames.
+  - Half have outside cells at a median under 0.09 m, but 42 are over 0.5 m and 10 over
+    5 m. Three frames of run `c052` have outside cells at a median of 9.95 m.
+  - No single cause was measured.
+- **23** had no land cell at all.
+- **None** had a ray reach nodata.
+- That leaves **2,124 admitted**, in five groups:
+  - 1,242 coastal frames with sea under them and `d > 0`, on 138 rolls. These are the ones
+    scored below.
+  - 1 coastal frame whose sea reads *higher* than its land mean (`d < 0`).
+  - 64 coastal frames with no sea cell under the returned rectangle.
+  - 225 frames from coastal runs that are not themselves coastal.
+  - 592 inland frames, on 59 rolls.
+
+Of the 152 excluded coastal frames, 151 have `d > 0`. Putting them back changes no verdict:
+W's area 95th becomes 2.38% and its land-edge 95th 14.77%, both still under inland.
+
+**The W/L choice is material.** `d = side_W / side_L − 1` is 0.71% at the median, 3.18% at
+the 95th percentile and 8.48% at most. 38.2% of the 1,242 frames exceed 1%.
+
+| | W (package) | L (land only) | S (per side) |
+|---|---|---|---|
+| area, median \|linear error\| | **0.34%** | 0.67% | 0.34% |
+| land edge, median (incl + excl) / land | 4.43% | **3.67%** | 3.71% |
+| land wrongly included | 3.31% | 2.14% | |
+| land wrongly excluded | 0.46% | 1.40% | |
+
+Paired, with 95% intervals from 2,000 roll-bootstrap resamples:
+
+- **Area:** W beats L, median `|err_W| − |err_L|` = −0.0029 [−0.0036, −0.0023].
+- **Land edge:** L beats W, +0.0032 [+0.0024, +0.0043].
+- **S** equals W on area to first order, since one side moves out as its opposite moves in.
+  It cuts W's median land-edge error only from 4.43% to 3.71%. A rectangle whose sides each
+  sit at their own elevation still misses most of what W misses.
+
+**How each errs:**
+
+- L draws a coastal frame too small at every sea fraction, by a signed median of −0.29% to
+  −0.72% linear.
+- W's signed median stays between −0.14% and +0.27%.
+
+**The area verdict holds on bare earth, and a canopy can reverse it.** MRDEM is a DTM, so
+over forest the camera sees a surface higher than the one it is sized from. W and L err in
+opposite directions pooled (though not in the two lowest sea bands), and a canopy on the land
+moves both toward too wide by the same amount, so it can change which is closer. To first
+order, with a uniform canopy of `c` metres over every land cell, the true footprint's linear
+size shrinks by `(agl − c(1 − w)) / agl`, where `w` is the frame's sea fraction. This is an
+approximation, not a re-run ray-cast, and no real shore has uniform canopy.
+
+| canopy on the land | median(\|W\| − \|L\|) | W area 95th, coastal | inland |
+|---|---|---|---|
+| 0 m | −0.00287 | 2.16% | 3.18% |
+| 15 m | −0.00122 | 2.27% | 3.37% |
+| 30 m | +0.00014 | 2.38% | 3.62% |
+| 60 m | +0.00220 | 3.05% | 4.97% |
+
+So W is closer under bare ground and short vegetation, the two tie near 30 m, and L is closer
+under tall forest. The coastal-against-inland comparison of *area* survives every row,
+because an inland frame is all land and takes the full shift; the land edge was not
+recomputed under canopy. This is a property of sizing from a
+DTM at all, and it reaches every frame the package sizes over forest, not only coastal
+ones.
+
+**The rule's test passes pooled, and on the land edge that pass is an artefact of
+relief.** The rule fixed before the run asked whether W's 95th-percentile error on coastal
+frames exceeds inland by more than 1% of width. Pooled, it does not:
+
+| W's error, 95th percentile | coastal | inland |
+|---|---|---|
+| area, linear | 2.16% | 3.18% |
+| land edge | 15.05% | 15.87% |
+
+So no remedy was triggered. But the coastal sample is flatter (median `dem_elev_sd` 81 m
+against 113 m inland), and relief drives this error. Matched for relief, the land-edge pass
+does not hold. The matching is post hoc and was not part of the rule, and is reported as
+such:
+
+- **Reweighted.** Weighting inland frames to the coastal relief distribution makes the
+  inland land-edge 95th 15.06% against coastal 15.05%. The pooled margin disappears.
+- **Within relief bins** (coastal quintiles of `dem_elev_sd`), coastal is worse by +9.1,
+  +2.0, +6.5 and +5.5 points in the four flatter bins. That is past the +2 threshold in
+  three of them and at it in the fourth. It is better by 5.4 points only in the most rugged
+  bin.
+- **On area the sea still costs nothing.** The relief-matched inland area 95th is 2.95%
+  against 2.16% coastal, and coastal is no worse in any bin by more than 0.13%.
+
+| relief bin (`dem_elev_sd`, m) | coastal n | inland n | W land edge 95th, coastal | inland |
+|---|---|---|---|---|
+| 0–23.8 | 249 | 70 | 10.51% | 1.43% |
+| 23.8–50.7 | 248 | 111 | 7.29% | 5.28% |
+| 50.7–116 | 248 | 118 | 15.07% | 8.59% |
+| 116–217 | 248 | 142 | 16.36% | 10.84% |
+| 217–580 | 249 | 151 | 16.54% | 21.93% |
+
+**By sea fraction** the tail and the middle move apart:
+
+- W's land-edge 95th rises from 13.7% where sea is under a tenth of the frame to **20.8%**
+  where it is over three quarters (n = 200).
+- W's *median* land-edge error falls over the same bands, from 4.96% to 3.91%.
+- L's advantage on the edge grows with sea fraction.
+- The share is taken of a small amount of land on a mostly-sea frame. It is still the
+  figure a caller testing a land AOI against such a frame is exposed to.
+- W's area 95th falls the other way, to 0.64%.
+
+| sea fraction | n | W area 95th | W land edge 95th |
+|---|---|---|---|
+| 0–0.1 | 185 | 3.45% | 13.69% |
+| 0.1–0.25 | 232 | 2.63% | 13.75% |
+| 0.25–0.5 | 370 | 2.06% | 15.07% |
+| 0.5–0.75 | 255 | 1.45% | 15.78% |
+| 0.75–1 | 200 | 0.64% | 20.81% |
+
+**So the sea does make the package's land edge worse, and does not make its area worse.**
+The first is not what the rule asked, since it asked pooled. It is recorded so the decision
+it bears on can be taken deliberately.
+
+### What does not flag it
+
+- **`dem_coverage` and `dem_shortfall_m`** cannot see the sea, as fly#58 said: it carries
+  data, and the extent spans the frame.
+- **`dem_elev_sd` does not help either**, though a synthetic shoreline suggests it would: a
+  0/500 m step gives ~250 m. On real coastal frames the median is 164 m and 181 m where sea
+  covers under a quarter of the frame, falling to 14 m where it covers over three quarters,
+  against 113 m inland. It was not tested as a classifier. The low values on mostly-sea
+  frames reflect a flat sea, not the land edge, whose median error is lowest there.
+- If the land edge matters to a caller, the land polygon is the flag. No column the package
+  reports stands in for it.
+
+### What the measurement is blind to
+
+- **Canopy**, beyond the first-order table above. No canopy-height model was used.
+- **The ray-cast shares MRDEM with W and L.** It settles how cells should be combined, not
+  whether they are right. Tilt (#10) is absent from all three candidates and from the
+  reference alike.
+- **Tides** move the sea surface. This was not measured; taking about ±3.5 m on the north
+  coast, it is at most 0.5% of width at the lowest height above ground admitted (697 m),
+  and zero-mean.
+- **Film only.** fly#58 found 6 of its 173 digital candidates DEM-sized at all; the rest
+  are sized from their ground sample distance.
+- **The spacing reading leaned the other way from its predicted bias.** Before the run, any
+  lean over sea was predicted to be toward L. The within-roll slope came back −0.006, where
+  W predicts 0 and L +0.4. The within-roll spread of `d` is only 0.0063, so no weight is put
+  on it.
+- **The sample is a sample.** The 95,222 are counted; the verdicts rest on 1,242 frames
+  drawn by stratum, whose median height above ground is 5,268 m.
 
 ## Testing this
 
