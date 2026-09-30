@@ -314,6 +314,15 @@ see \code{inst/notes/terrain-correction.md} for the distribution and its limits.
 Falling back to nominal scale is \strong{not} the better answer at any coverage: the
 DEM route beats it in the median even below 20\% covered.
 
+\strong{A coastal frame is sized from land and sea together.} MRDEM carries
+near-shore sea at about 0.14 m, not nodata, so the mean takes in the sea
+surface the photo images and \code{dem_coverage} stays near 1. Against a ray-cast
+of the true footprint on bare earth, that is closer on area than the
+land-only mean, and the land-only mean places the land edge better. A canopy
+can reverse the first, and matched for relief the sea does make the land edge
+worse than it is inland. LidarBC was mostly nodata over sea where probed, so
+there the same frame is sized nearer the land-only mean. See \code{inst/notes/terrain-correction.md} (fly#65).
+
 Buffer past the \strong{corner} of the widest footprint, not its half-side: the
 far point of a square is \code{half_side * sqrt(2)}, which at 1:31680 is 5.1 km
 rather than 3.6 km. Allow more again for the correction itself, which

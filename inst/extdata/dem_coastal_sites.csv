@@ -1,0 +1,10 @@
+site,lon,lat,n_sea,n_sea_nodata,sea_median,sea_min,sea_max,sea_exact_zero,n_land,land_median,land_in_band
+hecate_strait,-130.9,53.3,9713,0,0.137,0.105,0.17,0,0,,
+strait_georgia,-123.6,49.25,9983,0,0.137,0.094,0.195,0,0,,
+dixon_entrance,-132,54.5,9650,0,0.138,0.128,0.148,0,0,,
+howe_sound_fjord,-123.3,49.55,6221,0,0.026,-1.52,78.083,0,3739,239.519,0.001
+boundary_bay_flat,-122.95,49.05,9994,0,0.041,-1.195,0.066,0,0,,
+roberts_bank_delta,-123.15,49.05,8634,0,0.073,-0.708,2.228,0,1362,1.19,0.148
+qc_sound,-129.5,51.5,9822,9822,,,,0,0,,
+offshore_w_haida,-132.6,52.5,9762,9762,,,,0,0,,
+knight_inlet_fjord,-125.9,50.75,0,0,,,,0,9873,1086.294,0

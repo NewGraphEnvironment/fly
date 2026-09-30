@@ -390,8 +390,11 @@ test_that("every row of the note's published tables recomputes from the shipped 
   # tables and recomputing each row, so a figure cannot be published here without being
   # checked.
   md <- readLines(np, warn = FALSE)
-  sec <- md[seq(grep("^## What a partially covered footprint costs", md),
-                grep("^## Testing this", md) - 1)]
+  # Bounded by the NEXT top-level heading, not by a named one: fly#65 added its own section
+  # after this one, and a bound on "## Testing this" counted its tables as fly#58's.
+  start <- grep("^## What a partially covered footprint costs", md)
+  h2 <- grep("^## ", md)
+  sec <- md[seq(start, min(h2[h2 > start]) - 1)]
   # Terminate by enumeration rather than by intent. This test claims a figure cannot be
   # published in the section without being checked; that claim is only true if it accounts
   # for EVERY table, and an earlier version walked six of eight while saying so.
