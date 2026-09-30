@@ -12,3 +12,9 @@
 - Decision rule committed before any coastal frame measured (fd4b27a)
 - Phase 1 probe: near-shore sea ~0.14 m, open water nodata; near-zero band misclassifies
   delta land, so the polygon is the witness
+- Plan review 1 returned (review-1.md): runs were not contiguous (B3, confirmed), spacing
+  measures shutter timing not coverage (B1), ray-cast recommended (W1). First run stopped in
+  population selection before any frame was measured; Amendment 2 committed (382da95)
+- LidarBC probe: sea mostly nodata, remainder −2.533 m → package computes ≈L on LidarBC
+- Script rewritten: ray-cast with flat/step synthetic controls, W/L/S scored on area and
+  land edge, runs drawn from whole rolls, smoke mode

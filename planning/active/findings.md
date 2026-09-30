@@ -248,3 +248,22 @@ flag.
 Also carried: `dem_elev_sd` by sea fraction (review G3), one LidarBC coastal probe
 (review G4), population counted on fly#58's own eligibility (review G8), digital dropped
 (review S3).
+
+## LidarBC over sea (review G4), 2026-09-29
+
+Two public LidarBC 1 m tiles over Howe Sound (`bc_092g054_xl1m_utm10_2019`,
+`bc_092g044_xl1m_utm10_2019`, via the public `stac-elevation-bc` collection), aggregated to
+20 m with any-NA → NA, cells split by the land polygon:
+
+| tile | sea cells nodata | finite sea median | land cells nodata |
+|---|---|---|---|
+| 092g054 | 75.2% | −2.533 m | 44.8% (outside the flown block) |
+| 092g044 | 91.9% | −2.533 m | 55.9% |
+
+So **LidarBC is nodata over most sea**; the remainder reads a flat −2.533 m, which looks like
+a hydro-flattened water surface. `fly_footprint()` on LidarBC therefore already computes
+something close to **L** for a coastal frame — the mean of the land cells — reports
+`dem_coverage` below 1, and when that falls under 0.95 it warns about "nodata *inside* its
+extent" with no re-crop that helps. The same frame gets W on MRDEM and ≈L on LidarBC. Which
+of the two is right is the question the ray-cast settles. TRIM's WCS
+(`openmaps.gov.bc.ca/om/wcs`) returned 503 at probe time and is not characterised.
