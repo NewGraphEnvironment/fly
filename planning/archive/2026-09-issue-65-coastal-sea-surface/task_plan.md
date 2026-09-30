@@ -98,11 +98,11 @@ reported at the PR, not re-asked mid-run (unless it changes the output schema �
       at 0.1 m, half at 500 m — pinning whichever behaviour the verdict chose
 - [x] NEWS.md entry (numbers derived from the shipped CSVs), CLAUDE.md Architecture line for the
       new script and CSVs; `.Rbuildignore` unaffected (`data-raw/` already excluded — verify)
-- [ ] Edit issue #65 body to carry the verdict (premise, instrument, result)
+- [x] Edit issue #65 body to carry the verdict (premise, instrument, result)
 
 ## Validation
 - [x] Tests pass (`devtools::test()`), lintr clean, `pkgdown::check_pkgdown()` if exports change
 - [x] `/code-check` clean on each commit
-- [ ] PWF checkboxes match landed work
+- [x] PWF checkboxes match landed work
 - [ ] `/planning-archive` on completion (README carries Measurement + Evidence sections)
 
