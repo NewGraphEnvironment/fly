@@ -267,3 +267,19 @@ something close to **L** for a coastal frame — the mean of the land cells — 
 extent" with no re-crop that helps. The same frame gets W on MRDEM and ≈L on LidarBC. Which
 of the two is right is the question the ray-cast settles. TRIM's WCS
 (`openmaps.gov.bc.ca/om/wcs`) returned 503 at probe time and is not characterised.
+
+## Smoke run (14 runs, 140 frames) — instrument checks only, not the result
+
+- Flat control 1.2e-12. Step control: ray-cast area within 2.6e-4 of analytic at 32 rays per
+  edge and 6.4e-5 at 128; the Jensen gap reproduced to −3.1% at 32 and −0.78% at 128. The
+  first control threshold (gap within 1%) was set without accounting for a polygon through
+  finitely spaced rays cutting the corner where a step crosses an edge; it failed at 32 rays.
+  Replaced by a convergence test — gap within 5% at the density used, error falling ≥3× at
+  4× the density — which a defect in the ray-cast would not pass. Changed after seeing a
+  *control* result, never a coastal one; disclosed here.
+- S's area equals W's to ~1e-3: moving one side out and its opposite in preserves area to
+  first order. Expected, not a defect; S differs from W in *shape*, which is what the land
+  edge metric scores.
+- Population on fly#58's denominator: **1,437,147** eligible film frames (matches
+  `dem_coverage_population.csv`), **95,222 coastal (6.63%)** — 1,440 times the 66 frames
+  partial coverage reaches.

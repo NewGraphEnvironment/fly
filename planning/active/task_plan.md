@@ -65,7 +65,7 @@ MRDEM's own near-zero band.
       surface is at its own elevation and is correct under either hypothesis)
 
 ## Phase 2: Population — how many frames, how much could it matter
-- [ ] New script `data-raw/dem_measure-coastal_water.R` (noun_verb-detail, harness pattern): select
+- [x] New script `data-raw/dem_measure-coastal_water.R` (noun_verb-detail, harness pattern): select
       DEM-eligible film frames (and digital frames that reach the DEM route) whose nominal
       footprint intersects the coastline; publish n and share of the eligible population
 - [ ] For a stratified sample (water fraction × relief × scale, strata from pre-DEM properties),
