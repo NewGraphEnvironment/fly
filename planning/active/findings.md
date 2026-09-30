@@ -153,3 +153,27 @@ Stage 1 of `data-raw/dem_measure-coastal_water.R`.
   cells read |elev| < 1 m (a delta at sea level), and fjord shore cells outside the
   polygon reach 78 m (polygon/DEM misregistration at a steep shore). The band is published
   as the second witness, the polygon is the one the rule uses — as fixed above.
+
+## Amendments to the rule — made before the first coastal frame was measured
+
+Found while writing the script, from reading `fly_footprint()`; none depends on a result.
+
+1. **Name.** The column value meaning "height believed as catalogued" is
+   `height_source == "reported"`, not `"catalogue"`. Same admission, right spelling.
+2. **Control 3 cannot be exact.** `fly_footprint()` samples the DEM under the second-pass
+   rectangle and returns a slightly different one (the terrain note, fly#58
+   `dem_shortfall_m`: "those differed by 6.4 m on a 3,822 m shortfall"). So the all-cells
+   mean read here under the *returned* rectangle is not the package's elevation to 1e-6 m.
+   Instead: W is taken **from the package** (`flying_height − height_agl`), and L is
+   `W + (mean_land − mean_all)`, both means read here under the one returned rectangle, so
+   the W–L difference is measured on identical cells. Control 3 becomes: median
+   |mean_all − W| under 1 m over admitted frames, or the script stops.
+3. **Turns and gaps, trimmed on a hypothesis-free quantity.** A frame whose base is under
+   0.5× or over 1.5× its roll's median base (across a turn, a skipped exposure) is dropped
+   before either overlap is computed. The window is symmetric and does not read `p_W` or
+   `p_L`, so it cannot favour either.
+4. **Coastline.** FWA coastlines (`WHSE_BASEMAPPING.FWA_COASTLINES_SP`, 56,204 lines,
+   37,908 km, fetched whole through `bcdata`) decide which frames are coastal: the
+   centroid within the nominal half-diagonal of a coastline. The land polygon decides
+   which cells are sea. Frames with `dem_coverage` under `fly_dem_coverage_min()` are
+   excluded — that is fly#58's case (open water is nodata, the probe above), not this one.
