@@ -2,6 +2,8 @@
 
 ## fly (development version)
 
+### 0.19.1 (2026-09-30)
+
 - **A coastal frame’s sea surface is an elevation, not an error, and
   [`fly_footprint()`](https://newgraphenvironment.github.io/fly/reference/fly_footprint.md)
   is unchanged**
