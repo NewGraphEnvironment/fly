@@ -177,3 +177,74 @@ Found while writing the script, from reading `fly_footprint()`; none depends on 
    centroid within the nominal half-diagonal of a coastline. The land polygon decides
    which cells are sea. Frames with `dem_coverage` under `fly_dem_coverage_min()` are
    excluded — that is fly#58's case (open water is nodata, the probe above), not this one.
+
+## Amendment 2 — the instrument changes, before any coastal frame was measured (2026-09-29)
+
+Driven by plan review 1 (`review-1.md`). The first run was stopped in Stage 2, during
+population selection: **no frame had been sized and no overlap had been read**, so this
+amendment cannot have been fitted to a result. `data-raw/.cache/dem_coastal/runs/` was
+empty when it was killed.
+
+**Why the spacing witness is demoted.** It measures when the shutter fired, not what the
+photo covered: an intervalometer set from the planned datum, or an overlap regulator
+tracking ground texture near nadir. Over water a regulator has nothing to track, so its
+behaviour changes exactly where the question lives, and an inland control cannot calibrate
+that. It stays in the script as a **secondary** reading with its bias predicted now: if it
+leans anywhere over sea, **toward L**, by crew practice rather than geometry.
+
+**The primary reference is a ray-cast.** Once the Phase 1 probe established the sea values
+are a real elevation, W vs L is a question about how cells are *combined*, which the
+package's own model can answer exactly. Under the vertical camera `fly_footprint()` already
+assumes, each point of the returned rectangle maps to an image point; its true ground
+position is where the ray through it first meets MRDEM, found by descending from the
+window's highest elevation and bisecting at the first crossing (so occlusion is handled).
+32 rays per edge. The true footprint T is that 128-vertex ring. W is the package's
+rectangle; L is W scaled about the centroid by `(H − e_L) / (H − e_W)`; **S** (per-side,
+review S1) is scored for reference and not shipped.
+
+**Metrics — one per kind of consumer (review A1).**
+
+- *Area* (`fly_coverage()`, `fly_overlap()`): linear error `sqrt(area / area_T) − 1`.
+- *Land edge* (`fly_filter()`, `fly_select()` against a land AOI): land falsely included,
+  `area(land ∩ C \ T) / area(land ∩ T)`, and land falsely excluded,
+  `area(land ∩ T \ C) / area(land ∩ T)`.
+
+**Rule.**
+
+1. *Materiality.* Publish the distribution of `d = side_W / side_L − 1` over coastal
+   frames. If its 95th percentile is under **1%** of width — the error the package already
+   accepts for deferring per-corner ray-casting — the W/L choice is immaterial whatever the
+   verdicts below say, and that is the finding.
+2. *Area verdict.* Paired, on coastal frames with `d > 0`: the median of
+   `|err_W| − |err_L|`, 95% CI by 2,000 roll-bootstrap resamples (seed 65). W is better if
+   the CI is wholly below 0, L if wholly above, otherwise tied.
+3. *Land-edge verdict.* The same on `false_incl + false_excl`.
+4. *The premise.* The issue claims coastal frames are sized wrong **because of the sea**.
+   Compare W's error on coastal frames against W's error on inland frames, which carries
+   only the per-corner cost already accepted. A remedy is warranted only if the coastal
+   95th percentile exceeds the inland 95th percentile by more than **1% of width** on
+   either metric. If not, the finding is documentation. If so, which remedy is a schema
+   decision and goes to the user.
+
+**Controls, each able to stop the script.**
+
+- *Flat*: on a synthetic level DEM, T's area equals W's to 1e-5 relative.
+- *Step*: on a synthetic DEM at 0 m on one side of the centroid and 500 m on the other,
+  T's area equals the analytic `2a²((H − e)² + H²)` to 1e-4 relative, and W's area
+  exceeds nothing — `4a²(H − e/2)²` — so the Jensen gap `e²` is reproduced.
+- *Inland*: W's inland linear error is published as the reference level; it is the
+  "~2% of area" per-corner figure the note already states, now measured.
+
+**Admission.** Film, `footprint_terrain == "dem_agl"`, `height_source == "reported"`,
+`dem_coverage >= fly_dem_coverage_min()`. A frame is excluded if any ray reaches nodata, or
+if more than 10% of its outside-polygon cells read above 2 m or any reads nodata (a land
+border, review G7). Every exclusion is counted.
+
+**Sampling fix (review B3).** A run is 10 consecutive frame numbers from the whole roll,
+centred on a coastal frame drawn within a scale × coastal-relief stratum. Only the centre
+frame's stratum is used; its neighbours are measured and admitted on their own coastal
+flag.
+
+Also carried: `dem_elev_sd` by sea fraction (review G3), one LidarBC coastal probe
+(review G4), population counted on fly#58's own eligibility (review G8), digital dropped
+(review S3).
