@@ -66,7 +66,7 @@ CENSUS_DIR <- "data-raw/.cache/dem_canopy"
 REPO       <- normalizePath(".")
 WORKERS    <- as.integer(Sys.getenv("FLY_PARALLAX_WORKERS", "3"))
 FORMAT_MM  <- 228.6
-ALG        <- "a2"                  # the algorithm tag every cache below carries
+ALG        <- "a3"                  # the algorithm tag every cache below carries
 
 dir.create(CACHE, recursive = TRUE, showWarnings = FALSE)
 dir.create(THUMBS, recursive = TRUE, showWarnings = FALSE)
@@ -297,7 +297,7 @@ adjust <- function(xy, centre, par) {
 }
 REG_BOUND <- 8      # rotation (degrees) and scale (%) the registration may search
 
-# Rotation is not searched by default: the image's rotation comes from the measured shift and
+# Rotation is not searched by default (algorithm a3): the image's rotation comes from the measured shift and
 # the flight line's bearing, and a free rotation let the search buy fit with a -7.5 degree turn
 # and a 6% scale change on a synthetic whose true answer was 0 and 0 (bc78008 184: canopy slope
 # 0.843 with rotation, 1.122 without; Amendment B).
