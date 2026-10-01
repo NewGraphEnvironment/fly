@@ -2,6 +2,46 @@
 
 ## fly (development version)
 
+- **A forested frame is sized from bare earth, and measured, that does
+  not matter:
+  [`fly_footprint()`](https://newgraphenvironment.github.io/fly/reference/fly_footprint.md)
+  is unchanged**
+  ([\#80](https://github.com/NewGraphEnvironment/fly/issues/80)). Over
+  forest the camera images the canopy, so a frame sized from MRDEM’s
+  bare-earth DTM is drawn slightly too wide. Sized through
+  [`fly_footprint()`](https://newgraphenvironment.github.io/fly/reference/fly_footprint.md)
+  on both MRDEM’s DTM and its DSM (published on the same grid), over a
+  probability sample of 612 film frames weighted back to the 1,437,124
+  DEM-eligible ones with a canopy value, the DSM shrinks a frame by a
+  weighted median of **0.17%** of width and **0.46%** at the 95th
+  percentile. 1.2% of frames move more than 1%, 99.5% of them by weight
+  fine-scale (2.1% of frames at 1:15000 or finer). The rule fixed before
+  the run called it material at a 95th percentile of 1%, so nothing
+  changed, and the DTM stays the recommendation. A ray-cast of the true
+  footprint confirms the first-order shift to a weighted median 1.68e-4,
+  and a DSM does not degrade the rectangle model (95th-percentile relief
+  residual 2.89% against 2.86%).
+- **MRDEM’s DSM is the imaged surface to within about a tenth, checked
+  against LidarBC.** Over BC land 88.3% of MRDEM comes from radar, where
+  NRCan’s DTM *is* the DSM minus a forest-removal model, and NRCan’s own
+  lidar mosaic covers almost none of those cells (0 of 3,000 random
+  points). Over 150 public LidarBC tiles (2019–2025) under random radar
+  cells, MRDEM overstates the canopy (7.75 m against 4.25 m, median) but
+  its DTM sits 2.50 m below the lidar ground, so the lidar surface
+  stands above MRDEM’s DTM by 0.916 of MRDEM’s `DSM − DTM`. Over sea the
+  DSM is within 0.03 m of the DTM.
+- **fly#65’s “a canopy can reverse the area verdict” does not hold at
+  the canopy BC has.** Its first-order table assumed a uniform canopy on
+  land and tied near 30 m; with each frame’s own `DSM − DTM` in its
+  place (a median 13.31 m per land cell coastal), still to first order,
+  the land-and-sea mean stays closer than the land-only mean (median
+  −0.00127, against −0.00287 on bare earth). A canopy also feeds the
+  `flying_height` check, so passing a DSM can move a frame near the
+  band’s edge between `"implausible"` and `"reported"`: 2 of the 612
+  did. `data-raw/dem_measure-canopy_height.R` prints every figure and
+  ships `inst/extdata/dem_canopy_*.csv`, from which the suite rebuilds
+  the tables in `inst/notes/terrain-correction.md`.
+
 ### 0.19.1 (2026-09-30)
 
 - **A coastal frame’s sea surface is an elevation, not an error, and

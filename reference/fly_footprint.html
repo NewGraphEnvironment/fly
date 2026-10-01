@@ -327,7 +327,15 @@ the minutes a whole-vector read cost before 0.13.0.</p></li>
 <code>stac-elevation-bc</code> STAC catalogue and pass an item's COG URL.</p></li>
 <li><p><strong>BC TRIM</strong> — 25 m provincial DEM via the <code>bcdata</code> CLI
 (<code>bcdata get-dem</code>).</p></li>
-</ul><p>Resolution matters less here than extent. A 30 m DEM resolves a 2.7 km
+</ul><p><strong>Bare earth or surface model.</strong> Over forest the camera images the canopy, so
+a bare-earth DEM draws a frame slightly too wide. Measured against MRDEM's own
+DSM (<code>mrdem-30-dsm.tif</code>, on the DTM's grid), that is a weighted median 0.17%
+of width and 0.46% at the 95th percentile, with 2.1% of fine-scale frames over
+1% — under what the package acts on, so the DTM stays the recommendation.
+Either surface works; note that a canopy also feeds the <code>flying_height</code> check,
+so a frame near the edge of the band can change <code>height_source</code> between them.
+See <code>inst/notes/terrain-correction.md</code> (fly#80).</p>
+<p>Resolution matters less here than extent. A 30 m DEM resolves a 2.7 km
 footprint's mean elevation perfectly well; a DEM that stops short of the
 frame edges does not, and this is the ordinary failure rather than an exotic
 one — a DEM cropped to an AOI simply stops. <code>no_dem_coverage</code> is reached only
@@ -362,9 +370,9 @@ DEM route beats it in the median even below 20% covered.</p>
 near-shore sea at about 0.14 m, not nodata, so the mean takes in the sea
 surface the photo images and <code>dem_coverage</code> stays near 1. Against a ray-cast
 of the true footprint on bare earth, that is closer on area than the
-land-only mean, and the land-only mean places the land edge better. A canopy
-can reverse the first, and matched for relief the sea does make the land edge
-worse than it is inland. LidarBC was mostly nodata over sea where probed, so
+land-only mean, and the land-only mean places the land edge better. The first
+holds, to first order, under the canopy BC actually has (fly#80), and matched for
+relief the sea does make the land edge worse than it is inland. LidarBC was mostly nodata over sea where probed, so
 there the same frame is sized nearer the land-only mean. See <code>inst/notes/terrain-correction.md</code> (fly#65).</p>
 <p>Buffer past the <strong>corner</strong> of the widest footprint, not its half-side: the
 far point of a square is <code>half_side * sqrt(2)</code>, which at 1:31680 is 5.1 km
