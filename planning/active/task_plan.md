@@ -62,12 +62,12 @@ A Phase 0 measures only nuisance quantities. Roll bc5282 is excluded (pilot leak
 
 - [x] JPEG quality of thumbnails (85, film and digital)
 - [x] Pilot matcher on bc5282 (recorded as a leak; roll excluded)
-- [ ] Matcher: coarse-to-fine global shift with a peak gate, per-patch 2-D shift, Hann window,
+- [x] Matcher: coarse-to-fine global shift with a peak gate, per-patch 2-D shift, Hann window,
       normalised patches; failure rate on ~10 film pairs across decades
-- [ ] Per pair: y-parallax SD, x-parallax residual SD after quadratic + DTM, surviving share of
+- [x] Per pair: y-parallax SD, x-parallax residual SD after quadratic + DTM, surviving share of
       var(DTM) and var(C), r(C, DTM) after nuisance; mirror vs non-mirror on the DTM fit
-- [ ] Control availability: how many pairs carry enough known-young and known-old VRI area
-- [ ] Power: SE of the rescaled canopy position per decade at the n available; stop if the
+- [x] Control availability: how many pairs carry enough known-young and known-old VRI area
+- [x] Power: SE of the rescaled canopy position per decade at the n available; stop if the
       minimum detectable difference exceeds 0.3
 
 ## Phase 1: Instrument
@@ -83,7 +83,7 @@ A Phase 0 measures only nuisance quantities. Roll bc5282 is excluded (pilot leak
 - [ ] Synthetic controls from real thumbnail texture draped on DTM / DTM + C, with tilt, scan
       rotation, placement error and JPEG 85: flat + fake canopy returns 0; DSM-draped returns 1;
       the shrinkage they produce is reported
-- [ ] Digital 2011–2013 pairs as a matcher/shrinkage calibration (PATB placement vs perturbed)
+- [x] ~~Digital 2011–2013 pairs as a matcher/shrinkage calibration~~ — dropped by Amendment A (findings)
 
 ## Phase 2: Decision rule — fixed in `findings.md` before any measured pair is read
 

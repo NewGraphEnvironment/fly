@@ -10,3 +10,6 @@
 - Pilot matcher on bc5282 226–236: DTM slope ≈ 1 on all 7 pairs; computed canopy coefficients
   before a rule existed — disclosed as a leak, roll excluded
 - Plan revised (Phase 0 added, Estimator A dropped, in-pair VRI controls)
+- Phase 0 complete: matcher made robust (candidate-verified global shift), 11 of 13 pilot pairs
+  measured, controls counted, power pooled SE(φ) ≈ 0.05 → proceed. Amendment A drops the
+  digital PATB control. Logs `data-raw/.cache/logs/parallax_phase0*.log`

@@ -70,7 +70,61 @@ its canopy numbers are not evidence and are not quoted anywhere but here.
 | 13 | Outcome boundary right | Agreed. By-products filed, not acted on |
 | 14 | Synthetics ill-posed | Accepted. Flat + fake canopy must return 0; synthetics carry tilt, scan rotation, placement error, JPEG 85 |
 
+## Phase 0 — nuisance only (2026-10-01, `data-raw/.cache/logs/parallax_phase0{,b,c}.log`)
+
+Pilot draw: 3 film rolls per decade 1960s–2000s, seed 8201, f 152–154, 1:8000–1:40000,
+frame and frame+1 on one roll with the same scale, lens and height. Rolls in fly#80's sample
+and bc5282 excluded, so **none of these pilot rolls is eligible for Phase 3** (listed in
+`parallax_phase0_pairs.rds`). No coefficient on canopy was fitted on any of them; `C` entered
+only as a regressor variance.
+
+- **Thumbnails.** 2 of 15 rolls have no thumbnail URL (bc5117, bc5346). Adjacent thumbnails
+  can differ by one row (1250x1249); cropped to the common size.
+- **Global shift.** A single whole-frame phase correlation failed on about half the pairs:
+  relief parallax (~100 px across a mountain overlap) smears the peak, snow saturates, and
+  an unconstrained argmax lands elsewhere. A magnitude window from centroid spacing failed
+  too: bc85054 162's catalogue spacing is 2,353 m where the images say ~1,360 m (×1.7).
+  What works: the ten highest local maxima at 1/4 resolution, loosely gated to [0.25, 3] of
+  the spacing's prediction, each tried as a seed for 128 px patch matching; the one most
+  patches confirm wins, and the global shift is the patches' median. 11 of 13 pairs pass;
+  bc80041 7 and bcb96099 41 do not (1 and 4 confirming patches).
+- **Matching noise.** y-parallax after a quadratic, robust (1.4826·MAD): 0.24–1.50 px,
+  median ~0.5. Plain SD is inflated by mismatches (to 2.9 px); a 3·MAD gate on y-parallax
+  residual is used, and is blind to relief by construction.
+- **Registration** (offset, rotation, scale on the DTM fit of all matched patches, never on
+  C): R² 0.37–0.99. Offsets reach 900 m (bc78129, bcb00031, bc85054), consistent with
+  bc85054's misplaced centroid. Two pairs ran rotation/scale to the ±8 bounds (bc78110,
+  bcb00031): a registration failure, gated in the rule.
+- **Mirror.** Normal beats mirrored placement on 10 of 11; the exception is bcb00031, a
+  failed registration. Mirror stays a per-pair choice on the registration fit.
+- **Nuisance vs signal.** Share of variance surviving the quadratic: DTM 0.03–0.60, canopy
+  0.40–0.92 — canopy varies at shorter range than terrain, which is what makes it
+  identifiable. r(C, DTM) after the quadratic −0.54 to +0.64.
+- **Controls exist but are uneven.** With classes from VRI age at the photo date and a patch
+  taking a class when 4 of its 5 sample points agree: young (origin 0–10 y before the photo)
+  147 patches over 11 pairs, old (age >= 80 at the photo, treed) 735, the rest 3,150. Young
+  is the scarce one; at 0–5 y it was absent from 6 of 11 pairs.
+- **Power** (residual variance from the DTM-only fit, information from each class's canopy
+  residualised on quadratic + DTM, design effect 4 for patches overlapping by half): pooled
+  SE over the 11 pairs young 0.099, old 0.091, rest 0.057. Scaled to 50 pairs a decade:
+  0.046 / 0.043 / 0.027. For φ = (b_rest − b_young)/(b_old − b_young) with a control
+  separation near 0.4–0.67, SE(φ) ≈ 0.1 per decade at 50–60 pairs, ≈ 0.05 pooled over
+  five decades, so the minimum detectable difference pooled is ~0.15. **Under the 0.3 stop
+  line; the study proceeds.**
+
+## Amendment A — the digital PATB control is dropped (2026-10-01, before Phase 1 code)
+
+Its two jobs were a matcher check and a measurement of placement shrinkage. The in-pair VRI
+controls make shrinkage cancel in φ (both controls and the rest are placed by the same
+registration on the same pairs), and the synthetic controls measure the matcher and the
+shrinkage directly with a known answer. The digital route would add the fly#38 PATB parsing
+traps, a 120 mm format that is extrapolated, and a B/H of ~0.25 that halves the signal, for
+a number nothing downstream would read. Recorded rather than silently skipped.
+
 ## Errors Encountered
 
 | Error | Resolution |
 |-------|------------|
+| Whole-frame phase correlation locked onto wrong peaks (~half the pilot pairs) | Candidate peaks verified by 128 px patch matching; median of patches |
+| A tight magnitude window from centroid spacing rejected the right peak (bc85054, spacing ×1.7 off) | Window loosened to [0.25, 3]; verification decides |
+| `sf` geometry lost after `names(r) <- tolower(names(r))` on a subset print | Transform before renaming, or use the cached roll object directly |
