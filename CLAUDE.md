@@ -60,6 +60,15 @@ package's land-and-sea mean, the land-only mean and per-side sizing on area and 
 edge. Ships `inst/extdata/dem_coastal_frames.csv`, `_population.csv` and `_sites.csv`, which
 `test-fly_footprint_coastal.R` recomputes. `FLY_COASTAL_SMOKE=1` runs a handful of frames
 into a separate cache and writes nothing
+- `data-raw/dem_measure-canopy_height.R` — fly#80: whether sizing from MRDEM's bare-earth DTM
+rather than its DSM matters. A coarse census stratifies a design-weighted sample sized through
+`fly_footprint()` on both surfaces and ray-cast onto both; LidarBC tiles (public
+`stac-elevation-bc`) check MRDEM's radar cells; VRI stand origin dates the canopy. Pulls the
+ray-cast from the fly#65 script with `fns_from()` rather than copying or editing it. Caches are
+keyed on MRDEM's ETags; every draw seeds itself. Ships `inst/extdata/dem_canopy_*.csv`, which
+`test-fly_footprint_canopy.R` recomputes. `FLY_CANOPY_SMOKE=1` writes nothing,
+`FLY_CANOPY_STOP=n` stops after stage n. The Meta CHM and HRDEM coverage it reads are
+downloaded into the gitignored cache by hand; the error says which
 - `data-raw/height_calibrate-lower_tail_rolls.R` — settles the lower tail of `flying_height`
 per roll (fly#60) with adjacent-frame spacing and the hand transcription of the province's
 logbook scans in `data-raw/flying_height_logbooks.csv`, which is an input and is never
@@ -219,8 +228,8 @@ rather than a property of this code.
   asked, pooled, whether the sea makes W worse than inland, and it passed, so nothing
   changed. Two qualifications are recorded, not acted on. Matched for relief (the coastal
   sample is flatter), the land-edge pass disappears, so the sea does worsen W's land edge,
-  though not its area. And a canopy on the land can reverse the area verdict: first-order
-  only, a DTM effect everywhere, fly#80.
+  though not its area. A uniform canopy could reverse the area verdict in principle;
+  measured (fly#80), the canopy BC has does not.
 
   **Three things are load-bearing.**
   - The instrument changed before any frame was measured. Adjacent-frame spacing measures
@@ -237,6 +246,28 @@ rather than a property of this code.
   LidarBC was mostly nodata over sea in the two Howe Sound tiles probed, so the same frame is
   sized ≈L there and, under 0.95 coverage, warns about interior nodata. Do not "fix" this by
   masking near-zero cells: in the Roberts Bank window 14.8% of delta land reads under 1 m. Read `inst/notes/terrain-correction.md`
+
+- **A forested frame is sized from bare earth, and measured, it does not matter** (fly#80, no
+  code change) — sizing from MRDEM's DSM instead of its DTM shrinks a frame by a weighted
+  median 0.17% of width, 0.46% at the 95th percentile, under the pre-registered 1%. It is small
+  by arithmetic: at the median 4,575 m above ground, 1% needs 46 m of *mean* canopy under the
+  whole frame. The DTM stays the recommendation; a DSM is not wrong.
+
+  **Three things are load-bearing.**
+  - **`DSM − DTM` is NRCan's model on 88% of BC.** MRDEM's DTM on radar cells is the DSM
+    minus a forest-removal model, and NRCan's HRDEM lidar covers none of those cells (0 of
+    3,000), so it cannot witness them. LidarBC can: MRDEM overstates canopy, but its DTM sits
+    ~2.5 m under lidar ground and the two cancel (slope 0.916). Do not read `DSM − DTM` as a
+    canopy height model.
+  - **The ray-cast cannot decide "recommend a DSM".** A rectangle sized from a surface agrees
+    with a ray-cast onto that surface by construction. Materiality comes from `fly_footprint()`
+    on both surfaces; whether the DSM's canopy existed at the photo date comes from VRI stand
+    origin, and a DSM is worse only where the canopy has more than doubled since (1970s frames:
+    15%).
+  - **Five amendments, all before the data they govern existed.** Three came from code-check
+    rounds, two of them inside the previous round's fix — a value used as what its name says
+    rather than what produced it (scale, sampling design, type, RNG state). Read
+    `inst/notes/terrain-correction.md` before reopening this
 
 - **Terrain error is a datum offset, not slope** (v0.5.0, #9) — `FLYING_HEIGHT` is metres **above sea level**,
 and reported scale is referenced to an elevation above the ground the photos cover, so it understates footprint

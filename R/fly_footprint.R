@@ -774,6 +774,15 @@ fly_is_square <- function(footprints) {
 #'     (`bcdata get-dem`).
 #'  }
 #'
+#' **Bare earth or surface model.** Over forest the camera images the canopy, so
+#' a bare-earth DEM draws a frame slightly too wide. Measured against MRDEM's own
+#' DSM (`mrdem-30-dsm.tif`, on the DTM's grid), that is a weighted median 0.17%
+#' of width and 0.46% at the 95th percentile, with 2.1% of fine-scale frames over
+#' 1% — under what the package acts on, so the DTM stays the recommendation.
+#' Either surface works; note that a canopy also feeds the `flying_height` check,
+#' so a frame near the edge of the band can change `height_source` between them.
+#' See `inst/notes/terrain-correction.md` (fly#80).
+#'
 #' Resolution matters less here than extent. A 30 m DEM resolves a 2.7 km
 #' footprint's mean elevation perfectly well; a DEM that stops short of the
 #' frame edges does not, and this is the ordinary failure rather than an exotic
@@ -812,9 +821,9 @@ fly_is_square <- function(footprints) {
 #' near-shore sea at about 0.14 m, not nodata, so the mean takes in the sea
 #' surface the photo images and `dem_coverage` stays near 1. Against a ray-cast
 #' of the true footprint on bare earth, that is closer on area than the
-#' land-only mean, and the land-only mean places the land edge better. A canopy
-#' can reverse the first, and matched for relief the sea does make the land edge
-#' worse than it is inland. LidarBC was mostly nodata over sea where probed, so
+#' land-only mean, and the land-only mean places the land edge better. The first
+#' holds under the canopy BC actually has (fly#80), and matched for relief the sea
+#' does make the land edge worse than it is inland. LidarBC was mostly nodata over sea where probed, so
 #' there the same frame is sized nearer the land-only mean. See `inst/notes/terrain-correction.md` (fly#65).
 #'
 #' Buffer past the **corner** of the widest footprint, not its half-side: the

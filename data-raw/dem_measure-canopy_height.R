@@ -140,6 +140,15 @@ for (k in seq_along(META_TILES)) {
          "_avg.tif into ", META_DIR)
   }
 }
+HRDEM_PARTS <- c("1_3", "1_4", "1_5", "1_6", "1_7", "2_3", "2_4", "2_5", "2_6",
+                 "3_3", "3_4", "3_5", "3_6")
+for (pt in HRDEM_PARTS) {
+  f <- file.path(META_DIR, sprintf("hrdem_%s-coverage.gpkg", pt))
+  if (!file.exists(f)) {
+    stop("missing ", f, ": download ", BUCKET, "/hrdem-mosaic-2m/", pt,
+         "-mosaic-2m-coverage.gpkg to that path")
+  }
+}
 pub("  Meta CHM: %d local 10-degree tiles, %.1f GB", length(meta_paths),
     sum(file.size(meta_paths)) / 1e9)
 
@@ -186,8 +195,6 @@ meta_on <- function(template) {
 }
 
 # HRDEM's 2 m lidar mosaic on the MRDEM window's grid, where a partition covers it.
-HRDEM_PARTS <- c("1_3", "1_4", "1_5", "1_6", "1_7", "2_3", "2_4", "2_5", "2_6",
-                 "3_3", "3_4", "3_5", "3_6")
 HRDEM <- list()
 hrdem_on <- function(template, what) {
   if (is.null(HRDEM[[what]])) {
