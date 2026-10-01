@@ -250,3 +250,34 @@ points; 155 sat under a tile with both DEM and DSM. Tile years: 2024 85, 2025 25
 | `TIFFFillStrip: Read error` aborted 6.5 h of LidarBC windows | Per-window cache, one retry, failures counted |
 | LidarBC means of 1e37 | Undeclared nodata; clamp to [−100, 5000] m |
 | 6.5 h for 150 windows | Download each tile (strip TIFF), project locally |
+
+## Amendment 3 — fixed 2026-09-30 from code-check round 1, before any VRI query has run
+
+Clause 4 (epoch) as Amendment 1 wrote it had three defects, all found by review before Stage 4
+ever ran (the full run was stopped at the end of Stage 3):
+
+- **The draw.** "Capped at 250, drawn with probability proportional to weight" and then weighted
+  again by the design weight counts heavy strata twice (`sample.int(prob =)` without replacement
+  is successive sampling; inclusion ran from 1.00 at weight ≥ 902 to 0.01 at weight 1 in the
+  reviewer's simulation). Now: **every** admitted frame with `d_c ≥ 0.5%`, design-weighted; a cap
+  (400) applies only above that and is drawn **uniformly**.
+- **The heights.** VRI projects every polygon to one date (2025-12-31), so `PROJ_HEIGHT_1` is
+  neither epoch's height. Heights are carried back linearly in age: `h(t) = h (t − O)/(yr − O)`,
+  `c_now = h(cy)`, `c_then = h(py)` for stands standing at the photo. A stand that originated
+  after the photo but before the canopy epoch replaced one of unknown height: neutral,
+  `c_then = c_now`. A stand that originated after the canopy epoch was seen by neither surface:
+  its area is unknown and left out of both means (`unknown_share` reports it).
+- **The denominator.** A frame whose VRI is all non-treed has both errors 0 and stays in; only a
+  frame with no VRI, or with all its VRI area unknown, drops out, and both are counted.
+
+The verdict threshold (weighted share under 10% per decade) is unchanged.
+
+## Code-check round 1 (`review-round1.md`) — disposition
+
+| finding | disposition |
+|---|---|
+| bug: PPS draw then weighted again | Fixed (Amendment 3) |
+| bug: VRI heights at 2025, not the epoch | Fixed (Amendment 3) |
+| bug, low: all-non-treed frames dropped | Fixed (Amendment 3) |
+| fragile: one seed at the top | Fixed: `set.seed(80)` immediately before each of the four draws; verified that re-seeding before the stratified draw reproduces the cached 612-frame sample exactly |
+| fragile: unweighted medians quoted | Census calibration and epoch medians now weighted; identity and first-order lines labelled "sample, unweighted" (instrument diagnostics, not population figures) |

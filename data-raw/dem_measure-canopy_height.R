@@ -65,7 +65,6 @@ FORMAT_M   <- 9 * 0.0254
 
 stopifnot(dir.exists(CENTROIDS), file.exists(LAND_TILES))
 dir.create(CACHE, recursive = TRUE, showWarnings = FALSE)
-set.seed(80)
 
 write_if_changed <- function(d, path) {
   tmp <- tempfile(fileext = ".csv")
@@ -298,16 +297,20 @@ if (!file.exists(SRC_COARSE)) {
   stopifnot(file.rename(tmp, SRC_COARSE))
 }
 sc <- terra::rast(SRC_COARSE)
-scp <- sf::st_transform(sf::st_as_sf(as.data.frame(terra::xyFromCell(sc, seq_len(terra::ncell(sc)))),
-                                     coords = c("x", "y"), crs = terra::crs(sc)), 3005)
-on_land <- lengths(sf::st_intersects(scp, tiles)) > 0
+ON_LAND <- file.path(CACHE, paste0("source_on_land_", VKEY, ".rds"))
+if (!file.exists(ON_LAND)) {
+  scp <- sf::st_transform(sf::st_as_sf(as.data.frame(terra::xyFromCell(sc, seq_len(terra::ncell(sc)))),
+                                       coords = c("x", "y"), crs = terra::crs(sc)), 3005)
+  save_atomic(lengths(sf::st_intersects(scp, tiles)) > 0, ON_LAND)
+  rm(scp)
+}
+on_land <- readRDS(ON_LAND)
 sv <- terra::values(sc)[on_land, 1]
 SRC_SHARE <- c(radar = mean(sv %in% 1), blend = mean(sv %in% 5), lidar = mean(sv %in% 10),
                none = mean(!sv %in% c(1, 5, 10)))
 pub("  MRDEM source over BC land (%d coarse cells at %.0f m): radar %.3f, blend %.3f, lidar %.3f, other/none %.3f",
     length(sv), terra::res(sc)[1], SRC_SHARE[["radar"]], SRC_SHARE[["blend"]], SRC_SHARE[["lidar"]],
     SRC_SHARE[["none"]])
-rm(scp)
 
 # Does any lidar ground in NRCan's own HRDEM mosaic sit under cells MRDEM took from radar?
 # Measured, not assumed: random points in the HRDEM *DTM* coverage over BC (its DSM reaches
@@ -322,6 +325,8 @@ if (!file.exists(HRDEM_COUNT)) {
   }))
   cov <- sf::st_transform(sf::st_union(cov), 3005)
   cov <- sf::st_intersection(cov, sf::st_union(sf::st_geometry(tiles)))
+  # Every draw is seeded where it happens, so it does not depend on which caches existed.
+  set.seed(80)
   cand <- sf::st_sample(cov, if (SMOKE) 200 else 3000)
   cv <- terra::extract(src, terra::vect(sf::st_transform(cand, terra::crs(src))))[, 2]
   save_atomic(c(n = length(cv), radar = sum(cv %in% 1), lidar = sum(cv %in% 10),
@@ -382,6 +387,7 @@ lidar_window <- function(both, pt) {
 }
 if (!file.exists(LIDAR_PROBE)) {
   radar_cells <- which(on_land)[sv %in% 1]
+  set.seed(80)
   pick <- radar_cells[sample.int(length(radar_cells), if (SMOKE) 60 else 1500)]
   xy <- terra::xyFromCell(sc, pick) +
     matrix(stats::runif(2 * length(pick), -.5, .5) * terra::res(sc)[1], ncol = 2)
@@ -593,6 +599,7 @@ if (!file.exists(SAMPLE)) {
   pool <- census[!is.na(census$p_census), ]
   pool$stratum <- paste(pool$p_band, pool$scale_band, sep = "/")
   N_h <- table(pool$stratum)
+  set.seed(80)
   idx <- unlist(lapply(split(seq_len(nrow(pool)), pool$stratum), function(i) {
     i[sample.int(length(i), min(N_PER_STRATUM, length(i)))]
   }), use.names = FALSE)
@@ -777,50 +784,77 @@ ms$raycast_ok <- ms$admitted & ms$rays_bad_dtm %in% 0 & ms$rays_bad_dsm %in% 0 &
   is.finite(ms$area_t_dtm) & is.finite(ms$area_t_dsm)
 
 EPOCH <- file.path(CACHE, paste0("epoch_", VKEY, ".rds"))
-N_EPOCH <- if (SMOKE) 2 else 250
+EPOCH_DIR <- file.path(CACHE, paste0("epoch_frames_", VKEY))
+dir.create(EPOCH_DIR, showWarnings = FALSE)
+N_EPOCH <- if (SMOKE) 2 else 400
 if (!file.exists(EPOCH)) {
   ep <- ms[ms$admitted & is.finite(ms$d_c) & ms$d_c >= .005, ]
-  pick <- if (nrow(ep) > N_EPOCH) sample.int(nrow(ep), N_EPOCH, prob = ep$weight) else seq_len(nrow(ep))
-  ep <- ep[pick, ]
+  # Every eligible frame, carrying its design weight. A cap is drawn uniformly, never in
+  # proportion to weight: a weighted draw without replacement, then weighted again, counts the
+  # heavy strata twice (Amendment 3, from code-check round 1).
+  if (nrow(ep) > N_EPOCH) {
+    set.seed(80)
+    ep <- ep[sort(sample.int(nrow(ep), N_EPOCH)), ]
+  }
   vri_one <- function(row) {
     h <- sqrt(row$area_w_dtm) / 2
     fpg <- sf::st_sfc(close_ring(cbind(row$x + c(-h, h, h, -h), row$y + c(-h, -h, h, h))), crs = 3005)
-    v <- tryCatch(
-      bcdata::bcdc_query_geodata("WHSE_FOREST_VEGETATION.VEG_COMP_LYR_R1_POLY") |>
-        bcdata::filter(bcdata::INTERSECTS(fpg)) |>
-        bcdata::select(PROJ_AGE_1, PROJ_HEIGHT_1, PROJECTED_DATE, BCLCS_LEVEL_2) |>
-        bcdata::collect(),
-      error = function(e) structure(conditionMessage(e), class = "vri_error"))
+    q1 <- function() bcdata::bcdc_query_geodata("WHSE_FOREST_VEGETATION.VEG_COMP_LYR_R1_POLY") |>
+      bcdata::filter(bcdata::INTERSECTS(fpg)) |>
+      bcdata::select(PROJ_AGE_1, PROJ_HEIGHT_1, PROJECTED_DATE, BCLCS_LEVEL_2) |>
+      bcdata::collect()
+    v <- tryCatch(q1(), error = function(e) tryCatch(q1(), error = function(e2) {
+      structure(conditionMessage(e2), class = "vri_error")
+    }))
     if (inherits(v, "vri_error")) stop("VRI query failed for ", row$airp_id, ": ", v)
+    A <- as.numeric(sf::st_area(fpg))
     base <- data.frame(airp_id = row$airp_id, vri_share = 0, treed_share = 0,
-                       c_now = NA_real_, c_then = NA_real_, young_share = NA_real_,
-                       replaced_share = NA_real_)
+                       unknown_share = NA_real_, c_now = NA_real_, c_then = NA_real_,
+                       young_share = NA_real_, replaced_share = NA_real_)
     if (!nrow(v)) return(base)
     v <- suppressWarnings(sf::st_intersection(sf::st_make_valid(v), fpg))
     a <- as.numeric(sf::st_area(v))
-    A <- as.numeric(sf::st_area(fpg))
     base$vri_share <- sum(a) / A
     tr <- v$BCLCS_LEVEL_2 %in% "T" & is.finite(v$PROJ_AGE_1) & is.finite(v$PROJ_HEIGHT_1)
     base$treed_share <- sum(a[tr]) / A
-    if (!any(tr)) return(base)
     # Canopy epoch: the lidar project where the frame is mostly lidar-sourced (median 2018 per
     # the specification), GLO-30's collection otherwise (2011-2015, midpoint 2013).
     cy <- if (isTRUE(row$lidar_share > .5)) 2018 else 2013
+    py <- row$photo_year
+    # VRI projects every polygon to one date (2025-12-31 when probed), so its height is the
+    # height THEN, not at either epoch. Heights are carried back linearly in age (Amendment 3):
+    # height at year t is h (t - O) / (yr - O). Linear in age understates how short a young
+    # stand is, so it understates harm.
     yr <- as.numeric(substr(as.character(v$PROJECTED_DATE), 1, 4))
     O <- yr - v$PROJ_AGE_1
-    h_now <- v$PROJ_HEIGHT_1
-    # Linear height with age: understates how short a young stand is, so understates harm.
-    frac <- ifelse(O <= row$photo_year, pmin(1, pmax(0, (row$photo_year - O) / pmax(cy - O, 1))), 1)
-    c_then <- h_now * frac
-    # Non-treed and un-inventoried ground carries no canopy in either epoch here.
-    base$c_now <- sum(a[tr] * h_now[tr]) / sum(a)
-    base$c_then <- sum(a[tr] * c_then[tr]) / sum(a)
-    base$young_share <- sum(a[tr & O <= row$photo_year & frac < .5]) / sum(a[tr])
-    base$replaced_share <- sum(a[tr & O > row$photo_year]) / sum(a[tr])
+    at <- function(t) ifelse(t >= O, v$PROJ_HEIGHT_1 * pmax(0, t - O) / pmax(yr - O, 1), NA_real_)
+    h_now <- at(cy)
+    # A stand that originated after the photo replaced one whose height is unknown: neutral,
+    # c_then = c_now. One that originated after the canopy epoch was not what the DSM saw
+    # either; both epochs saw stands that are gone, so that area is unknown and left out.
+    unknown <- tr & O > cy
+    c_then <- ifelse(O <= py, at(py), h_now)
+    known <- !unknown
+    base$unknown_share <- sum(a[unknown]) / sum(a)
+    if (!any(known)) return(base)
+    # Non-treed ground carries no canopy in either epoch: it stays in the mean as zero, so a
+    # frame with no treed polygon has both errors 0 rather than dropping out (round 1).
+    w <- a[known]
+    base$c_now <- sum(w * ifelse(tr[known], h_now[known], 0)) / sum(w)
+    base$c_then <- sum(w * ifelse(tr[known], c_then[known], 0)) / sum(w)
+    tk <- tr & known
+    if (any(tk)) {
+      base$young_share <- sum(a[tk & O <= py & (py - O) < (cy - O) / 2]) / sum(a[tk])
+      base$replaced_share <- sum(a[tk & O > py]) / sum(a[tk])
+    }
     base
   }
-  ev <- do.call(rbind, lapply(seq_len(nrow(ep)), function(i) vri_one(ep[i, ])))
-  save_atomic(ev, EPOCH)
+  rows <- lapply(seq_len(nrow(ep)), function(i) {
+    f <- file.path(EPOCH_DIR, paste0(ep$airp_id[i], ".rds"))
+    if (!file.exists(f)) save_atomic(vri_one(ep[i, ]), f)
+    readRDS(f)
+  })
+  save_atomic(do.call(rbind, rows), EPOCH)
 }
 ev <- readRDS(EPOCH)
 ev <- merge(ms[, c("airp_id", "weight", "photo_year", "decade", "d_c", "radar_share")], ev, by = "airp_id")
@@ -844,11 +878,12 @@ pub("  admitted weight %.0f of %.0f (%.3f)", sum(a$weight), sum(ms$weight), sum(
 # Control 3: the census, calibrated against the 30 m read on the same frames.
 a$p30 <- a$c30 / a$agl_dtm
 cal <- a$p_census / a$p30
-pub("  census calibration: median p_census / p30 %.3f on %d frames with p30 >= 0.25%%; census p against 30 m p, weighted 95th %.4f vs %.4f",
-    stats::median(cal[a$p30 >= .0025], na.rm = TRUE), sum(a$p30 >= .0025, na.rm = TRUE),
+pub("  census calibration: weighted median p_census / p30 %.3f on %d frames with p30 >= 0.25%%; census p against 30 m p, weighted 95th %.4f vs %.4f",
+    wq(cal, a$weight * (a$p30 >= .0025), .5), sum(a$p30 >= .0025, na.rm = TRUE),
     wq(a$p_census, a$weight, .95), wq(a$p30, a$weight, .95))
 # The identity: side_dtm / side_dsm - 1 = c / (agl_dsm) to first order, from the two passes.
-pub("  identity: median |d_c - c30 / agl_dsm| %.2e", stats::median(abs(a$d_c - a$c30 / a$agl_dsm), na.rm = TRUE))
+# A diagnostic of the instrument, not a population figure: unweighted over the sample.
+pub("  identity (sample, unweighted): median |d_c - c30 / agl_dsm| %.2e", stats::median(abs(a$d_c - a$c30 / a$agl_dsm), na.rm = TRUE))
 
 # 1. Materiality.
 pub("  d_c (side_dtm / side_dsm - 1), weighted: median %.4f, 90th %.4f, 95th %.4f, 99th %.4f; share over 0.5%% %.3f, over 1%% %.3f",
@@ -890,7 +925,7 @@ not_degraded <- p_dsm <= p_dtm + .01
 pub("  RECTANGLE NOT DEGRADED (DSM 95th within DTM 95th + 1 point): %s", not_degraded)
 pub("  the package today against the canopy surface, weighted: median %+.4f, 95th |.| %.4f; signed share too wide %.3f",
     wq(r$today, r$weight, .5), wq(abs(r$today), r$weight, .95), sum(r$weight[r$today > 0]) / sum(r$weight))
-pub("  first order: median |(today - rho_dtm) - d_c| %.2e (realised canopy shift against predicted)",
+pub("  first order (sample, unweighted): median |(today - rho_dtm) - d_c| %.2e (realised canopy shift against predicted)",
     stats::median(abs((1 + r$today) / (1 + r$rho_dtm) - 1 - r$d_c), na.rm = TRUE))
 
 # 3. The canopy instrument on radar cells.
@@ -899,16 +934,17 @@ valid <- slope >= 0.67 && slope <= 1.5
 pub("  INSTRUMENT VALID ON RADAR CELLS (lidar-probe slope %.3f within [0.67, 1.5]): %s", slope, valid)
 
 # 4. Epoch.
-pub("  epoch: %d frames with d_c >= 0.5%%; VRI covers median %.3f of the footprint, treed median %.3f",
-    nrow(ev), stats::median(ev$vri_share), stats::median(ev$treed_share))
+pub("  epoch: %d frames with d_c >= 0.5%% (weight %.0f); VRI covers weighted median %.3f of the footprint, treed %.3f; %d with no VRI at all, %d whose VRI area is all unknown",
+    nrow(ev), sum(ev$weight), wq(ev$vri_share, ev$weight, .5), wq(ev$treed_share, ev$weight, .5),
+    sum(ev$vri_share == 0), sum(ev$vri_share > 0 & !is.finite(ev$c_then)))
 epoch_ok <- character(0)
 for (dd in sort(unique(ev$decade))) {
   x <- ev[ev$decade == dd & is.finite(ev$c_then), ]
   if (!nrow(x)) next
   sh <- sum(x$weight[x$dsm_worse]) / sum(x$weight)
-  pub("  epoch %d n=%3d: DSM worse than DTM on weighted share %.3f; median c_then %.1f m c_now %.1f m; young-at-photo share %.3f, replaced-since %.3f",
-      dd, nrow(x), sh, stats::median(x$c_then), stats::median(x$c_now),
-      stats::median(x$young_share, na.rm = TRUE), stats::median(x$replaced_share, na.rm = TRUE))
+  pub("  epoch %d n=%3d: DSM worse than DTM on weighted share %.3f; weighted median c_then %.1f m c_now %.1f m; young-at-photo share %.3f, replaced-since %.3f",
+      dd, nrow(x), sh, wq(x$c_then, x$weight, .5), wq(x$c_now, x$weight, .5),
+      wq(x$young_share, x$weight, .5), wq(x$replaced_share, x$weight, .5))
   if (sh < .10) epoch_ok <- c(epoch_ok, as.character(dd))
 }
 pub("  EPOCH HOLDS for decades: %s", if (length(epoch_ok)) paste(epoch_ok, collapse = ", ") else "none")
@@ -945,8 +981,8 @@ keep <- c("airp_id", "photo_year", "decade", "film_roll", "frame_number", "scale
           "area_t_dtm", "area_t_dsm", "area_t_dsm_inv", "admitted")
 sig <- function(d) { num <- vapply(d, is.double, logical(1)); d[num] <- lapply(d[num], signif, 10); d }
 out_s <- sig(ms[order(ms$stratum, ms$airp_id), keep])
-out_e <- sig(ev[order(ev$airp_id), c("airp_id", "vri_share", "treed_share", "c_now", "c_then",
-                                     "young_share", "replaced_share")])
+out_e <- sig(ev[order(ev$airp_id), c("airp_id", "vri_share", "treed_share", "unknown_share", "c_now",
+                                     "c_then", "young_share", "replaced_share")])
 out_l <- sig(lp)
 out_st <- sig(sites_out)
 out_c <- sig(cc[order(cc$airp_id), ])
