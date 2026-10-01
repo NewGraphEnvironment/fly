@@ -297,11 +297,15 @@ adjust <- function(xy, centre, par) {
 }
 REG_BOUND <- 8      # rotation (degrees) and scale (%) the registration may search
 
+# Rotation is not searched by default: the image's rotation comes from the measured shift and
+# the flight line's bearing, and a free rotation let the search buy fit with a -7.5 degree turn
+# and a 6% scale change on a synthetic whose true answer was 0 and 0 (bc78008 184: canopy slope
+# 0.843 with rotation, 1.122 without; Amendment B).
 # Match, place and register one pair. `a`, `b` are grey matrices; `geom` carries the A and B
 # centroids (EPSG:3005), H, the scale denominator and focal length; `wt`, `ws` are DTM and DSM
 # windows in memory. Registration — offset, rotation and scale, normal and mirrored — maximises
 # the DTM fit of every matched patch's parallax. It never sees C.
-measure_core <- function(a, b, geom, wt, ws, register = TRUE, reg_on = "open") {
+measure_core <- function(a, b, geom, wt, ws, register = TRUE, reg_on = "open", rotate = FALSE) {
   nn <- pmin(dim(a), dim(b))
   a <- a[seq_len(nn[1]), seq_len(nn[2])]
   b <- b[seq_len(nn[1]), seq_len(nn[2])]
@@ -314,7 +318,7 @@ measure_core <- function(a, b, geom, wt, ws, register = TRUE, reg_on = "open") {
   if (!is.finite(gs[["row"]])) return(list(status = "no_global", gs = gs))
   gp <- patch_shifts(a, b, gs)
   e_w <- at_xy(wt, rbind(xyA))
-  if (!is.finite(e_w)) return(list(status = "no_dem", gs = gs))
+  if (!is.finite(e_w)) return(list(status = "transient: no_dem", gs = gs))
   f_px <- geom$f_mm / pitch
   gsd <- (geom$H - e_w) / f_px
   patch_m <- 64 * gsd
@@ -330,6 +334,7 @@ measure_core <- function(a, b, geom, wt, ws, register = TRUE, reg_on = "open") {
   X <- poly2(gp$xn, gp$yn)
   y <- ifelse(matched, 1 / gp$p, NA_real_)
   res <- list()
+  use_open <- NULL                 # decided on the normal placement, then held for the mirror
   for (mir in c(FALSE, TRUE)) {
     v <- img_vec(gp$r, gp$c, nrow(a), ncol(a), mirror = mir)
     th <- image_theta(gs, bearing, mirror = mir)
@@ -342,7 +347,9 @@ measure_core <- function(a, b, geom, wt, ws, register = TRUE, reg_on = "open") {
     # canopy seen and not seen.
     c0 <- at_xy(wss, rc$xy) - at_xy(wts, rc$xy)
     open_ok <- matched & is.finite(c0) & c0 < 2
-    use_open <- reg_on == "open" && sum(open_ok) >= 30
+    # The objective is fixed once, on the normal placement: scoring normal and mirror with
+    # different objectives could flip the mirror choice on that alone (code-check round 1).
+    if (is.null(use_open)) use_open <- reg_on == "open" && sum(open_ok) >= 30
     yr <- ifelse(open_ok, y, NA_real_)
     score <- if (use_open) {
       function(par) fit_r2(yr, cbind(X, at_xy(wts, adjust(rc$xy, xyA, par))))
@@ -369,13 +376,16 @@ measure_core <- function(a, b, geom, wt, ws, register = TRUE, reg_on = "open") {
     }
     k <- which.max(r2)
     o <- stats::optim(c(offs$dE[k], offs$dN[k], 0, 0), function(par) {
+      if (!rotate) par[3] <- 0
       if (any(abs(par[3:4]) > REG_BOUND)) return(1)
       s <- score(par)
       if (is.na(s)) 1 else -s
     }, control = list(maxit = 300, parscale = c(30, 30, 1, 1)))
+    if (!rotate) o$par[3] <- 0
     res[[key]] <- list(xy = rc$xy, bad = rc$bad, par = o$par, r2 = -o$value, open = use_open)
   }
-  mirror <- isTRUE(res$mirror$r2 > res$normal$r2)
+  mirror <- isTRUE(res$mirror$r2 > res$normal$r2) ||
+    (!is.finite(res$normal$r2) && is.finite(res$mirror$r2))
   R <- res[[if (mirror) "mirror" else "normal"]]
   if (register && !is.finite(R$r2)) return(list(status = "no_registration", gs = gs))
   xy <- adjust(R$xy, xyA, R$par)
@@ -472,6 +482,9 @@ vri_classes <- function(gp, v, year, patch_m, src) {
     ep <- EPOCH_OF[ifelse(is.na(srcl), "r", srcl)]
     r <- pmin(pmax((year - O) / (ep - O), 0), 1)
   }
+  # A mid or old patch whose centre VRI cannot date has no prediction; zeroing its r would say VRI
+  # predicts bare ground there and pull phi_VRI down, so it is `other` (code-check round 1).
+  cls[cls %in% c("mid", "old") & !is.finite(r)] <- "other"
   split <- cls %in% c("mid", "old")
   cls[split & is.na(srcl)] <- "other"
   cls[split & !is.na(srcl)] <- paste0(cls[split & !is.na(srcl)], "_", srcl[split & !is.na(srcl)])
@@ -509,10 +522,12 @@ pair_stats <- function(gp, H, e_w, q_sd) {
   y <- y / g
   sigma <- (H - e_w) / stats::median(gp$p) * q_sd / abs(g)
   w <- 1 / sigma^2
-  ystar <- rowSums(sapply(COLS, function(k) {
-    if (k %in% c("mid_r", "mid_l", "old_r", "old_l")) ifelse(gp$cls == k, gp$rv * gp$C, 0) else 0
-  }))
-  ystar[!is.finite(ystar)] <- 0
+  # One vector per column, every branch length n: a scalar from some branches made `sapply()`
+  # return a list and `rowSums()` fail (code-check round 1).
+  ystar <- rowSums(vapply(COLS, function(k) {
+    if (k %in% c("mid_r", "mid_l", "old_r", "old_l")) ifelse(gp$cls == k, gp$rv * gp$C, 0)
+    else numeric(nrow(gp))
+  }, numeric(nrow(gp))))
   stat <- function(NN) {
     yp <- resid_on(y, NN)
     Zp <- apply(Z, 2, function(z) resid_on(z, NN))
@@ -621,15 +636,40 @@ fetch_pair <- function(roll, frame) {
   dest <- file.path(THUMBS, basename(urls))
   for (k in 1:2) {
     if (!file.exists(dest[k]) || file.size(dest[k]) == 0) {
-      h <- curl::curl_fetch_disk(urls[k], dest[k])
-      if (h$status_code != 200) {
-        unlink(dest[k])
-        return(list(status = paste0("thumbnail_http_", h$status_code)))
+      # To a part file, renamed only when complete: an interrupted download must not leave a
+      # truncated thumbnail the next run reuses (code-check round 1).
+      part <- paste0(dest[k], ".part")
+      h <- tryCatch(curl::curl_fetch_disk(urls[k], part), error = function(e) e)
+      if (inherits(h, "error")) {
+        unlink(part)
+        return(list(status = paste("transient: thumbnail", conditionMessage(h))))
       }
+      if (h$status_code != 200) {
+        unlink(part)
+        return(list(status = paste0(if (h$status_code == 404) "" else "transient: ",
+                                    "thumbnail_http_", h$status_code)))
+      }
+      file.rename(part, dest[k]) || stop("could not rename ", part)
     }
   }
   list(status = "ok", a_row = a_row, b_row = b_row, dest = dest)
 }
+vri_over <- function(xy) {
+  bb <- c(min(xy[, 1]), min(xy[, 2]), max(xy[, 1]), max(xy[, 2]))
+  poly <- sf::st_as_sfc(sf::st_bbox(c(xmin = bb[1], ymin = bb[2], xmax = bb[3], ymax = bb[4]),
+                                    crs = sf::st_crs(3005)))
+  q1 <- function() {
+    bcdata::bcdc_query_geodata("WHSE_FOREST_VEGETATION.VEG_COMP_LYR_R1_POLY") |>
+      bcdata::filter(bcdata::INTERSECTS(poly)) |>
+      bcdata::select(PROJ_AGE_1, PROJ_HEIGHT_1, PROJECTED_DATE, BCLCS_LEVEL_2) |>
+      bcdata::collect()
+  }
+  v <- tryCatch(q1(), error = function(e) tryCatch(q1(), error = function(e2) e2))
+  if (inherits(v, "error")) stop("VRI query failed: ", conditionMessage(v))
+  if (nrow(v)) v <- sf::st_transform(v, 3005)
+  v
+}
+
 geom_of <- function(a_row, b_row, shift = c(0, 0)) {
   list(xyA = c(a_row$x, a_row$y) + shift, xyB = c(b_row$x, b_row$y) + shift,
        H = a_row$flying_height, sn = as.numeric(sub("1:", "", a_row$scale)),
@@ -710,27 +750,29 @@ synth_pair <- function(a, geom, wt, ws, kappa, flat, nuisance = TRUE) {
   }
   # Fields in image rows: the row shift is down-the-rows (content moves +row), the column
   # shift rightwards. In image (x right, y up) a +y component is -row.
-  to_full <- function(z) {
-    fld <- terra::rast(nrows = length(rs), ncols = length(cs), xmin = 0, xmax = length(cs),
-                       ymin = 0, ymax = length(rs))
-    terra::values(fld) <- matrix(z, nrow = length(rs))
-    full <- terra::rast(nrows = nr, ncols = nc, xmin = 0, xmax = length(cs), ymin = 0,
-                        ymax = length(rs))
-    m <- terra::as.matrix(terra::resample(fld, full, method = "bilinear"), wide = TRUE)
-    m[!is.finite(m)] <- mean(m, na.rm = TRUE)
-    m
-  }
-  sr <- to_full(par - tr)
-  sc <- to_full(tc)
   interp <- function(M, ii, jj) {
-    i0 <- pmin(pmax(floor(ii), 1), nr - 1)
-    j0 <- pmin(pmax(floor(jj), 1), nc - 1)
+    n1 <- nrow(M)
+    n2 <- ncol(M)
+    i0 <- pmin(pmax(floor(ii), 1), n1 - 1)
+    j0 <- pmin(pmax(floor(jj), 1), n2 - 1)
     fi <- pmin(pmax(ii - i0, 0), 1)
     fj <- pmin(pmax(jj - j0, 0), 1)
-    at <- function(i, j) M[(j - 1) * nr + i]
+    at <- function(i, j) M[(j - 1) * n1 + i]
     (1 - fi) * (1 - fj) * at(i0, j0) + fi * (1 - fj) * at(i0 + 1, j0) +
       (1 - fi) * fj * at(i0, j0 + 1) + fi * fj * at(i0 + 1, j0 + 1)
   }
+  # Coarse field to full resolution by its own coordinates: coarse row k is image row
+  # 1 + (k - 1) * st. A raster resample between two extents misplaced it by -3 to +1.3 px
+  # (code-check round 1).
+  to_full <- function(z) {
+    M <- matrix(z, nrow = length(rs))
+    M[!is.finite(M)] <- mean(M, na.rm = TRUE)
+    irow <- matrix(rep(seq_len(nr), nc), nr)
+    jcol <- matrix(rep(seq_len(nc), each = nr), nr)
+    matrix(interp(M, (irow - 1) / st + 1, (jcol - 1) / st + 1), nr)
+  }
+  sr <- to_full(par - tr)
+  sc <- to_full(tc)
   # B[i, j] = A[i - s_r, j - s_c], each shift taken at A's own pixel, not B's (a base apart):
   # fixed-point steps from the mean shift.
   irow <- matrix(rep(seq_len(nr), nc), nr)
@@ -756,15 +798,19 @@ synth_pair <- function(a, geom, wt, ws, kappa, flat, nuisance = TRUE) {
 # the pair's own DTM coefficient as `pair_stats()` divides them; flat cases have no terrain to
 # give one, and are read raw.
 synth_slope <- function(m, H, flat) {
-  if (!identical(m$status, "ok")) return(c(slope = NA, se = NA, n = 0))
+  none <- c(slope = NA, se = NA, n = 0, r2_full = NA, g_se = NA)
+  if (!identical(m$status, "ok")) return(none)
   gp <- m$gp[usable(m$gp), ]
+  if (nrow(gp) < 30) return(replace(none, "n", nrow(gp)))
   y <- implied_height(gp, H, m$e_w)
   N <- if (flat) poly2(gp$xn, gp$yn) else nuisance_of(gp)
   fit <- stats::lm(y ~ N + gp$C)
-  cf <- summary(fit)$coefficients
+  sm <- summary(fit)
+  cf <- sm$coefficients
   k <- nrow(cf)
   g <- if (flat) 1 else cf[k - 1, 1]
-  c(slope = cf[k, 1] / g, se = cf[k, 2] / abs(g), n = nrow(gp))
+  c(slope = cf[k, 1] / g, se = cf[k, 2] / abs(g), n = nrow(gp), r2_full = sm$r.squared,
+    g_se = if (flat) 0 else cf[k - 1, 2])
 }
 
 # The class-structured synthetic: the world is fly#80's VRI model exactly — on mid and old
@@ -772,8 +818,10 @@ synth_slope <- function(m, H, flat) {
 # the phi the VRI machinery predicts from the same patches (review-2 S5). Measured with the bare
 # reference at 0, since a synthetic has no DTM bias.
 class_phi <- function(m, src, v, year, H) {
-  if (!identical(m$status, "ok")) return(c(phi = NA, phi_vri = NA, n_mid = 0, n_old = 0))
+  none <- c(phi = NA, phi_vri = NA, n_mid = 0, n_old = 0, n = 0, r2_full = NA, g_se = NA)
+  if (!identical(m$status, "ok")) return(none)
   gp <- m$gp[usable(m$gp), ]
+  if (nrow(gp) < 30) return(replace(none, "n", nrow(gp)))
   vc <- vri_classes(gp, v, year, m$patch_m, src)
   gp$cls <- vc$cls
   gp$rv <- vc$r
@@ -784,7 +832,8 @@ class_phi <- function(m, src, v, year, H) {
   mid <- paste0("mid_", sname)
   old <- paste0("old_", sname)
   c(phi = unname(b[mid] / b[old]), phi_vri = unname(rb[mid] / rb[old]),
-    n_mid = sum(gp$cls == mid), n_old = sum(gp$cls == old))
+    n_mid = sum(gp$cls == mid), n_old = sum(gp$cls == old), n = nrow(gp),
+    r2_full = st$r2_full, g_se = st$g_se)
 }
 
 SYN_FILE <- file.path(CACHE, paste0("synthetic_", VKEY, ".rds"))
@@ -852,27 +901,33 @@ if (!file.exists(SYN_FILE)) {
       g1$xyB <- g1$xyB + d
     }
     m <- measure_core(a, sp$b, g1, win$wt, win$ws, register = !flat)
-    # The pair gates apply to a synthetic as to a real pair: a pair the instrument refuses is
-    # "gated", neither a pass nor a fail (Amendment B).
-    if (identical(m$status, "ok") && !flat &&
-        (abs(m$reg[["rot"]]) > 6 || abs(m$reg[["scl"]]) > 6)) m$status <- "gated_registration_bound"
     if (cs$set == "plain") {
       sl <- synth_slope(m, g1$H, flat)
       cp <- c(phi = NA, phi_vri = NA, n_mid = NA, n_old = NA)
     } else {
-      sl <- c(slope = NA, se = NA, n = if (identical(m$status, "ok")) sum(usable(m$gp)) else 0)
       cp <- class_phi(m, src_window(win$wt), v, fp$a_row$photo_year, g1$H)
+      sl <- c(slope = NA, se = NA, n = cp[["n"]], r2_full = cp[["r2_full"]], g_se = cp[["g_se"]])
+    }
+    # Every pair gate applies to a synthetic as to a real pair: one the gates refuse is "gated",
+    # neither a pass nor a fail (Amendment B; code-check round 1 found only rotation applied).
+    status <- m$status
+    if (identical(status, "ok")) {
+      status <- if (sl[["n"]] < 50) "gated_few_patches"
+      else if (!is.finite(sl[["r2_full"]]) || sl[["r2_full"]] < 0.5) "gated_model_r2"
+      else if (!flat && (abs(m$reg[["rot"]]) > 6 || abs(m$reg[["scl"]]) > 6)) "gated_registration_bound"
+      else if (!flat && (!is.finite(sl[["g_se"]]) || sl[["g_se"]] > 0.1)) "gated_dtm_scale"
+      else "ok"
     }
     rows[[i]] <- data.frame(set = cs$set, film_roll = srcs$film_roll[cs$src],
                             frame_number = srcs$frame_number[cs$src], case = cs$case,
                             displaced_m = if (cs$off) 150 else 0,
                             kappa = if (cs$set == "plain") kappa else NA,
-                            status = m$status, n = sl[["n"]], slope = sl[["slope"]],
+                            status = status, n = sl[["n"]], slope = sl[["slope"]],
                             se = sl[["se"]], phi = cp[["phi"]], phi_vri = cp[["phi_vri"]],
                             n_mid = cp[["n_mid"]], n_old = cp[["n_old"]],
                             reg_r2 = if (identical(m$status, "ok")) m$reg[["r2"]] else NA)
     pub("  synthetic %-5s %-9s %-8s off %3d  status %s  slope %+.3f  phi %.3f vs %.3f",
-        cs$set, rows[[i]]$film_roll, cs$case, rows[[i]]$displaced_m, m$status, rows[[i]]$slope,
+        cs$set, rows[[i]]$film_roll, cs$case, rows[[i]]$displaced_m, status, rows[[i]]$slope,
         rows[[i]]$phi, rows[[i]]$phi_vri)
   }
   save_atomic(do.call(rbind, rows), SYN_FILE)
@@ -882,15 +937,18 @@ SYN <- readRDS(SYN_FILE)
 # pair gates refuse is "gated". Each case needs at least two of its three frames measured and
 # passing, and none measured and failing (Amendment B).
 SYN$pass <- with(SYN, ifelse(displaced_m > 0 & set == "plain", NA,
-                 ifelse(grepl("^gated", status), NA,
+                 ifelse(grepl("^gated", status) | status %in% c("no_global", "no_registration"), NA,
                  ifelse(status != "ok", FALSE,
-                 ifelse(set == "class", is.finite(phi) & abs(phi - phi_vri) <= 0.10,
-                 ifelse(kappa == 0, abs(slope) <= 0.10, abs(slope - 1) <= 0.25))))))
+                 ifelse(set == "class", is.finite(phi) & is.finite(phi_vri) &
+                          abs(phi - phi_vri) <= 0.10,
+                 ifelse(!is.finite(slope), FALSE,
+                 ifelse(kappa == 0, abs(slope) <= 0.10, abs(slope - 1) <= 0.25)))))))
 for (i in seq_len(nrow(SYN))) {
   pub("  synthetic %-5s %-9s %-8s off %3d  slope %+.3f  phi %.3f vs %.3f  %s", SYN$set[i],
       SYN$film_roll[i], SYN$case[i], SYN$displaced_m[i], SYN$slope[i], SYN$phi[i],
       SYN$phi_vri[i],
-      if (grepl("^gated", SYN$status[i])) "(gated)" else if (is.na(SYN$pass[i]))
+      if (grepl("^gated", SYN$status[i]) || SYN$status[i] %in% c("no_global", "no_registration"))
+        "(refused)" else if (is.na(SYN$pass[i]))
         "(displaced, reported)" else if (SYN$pass[i]) "pass" else "FAIL")
 }
 judged <- SYN[!(SYN$set == "plain" & SYN$displaced_m > 0), ]
@@ -947,30 +1005,15 @@ SAMPLE <- readRDS(SAMPLE_FILE)
 pub("  sample: %d pairs (%s)", nrow(SAMPLE),
     paste(sprintf("%d: %d", DECADES, as.integer(table(factor(SAMPLE$decade, levels = DECADES)))),
           collapse = ", "))
-if (STOP_AFTER < 2) quit(save = "no")
+if (STOP_AFTER < 3) quit(save = "no")
 
 # ---------------------------------------------------------------------------
 # Stage 3 — per pair (cached, PSOCK)
 # ---------------------------------------------------------------------------
 
-vri_over <- function(xy) {
-  bb <- c(min(xy[, 1]), min(xy[, 2]), max(xy[, 1]), max(xy[, 2]))
-  poly <- sf::st_as_sfc(sf::st_bbox(c(xmin = bb[1], ymin = bb[2], xmax = bb[3], ymax = bb[4]),
-                                    crs = sf::st_crs(3005)))
-  q1 <- function() {
-    bcdata::bcdc_query_geodata("WHSE_FOREST_VEGETATION.VEG_COMP_LYR_R1_POLY") |>
-      bcdata::filter(bcdata::INTERSECTS(poly)) |>
-      bcdata::select(PROJ_AGE_1, PROJ_HEIGHT_1, PROJECTED_DATE, BCLCS_LEVEL_2) |>
-      bcdata::collect()
-  }
-  v <- tryCatch(q1(), error = function(e) tryCatch(q1(), error = function(e2) e2))
-  if (inherits(v, "error")) stop("VRI query failed: ", conditionMessage(v))
-  if (nrow(v)) v <- sf::st_transform(v, 3005)
-  v
-}
-
 measure_pair <- function(row) {
-  fp <- fetch_pair(row$film_roll, row$frame_number)
+  fp <- tryCatch(fetch_pair(row$film_roll, row$frame_number),
+                 error = function(e) list(status = paste("transient: catalogue", conditionMessage(e))))
   if (!identical(fp$status, "ok")) return(list(status = fp$status))
   a <- read_gray(fp$dest[1])
   b <- read_gray(fp$dest[2])
@@ -1007,8 +1050,10 @@ if (length(todo)) {
     f <- file.path(PAIRS_DIR, paste0(id, ".rds"))
     row <- SAMPLE[SAMPLE$airp_id == id, ][1, ]
     m <- tryCatch(measure_pair(row), error = function(e) list(status = paste("error:", conditionMessage(e))))
-    # A transient failure is not cached: it would bless an absence forever.
-    if (grepl("^error: VRI|^thumbnail_http_5", m$status)) return(m$status)
+    # Only a definitive outcome is cached. An error or anything transient (network, catalogue,
+    # a DEM read that returned NA) is not, or it would bless an absence forever; the run then
+    # refuses to report with holes, and a second run retries them (code-check round 1).
+    if (grepl("^error:|^transient:", m$status)) return(m$status)
     save_atomic(m, f)
     m$status
   }
@@ -1045,7 +1090,7 @@ if (length(todo)) {
 # with holes, as `mask_measure-interior_zeros.R` refuses on a frame that errored.
 missing <- SAMPLE$airp_id[!file.exists(file.path(PAIRS_DIR, paste0(SAMPLE$airp_id, ".rds")))]
 if (length(missing)) stop(length(missing), " pairs not measured (transient failures); run again")
-if (STOP_AFTER < 3) quit(save = "no")
+if (STOP_AFTER < 4) quit(save = "no")
 
 # ---------------------------------------------------------------------------
 # Stage 4 — the verdicts
@@ -1194,10 +1239,13 @@ combine <- function(est_pt, est_bt, which) {
   srcs <- names(SOURCE_OK)[SOURCE_OK]
   v <- vapply(srcs, function(sn) stats::var(vapply(est_bt, function(z) z[[sn]][["D"]], numeric(1)),
                                             na.rm = TRUE), numeric(1))
-  wv <- 1 / v
-  wv[!is.finite(wv)] <- 0
-  if (!sum(wv)) return(list(pt = NA_real_, bt = rep(NA_real_, length(est_bt))))
-  wv <- wv / sum(wv)
+  # A source with no estimate in this set (no variance, or no point) is dropped before summing:
+  # weight 0 times NA is NA, which made a whole decade NA (code-check round 1).
+  has_pt <- vapply(srcs, function(sn) is.finite(est_pt[[sn]][[which]]), logical(1))
+  keep <- is.finite(v) & v > 0 & has_pt
+  srcs <- srcs[keep]
+  if (!length(srcs)) return(list(pt = NA_real_, bt = rep(NA_real_, length(est_bt))))
+  wv <- (1 / v[keep]) / sum(1 / v[keep])
   pt <- sum(wv * vapply(srcs, function(sn) est_pt[[sn]][[which]], numeric(1)))
   bt <- vapply(est_bt, function(z) sum(wv * vapply(srcs, function(sn) z[[sn]][[which]], numeric(1))),
                numeric(1))
@@ -1218,22 +1266,21 @@ for (d in c(DECADES, NA)) {
   rows <- if (is.na(d)) rows_all else which(G$decade == d)
   if (!length(rows)) next
   near <- if (is.na(d)) rows_all else which(abs(G$decade - d) <= 10)
-  olds <- lapply(c(r = "r", l = "l"), function(sn) if (own_old(G[rows, ], sn)) rows else near)
+  own <- vapply(c(r = "r", l = "l"), function(sn) own_old(G[rows, ], sn), logical(1))
+  olds <- lapply(c(r = "r", l = "l"), function(sn) if (own[[sn]]) rows else near)
   pt <- estimate(rows, olds, BETA0[["r"]], "main")
   bt <- lapply(seq_len(N_BOOT), function(k) {
     ix <- boot_idx[[k]]
     ixd <- ix[ix %in% rows]
     ixn <- ix[ix %in% near]
-    estimate(ixd, lapply(olds, function(o) if (identical(o, rows)) ixd else ixn), boot_b0[k],
-             "main")
+    estimate(ixd, lapply(own, function(o) if (o) ixd else ixn), boot_b0[k], "main")
   })
   pti <- estimate(rows, olds, BETA0[["r"]], "icpt")
   bti <- lapply(seq_len(N_BOOT), function(k) {
     ix <- boot_idx[[k]]
     ixd <- ix[ix %in% rows]
     ixn <- ix[ix %in% near]
-    estimate(ixd, lapply(olds, function(o) if (identical(o, rows)) ixd else ixn), boot_b0[k],
-             "icpt")
+    estimate(ixd, lapply(own, function(o) if (o) ixd else ixn), boot_b0[k], "icpt")
   })
   D <- combine(pt, bt, "D")
   PHI <- combine(pt, bt, "phi")
@@ -1247,9 +1294,7 @@ for (d in c(DECADES, NA)) {
   if (v %in% c("more_canopy_than_vri", "less_canopy_than_vri") && all(is.finite(Di_ci)) &&
       ((D$pt > 0 && Di_ci[2] < 0) || (D$pt < 0 && Di_ci[1] > 0))) v <- "inconclusive"
   row <- data.frame(decade = label, n_pairs = length(rows),
-                    old_from = paste(vapply(c("r", "l"), function(sn) {
-                      if (identical(olds[[sn]], rows)) "own" else "adjacent"
-                    }, character(1)), collapse = "/"),
+                    old_from = paste(ifelse(own, "own", "adjacent"), collapse = "/"),
                     phi = PHI$pt, phi_lo = ci(PHI$bt)[1], phi_hi = ci(PHI$bt)[2],
                     phi_vri = VRI$pt, phi_vri_lo = ci(VRI$bt)[1], phi_vri_hi = ci(VRI$bt)[2],
                     D = D$pt, D_lo = D_ci[1], D_hi = D_ci[2], boot_fail = fail,
@@ -1264,7 +1309,7 @@ for (d in c(DECADES, NA)) {
   }
   for (k in COLS) row[[paste0("n_", k)]] <- sum(G[rows, paste0("n_", k)])
   verdict_rows[[label]] <- row
-  if (!SMOKE) {
+  if (!SMOKE && !nzchar(STOPPED)) {
     pub("  %-4s n=%3d old %-17s phi %.3f [%.3f, %.3f]  VRI %.3f  D %+.3f [%+.3f, %+.3f]  -> %s",
         label, length(rows), row$old_from, PHI$pt, row$phi_lo, row$phi_hi, VRI$pt, D$pt,
         D_ci[1], D_ci[2], v)
@@ -1277,6 +1322,9 @@ VERDICTS$source_l_separates <- SOURCE_OK[["l"]]
 VERDICTS$beta0_r <- BETA0[["r"]]
 VERDICTS$stopped <- STOPPED
 if (nzchar(STOPPED)) {
+  # Nothing below a stop is read (the rule): every estimate is blanked before it can be written.
+  est <- grepl("^(phi|D)", names(VERDICTS))
+  VERDICTS[est] <- NA_real_
   VERDICTS$verdict <- "not_read"
   pub("  STOP (%s): no verdict is read", STOPPED)
 }

@@ -179,8 +179,12 @@ DEM-eligible in fly#80's census (reported height inside `fly_height_ratio_band()
   base.
 - **Excluded**: roll bc5282 (the pilot leak) and every Phase 0 pilot roll.
 - **Draw**: per decade, rows are shuffled with `set.seed(82)`, one pair is kept per roll, and the
-  first **90** are taken. The draw is uniform within a decade, so every pair carries equal
-  weight. The pooled all-decade figure pools pairs, not decades.
+  first **90** are taken. The pooled all-decade figure pools pairs, not decades.
+  - *Corrected by code-check round 1*: the rule first said "uniform within a decade, so every
+    pair carries equal weight". With one pair per roll, a roll's chance of selection grows
+    with its eligible pairs, while the pair's chance within its roll shrinks.
+  - The draw is a spread across rolls, not an equal-probability sample of pairs, and the
+    estimand is precision-weighted (Amendment B). No design weights are claimed.
 - `FLY_PARALLAX_SMOKE=1` draws 2 per decade, into a separate cache.
 
 ### Verdicts, in order
@@ -259,12 +263,22 @@ seed (9182) and prints and writes no slope, φ or D.
    - **bc78008** (forested lidar, 1:10,000, < 30 open) reached only 0.676–0.689 under either.
      Both ran rotation to the −8° bound (`reg78.R`), which the pair gate refuses, so the
      instrument declines that pair rather than misreporting it. Truth there is 1.232.
+   - **Revised, still before any sampled pair (code-check round 1 period):** rotation is no
+     longer searched. The image rotation comes from the measured shift and the line's bearing,
+     and a free rotation overfits: on bc78008 the search turned 7.5° and scaled 6.3% where the
+     truth is 0 and 0. Fixing rotation gave canopy slope 1.122 (from 0.843), full-model R²
+     0.996 (from 0.979) and an offset of 21 m (`rot.R`). Offset and scale are still searched.
+   - **bc5225 151** (snow, 1967) reads 0.703 at κ=1 even at true placement (`rot2.R`, y-parallax
+     robust SD 1.48 px). That is the matcher's own attenuation on saturated texture, a per-pair
+     multiplier, which is what the in-pair φ ratio exists to cancel.
 4. **Synthetics carry 2-D nuisance**: tilt on both axes, 0.3° rotation and 0.3% scale between
    exposures. Base at a designed 62% overlap, not catalogue spacing. A synthetic that fails to
    measure FAILS.
 5. **Acceptance** (κ=1 tolerance widened before any sampled pair, and why). Synthetics pass
    through the same pair gates. A synthetic the gates refuse is *gated*, which is neither pass
-   nor fail. A synthetic that fails to measure is a FAIL. Each case (plain flat_C0, flat_C1,
+   nor fail. So is one the matcher refuses (`no_global`, `no_registration`), exactly as a real
+   pair that fails to match is dropped. A synthetic that measures and returns a wrong answer,
+   or NA, is a FAIL. Each case (plain flat_C0, flat_C1,
    dtm_C0, dtm_C1; class undisplaced; class displaced 150 m) needs ≥ 2 of its 3 frames
    measured and passing, and none measured and failing.
    - Plain κ=0 must be within 0.10 of 0: an additive bias does not cancel in φ.
