@@ -66,7 +66,7 @@ CENSUS_DIR <- "data-raw/.cache/dem_canopy"
 REPO       <- normalizePath(".")
 WORKERS    <- as.integer(Sys.getenv("FLY_PARALLAX_WORKERS", "3"))
 FORMAT_MM  <- 228.6
-ALG        <- "a3"                  # the algorithm tag every cache below carries
+ALG        <- "a4"                  # the algorithm tag every cache below carries
 
 dir.create(CACHE, recursive = TRUE, showWarnings = FALSE)
 dir.create(THUMBS, recursive = TRUE, showWarnings = FALSE)
@@ -274,7 +274,7 @@ smooth_to <- function(r, patch_m) {
   if (k %% 2 == 0) k <- k + 1
   terra::focal(r, w = hann_w(k), fun = "sum", na.rm = FALSE)
 }
-poly2 <- function(xn, yn) cbind(xn, yn, xn^2, yn^2, xn * yn)
+poly2 <- function(xn, yn) cbind(xn = xn, yn = yn, xn2 = xn^2, yn2 = yn^2, xnyn = xn * yn)
 resid_on <- function(y, X) {
   ok <- is.finite(y) & stats::complete.cases(X)
   r <- rep(NA_real_, length(y))
@@ -318,7 +318,7 @@ measure_core <- function(a, b, geom, wt, ws, register = TRUE, reg_on = "open", r
   if (!is.finite(gs[["row"]])) return(list(status = "no_global", gs = gs))
   gp <- patch_shifts(a, b, gs)
   e_w <- at_xy(wt, rbind(xyA))
-  if (!is.finite(e_w)) return(list(status = "transient: no_dem", gs = gs))
+  if (!is.finite(e_w)) return(list(status = "no_dem", gs = gs))
   f_px <- geom$f_mm / pitch
   gsd <- (geom$H - e_w) / f_px
   patch_m <- 64 * gsd
@@ -335,6 +335,7 @@ measure_core <- function(a, b, geom, wt, ws, register = TRUE, reg_on = "open", r
   y <- ifelse(matched, 1 / gp$p, NA_real_)
   res <- list()
   use_open <- NULL                 # decided on the normal placement, then held for the mirror
+  open_ok <- NULL                  # and so is the patch set it scores on
   for (mir in c(FALSE, TRUE)) {
     v <- img_vec(gp$r, gp$c, nrow(a), ncol(a), mirror = mir)
     th <- image_theta(gs, bearing, mirror = mir)
@@ -346,10 +347,13 @@ measure_core <- function(a, b, geom, wt, ws, register = TRUE, reg_on = "open", r
     # Where open ground is scarce, register with C as a free regressor, which is symmetric in
     # canopy seen and not seen.
     c0 <- at_xy(wss, rc$xy) - at_xy(wts, rc$xy)
-    open_ok <- matched & is.finite(c0) & c0 < 2
-    # The objective is fixed once, on the normal placement: scoring normal and mirror with
-    # different objectives could flip the mirror choice on that alone (code-check round 1).
-    if (is.null(use_open)) use_open <- reg_on == "open" && sum(open_ok) >= 30
+    # The objective and the patch set are fixed once, on the normal placement: scoring normal
+    # and mirror with different objectives (round 1) or on different patch sets — 200 open
+    # patches against 35 — could flip the mirror choice on that alone (round 2).
+    if (is.null(open_ok)) {
+      open_ok <- matched & is.finite(c0) & c0 < 2
+      use_open <- reg_on == "open" && sum(open_ok) >= 30
+    }
     yr <- ifelse(open_ok, y, NA_real_)
     score <- if (use_open) {
       function(par) fit_r2(yr, cbind(X, at_xy(wts, adjust(rc$xy, xyA, par))))
@@ -504,7 +508,7 @@ vri_classes <- function(gp, v, year, patch_m, src) {
 # - VRI. Xtr is the same statistic for y* = r C on mid and old patches: what fly#80's model says
 #   the camera saw. Solved with the pair's other columns it gives the slope VRI predicts.
 # - Sensitivity. The `_i` statistics add class intercepts to the nuisance (review-2 S3).
-nuisance_of <- function(gp) cbind(poly2(gp$xn, gp$yn), gp$gE, gp$gN, gp$dtm)
+nuisance_of <- function(gp) cbind(poly2(gp$xn, gp$yn), gE = gp$gE, gN = gp$gN, dtm = gp$dtm)
 pair_stats <- function(gp, H, e_w, q_sd) {
   y <- implied_height(gp, H, e_w)
   Z <- sapply(COLS, function(k) gp$C * (gp$cls == k))
@@ -512,7 +516,7 @@ pair_stats <- function(gp, H, e_w, q_sd) {
   live <- colSums(Z != 0) > 0
   Xf <- cbind(1, N, Z[, live, drop = FALSE])
   fit <- stats::lm.fit(Xf, y)
-  gi <- 1 + ncol(N)                                  # the DTM column
+  gi <- 1 + which(colnames(N) == "dtm")              # the DTM column
   df <- nrow(Xf) - fit$rank
   s2 <- sum(fit$residuals^2) / df
   XtXi <- tryCatch(solve(crossprod(Xf)), error = function(e) NULL)
@@ -621,7 +625,10 @@ roll_meta <- function(roll) {
     names(r) <- tolower(names(r))
     r$x <- xy[, 1]
     r$y <- xy[, 2]
-    save_atomic(as.data.frame(r), f)
+    # A unique temporary name: `save_atomic()` uses a fixed one and runs share ROLLS (round 2).
+    tmp <- tempfile(tmpdir = ROLLS, fileext = ".part")
+    saveRDS(as.data.frame(r), tmp)
+    file.rename(tmp, f) || stop("could not write ", f)
   }
   readRDS(f)
 }
@@ -638,7 +645,7 @@ fetch_pair <- function(roll, frame) {
     if (!file.exists(dest[k]) || file.size(dest[k]) == 0) {
       # To a part file, renamed only when complete: an interrupted download must not leave a
       # truncated thumbnail the next run reuses (code-check round 1).
-      part <- paste0(dest[k], ".part")
+      part <- tempfile(tmpdir = THUMBS, fileext = ".part")   # unique: runs share THUMBS
       h <- tryCatch(curl::curl_fetch_disk(urls[k], part), error = function(e) e)
       if (inherits(h, "error")) {
         unlink(part)
@@ -646,7 +653,9 @@ fetch_pair <- function(roll, frame) {
       }
       if (h$status_code != 200) {
         unlink(part)
-        return(list(status = paste0(if (h$status_code == 404) "" else "transient: ",
+        # 5xx and 429 can clear on a rerun; any other code is a property of the URL (round 2).
+        transient <- h$status_code >= 500 || h$status_code == 429
+        return(list(status = paste0(if (transient) "transient: " else "",
                                     "thumbnail_http_", h$status_code)))
       }
       file.rename(part, dest[k]) || stop("could not rename ", part)
@@ -803,14 +812,16 @@ synth_slope <- function(m, H, flat) {
   gp <- m$gp[usable(m$gp), ]
   if (nrow(gp) < 30) return(replace(none, "n", nrow(gp)))
   y <- implied_height(gp, H, m$e_w)
-  N <- if (flat) poly2(gp$xn, gp$yn) else nuisance_of(gp)
-  fit <- stats::lm(y ~ N + gp$C)
+  X <- cbind(if (flat) poly2(gp$xn, gp$yn) else nuisance_of(gp), C = gp$C)
+  fit <- stats::lm(y ~ X)
+  # By name, and refusing an aliased fit: `summary.lm()` drops aliased rows, so a position read
+  # returned a finite ratio of the wrong coefficients (code-check round 2).
+  if (anyNA(stats::coef(fit))) return(replace(none, "n", nrow(gp)))
   sm <- summary(fit)
   cf <- sm$coefficients
-  k <- nrow(cf)
-  g <- if (flat) 1 else cf[k - 1, 1]
-  c(slope = cf[k, 1] / g, se = cf[k, 2] / abs(g), n = nrow(gp), r2_full = sm$r.squared,
-    g_se = if (flat) 0 else cf[k - 1, 2])
+  g <- if (flat) 1 else cf["Xdtm", 1]
+  c(slope = cf["XC", 1] / g, se = cf["XC", 2] / abs(g), n = nrow(gp), r2_full = sm$r.squared,
+    g_se = if (flat) 0 else cf["Xdtm", 2])
 }
 
 # The class-structured synthetic: the world is fly#80's VRI model exactly — on mid and old
@@ -937,7 +948,7 @@ SYN <- readRDS(SYN_FILE)
 # pair gates refuse is "gated". Each case needs at least two of its three frames measured and
 # passing, and none measured and failing (Amendment B).
 SYN$pass <- with(SYN, ifelse(displaced_m > 0 & set == "plain", NA,
-                 ifelse(grepl("^gated", status) | status %in% c("no_global", "no_registration"), NA,
+                 ifelse(grepl("^gated", status) | status %in% c("no_global", "no_registration", "no_dem"), NA,
                  ifelse(status != "ok", FALSE,
                  ifelse(set == "class", is.finite(phi) & is.finite(phi_vri) &
                           abs(phi - phi_vri) <= 0.10,
@@ -947,7 +958,7 @@ for (i in seq_len(nrow(SYN))) {
   pub("  synthetic %-5s %-9s %-8s off %3d  slope %+.3f  phi %.3f vs %.3f  %s", SYN$set[i],
       SYN$film_roll[i], SYN$case[i], SYN$displaced_m[i], SYN$slope[i], SYN$phi[i],
       SYN$phi_vri[i],
-      if (grepl("^gated", SYN$status[i]) || SYN$status[i] %in% c("no_global", "no_registration"))
+      if (grepl("^gated", SYN$status[i]) || SYN$status[i] %in% c("no_global", "no_registration", "no_dem"))
         "(refused)" else if (is.na(SYN$pass[i]))
         "(displaced, reported)" else if (SYN$pass[i]) "pass" else "FAIL")
 }
@@ -1228,26 +1239,35 @@ for (sname in c("r", "l")) {
   sp <- vapply(bt_all, function(z) z[[sname]][["sep"]], numeric(1))
   SOURCE_OK[[sname]] <- is.finite(pt_all[[sname]][["sep"]]) && ci(sp)[1] >= SEP_MIN &&
     mean(!is.finite(sp)) <= 0.01
-  if (!SMOKE) {
+  if (!SMOKE && SYN_OK) {
     pub("  source %s: old - bare %.3f [%.3f, %.3f] -> %s", sname, pt_all[[sname]][["sep"]],
         ci(sp)[1], ci(sp)[2], if (SOURCE_OK[[sname]]) "separates" else "does not separate")
   }
 }
 STOPPED <- if (!SYN_OK) "synthetic" else if (!any(SOURCE_OK)) "controls" else ""
 
-combine <- function(est_pt, est_bt, which) {
+# Sources are pooled by inverse bootstrap variance of D, over one source set for all three
+# quantities: those that separate overall (verdict 2), have a finite point D in this set of pairs,
+# and fail in at most 1% of its resamples. Within a resample a missing source is dropped and the
+# weights renormalised, so one source's absence never turns the pool NA (code-check rounds 1-2).
+sources_for <- function(est_pt, est_bt) {
   srcs <- names(SOURCE_OK)[SOURCE_OK]
+  srcs[vapply(srcs, function(sn) {
+    dd <- vapply(est_bt, function(z) z[[sn]][["D"]], numeric(1))
+    is.finite(est_pt[[sn]][["D"]]) && mean(!is.finite(dd)) <= 0.01 && stats::var(dd, na.rm = TRUE) > 0
+  }, logical(1))]
+}
+combine <- function(est_pt, est_bt, which, srcs) {
+  if (!length(srcs)) return(list(pt = NA_real_, bt = rep(NA_real_, length(est_bt))))
   v <- vapply(srcs, function(sn) stats::var(vapply(est_bt, function(z) z[[sn]][["D"]], numeric(1)),
                                             na.rm = TRUE), numeric(1))
-  # A source with no estimate in this set (no variance, or no point) is dropped before summing:
-  # weight 0 times NA is NA, which made a whole decade NA (code-check round 1).
-  has_pt <- vapply(srcs, function(sn) is.finite(est_pt[[sn]][[which]]), logical(1))
-  keep <- is.finite(v) & v > 0 & has_pt
-  srcs <- srcs[keep]
-  if (!length(srcs)) return(list(pt = NA_real_, bt = rep(NA_real_, length(est_bt))))
-  wv <- (1 / v[keep]) / sum(1 / v[keep])
-  pt <- sum(wv * vapply(srcs, function(sn) est_pt[[sn]][[which]], numeric(1)))
-  bt <- vapply(est_bt, function(z) sum(wv * vapply(srcs, function(sn) z[[sn]][[which]], numeric(1))),
+  wsum <- function(vals) {
+    ok <- is.finite(vals)
+    if (!any(ok)) return(NA_real_)
+    sum((1 / v[ok]) * vals[ok]) / sum(1 / v[ok])
+  }
+  pt <- wsum(vapply(srcs, function(sn) est_pt[[sn]][[which]], numeric(1)))
+  bt <- vapply(est_bt, function(z) wsum(vapply(srcs, function(sn) z[[sn]][[which]], numeric(1))),
                numeric(1))
   list(pt = pt, bt = bt)
 }
@@ -1282,10 +1302,11 @@ for (d in c(DECADES, NA)) {
     ixn <- ix[ix %in% near]
     estimate(ixd, lapply(own, function(o) if (o) ixd else ixn), boot_b0[k], "icpt")
   })
-  D <- combine(pt, bt, "D")
-  PHI <- combine(pt, bt, "phi")
-  VRI <- combine(pt, bt, "phi_vri")
-  Di <- combine(pti, bti, "D")
+  srcs <- sources_for(pt, bt)
+  D <- combine(pt, bt, "D", srcs)
+  PHI <- combine(pt, bt, "phi", srcs)
+  VRI <- combine(pt, bt, "phi_vri", srcs)
+  Di <- combine(pti, bti, "D", sources_for(pti, bti))
   fail <- mean(!is.finite(D$bt))
   D_ci <- ci(D$bt)
   v <- if (fail > 0.01) "inconclusive" else verdict_of(D_ci, length(rows))
@@ -1294,7 +1315,10 @@ for (d in c(DECADES, NA)) {
   if (v %in% c("more_canopy_than_vri", "less_canopy_than_vri") && all(is.finite(Di_ci)) &&
       ((D$pt > 0 && Di_ci[2] < 0) || (D$pt < 0 && Di_ci[1] > 0))) v <- "inconclusive"
   row <- data.frame(decade = label, n_pairs = length(rows),
-                    old_from = paste(ifelse(own, "own", "adjacent"), collapse = "/"),
+                    old_from = if (is.na(d)) "all" else paste(ifelse(own, "own",
+                      ifelse(length(setdiff(near, rows)) > 0, "adjacent", "own_below_threshold")),
+                      collapse = "/"),
+                    sources = paste(srcs, collapse = "+"),
                     phi = PHI$pt, phi_lo = ci(PHI$bt)[1], phi_hi = ci(PHI$bt)[2],
                     phi_vri = VRI$pt, phi_vri_lo = ci(VRI$bt)[1], phi_vri_hi = ci(VRI$bt)[2],
                     D = D$pt, D_lo = D_ci[1], D_hi = D_ci[2], boot_fail = fail,
