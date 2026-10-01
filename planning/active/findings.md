@@ -214,3 +214,39 @@ Stated before the probe runs, so it cannot be tuned to it:
 - `dtm_resid_open` (MRDEM DTM minus lidar ground on cells the lidar calls open, canopy < 1 m) is
   the datum and ground-model error without canopy; `dtm_resid` over all cells minus it is residual
   canopy left in MRDEM's DTM.
+
+## LidarBC probe — clause 3 (2026-09-30, `data-raw/.cache/logs/canopy_stage1g.log`)
+
+150 windows (LidarBC tiles, median 2,690 radar-sourced MRDEM cells each) from 528 random radar
+points; 155 sat under a tile with both DEM and DSM. Tile years: 2024 85, 2025 25, 2021 17, 2023
+11, 2022 10, 2019–2020 2 — all after GLO-30. No read failed twice.
+
+| per window, metres | median | 10th | 90th |
+|---|---|---|---|
+| MRDEM DSM − DTM (NRCan's removal model) | 7.75 | 2.66 | 11.81 |
+| LidarBC DSM − DEM (measured canopy) | 4.25 | 0.73 | 10.37 |
+| MRDEM DTM − lidar ground | −2.50 | −5.59 | 1.55 |
+| same, on lidar-open cells | −1.66 | −4.98 | 1.91 |
+| MRDEM DSM − lidar DSM | +0.34 | −2.51 | 4.01 |
+| lidar DSM − MRDEM DTM (imaged over what fly sizes from) | 7.10 | 1.95 | 12.47 |
+
+- **Clause 3 holds:** slope of `imaged_over_dtm` on `mrdem_canopy` through the origin **0.916**,
+  inside [0.67, 1.5].
+- It holds by **cancellation**: MRDEM overstates canopy against lidar (slope 1.209, correlation
+  0.648), and its radar-derived DTM sits ~2.5 m *below* lidar ground — over-removal, not the
+  residual canopy the review feared. The radar DSM is within 0.34 m of the lidar surface. So on
+  radar cells the surface fly should size from is MRDEM's DSM to within ~10%, and MRDEM's DTM is
+  ~7 m under it in the median.
+- Meta reads 0.969 of lidar here (through origin) — much better than the five sites suggested.
+- Two defects found and fixed on the way, both in the probe: undeclared −3.4e38 nodata in some
+  LidarBC tiles (means of 1e37 published in a first complete run), and a 6.5-hour run caused by
+  `terra::project()` over remote strip-organised TIFFs (tiles are now downloaded, 1.5 s each).
+
+## Errors Encountered (probe)
+
+| Error | Resolution |
+|-------|------------|
+| Lidar probe cached `NULL` (all windows empty) and crashed downstream | Refuse below 30 windows; HRDEM sampled on DTM coverage — then found to cover no radar cells |
+| `TIFFFillStrip: Read error` aborted 6.5 h of LidarBC windows | Per-window cache, one retry, failures counted |
+| LidarBC means of 1e37 | Undeclared nodata; clamp to [−100, 5000] m |
+| 6.5 h for 150 windows | Download each tile (strip TIFF), project locally |
