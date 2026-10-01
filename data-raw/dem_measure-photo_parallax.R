@@ -66,7 +66,7 @@ CENSUS_DIR <- "data-raw/.cache/dem_canopy"
 REPO       <- normalizePath(".")
 WORKERS    <- as.integer(Sys.getenv("FLY_PARALLAX_WORKERS", "3"))
 FORMAT_MM  <- 228.6
-ALG        <- "a5"                  # the algorithm tag every cache below carries
+ALG        <- "a6"                  # the algorithm tag every cache below carries
 
 dir.create(CACHE, recursive = TRUE, showWarnings = FALSE)
 dir.create(THUMBS, recursive = TRUE, showWarnings = FALSE)
@@ -351,9 +351,13 @@ measure_core <- function(a, b, geom, wt, ws, register = TRUE, reg_on = "open", r
     c0 <- at_xy(wss, rc$xy) - at_xy(wts, rc$xy)
     is.finite(c0) & c0 < 2
   }
-  open_ok <- matched & open_at(rcs[[1]]) & open_at(rcs[[2]])
+  # Patches whose ray met the DTM at both placements; the C-free branch scores on these too, or
+  # a ray that failed at one placement only made the two R² different sets (code-check round 4).
+  both <- matched & !rcs[[1]]$bad & !rcs[[2]]$bad
+  open_ok <- both & open_at(rcs[[1]]) & open_at(rcs[[2]])
   use_open <- reg_on == "open" && sum(open_ok) >= 30
   yr <- ifelse(open_ok, y, NA_real_)
+  yb <- ifelse(both, y, NA_real_)
   for (mir in c(FALSE, TRUE)) {
     rc <- rcs[[if (mir) 2 else 1]]
     score <- if (use_open) {
@@ -362,7 +366,7 @@ measure_core <- function(a, b, geom, wt, ws, register = TRUE, reg_on = "open", r
       function(par) {
         q <- adjust(rc$xy, xyA, par)
         d <- at_xy(wts, q)
-        fit_r2(y, cbind(X, d, at_xy(wss, q) - d))
+        fit_r2(yb, cbind(X, d, at_xy(wss, q) - d))
       }
     }
     key <- if (mir) "mirror" else "normal"
@@ -576,7 +580,8 @@ solve_vri <- function(XtX, Xtr, b) {
 # Stage 0 — inputs, and the version of each remote one
 # ---------------------------------------------------------------------------
 
-VERSIONS <- do.call(rbind, lapply(c(dtm = MRDEM_DTM, dsm = MRDEM_DSM),
+MRDEM_SRC <- paste0("/vsicurl/", BUCKET, "/mrdem-30/mrdem-30-source.tif")
+VERSIONS <- do.call(rbind, lapply(c(dtm = MRDEM_DTM, dsm = MRDEM_DSM, source = MRDEM_SRC),
                                   function(u) head_of(sub("^/vsicurl/", "", u))))
 VERSIONS <- data.frame(asset = rownames(VERSIONS), VERSIONS, row.names = NULL)
 for (i in seq_len(nrow(VERSIONS))) {
@@ -584,29 +589,26 @@ for (i in seq_len(nrow(VERSIONS))) {
       VERSIONS$etag[i], VERSIONS$modified[i])
 }
 stopifnot(all(VERSIONS$status == "200"))
-vtmp <- tempfile()
-writeLines(c(paste(VERSIONS$etag, collapse = "|"), ALG), vtmp)
-VKEY <- substr(unname(tools::md5sum(vtmp)), 1, 8)
-unlink(vtmp)
-pub("  cache key %s (algorithm %s)", VKEY, ALG)
-
-# fly#80's census: every DEM-eligible film frame with its coarse canopy shift p. Keyed on
-# MRDEM's ETags, so the census must have been built against the same DEM.
+# fly#80's census: every DEM-eligible film frame with its coarse canopy shift p, keyed on the
+# same three ETags (dtm|dsm|source), so the census must have been built against this MRDEM.
 census_files <- list.files(CENSUS_DIR, "^census_[0-9a-f]{8}\\.rds$", full.names = TRUE)
 if (!length(census_files)) stop("no census in ", CENSUS_DIR, ": run dem_measure-canopy_height.R")
-CENSUS_KEY <- local({
-  etags <- VERSIONS$etag[match(c("dtm", "dsm"), VERSIONS$asset)]
+key_of <- function(lines) {
   f <- tempfile()
-  # fly#80 keys on dtm|dsm|source; the census was built against all three.
-  src <- head_of(paste0(BUCKET, "/mrdem-30/mrdem-30-source.tif"))[["etag"]]
-  writeLines(paste(c(etags, src), collapse = "|"), f)
+  writeLines(lines, f)
   k <- substr(unname(tools::md5sum(f)), 1, 8)
   unlink(f)
   k
-})
+}
+CENSUS_KEY <- key_of(paste(VERSIONS$etag[match(c("dtm", "dsm", "source"), VERSIONS$asset)],
+                           collapse = "|"))
 CENSUS <- file.path(CENSUS_DIR, paste0("census_", CENSUS_KEY, ".rds"))
 if (!file.exists(CENSUS)) stop("census for this MRDEM version not found: ", CENSUS)
 pub("  census %s", CENSUS)
+# Every cache below is keyed on all three ETags, the census and the algorithm: the classes read
+# the source layer and the sample reads the census (code-check round 4).
+VKEY <- key_of(c(paste(VERSIONS$etag, collapse = "|"), CENSUS_KEY, ALG))
+pub("  cache key %s (algorithm %s)", VKEY, ALG)
 
 dtm <- terra::rast(MRDEM_DTM)
 dsm <- terra::rast(MRDEM_DSM)
@@ -702,9 +704,9 @@ geom_of <- function(a_row, b_row, shift = c(0, 0)) {
 # terrain and canopy statistics are BC's, not invented.
 #
 #   flat_C0  h = mean DTM + 0 * C         slope on C must be within 0.10 of 0
-#   flat_C1  h = mean DTM + 1 * C         slope within 0.15 of 1
+#   flat_C1  h = mean DTM + 1 * C         slope within 0.25 of 1 (Amendment B: phi is a ratio)
 #   dtm_C0   h = DTM                      slope within 0.10 of 0
-#   dtm_C1   h = DTM + C                  slope within 0.15 of 1
+#   dtm_C1   h = DTM + C                  slope within 0.25 of 1
 #   *_off    the same with A's centroid displaced 150 m before measuring: the registration has
 #            to find it, and what it does not find is the placement shrinkage, reported
 # Classes are not used here: one slope on all of C. The flat cases have no terrain to register
@@ -848,19 +850,25 @@ class_phi <- function(m, src, v, year, H) {
   sname <- if (sum(gp$cls == "old_r") >= sum(gp$cls == "old_l")) "r" else "l"
   mid <- paste0("mid_", sname)
   old <- paste0("old_", sname)
-  c(phi = unname(b[mid] / b[old]), phi_vri = unname(rb[mid] / rb[old]),
-    n_mid = sum(gp$cls == mid), n_old = sum(gp$cls == old), n = nrow(gp),
-    r2_full = st$r2_full, g_se = st$g_se)
+  out <- c(phi = unname(b[mid] / b[old]), phi_vri = unname(rb[mid] / rb[old]),
+           n_mid = sum(gp$cls == mid), n_old = sum(gp$cls == old), n = nrow(gp),
+           r2_full = st$r2_full, g_se = st$g_se)
+  attr(out, "stats") <- st
+  out
 }
 
 SYN_FILE <- file.path(CACHE, paste0("synthetic_", VKEY, ".rds"))
 SYN_SRC <- data.frame(film_roll = c("bc78008", "bc85054", "bcc01030"),
                       frame_number = c(184, 162, 156))
-# Pilot frames with old and mid VRI ground, for the class-structured synthetic (chosen by VRI
-# counts alone, Phase 0).
-SYN_CLS <- data.frame(film_roll = c("bc5225", "bcb96067", "bcc04013"),
-                      frame_number = c(151, 13, 120))
-src_rast <- terra::rast(paste0("/vsicurl/", BUCKET, "/mrdem-30/mrdem-30-source.tif"))
+# The class-structured synthetic runs on every Phase 0 pilot frame that matched and is pooled as
+# Stage 4 pools pairs: one frame holds 1-21 mid patches, too few to estimate a ratio of two slopes
+# to 0.1, which is why the per-frame test of Amendment B could not be passed by a correct
+# instrument (Amendment C).
+SYN_CLS <- data.frame(film_roll = c("bc5225", "bc78129", "bc78008", "bc78110", "bc85054",
+                                    "bc81009", "bcb96017", "bcb96067", "bcc04013", "bcc01030",
+                                    "bcb00031"),
+                      frame_number = c(151, 145, 184, 69, 162, 18, 221, 13, 120, 156, 10))
+src_rast <- terra::rast(MRDEM_SRC)
 src_window <- function(wt) terra::crop(src_rast, terra::ext(wt)) * 1
 if (!file.exists(SYN_FILE)) {
   set.seed(8202)
@@ -875,6 +883,7 @@ if (!file.exists(SYN_FILE)) {
   cases <- rbind(cases, cls_cases)
   if (SMOKE) cases <- cases[cases$src == 1 & !cases$off, ]
   rows <- vector("list", nrow(cases))
+  cls_st <- vector("list", nrow(cases))
   for (i in seq_len(nrow(cases))) {
     cs <- cases[i, ]
     srcs <- if (cs$set == "plain") SYN_SRC else SYN_CLS
@@ -923,6 +932,7 @@ if (!file.exists(SYN_FILE)) {
       cp <- c(phi = NA, phi_vri = NA, n_mid = NA, n_old = NA)
     } else {
       cp <- class_phi(m, src_window(win$wt), v, fp$a_row$photo_year, g1$H)
+      cls_st[[i]] <- attr(cp, "stats")
       sl <- c(slope = NA, se = NA, n = cp[["n"]], r2_full = cp[["r2_full"]], g_se = cp[["g_se"]])
     }
     # Every pair gate applies to a synthetic as to a real pair: one the gates refuse is "gated",
@@ -948,32 +958,65 @@ if (!file.exists(SYN_FILE)) {
         cs$set, rows[[i]]$film_roll, cs$case, rows[[i]]$displaced_m, status, rows[[i]]$slope,
         rows[[i]]$phi, rows[[i]]$phi_vri)
   }
-  save_atomic(do.call(rbind, rows), SYN_FILE)
+  syn <- do.call(rbind, rows)
+  # Pooled class synthetic, per displacement and source, over the frames the gates admit.
+  pooled <- list()
+  for (off in c(0, 150)) {
+    ix <- which(syn$set == "class" & syn$displaced_m == off & syn$status == "ok" &
+                  !vapply(cls_st, is.null, logical(1)))
+    if (!length(ix)) next
+    XtX <- Reduce(`+`, lapply(cls_st[ix], function(z) z$main$XtX))
+    Xty <- Reduce(`+`, lapply(cls_st[ix], function(z) z$main$Xty))
+    Xtr <- Reduce(`+`, lapply(cls_st[ix], function(z) z$main$Xtr))
+    ncl <- Reduce(`+`, lapply(cls_st[ix], function(z) as.numeric(z$n_cls)))
+    names(ncl) <- COLS
+    b <- solve_cols(XtX, Xty)
+    rb <- solve_vri(XtX, Xtr, b)
+    for (sn in c("r", "l")) {
+      mid <- paste0("mid_", sn)
+      old <- paste0("old_", sn)
+      pooled[[length(pooled) + 1]] <- data.frame(
+        set = "class_pooled", film_roll = paste0(length(ix), " frames"), frame_number = NA,
+        case = paste0("source_", sn), displaced_m = off, kappa = NA, status = "ok",
+        n = sum(syn$n[ix]), slope = NA, se = NA, phi = unname(b[[mid]] / b[[old]]),
+        phi_vri = unname(rb[[mid]] / rb[[old]]), n_mid = ncl[[mid]], n_old = ncl[[old]],
+        reg_r2 = NA)
+    }
+  }
+  save_atomic(rbind(syn, do.call(rbind, pooled)), SYN_FILE)
 }
 SYN <- readRDS(SYN_FILE)
-# A synthetic that fails to measure FAILS: an NA must not pass under na.rm (review-2 6). One the
-# pair gates refuse is "gated". Each case needs at least two of its three frames measured and
-# passing, and none measured and failing (Amendment B).
-SYN$pass <- with(SYN, ifelse(displaced_m > 0 & set == "plain", NA,
-                 ifelse(grepl("^gated", status) | status %in% c("no_global", "no_registration", "no_dem"), NA,
-                 ifelse(status != "ok", FALSE,
-                 ifelse(set == "class", is.finite(phi) & is.finite(phi_vri) &
-                          abs(phi - phi_vri) <= 0.10,
-                 ifelse(!is.finite(slope), FALSE,
-                 ifelse(kappa == 0, abs(slope) <= 0.10, abs(slope - 1) <= 0.25)))))))
+# Plain cases (Amendment B 5): a synthetic that measures and returns a wrong answer or NA FAILS;
+# one the gates or the matcher refuse is neither pass nor fail; each case needs at least two of
+# its three frames passing and none failing. Class cases (Amendment C): per-frame phi is a
+# diagnostic; the pooled phi per source, where the pool holds >= 30 mid and >= 30 old patches,
+# must be within 0.10 of the pooled VRI prediction, undisplaced and displaced, with at least one
+# source qualifying in each.
+refused <- grepl("^gated", SYN$status) | SYN$status %in% c("no_global", "no_registration", "no_dem")
+SYN$pass <- NA
+pl <- SYN$set == "plain" & SYN$displaced_m == 0 & !refused
+SYN$pass[pl] <- with(SYN[pl, ], ifelse(status != "ok" | !is.finite(slope), FALSE,
+                     ifelse(kappa == 0, abs(slope) <= 0.10, abs(slope - 1) <= 0.25)))
+cp <- SYN$set == "class_pooled"
+qual <- cp & SYN$n_mid >= 30 & SYN$n_old >= 30
+SYN$pass[qual] <- with(SYN[qual, ], is.finite(phi) & is.finite(phi_vri) & abs(phi - phi_vri) <= 0.10)
 for (i in seq_len(nrow(SYN))) {
-  pub("  synthetic %-5s %-9s %-8s off %3d  slope %+.3f  phi %.3f vs %.3f  %s", SYN$set[i],
-      SYN$film_roll[i], SYN$case[i], SYN$displaced_m[i], SYN$slope[i], SYN$phi[i],
-      SYN$phi_vri[i],
-      if (grepl("^gated", SYN$status[i]) || SYN$status[i] %in% c("no_global", "no_registration", "no_dem"))
-        "(refused)" else if (is.na(SYN$pass[i]))
-        "(displaced, reported)" else if (SYN$pass[i]) "pass" else "FAIL")
+  pub("  synthetic %-12s %-9s %-9s off %3d  slope %+.3f  phi %.3f vs %.3f (mid %s, old %s)  %s",
+      SYN$set[i], SYN$film_roll[i], SYN$case[i], SYN$displaced_m[i], SYN$slope[i], SYN$phi[i],
+      SYN$phi_vri[i], SYN$n_mid[i], SYN$n_old[i],
+      if (refused[i]) "(refused)" else if (!is.na(SYN$pass[i])) {
+        if (SYN$pass[i]) "pass" else "FAIL"
+      } else if (SYN$set[i] == "plain") "(displaced, reported)"
+      else if (SYN$set[i] == "class") "(per frame, diagnostic)" else "(too few patches)")
 }
-judged <- SYN[!(SYN$set == "plain" & SYN$displaced_m > 0), ]
-by_case <- split(judged, paste(judged$set, judged$case, judged$displaced_m))
-SYN_OK <- all(vapply(by_case, function(z) {
+plain_ok <- all(vapply(split(SYN[pl, ], SYN$case[pl]), function(z) {
   sum(z$pass %in% TRUE) >= 2 && !any(z$pass %in% FALSE)
 }, logical(1)))
+class_ok <- all(vapply(c(0, 150), function(off) {
+  z <- SYN[qual & SYN$displaced_m == off, ]
+  nrow(z) >= 1 && all(z$pass)
+}, logical(1)))
+SYN_OK <- plain_ok && class_ok
 shrink <- with(SYN, slope[set == "plain" & kappa == 1 & displaced_m > 0 & status == "ok"])
 pub("  synthetic controls %s; plain kappa 1 displaced 150 m: %s", if (SYN_OK) "PASS" else "FAIL",
     paste(sprintf("%.3f", shrink), collapse = ", "))
@@ -1067,18 +1110,21 @@ if (length(todo)) {
   one <- function(id) {
     f <- file.path(PAIRS_DIR, paste0(id, ".rds"))
     row <- SAMPLE[SAMPLE$airp_id == id, ][1, ]
-    # A network-shaped error is transient and retried; any other error is deterministic and is
-    # cached as `failed:`, or one bad thumbnail would stop every run (code-check round 3).
-    m <- tryCatch(measure_pair(row), error = function(e) {
-      msg <- conditionMessage(e)
-      net <- grepl("curl|http|vsicurl|timeout|timed out|connection|resolve|ssl|VRI query", msg,
-                   ignore.case = TRUE)
-      list(status = paste(if (net) "transient:" else "failed:", msg))
-    })
-    # Only a definitive outcome is cached. An error or anything transient (network, catalogue,
-    # a DEM read that returned NA) is not, or it would bless an absence forever; the run then
-    # refuses to report with holes, and a second run retries them (code-check round 1).
-    if (grepl("^transient:", m$status)) return(m$status)
+    # Any error, and any status marked transient, is retried rather than cached, until the same
+    # message has been seen on two runs: then it is cached as `failed:`. A message is not a cause
+    # — a DEM read cut off mid-crop raises terra's "too few values", which matches no network
+    # pattern — so recurrence, not text, decides (code-check round 4).
+    m <- tryCatch(measure_pair(row), error = function(e) list(status = paste("error:", conditionMessage(e))))
+    if (grepl("^error:|^transient:", m$status)) {
+      af <- file.path(PAIRS_DIR, paste0(id, ".attempts"))
+      seen <- if (file.exists(af)) readLines(af, warn = FALSE) else character(0)
+      msg <- gsub("[\r\n]+", " ", m$status)
+      if (!(msg %in% seen)) {
+        cat(msg, "\n", file = af, append = TRUE, sep = "")
+        return(m$status)
+      }
+      m <- list(status = paste("failed:", sub("^(error|transient): ?", "", msg)))
+    }
     save_atomic(m, f)
     m$status
   }
@@ -1114,7 +1160,18 @@ if (length(todo)) {
 # Transient failures were not cached; a second run retries them. Refuse to report on a sample
 # with holes, as `mask_measure-interior_zeros.R` refuses on a frame that errored.
 missing <- SAMPLE$airp_id[!file.exists(file.path(PAIRS_DIR, paste0(SAMPLE$airp_id, ".rds")))]
-if (length(missing)) stop(length(missing), " pairs not measured (transient failures); run again")
+if (length(missing)) stop(length(missing), " pairs not measured (failures seen once); run again")
+# And refuse when failures look systematic: two or more pairs failing with one message is a code
+# or service defect, which would otherwise reach Stage 4 as "the controls do not separate"
+# (code-check round 4; the PSOCK `mean()` defect failed every colour thumbnail one way).
+st_all <- vapply(SAMPLE$airp_id, function(id) readRDS(file.path(PAIRS_DIR, paste0(id, ".rds")))$status,
+                 character(1))
+fails <- st_all[grepl("^failed:", st_all)]
+if (length(fails)) {
+  tab <- table(fails)
+  for (k in seq_along(tab)) pub("  failed x%d: %s", tab[[k]], names(tab)[k])
+  if (any(tab >= 2)) stop("systematic failures (a message shared by two or more pairs); fix before Stage 4")
+}
 if (STOP_AFTER < 4) quit(save = "no")
 
 # ---------------------------------------------------------------------------
@@ -1321,6 +1378,7 @@ for (d in c(DECADES, NA)) {
   PHI <- combine(pt, bt, "phi", srcs)
   VRI <- combine(pt, bt, "phi_vri", srcs)
   Di <- combine(pti, bti, "D", sources_for(pti, bti))
+  # (the source-set check against `srcs` is applied with the verdict below)
   fail <- mean(!is.finite(D$bt))
   D_ci <- ci(D$bt)
   v <- if (fail > 0.01) "inconclusive" else verdict_of(D_ci, length(rows))
@@ -1328,8 +1386,14 @@ for (d in c(DECADES, NA)) {
   # The class-intercept fit must not contradict the primary one (review-2 S3), and a MORE or LESS
   # stands only where it could be computed: a sensitivity that cannot run is not a pass
   # (code-check round 3 — it never ran, and the guard failed toward pass).
+  # It must also cover the same sources as the verdict it guards: the intercept fit loses lidar
+  # first, and pooled over radar alone it hid a lidar interval wholly on the other side
+  # (code-check round 4). The contradiction is keyed on the verdict, not on the point.
+  srcs_i <- sources_for(pti, bti)
   if (v %in% c("more_canopy_than_vri", "less_canopy_than_vri") &&
-      (!all(is.finite(Di_ci)) || (D$pt > 0 && Di_ci[2] < 0) || (D$pt < 0 && Di_ci[1] > 0))) {
+      (!all(is.finite(Di_ci)) || !setequal(srcs_i, srcs) ||
+       (v == "more_canopy_than_vri" && Di_ci[2] < 0) ||
+       (v == "less_canopy_than_vri" && Di_ci[1] > 0))) {
     v <- "inconclusive"
   }
   row <- data.frame(decade = label, n_pairs = length(rows),

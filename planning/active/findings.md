@@ -356,6 +356,39 @@ seed (9182) and prints and writes no slope, φ or D.
 beetle grey-attack stands carry low C in 2013 but had full canopy at the photo, which raises
 b_old; the external bare reference is a cross-tile figure assumed to hold within pairs.
 
+## Stage 1 under algorithm a4 — plain synthetics pass, class synthetics FAIL (2026-10-01, `parallax_stage1_a4.log`)
+
+**Plain cases: every undisplaced one passes.**
+- κ=0: −0.029 to +0.045.
+- κ=1: 0.989 to 1.123.
+- Displaced 150 m, κ=1: 1.111, 1.001, 1.057. Registration recovers the displacement.
+
+**Class-structured cases (Amendment B 5) FAIL.**
+- **bcb96067 13**: φ undefined (NA) in both cases. Under the area-share rule it holds 1 mid
+  patch against 49 old.
+- **bc5225 151**: refused in both cases (registration bound), with φ −1.6 and 5.2.
+- **bcc04013 120**: refused undisplaced; displaced 1.066 against 0.922, outside ±0.10.
+
+Under Amendment B this is a STOP. The test was ill-posed. φ is a ratio of two class slopes, and
+a single frame with 1–21 mid patches cannot estimate it to ±0.1 even when the instrument is
+right. The analysis never estimates φ from one pair; it pools pairs.
+
+## Amendment C — fixed 2026-10-01 after the a4 synthetics, before any sampled pair is read
+
+The class-structured synthetic is measured the way the verdict is.
+- **Frames.** All 11 Phase 0 pilot frames that matched: bc5225 151, bc78129 145, bc78008 184,
+  bc78110 69, bc85054 162, bc81009 18, bcb96017 221, bcb96067 13, bcc04013 120, bcc01030 156
+  and bcb00031 10. Each is undisplaced and displaced 150 m. Each is gated as a real pair is.
+- **Pooling.** The frames that pass are pooled by summing `pair_stats()` exactly as Stage 4
+  pools pairs. φ_s and φ_VRI_s are computed per source with β0 = 0 (a synthetic has no DTM
+  bias).
+- **Pass.** For each source whose pooled mid and old columns each have ≥ 30 patches,
+  |φ_s − φ_VRI_s| ≤ 0.10, in both the undisplaced and the displaced pool. At least one source
+  must qualify.
+- **Per-frame φ** is still computed and written, as a diagnostic with no threshold.
+
+The plain-case acceptance (Amendment B 5) is unchanged.
+
 ## Errors Encountered
 
 | Error | Resolution |
