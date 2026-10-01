@@ -91,20 +91,20 @@ default is a schema/behaviour change and goes to the user with options, docs con
 - [x] Apply Amendment 1 as written; `inst/notes/terrain-correction.md` gets a fly#80 section built
       from producer lines, replacing the "No canopy-height model was used" bullet, qualifying the #65
       canopy table with the measured answer, and revisiting `:824` and `:870-873`
-- [ ] `R/fly_footprint.R` "DEM sources": MRDEM's DSM added or declined with the measured reason and
+- [x] `R/fly_footprint.R` "DEM sources": MRDEM's DSM added or declined with the measured reason and
       the epoch caveat; DTM-or-DSM for LidarBC and TRIM; the coastal paragraph's canopy sentence;
       `vignettes/airphoto-selection.Rmd:427-434`; `devtools::document()`
 - [x] `tests/testthat/test-fly_footprint_canopy.R`: recompute every published table from the shipped
       CSVs with row-count guards; a DSM tall enough to move a frame across `fly_height_ratio_band()`
-- [ ] NEWS.md (numbers from the CSVs), CLAUDE.md Architecture line and Key Decisions; edit issue
+- [x] NEWS.md (numbers from the CSVs), CLAUDE.md Architecture line and Key Decisions; edit issue
       #80's body to carry the verdict; file the photo-parallax epoch witness as a follow-up issue
 
 ## Validation
 
-- [ ] Tests pass (`devtools::test()`), lintr clean
-- [ ] `/code-check` clean on each commit
-- [ ] PWF checkboxes match landed work
-- [ ] `/planning-archive` on completion (README carries Measurement + Evidence)
+- [x] Tests pass (`devtools::test()`), lintr clean
+- [x] `/code-check` clean on each commit (four rounds; see findings)
+- [x] PWF checkboxes match landed work
+- [x] `/planning-archive` on completion (README carries Measurement + Evidence)
 
 ## Verification
 
