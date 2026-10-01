@@ -88,9 +88,11 @@ only as a regressor variance.
   the spacing's prediction, each tried as a seed for 128 px patch matching; the one most
   patches confirm wins, and the global shift is the patches' median. 11 of 13 pairs pass;
   bc80041 7 and bcb96099 41 do not (1 and 4 confirming patches).
-- **Matching noise.** y-parallax after a quadratic, robust (1.4826·MAD): 0.24–1.50 px,
-  median ~0.5. Plain SD is inflated by mismatches (to 2.9 px); a 3·MAD gate on y-parallax
-  residual is used, and is blind to relief by construction.
+- **Matching noise.** y-parallax after a quadratic, robust SD (`stats::mad`, already scaled):
+  0.16–1.01 px, median ~0.35. *Corrected 2026-10-01:* the first write-up multiplied
+  `stats::mad()` by 1.4826 a second time and quoted 0.24–1.50 px. Plain SD is inflated by
+  mismatches (to 2.9 px); a gate at 3 robust SDs on the y-parallax residual is used, and is
+  blind to relief by construction.
 - **Registration** (offset, rotation, scale on the DTM fit of all matched patches, never on
   C): R² 0.37–0.99. Offsets reach 900 m (bc78129, bcb00031, bc85054), consistent with
   bc85054's misplaced centroid. Two pairs ran rotation/scale to the ±8 bounds (bc78110,
@@ -221,6 +223,124 @@ DEM-eligible in fly#80's census (reported height inside `fly_height_ratio_band()
   were on the day.
 - **Census p ≥ 0.25% only.** The verdict is about frames where canopy matters, as fly#80's
   epoch table was.
+
+## Stage 1 under algorithm a1 — FAILED (2026-10-01, `data-raw/.cache/logs/parallax_stage1.log`)
+
+Synthetic controls, not sampled pairs. Under the rule as first fixed, the instrument failed:
+- **bcc01030 156:** flat κ=1 1.176 (tolerance 0.15), terrain κ=0 −0.101 (tolerance 0.10).
+- **bc85054 162:** every case `no_global`, because the synthetic B was built at the catalogue's
+  centroid spacing, which is ×1.7 wrong there. The old code labelled the NA "(shrinkage,
+  reported)", which is review-2's silent-pass bug, seen on real output.
+- **bc78008 184:** passed; 150 m of displacement was fully recovered (κ=1 1.098).
+
+Recorded as a failure. The a2 instrument below was developed against synthetic frames only:
+known answers, no sampled pair.
+
+## Amendment B — fixed 2026-10-01 from review-2 and the synthetic harness, before any sampled pair is read
+
+The smoke run measured 10 pairs drawn with the real seed. Its Stage 4 crashed in `pair_stats`
+before any slope existed, so no coefficient was computed on them. Smoke now draws with its own
+seed (9182) and prints and writes no slope, φ or D.
+
+**Instrument.**
+1. **Hann sampling.** The DEM is read through a Hann kernel of the patch's ground size, matching
+   the matcher's window, not a boxcar. In the harness (`scratchpad harness1`), the boxcar
+   overstated the flat κ=1 slope (1.128 / 1.168 / 1.138); Hann gave 1.000 / 1.058 / 1.024.
+2. **DTM gradient in the nuisance** (review-2 S4). Harness, bc78008 terrain κ=0: −0.049
+   without it, +0.011 with it.
+3. **Registration** (review-2 3a). Registering on the DTM fit of every patch attenuated the
+   synthetic canopy slope from 1.144 to 0.525 (bc78008) and from 1.050 to 0.749 (bc85054)
+   (`harness2`).
+   - **Registering on open ground** (C < 2 m at the unregistered placement) restored it where
+     ≥ 30 open patches exist: bc85054 1.042 and bcc01030 1.024, against 1.050 and 1.062 at
+     true placement.
+   - **Registering with C as a free regressor** gave 1.052 and 1.045 (`harness3`).
+   - **Rule:** open ground when there are ≥ 30 open patches, otherwise C free.
+   - **bc78008** (forested lidar, 1:10,000, < 30 open) reached only 0.676–0.689 under either.
+     Both ran rotation to the −8° bound (`reg78.R`), which the pair gate refuses, so the
+     instrument declines that pair rather than misreporting it. Truth there is 1.232.
+4. **Synthetics carry 2-D nuisance**: tilt on both axes, 0.3° rotation and 0.3% scale between
+   exposures. Base at a designed 62% overlap, not catalogue spacing. A synthetic that fails to
+   measure FAILS.
+5. **Acceptance** (κ=1 tolerance widened before any sampled pair, and why). Synthetics pass
+   through the same pair gates. A synthetic the gates refuse is *gated*, which is neither pass
+   nor fail. A synthetic that fails to measure is a FAIL. Each case (plain flat_C0, flat_C1,
+   dtm_C0, dtm_C1; class undisplaced; class displaced 150 m) needs ≥ 2 of its 3 frames
+   measured and passing, and none measured and failing.
+   - Plain κ=0 must be within 0.10 of 0: an additive bias does not cancel in φ.
+   - Plain κ=1 must be within **0.25** of 1. φ is a ratio of two canopy slopes from one matcher,
+     so a multiplicative response cancels; at true placement the a2 harness gives 1.04–1.23.
+   - New **class-structured synthetic** (review-2 S5): the world is fly#80's VRI model (κ = r
+     on mid and old, 0.5 elsewhere) on three pilot frames with old ground (bc5225 151,
+     bcb96067 13, bcc04013 120). The measured φ must be within **0.10** of the φ the VRI
+     machinery predicts from the same patches. This is the test of the quantity actually
+     reported.
+
+**Classes.**
+6. **Area share** (review-2 S1). A patch takes a class when ≥ 90% of its footprint, grown by
+   60 m, lies in VRI polygons of that class (dissolved by class). The disc-inside-one-polygon
+   form review-2 proposed gave **0 classed patches** on the pilots, because a 440–900 m disc
+   rarely fits one polygon; neighbouring polygons of one class are not contamination.
+7. **Single-source patches** (review-2 S6). ≥ 99% radar or ≥ 99% lidar in MRDEM's source
+   layer; mixed footprints are `other`. Radar-only would have dropped 4 of 11 pilot pairs
+   entirely: bc78008, bcc01030, bc81009 and bc85054 are all lidar. So mid and old are split by
+   source (columns `mid_r`, `mid_l`, `old_r`, `old_l`). The canopy epoch is 2013 on radar and
+   2018 on lidar, as fly#80 used.
+8. **Young is dropped as a control.** Under rules 6–7 the pilots carry **2 young patches in
+   11 pairs** (VRI only, `amendB.R`). Corroborating with consolidated cutblocks dated within 12
+   years before the photo found 0. Young stays a reported column with no role in a verdict.
+   The bare reference becomes **external, per source**, the slope on C when the camera saw bare
+   ground:
+   - radar: **0.1456** (SE 0.0676), fly#80's LidarBC ground-minus-DTM on C with an intercept,
+     recomputed in the script from `dem_canopy_lidar.csv` and drawn afresh in every bootstrap;
+   - lidar: 0, since the DTM is lidar ground.
+
+**Estimand and comparator.**
+9. **φ_s = (b_mid_s − β0_s)/(b_old_s − β0_s)** per source. The verdict reads **D_s = φ_s −
+   φ_VRI_s**, paired in every bootstrap resample. Sources are pooled by inverse bootstrap
+   variance of D, over the sources that separate.
+10. **φ_VRI corrected** (review-2 B2). y* = r·C on mid and old patches, with r = clamp((photo −
+    O)/(epoch − O), 0, 1) and O the origin of the stand under the patch centre. On young, post
+    and other it is the observed slope times C, so those columns cancel. y* is residualised on
+    the same nuisance, weighted the same and solved jointly. Under VRI the seen slope is
+    β0 + r̄(β1 − β0), so φ_VRI_s = r̄_mid / r̄_old and needs neither β.
+
+**Pooling and weights.**
+11. y is divided by **ĝ**, the pair's own DTM coefficient in the full model (review-2 4b).
+    New pair gate: SE(ĝ) ≤ 0.1.
+12. **Weight** w = 1/σ², with σ = (H − e_w)/median(p) · (robust SD of the y-parallax residual)
+    / |ĝ| (review-2 4a). It never involves y's residual.
+13. **Pair gate** on the full per-pair model's R² ≥ 0.5, which is symmetric in seen and unseen
+    canopy, not on the registration's DTM-only R² (review-2 3a). The rotation/scale gate
+    (≤ 6) is unchanged.
+14. **Class intercepts are a sensitivity, not the primary** (review-2 S3). On the pilots
+    (`amendB.R`, DEFF 4) they raise SE(b) about fourfold or more: mid_r 0.119 → 0.680,
+    old_r 0.084 → 0.293, old_l 0.088 → 0.726. A MORE or LESS verdict becomes INCONCLUSIVE when
+    the intercept fit's D interval lies wholly on the other side of 0.
+15. **Bootstrap**: 2,000 resamples of pairs within decade (`set.seed(8203)`). A decade with
+    more than 1% failed resamples is INCONCLUSIVE.
+
+**Thresholds and verdicts.**
+16. **Controls separate** (review-2 5a), per source over all decades: the bootstrap lower bound
+    of b_old − β0 must be ≥ **0.15**. A source that fails is dropped from the pool. If both
+    fail, STOP.
+17. **Old fallback**: a decade's own old column needs ≥ 100 patches in ≥ 5 pairs. Otherwise it
+    is pooled with the adjacent decades only (review-2 4e).
+18. **Four verdicts on D's 95% interval** (review-2 5b), with ≥ 10 gated pairs:
+    | verdict | condition |
+    |---|---|
+    | MORE CANOPY THAN VRI | lower bound > 0 |
+    | LESS | upper bound < 0 |
+    | AGREES | the interval lies within ±0.15 |
+    | INCONCLUSIVE | otherwise |
+19. **What the comparison can see** (VRI and C only, `amendB.R`, before Stage 3). Linear
+    against concave growth (Chapman–Richards shape, k 0.03, c 1.3) moves φ_VRI by **0.009** on
+    radar ground (0.694 → 0.685) and **0.18** on lidar (0.834 → 1.013). On radar the parallax
+    cannot tell the growth curves apart; on lidar it can only at a precision of ~0.1.
+
+**What the rule cannot see**, added: radar C reliability differs by class; mountain pine
+beetle grey-attack stands carry low C in 2013 but had full canopy at the photo, which raises
+b_old; the external bare reference is a cross-tile figure assumed to hold within pairs.
 
 ## Errors Encountered
 

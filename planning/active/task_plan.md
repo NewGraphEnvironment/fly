@@ -72,12 +72,12 @@ A Phase 0 measures only nuisance quantities. Roll bc5282 is excluded (pilot leak
 
 ## Phase 1: Instrument
 
-- [ ] `data-raw/dem_measure-photo_parallax.R`, staged like the fly#80 script (Stage 0 versions
+- [x] `data-raw/dem_measure-photo_parallax.R`, staged like the fly#80 script (Stage 0 versions
       and keys, `FLY_PARALLAX_SMOKE`, `FLY_PARALLAX_STOP`), caches under the gitignored
       `data-raw/.cache/photo_parallax/` keyed on MRDEM ETags and an algorithm tag
-- [ ] Pairs: frames number-adjacent on one roll, same lens/scale/height, both in
+- [x] Pairs: frames number-adjacent on one roll, same lens/scale/height, both in
       `fly_height_ratio_band()`; overlap from the measured global shift
-- [ ] Estimator: `1/p` linear in DTM and C with a quadratic nuisance in image position, C split
+- [x] Estimator (as amended by B): implied height on DTM and C with a quadratic nuisance in image position, C split
       by VRI class (young-at-photo, old-at-photo, other); pooled per decade with pair fixed
       effects; pair-bootstrap intervals
 - [ ] Synthetic controls from real thumbnail texture draped on DTM / DTM + C, with tilt, scan
@@ -92,7 +92,7 @@ A Phase 0 measures only nuisance quantities. Roll bc5282 is excluded (pilot leak
 - [x] Stop clause: the controls do not separate, or power fails → "instrument cannot resolve",
       recorded, nothing more run
 - [x] What the rule cannot see, stated before the run
-- [ ] Amendments dated, landing before the data they govern
+- [x] Amendments dated, landing before the data they govern (A, B)
 
 ## Phase 3: Measure
 

@@ -13,3 +13,8 @@
 - Phase 0 complete: matcher made robust (candidate-verified global shift), 11 of 13 pilot pairs
   measured, controls counted, power pooled SE(φ) ≈ 0.05 → proceed. Amendment A drops the
   digital PATB control. Logs `data-raw/.cache/logs/parallax_phase0*.log`
+- Script `data-raw/dem_measure-photo_parallax.R` written (Stages 0–4). Stage 1 under a1 FAILED
+  its synthetic thresholds (bcc01030; bc85054 unmeasured). Rule review (review-2) returned;
+  synthetic harness tested Hann sampling, gradient nuisance and three registration schemes.
+  Amendment B fixed; algorithm a2. Smoke run caught a PSOCK `mean()` dispatch bug (colour
+  thumbnails) and an `apply(X =)` collision; neither computed a coefficient.
