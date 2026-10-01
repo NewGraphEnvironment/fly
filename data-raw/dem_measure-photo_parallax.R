@@ -66,7 +66,7 @@ CENSUS_DIR <- "data-raw/.cache/dem_canopy"
 REPO       <- normalizePath(".")
 WORKERS    <- as.integer(Sys.getenv("FLY_PARALLAX_WORKERS", "3"))
 FORMAT_MM  <- 228.6
-ALG        <- "a4"                  # the algorithm tag every cache below carries
+ALG        <- "a5"                  # the algorithm tag every cache below carries
 
 dir.create(CACHE, recursive = TRUE, showWarnings = FALSE)
 dir.create(THUMBS, recursive = TRUE, showWarnings = FALSE)
@@ -334,27 +334,28 @@ measure_core <- function(a, b, geom, wt, ws, register = TRUE, reg_on = "open", r
   X <- poly2(gp$xn, gp$yn)
   y <- ifelse(matched, 1 / gp$p, NA_real_)
   res <- list()
-  use_open <- NULL                 # decided on the normal placement, then held for the mirror
-  open_ok <- NULL                  # and so is the patch set it scores on
-  for (mir in c(FALSE, TRUE)) {
+  rcs <- lapply(c(FALSE, TRUE), function(mir) {
     v <- img_vec(gp$r, gp$c, nrow(a), ncol(a), mirror = mir)
     th <- image_theta(gs, bearing, mirror = mir)
     ring <- sweep(rot_ground(v, th) * (geom$H - e_w) / f_px, 2, xyA, "+")
-    rc <- raycast(ring, xyA, geom$H, e_w, wt, step = 5, n_bisect = 20)
-    # Register on open ground — C under 2 m at the unregistered placement — where there are at
-    # least 30 such patches: on forest, seen canopy lowers a DTM-only fit and the search moves the
-    # grid to wherever canopy hurts least, which halved the synthetic canopy slope (Amendment B).
-    # Where open ground is scarce, register with C as a free regressor, which is symmetric in
-    # canopy seen and not seen.
+    raycast(ring, xyA, geom$H, e_w, wt, step = 5, n_bisect = 20)
+  })
+  # Register on open ground — C under 2 m at the unregistered placement — where there are at
+  # least 30 such patches: on forest, seen canopy lowers a DTM-only fit and the search moves the
+  # grid to wherever canopy hurts least, which halved the synthetic canopy slope (Amendment B).
+  # Where open ground is scarce, register with C as a free regressor, which is symmetric in
+  # canopy seen and not seen. One objective and one patch set serve both placements — open at
+  # BOTH — so the mirror choice is never made by a difference in what was scored (code-check
+  # rounds 1-3: objectives, then patch sets, then the placement the set was chosen on).
+  open_at <- function(rc) {
     c0 <- at_xy(wss, rc$xy) - at_xy(wts, rc$xy)
-    # The objective and the patch set are fixed once, on the normal placement: scoring normal
-    # and mirror with different objectives (round 1) or on different patch sets — 200 open
-    # patches against 35 — could flip the mirror choice on that alone (round 2).
-    if (is.null(open_ok)) {
-      open_ok <- matched & is.finite(c0) & c0 < 2
-      use_open <- reg_on == "open" && sum(open_ok) >= 30
-    }
-    yr <- ifelse(open_ok, y, NA_real_)
+    is.finite(c0) & c0 < 2
+  }
+  open_ok <- matched & open_at(rcs[[1]]) & open_at(rcs[[2]])
+  use_open <- reg_on == "open" && sum(open_ok) >= 30
+  yr <- ifelse(open_ok, y, NA_real_)
+  for (mir in c(FALSE, TRUE)) {
+    rc <- rcs[[if (mir) 2 else 1]]
     score <- if (use_open) {
       function(par) fit_r2(yr, cbind(X, at_xy(wts, adjust(rc$xy, xyA, par))))
     } else {
@@ -550,7 +551,11 @@ pair_stats <- function(gp, H, e_w, q_sd) {
 
 # Column slopes from summed statistics; a column with no information is dropped, not inverted.
 solve_cols <- function(XtX, Xty) {
-  keep <- diag(XtX) > 0
+  # A column is kept on its information relative to the largest, not on being non-zero: a class
+  # with one patch in a pair is annihilated by its own dummy in the intercept fit and leaves a
+  # diagonal of ~1e-31, which `> 0` kept and `solve()` then refused (code-check round 3).
+  dg <- diag(XtX)
+  keep <- is.finite(dg) & dg > 1e-9 * max(dg[is.finite(dg)], 0)
   b <- stats::setNames(rep(NA_real_, length(COLS)), COLS)
   if (any(keep)) b[keep] <- solve(XtX[keep, keep, drop = FALSE], Xty[keep])
   b
@@ -559,7 +564,8 @@ solve_cols <- function(XtX, Xty) {
 # young, post and other it is the observed slope times C, so those columns cancel rather than
 # leak through the joint fit (review-2 B2).
 solve_vri <- function(XtX, Xtr, b) {
-  keep <- diag(XtX) > 0
+  dg <- diag(XtX)
+  keep <- is.finite(dg) & dg > 1e-9 * max(dg[is.finite(dg)], 0) & is.finite(b)
   po <- keep & !(COLS %in% c("mid_r", "mid_l", "old_r", "old_l"))
   rhs <- Xtr
   if (any(po)) rhs <- rhs + XtX[, po, drop = FALSE] %*% b[po]
@@ -816,7 +822,7 @@ synth_slope <- function(m, H, flat) {
   fit <- stats::lm(y ~ X)
   # By name, and refusing an aliased fit: `summary.lm()` drops aliased rows, so a position read
   # returned a finite ratio of the wrong coefficients (code-check round 2).
-  if (anyNA(stats::coef(fit))) return(replace(none, "n", nrow(gp)))
+  if (anyNA(stats::coef(fit))) return(c(replace(none, "n", nrow(gp))[1:4], g_se = -1))
   sm <- summary(fit)
   cf <- sm$coefficients
   g <- if (flat) 1 else cf["Xdtm", 1]
@@ -924,6 +930,7 @@ if (!file.exists(SYN_FILE)) {
     status <- m$status
     if (identical(status, "ok")) {
       status <- if (sl[["n"]] < 50) "gated_few_patches"
+      else if (isTRUE(sl[["g_se"]] == -1)) "gated_aliased"
       else if (!is.finite(sl[["r2_full"]]) || sl[["r2_full"]] < 0.5) "gated_model_r2"
       else if (!flat && (abs(m$reg[["rot"]]) > 6 || abs(m$reg[["scl"]]) > 6)) "gated_registration_bound"
       else if (!flat && (!is.finite(sl[["g_se"]]) || sl[["g_se"]] > 0.1)) "gated_dtm_scale"
@@ -967,7 +974,7 @@ by_case <- split(judged, paste(judged$set, judged$case, judged$displaced_m))
 SYN_OK <- all(vapply(by_case, function(z) {
   sum(z$pass %in% TRUE) >= 2 && !any(z$pass %in% FALSE)
 }, logical(1)))
-shrink <- with(SYN, slope[set == "plain" & kappa == 1 & displaced_m > 0])
+shrink <- with(SYN, slope[set == "plain" & kappa == 1 & displaced_m > 0 & status == "ok"])
 pub("  synthetic controls %s; plain kappa 1 displaced 150 m: %s", if (SYN_OK) "PASS" else "FAIL",
     paste(sprintf("%.3f", shrink), collapse = ", "))
 if (STOP_AFTER < 2) quit(save = "no")
@@ -1060,11 +1067,18 @@ if (length(todo)) {
   one <- function(id) {
     f <- file.path(PAIRS_DIR, paste0(id, ".rds"))
     row <- SAMPLE[SAMPLE$airp_id == id, ][1, ]
-    m <- tryCatch(measure_pair(row), error = function(e) list(status = paste("error:", conditionMessage(e))))
+    # A network-shaped error is transient and retried; any other error is deterministic and is
+    # cached as `failed:`, or one bad thumbnail would stop every run (code-check round 3).
+    m <- tryCatch(measure_pair(row), error = function(e) {
+      msg <- conditionMessage(e)
+      net <- grepl("curl|http|vsicurl|timeout|timed out|connection|resolve|ssl|VRI query", msg,
+                   ignore.case = TRUE)
+      list(status = paste(if (net) "transient:" else "failed:", msg))
+    })
     # Only a definitive outcome is cached. An error or anything transient (network, catalogue,
     # a DEM read that returned NA) is not, or it would bless an absence forever; the run then
     # refuses to report with holes, and a second run retries them (code-check round 1).
-    if (grepl("^error:|^transient:", m$status)) return(m$status)
+    if (grepl("^transient:", m$status)) return(m$status)
     save_atomic(m, f)
     m$status
   }
@@ -1311,13 +1325,20 @@ for (d in c(DECADES, NA)) {
   D_ci <- ci(D$bt)
   v <- if (fail > 0.01) "inconclusive" else verdict_of(D_ci, length(rows))
   Di_ci <- ci(Di$bt)
-  # The class-intercept fit must not contradict the primary one (review-2 S3).
-  if (v %in% c("more_canopy_than_vri", "less_canopy_than_vri") && all(is.finite(Di_ci)) &&
-      ((D$pt > 0 && Di_ci[2] < 0) || (D$pt < 0 && Di_ci[1] > 0))) v <- "inconclusive"
+  # The class-intercept fit must not contradict the primary one (review-2 S3), and a MORE or LESS
+  # stands only where it could be computed: a sensitivity that cannot run is not a pass
+  # (code-check round 3 — it never ran, and the guard failed toward pass).
+  if (v %in% c("more_canopy_than_vri", "less_canopy_than_vri") &&
+      (!all(is.finite(Di_ci)) || (D$pt > 0 && Di_ci[2] < 0) || (D$pt < 0 && Di_ci[1] > 0))) {
+    v <- "inconclusive"
+  }
   row <- data.frame(decade = label, n_pairs = length(rows),
-                    old_from = if (is.na(d)) "all" else paste(ifelse(own, "own",
-                      ifelse(length(setdiff(near, rows)) > 0, "adjacent", "own_below_threshold")),
-                      collapse = "/"),
+                    old_from = if (is.na(d)) "all" else paste(vapply(c("r", "l"), function(sn) {
+                      if (own[[sn]]) return("own")
+                      extra <- setdiff(near, rows)
+                      if (length(extra) && sum(G[extra, paste0("n_old_", sn)]) > 0) "adjacent"
+                      else "own_below_threshold"
+                    }, character(1)), collapse = "/"),
                     sources = paste(srcs, collapse = "+"),
                     phi = PHI$pt, phi_lo = ci(PHI$bt)[1], phi_hi = ci(PHI$bt)[2],
                     phi_vri = VRI$pt, phi_vri_lo = ci(VRI$bt)[1], phi_vri_hi = ci(VRI$bt)[2],
@@ -1345,6 +1366,13 @@ VERDICTS$source_r_separates <- SOURCE_OK[["r"]]
 VERDICTS$source_l_separates <- SOURCE_OK[["l"]]
 VERDICTS$beta0_r <- BETA0[["r"]]
 VERDICTS$stopped <- STOPPED
+if (STOPPED == "synthetic") {
+  # Verdict 2 sits below verdict 1: under a synthetic stop its outcome is not written either
+  # (code-check round 3).
+  VERDICTS$source_r_separates <- NA
+  VERDICTS$source_l_separates <- NA
+  VERDICTS$sources <- NA_character_
+}
 if (nzchar(STOPPED)) {
   # Nothing below a stop is read (the rule): every estimate is blanked before it can be written.
   est <- grepl("^(phi|D)", names(VERDICTS))
