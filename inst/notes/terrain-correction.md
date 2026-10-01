@@ -1227,7 +1227,8 @@ canopy, inland 6.88 m. The canopy cannot reverse fly#65's area verdict at the ca
 ### What the measurement is blind to
 
 - **Canopy at the photo date**, except through VRI's stand origin and a linear height-age
-  curve, which understates how short a young stand is.
+  curve, which understates how short a young stand is. An observed witness — the parallax
+  between adjacent frames — is filed as fly#82.
 - **Tilt** (#10), as everywhere here: the ray-cast and the rectangle share the vertical camera.
 - **Film only**, as fly#58 and fly#65.
 - **A sample.** The verdicts rest on 594 admitted frames, stratified by a coarse census of
