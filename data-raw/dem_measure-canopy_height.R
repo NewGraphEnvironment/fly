@@ -775,7 +775,7 @@ ms$admitted <- ms$fp_dtm_terrain %in% "dem_agl" & ms$fp_dsm_terrain %in% "dem_ag
   is.finite(ms$cov_dtm) & ms$cov_dtm >= fly_dem_coverage_min() &
   is.finite(ms$cov_dsm) & ms$cov_dsm >= fly_dem_coverage_min()
 ms$class_changed <- (ms$fp_dtm_terrain %in% "dem_agl") != (ms$fp_dsm_terrain %in% "dem_agl") |
-  !(ms$fp_dtm_height %in% ms$fp_dsm_height)
+  !mapply(identical, ms$fp_dtm_height, ms$fp_dsm_height)   # elementwise, NA-safe (round 2)
 ms$d_c <- lin(ms$area_w_dtm, ms$area_w_dsm)
 ms$rho_dtm <- lin(ms$area_w_dtm, ms$area_t_dtm)
 ms$rho_dsm <- lin(ms$area_w_dsm, ms$area_t_dsm)
@@ -783,8 +783,11 @@ ms$today <- lin(ms$area_w_dtm, ms$area_t_dsm)   # the package today against the 
 ms$raycast_ok <- ms$admitted & ms$rays_bad_dtm %in% 0 & ms$rays_bad_dsm %in% 0 &
   is.finite(ms$area_t_dtm) & is.finite(ms$area_t_dsm)
 
-EPOCH <- file.path(CACHE, paste0("epoch_", VKEY, ".rds"))
-EPOCH_DIR <- file.path(CACHE, paste0("epoch_frames_", VKEY))
+# Cached as the raw VRI polygons under each frame (area, origin, height, projection year,
+# treed flag), so the verdict below is computed from them and can be re-read at another canopy
+# epoch without re-querying. Tagged `a4`: nothing computed under Amendments 1 or 3 is read back.
+EPOCH <- file.path(CACHE, paste0("epoch_a4_", VKEY, ".rds"))
+EPOCH_DIR <- file.path(CACHE, paste0("epoch_a4_frames_", VKEY))
 dir.create(EPOCH_DIR, showWarnings = FALSE)
 N_EPOCH <- if (SMOKE) 2 else 400
 if (!file.exists(EPOCH)) {
@@ -796,7 +799,7 @@ if (!file.exists(EPOCH)) {
     set.seed(80)
     ep <- ep[sort(sample.int(nrow(ep), N_EPOCH)), ]
   }
-  vri_one <- function(row) {
+  vri_polys <- function(row) {
     h <- sqrt(row$area_w_dtm) / 2
     fpg <- sf::st_sfc(close_ring(cbind(row$x + c(-h, h, h, -h), row$y + c(-h, -h, h, h))), crs = 3005)
     q1 <- function() bcdata::bcdc_query_geodata("WHSE_FOREST_VEGETATION.VEG_COMP_LYR_R1_POLY") |>
@@ -808,59 +811,74 @@ if (!file.exists(EPOCH)) {
     }))
     if (inherits(v, "vri_error")) stop("VRI query failed for ", row$airp_id, ": ", v)
     A <- as.numeric(sf::st_area(fpg))
-    base <- data.frame(airp_id = row$airp_id, vri_share = 0, treed_share = 0,
-                       unknown_share = NA_real_, c_now = NA_real_, c_then = NA_real_,
-                       young_share = NA_real_, replaced_share = NA_real_)
-    if (!nrow(v)) return(base)
-    v <- suppressWarnings(sf::st_intersection(sf::st_make_valid(v), fpg))
-    a <- as.numeric(sf::st_area(v))
-    base$vri_share <- sum(a) / A
-    tr <- v$BCLCS_LEVEL_2 %in% "T" & is.finite(v$PROJ_AGE_1) & is.finite(v$PROJ_HEIGHT_1)
-    base$treed_share <- sum(a[tr]) / A
-    # Canopy epoch: the lidar project where the frame is mostly lidar-sourced (median 2018 per
-    # the specification), GLO-30's collection otherwise (2011-2015, midpoint 2013).
-    cy <- if (isTRUE(row$lidar_share > .5)) 2018 else 2013
-    py <- row$photo_year
-    # VRI projects every polygon to one date (2025-12-31 when probed), so its height is the
-    # height THEN, not at either epoch. Heights are carried back linearly in age (Amendment 3):
-    # height at year t is h (t - O) / (yr - O). Linear in age understates how short a young
-    # stand is, so it understates harm.
-    yr <- as.numeric(substr(as.character(v$PROJECTED_DATE), 1, 4))
-    O <- yr - v$PROJ_AGE_1
-    at <- function(t) ifelse(t >= O, v$PROJ_HEIGHT_1 * pmax(0, t - O) / pmax(yr - O, 1), NA_real_)
-    h_now <- at(cy)
-    # A stand that originated after the photo replaced one whose height is unknown: neutral,
-    # c_then = c_now. One that originated after the canopy epoch was not what the DSM saw
-    # either; both epochs saw stands that are gone, so that area is unknown and left out.
-    unknown <- tr & O > cy
-    c_then <- ifelse(O <= py, at(py), h_now)
-    known <- !unknown
-    base$unknown_share <- sum(a[unknown]) / sum(a)
-    if (!any(known)) return(base)
-    # Non-treed ground carries no canopy in either epoch: it stays in the mean as zero, so a
-    # frame with no treed polygon has both errors 0 rather than dropping out (round 1).
-    w <- a[known]
-    base$c_now <- sum(w * ifelse(tr[known], h_now[known], 0)) / sum(w)
-    base$c_then <- sum(w * ifelse(tr[known], c_then[known], 0)) / sum(w)
-    tk <- tr & known
-    if (any(tk)) {
-      base$young_share <- sum(a[tk & O <= py & (py - O) < (cy - O) / 2]) / sum(a[tk])
-      base$replaced_share <- sum(a[tk & O > py]) / sum(a[tk])
+    # One constructor for the empty and the full case: a scalar beside zero-length columns is
+    # an error in data.frame(), not a zero-row frame.
+    mk <- function(a, age, height, yr, treed) {
+      data.frame(airp_id = rep(row$airp_id, length(a)), area_fp = rep(A, length(a)), a = a,
+                 age = age, height = height, yr = yr, treed = treed)
     }
-    base
+    empty <- mk(numeric(0), numeric(0), numeric(0), numeric(0), logical(0))
+    if (!nrow(v)) return(empty)
+    v <- suppressWarnings(sf::st_intersection(sf::st_make_valid(v), fpg))
+    if (!nrow(v)) return(empty)
+    # bcdata returns a column of all-missing values as character (round 2: frame 895494),
+    # so every field is coerced explicitly.
+    mk(as.numeric(sf::st_area(v)), suppressWarnings(as.numeric(v$PROJ_AGE_1)),
+       suppressWarnings(as.numeric(v$PROJ_HEIGHT_1)),
+       as.numeric(substr(as.character(v$PROJECTED_DATE), 1, 4)), v$BCLCS_LEVEL_2 %in% "T")
   }
-  rows <- lapply(seq_len(nrow(ep)), function(i) {
+  polys <- lapply(seq_len(nrow(ep)), function(i) {
     f <- file.path(EPOCH_DIR, paste0(ep$airp_id[i], ".rds"))
-    if (!file.exists(f)) save_atomic(vri_one(ep[i, ]), f)
+    if (!file.exists(f)) save_atomic(vri_polys(ep[i, ]), f)
     readRDS(f)
   })
-  save_atomic(do.call(rbind, rows), EPOCH)
+  save_atomic(list(ids = ep$airp_id, polys = do.call(rbind, polys)), EPOCH)
 }
-ev <- readRDS(EPOCH)
-ev <- merge(ms[, c("airp_id", "weight", "photo_year", "decade", "d_c", "radar_share")], ev, by = "airp_id")
-ev$dtm_err <- ev$c_then
-ev$dsm_err <- abs(ev$c_then - ev$c_now)
-ev$dsm_worse <- is.finite(ev$c_then) & ev$dsm_err > ev$dtm_err
+EP <- readRDS(EPOCH)
+
+# One frame's epoch ratio from its polygons (Amendment 4). Heights are carried back linearly
+# in age from VRI's projection year: h(t) = h (t - O) / (yr - O). Linear in age understates how
+# short a young stand is, so it understates harm.
+epoch_frame <- function(p, py, cy) {
+  out <- c(vri_share = 0, unknown_share = NA_real_, c_now = NA_real_, c_then = NA_real_,
+           r = NA_real_, replaced_share = NA_real_)
+  if (!nrow(p)) return(out)
+  out[["vri_share"]] <- sum(p$a) / p$area_fp[1]
+  O <- p$yr - p$age
+  ok_t <- p$treed & is.finite(O) & is.finite(p$height) & is.finite(p$yr)
+  # Unknown area: a treed polygon with no age or height, or a stand that originated after the
+  # canopy epoch (neither surface saw it).
+  unknown <- (p$treed & !ok_t) | (ok_t & O > cy)
+  out[["unknown_share"]] <- sum(p$a[unknown]) / sum(p$a)
+  known <- !unknown
+  if (!any(known)) return(out)
+  at <- function(t) p$height * pmax(0, t - O) / pmax(p$yr - O, 1)
+  h_cy <- ifelse(ok_t, at(cy), 0)
+  # A stand that originated after the photo replaced one of unknown height: neutral.
+  h_py <- ifelse(ok_t, ifelse(O <= py, at(py), h_cy), 0)
+  w <- p$a[known]
+  out[["c_now"]] <- sum(w * h_cy[known]) / sum(w)
+  out[["c_then"]] <- sum(w * h_py[known]) / sum(w)
+  tk <- ok_t & known
+  if (any(tk)) out[["replaced_share"]] <- sum(p$a[tk & O > py]) / sum(p$a[tk])
+  if (out[["c_now"]] > 0) out[["r"]] <- out[["c_then"]] / out[["c_now"]]
+  out
+}
+ev_at <- function(shift = 0) {
+  ev <- ms[ms$airp_id %in% EP$ids, c("airp_id", "weight", "photo_year", "decade", "d_c",
+                                      "radar_share", "c30")]
+  ev$cy <- ifelse(ev$radar_share > .5, 2013, 2018) + shift
+  vals <- t(vapply(seq_len(nrow(ev)), function(i) {
+    epoch_frame(EP$polys[EP$polys$airp_id == ev$airp_id[i], , drop = FALSE],
+                ev$photo_year[i], ev$cy[i])
+  }, numeric(6)))
+  ev <- cbind(ev, vals)
+  ev$known <- is.finite(ev$r)
+  ev$dsm_worse <- ev$known & ev$r < .5
+  ev
+}
+ev <- ev_at(0)
+stopifnot(nrow(ev) == length(EP$ids))
 if (STOP_AFTER <= 4) quit(save = "no")
 
 # ---------------------------------------------------------------------------
@@ -904,7 +922,7 @@ for (dd in sort(unique(a$decade))) {
       sum(x$weight[x$d_c > .01]) / sum(x$weight))
 }
 rad <- a$radar_share > .5
-pub("  d_c by source: radar-majority weight share %.3f, 95th %.4f; lidar-majority 95th %.4f",
+pub("  d_c by source: radar-majority weight share %.3f, 95th %.4f; not radar-majority 95th %.4f",
     sum(a$weight[rad]) / sum(a$weight), wq(a$d_c[rad], a$weight[rad], .95),
     wq(a$d_c[!rad], a$weight[!rad], .95))
 pub("  Meta under the same frames: weighted median meta_c / c30 %.3f (reported, not decisive)",
@@ -933,21 +951,40 @@ slope <- fit(lp$imaged_over_dtm, lp$mrdem_canopy)
 valid <- slope >= 0.67 && slope <= 1.5
 pub("  INSTRUMENT VALID ON RADAR CELLS (lidar-probe slope %.3f within [0.67, 1.5]): %s", slope, valid)
 
-# 4. Epoch.
-pub("  epoch: %d frames with d_c >= 0.5%% (weight %.0f); VRI covers weighted median %.3f of the footprint, treed %.3f; %d with no VRI at all, %d whose VRI area is all unknown",
-    nrow(ev), sum(ev$weight), wq(ev$vri_share, ev$weight, .5), wq(ev$treed_share, ev$weight, .5),
-    sum(ev$vri_share == 0), sum(ev$vri_share > 0 & !is.finite(ev$c_then)))
-epoch_ok <- character(0)
-for (dd in sort(unique(ev$decade))) {
-  x <- ev[ev$decade == dd & is.finite(ev$c_then), ]
-  if (!nrow(x)) next
-  sh <- sum(x$weight[x$dsm_worse]) / sum(x$weight)
-  pub("  epoch %d n=%3d: DSM worse than DTM on weighted share %.3f; weighted median c_then %.1f m c_now %.1f m; young-at-photo share %.3f, replaced-since %.3f",
-      dd, nrow(x), sh, wq(x$c_then, x$weight, .5), wq(x$c_now, x$weight, .5),
-      wq(x$young_share, x$weight, .5), wq(x$replaced_share, x$weight, .5))
-  if (sh < .10) epoch_ok <- c(epoch_ok, as.character(dd))
+# 4. Epoch (Amendment 4): per decade, over frames with d_c >= 0.5%, the weighted share of
+# KNOWN frames where VRI's then/now ratio r is under 0.5. A decade holds only with at least 10
+# known frames carrying at least half the decade's eligible weight.
+epoch_verdict <- function(ev, quiet = FALSE) {
+  ok <- character(0)
+  for (dd in sort(unique(ev$decade))) {
+    x <- ev[ev$decade == dd, ]
+    k <- x[x$known, ]
+    kw <- sum(k$weight) / sum(x$weight)
+    sh <- if (nrow(k)) sum(k$weight[k$dsm_worse]) / sum(k$weight) else NA_real_
+    enough <- nrow(k) >= 10 && kw >= .5
+    holds <- enough && is.finite(sh) && sh < .10
+    if (!quiet) {
+      pub("  epoch %d: %3d eligible, %3d known (weight share %.3f)%s; DSM worse on weighted share %s; weighted median r %s, c30 %.1f m",
+          dd, nrow(x), nrow(k), kw, if (enough) "" else " -- too few known, unresolved",
+          if (is.finite(sh)) sprintf("%.3f", sh) else "NA",
+          if (nrow(k)) sprintf("%.3f", wq(k$r, k$weight, .5)) else "NA", wq(x$c30, x$weight, .5))
+    }
+    if (holds) ok <- c(ok, as.character(dd))
+  }
+  ok
 }
+pub("  epoch: %d frames with d_c >= 0.5%% (weight %.0f); %d known; unknown: %d with no VRI, %d all-unknown VRI area, %d with VRI canopy 0 under DSM canopy",
+    nrow(ev), sum(ev$weight), sum(ev$known), sum(ev$vri_share == 0),
+    sum(ev$vri_share > 0 & !is.finite(ev$c_now)), sum(is.finite(ev$c_now) & ev$c_now == 0))
+pub("  epoch: weighted median VRI share of footprint %.3f, unknown share of VRI area %.3f, replaced-since-photo share of treed %.3f",
+    wq(ev$vri_share, ev$weight, .5), wq(ev$unknown_share, ev$weight, .5),
+    wq(ev$replaced_share, ev$weight, .5))
+epoch_ok <- epoch_verdict(ev)
 pub("  EPOCH HOLDS for decades: %s", if (length(epoch_ok)) paste(epoch_ok, collapse = ", ") else "none")
+for (sh in c(-3, 3)) {
+  v <- epoch_verdict(ev_at(sh), quiet = TRUE)
+  pub("  epoch at canopy year %+d: holds for %s", sh, if (length(v)) paste(v, collapse = ", ") else "none")
+}
 
 outcome <- if (!material) "NOTHING" else if (!valid) "UNRESOLVED" else
   if (not_degraded && length(epoch_ok)) "RECOMMEND A DSM" else "DOCUMENT"
@@ -981,8 +1018,8 @@ keep <- c("airp_id", "photo_year", "decade", "film_roll", "frame_number", "scale
           "area_t_dtm", "area_t_dsm", "area_t_dsm_inv", "admitted")
 sig <- function(d) { num <- vapply(d, is.double, logical(1)); d[num] <- lapply(d[num], signif, 10); d }
 out_s <- sig(ms[order(ms$stratum, ms$airp_id), keep])
-out_e <- sig(ev[order(ev$airp_id), c("airp_id", "vri_share", "treed_share", "unknown_share", "c_now",
-                                     "c_then", "young_share", "replaced_share")])
+out_e <- sig(ev[order(ev$airp_id), c("airp_id", "cy", "vri_share", "unknown_share", "c_now", "c_then",
+                                     "r", "replaced_share")])
 out_l <- sig(lp)
 out_st <- sig(sites_out)
 out_c <- sig(cc[order(cc$airp_id), ])

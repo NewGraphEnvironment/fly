@@ -281,3 +281,42 @@ The verdict threshold (weighted share under 10% per decade) is unchanged.
 | bug, low: all-non-treed frames dropped | Fixed (Amendment 3) |
 | fragile: one seed at the top | Fixed: `set.seed(80)` immediately before each of the four draws; verified that re-seeding before the stratified draw reproduces the cached 612-frame sample exactly |
 | fragile: unweighted medians quoted | Census calibration and epoch medians now weighted; identity and first-order lines labelled "sample, unweighted" (instrument diagnostics, not population figures) |
+
+## Amendment 4 — fixed 2026-09-30 from code-check round 2, before any VRI result exists
+
+Round 2 found the round-1 epoch fix wrong in kind, not only in a line:
+
+- **Scale.** Amendment 3 compared VRI heights (`PROJ_HEIGHT_1`, leading-species height) with each
+  other and called the result the DSM's error. The DSM's canopy is its own measurement (`c30`,
+  the mean of DSM − DTM under the frame), and VRI's `c_now` is not on that scale (frame 102164:
+  25.5 m against 13.3 m). Now VRI supplies only the **ratio** `r = c_then / c_now` (area-weighted,
+  height carried back linearly in age as in Amendment 3), applied to the DSM's canopy: DTM error
+  `∝ r · c30`, DSM error `∝ |1 − r| · c30`. **The DSM is worse on a frame iff `r < 0.5`** — the
+  `c_now > 2 c_then` condition of review B2, on the frame.
+- **Unknowns.** A frame is *unknown* (excluded from the share, counted, its weight reported) when it
+  has no VRI, when all its VRI area is unknown, or when VRI puts no canopy where the DSM does
+  (`c_now = 0`, so `r` is undefined). Treed polygons with no age or height are unknown area, not
+  zero canopy. Non-treed polygons are zero in both epochs and stay in both sums.
+- **Small decades.** Clause 4 holds for a decade only if it has **at least 10 known frames** and the
+  known frames carry **at least half** the decade's eligible weight. Otherwise the decade is
+  reported as unresolved, not as holding.
+- **Canopy epoch** `cy` stays 2013 on radar-majority frames and 2018 (HRDEM's median project year)
+  otherwise; the per-project year is not available. The verdict is also reported at `cy` ± 3 years,
+  and the rule reads the central value.
+- `class_changed` was a set test (`%in%`); it is now elementwise.
+
+Caches for Stage 4 are tagged with the algorithm (`a4`), so nothing computed under Amendment 1 or
+3 can be read back (the full run was stopped at the end of Stage 3 before writing one).
+
+## Code-check round 2 (`review-round2.md`) — disposition
+
+| finding | inside round-1 fix? | disposition |
+|---|---|---|
+| bug: `vri_one()` crashes when bcdata returns all-NA age/height as character | yes | Fixed: explicit `as.numeric()`; Stage 4 now caches raw polygons |
+| bug: denominator fix scores VRI-non-treed frames as "not worse"; VRI heights on a different scale from the DSM | yes | Fixed by Amendment 4 (VRI supplies only the ratio r; DSM worse iff r < 0.5; VRI-zero-under-DSM-canopy is unknown) |
+| bug: stale epoch cache from the in-flight pre-fix run | — | The run is stopped by a watcher at the end of Stage 3, before Stage 4 writes; caches now tagged `a4` |
+| bug, low: `class_changed` used `%in%` | no | Fixed: elementwise `mapply(identical, …)` |
+| fragile: one small decade can decide | — | Amendment 4: ≥ 10 known frames and ≥ half the decade's weight |
+| fragile: `cy = 2018` for lidar frames | — | Kept, stated; verdict reported at `cy` ± 3 |
+| fragile, low: "lidar-majority" mislabelled | no | Relabelled "not radar-majority" |
+| (found while fixing) empty `data.frame()` with a scalar beside zero-length columns | yes, inside this round's fix | Fixed: one constructor `mk()` for empty and full; smoke passes |
