@@ -1253,38 +1253,22 @@ was taken? fly#82 asked the photos.
   patch's image shifts between them by `p = f B / (H − h)`.
 - **Inside one overlap**, f, B and H are shared, so each patch's parallax against the pair's
   median gives its height against the pair's: `h − h₀ = (H − h₀)(1 − p₀ / p)`. No air base is
-  needed, and the scale `(H − h₀)` is common to every patch in the pair.
+  needed.
 - **The quantity.** Regressing that height on MRDEM's DTM and on `C = DSM − DTM` gives a slope
   on C: how much of today's canopy the camera saw.
 
-**It stopped at its first verdict.**
-- The instrument failed its synthetic controls, so under the rule fixed before any sampled pair
-  was read, no canopy slope, φ or D was computed on any sampled pair.
-- Smoke runs that shook the code out matched and registered ten pairs from the head of the real
-  draw. They crashed before any slope existed, and the smoke draw was then given its own seed.
-- The pilot frames that shaped the instrument are excluded from the sample. They include roll
-  bc5282, whose canopy coefficients were computed in scratch code before the rule existed.
+**It stopped at its first verdict.** The instrument failed its synthetic controls, so under the
+decision rule no canopy slope, φ or D was computed on any pair of the real draw.
+- Early smoke runs drew from the head of that draw and crashed before any slope existed. Smoke
+  runs now use their own seed.
 - `data-raw/dem_measure-photo_parallax.R` reproduces the stop and ships
   `inst/extdata/dem_parallax_synthetic.csv`, from which the suite rebuilds this section's
   tables.
 
-### What worked
+### What passed
 
-- **Terrain, in a pilot.** On seven pairs of roll bc5282 (1968), per-patch parallax tracked the
-  DTM at slopes of 0.95–1.13. That was scratch code, before registration, with a quadratic in
-  image position absorbing tilt, crab, scan rotation and scale. It is recorded in the archived
-  planning findings; the shipped script does not reproduce it.
-- **Matching.**
-  - Coarse-to-fine phase correlation on the thumbnails, with candidate peaks verified by local
-    patches.
-  - A single whole-frame correlation locked onto the wrong peak on 2 of 10 pilot pairs on that
-    roll, and on several Phase 0 pairs.
-- **The catalogue's centroid spacing is never used as the air base.** In 1965, 1975 and 1985,
-  64–77% of consecutive bases along a line are equal within 0.5% (a probe in the plan review),
-  so before the 1990s the spacing carries no per-frame base. On one Phase 0 pair a centroid sat ×1.7 off the images' own
-  spacing.
-- **The plain synthetics pass.** A real thumbnail is warped by the parallax of a known surface,
-  with tilt, rotation and a scale difference on both axes, and saved at JPEG 85:
+- **The plain synthetics.** A real thumbnail is warped by the parallax of a known surface, with
+  tilt, rotation and a scale difference on both axes, and saved as JPEG:
 
 | case | frames passing | slope range |
 |---|---|---|
@@ -1293,12 +1277,17 @@ was taken? fly#82 asked the photos.
 | terrain, κ = 0 | 3 of 3 | −0.029 to +0.070 |
 | terrain, κ = 1 | 3 of 3 | +0.975 to +1.123 |
 
+- **The catalogue's centroid spacing is never used as the air base.** In a plan-review probe,
+  64–77% of consecutive bases in 1965, 1975 and 1985 were equal within 0.5%, so the spacing
+  carries no per-frame base there. On one Phase 0 pair the spacing was ×1.7 what the
+  images showed.
+
 ### Why it stopped
 
 The quantity reported is a ratio of two canopy slopes: mid-aged stands over stands VRI dates as
 80 or more years old at the photo, after the bare-earth reference is removed. The synthetic that
-tests that ratio was built in a world where fly#80's VRI model is exactly true. It ran on the
-eleven pilot frames and was pooled over the seven the gates admitted, as the sample would be
+tests that ratio was built in a world where fly#80's VRI model is exactly true. It ran on eleven
+Phase 0 pilot frames and was pooled over the seven the gates admitted, as the sample would be
 pooled. It missed its known answer in both MRDEM sources:
 
 | source | displaced | φ measured | φ known | mid / old patches |
@@ -1308,24 +1297,15 @@ pooled. It missed its known answer in both MRDEM sources:
 | radar | 150 m | 46.350 | 0.860 | 135 / 65 |
 | lidar | 150 m | 0.810 | 0.553 | 173 / 43 |
 
-A φ of 46 means the old slope was tiny against the mid one.
+**Why is not established.** Two candidates, neither measured:
+1. **The matcher's response differs between frames that carry different classes.** The shipped
+   rows show response only on uniform canopy: 0.975–1.123 over three frames, one of which
+   (bcc01030) also holds both classes.
+2. **Registration lands wrong and still passes every gate.** With 150 m of displacement one
+   plain frame's canopy slope fell to 0.403, and that frame passed every gate.
 
-**Why is not established.** Two candidates, both diagnosis rather than measurement:
-
-1. **The matcher's response differs by frame, while the classes sit in different frames.**
-   - The admitted frames hold the two classes unevenly: one carries 124 mid patches against 3
-     old in its dominant source.
-   - Per frame, φ is no better. On the three admitted frames holding both classes it ranged from
-     −0.402 to 4.153 against known answers of 0.642–0.911.
-   - It cannot account for the size of the miss on its own. The plain κ = 1 synthetics span
-     0.975–1.123, a ratio of 1.15, and the pooled misses are ratios of 1.58 (radar) and 1.44
-     (lidar).
-   - Response on uniform canopy may not be response on stands, and that was not measured.
-2. **Registration can land wrong and still pass every gate.**
-   - With 150 m of displacement one plain frame's canopy slope fell to 0.403.
-   - Phase 0 registration moved real pairs by up to 1.1 km.
-
-Thumbnail resolution was not varied, so it is not shown to be the cause either.
+Thumbnail resolution was not varied, so it is not shown to be the cause either. What would have
+to change is filed as fly#85.
 
 ### What it leaves
 
@@ -1333,14 +1313,12 @@ Thumbnail resolution was not varied, so it is not shown to be the cause either.
   on 15.1% of the 1970s frames where canopy matters.
 - **No code or default could have changed either way.** fly#80 found the DTM–DSM difference
   immaterial, so this question decides only a sentence.
-- **Three amendments** are in the archived planning findings, each fixed before any sampled pair
-  was read:
-  - **A** dropped a digital control on exterior orientation, because the in-pair ratio was
-    meant to cancel what it measured.
-  - **B** dropped a control on ground young at the photo date, since cleanly classed it held 2
-    patches in 11 pilot pairs. It took the bare-earth reference from fly#80's LidarBC slope on
-    radar cells, and 0 on lidar cells by construction.
-  - **C** pooled the class test, because a single frame cannot estimate the ratio.
+- **The plan changed three times, each before any pair of the real draw was read** (archived
+  planning findings):
+  - **Amendment A**, before the decision rule, dropped a digital control on exterior
+    orientation.
+  - **Amendments B and C** amended the rule. B replaced a control on ground young at the photo
+    date with fly#80's bare-earth reference. C pooled the class test.
 
 ## Testing this
 

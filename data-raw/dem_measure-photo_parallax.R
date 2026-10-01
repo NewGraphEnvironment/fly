@@ -20,7 +20,7 @@
 # C, and on radar cells MRDEM's DTM sits under true ground by an amount that grows with C (fly#80,
 # LidarBC). So it is rescaled between two references:
 #   bare  — the slope when the camera saw bare ground: 0.146 on radar cells, from fly#80's
-#           LidarBC tiles, and 0 on lidar cells, where the DTM is lidar ground;
+#           LidarBC tiles, and 0 on lidar cells by construction, where the DTM is lidar ground;
 #   old   — measured in the same pairs, on stands VRI dates as 80 or more years old at the
 #           photo: canopy then, much as now.
 # phi = (b_mid - bare) / (b_old - bare) is the share of today's canopy the camera saw on the
@@ -30,8 +30,8 @@
 # pairs (Amendment B).
 #
 # The rule — every threshold, class, gate and verdict — was fixed in fly#82's planning findings
-# ("Decision rule", amended twice — A and B — before any sampled pair was read). Read it
-# before changing anything here.
+# ("Decision rule"), after Amendment A and before Amendments B and C, all before any pair of the
+# real draw was read. Read it before changing anything here.
 #
 # Everything is public: the BC Data Catalogue's airphoto centroids, thumbnails and VRI, and
 # NRCan's MRDEM-30.
@@ -45,7 +45,8 @@
 #   Stage 3  per pair: match, place, register, sample the DEM, class from VRI (cached)
 #   Stage 4  the verdicts; write `inst/extdata/dem_parallax_*.csv`
 #
-#   FLY_PARALLAX_SMOKE=1 runs a handful of pairs into a separate cache and writes nothing
+#   FLY_PARALLAX_SMOKE=1 runs one frame per synthetic case and two pairs a decade, drawn with
+#   its own seed, into a separate cache; it writes nothing and prints no slope of a pair
 #   FLY_PARALLAX_STOP=<n> stops after stage n
 
 pkgload::load_all(quiet = TRUE)
@@ -1042,9 +1043,11 @@ write_versions <- function() {
 }
 # Verdict 1: an instrument that fails its synthetic controls is not applied to the sample. Nothing
 # below runs; what is written is the controls and the versions they were run against.
-if (!SYN_OK) {
+# Smoke runs one frame per case, so it can never pass; it carries on to shake out Stages 2-4,
+# whose Stage 4 then honours the synthetic stop (code-check, record round 2).
+if (!SYN_OK && !SMOKE) {
   pub("  STOP (synthetic): the instrument fails its synthetic controls; no sampled pair is measured")
-  if (!SMOKE) write_versions()
+  write_versions()
   quit(save = "no")
 }
 if (STOP_AFTER < 2) quit(save = "no")

@@ -281,31 +281,19 @@ rather than a property of this code.
     rather than what produced it (scale, sampling design, type, RNG state). Read
     `inst/notes/terrain-correction.md` before reopening this
 
-- **Photo parallax, as built, cannot date the canopy, and no canopy slope was computed on a
-  sampled pair** (fly#82, no code change).
-  - **What failed.** The estimand is a ratio of a mid-stand canopy slope to an old-stand one.
-    Its class-structured synthetic, built in a world where fly#80's VRI model is true and
-    pooled over the seven pilot frames the gates admitted, missed in both MRDEM sources:
-    radar 1.356 against 0.860, lidar 0.793 against 0.550.
-  - **The plain synthetics passed**, and a scratch pilot tracked terrain (DTM slope 0.95–1.13
-    on seven unregistered pairs). Why the ratio fails is not established. Neither candidate
-    alone accounts for the size of the miss:
-    - the response differs by frame while the classes sit in different frames — but the plain
-      synthetics span only ×1.15, against misses of ×1.58 and ×1.44;
-    - registration can land wrong and pass every gate.
-  - **So fly#80's VRI estimate stands alone.**
-  - **Three things are load-bearing.**
-    - **Never use catalogue centroid spacing as the air base.** Before the 1990s it is evenly
-      spaced along a line, and one pilot centroid sat ×1.7 off.
-    - **Test a ratio estimand pooled, as it will be estimated.** A per-frame test was
-      ill-posed (Amendment C), and the plain synthetics passed while the estimand failed.
-    - **Three amendments (A–C) were fixed before any sampled pair was read.** Five code-check
-      rounds ended on an 82-row enumeration of guard against protected quantity; the mechanism
-      was a guard computed on a sibling of the object it protects. The record's own review
-      found its prose written from the story in the same way.
+- **Photo parallax, as built, cannot date the canopy, and no canopy slope was computed on the
+  real draw** (fly#82, no code change). Its ratio estimand failed its own pooled synthetic, so
+  fly#80's VRI estimate stands alone.
+  - **The ratio.** Mid-stand over old-stand canopy slope. The synthetic, in a world where
+    fly#80's VRI model is true, missed in both MRDEM sources.
+  - **The plain synthetics passed**, so a test of single slopes says nothing about the ratio.
+    Test a ratio estimand pooled, as it will be estimated.
+  - **Why it fails is not established** (fly#85).
+  - **Never use catalogue centroid spacing as an air base.** It is evenly spaced along lines
+    before the 1990s, and it was ×1.7 off on a pilot pair.
 
-    Read `inst/notes/terrain-correction.md` and the archived planning findings before
-    reopening this.
+  Read `inst/notes/terrain-correction.md` and the archived planning findings before
+  reopening this.
 
 - **Terrain error is a datum offset, not slope** (v0.5.0, #9) — `FLYING_HEIGHT` is metres **above sea level**,
 and reported scale is referenced to an elevation above the ground the photos cover, so it understates footprint
