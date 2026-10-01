@@ -49,61 +49,63 @@ cannot resolve it") is a valid outcome and is recorded, as fly#80 recorded HRDEM
   - fly#80's sample (`inst/extdata/dem_canopy_sample.csv`), so the parallax and VRI verdicts can
     be compared frame for frame.
 
-## Phase 1: Instrument — build and prove it before any frame counts
+## Revision after review-1 (2026-10-01)
 
-- [ ] `data-raw/dem_measure-photo_parallax.R` skeleton: staged like the fly#80 script (Stage 0
-      versions and keys, `FLY_PARALLAX_SMOKE`, `FLY_PARALLAX_STOP`), with caches under the
-      gitignored `data-raw/.cache/photo_parallax/` keyed on the MRDEM ETags and on the algorithm
-      tag.
-- [ ] Pair builder: frames number-adjacent on one roll, with the same lens, scale and height,
-      both inside `fly_height_ratio_band()`, and spacing inside the fly#60 overlap window.
-- [ ] Shift estimator: phase correlation with a sub-pixel peak (base `fft()`, no new dependency).
-      Collar masked through `fly_mask()`. Global shift per pair, and a patch grid inside the
-      overlap.
-- [ ] Estimator A (the issue's): frame-level `f·B/Δ`, within-roll slope of implied `e_seen − DTM`
-      on `DSM − DTM`.
-- [ ] Estimator B (B cancels): per-patch parallax regressed on DTM relief and on canopy, image
-      rotation fixed from the shift direction and the bearing.
-- [ ] Synthetic controls at thumbnail resolution, JPEG-compressed:
-  - a flat surface, which must return slope 0;
-  - a canopy step of known height, which must return slope 1;
-  - DTM-only against DSM-draped texture, which must return 0 and 1.
-      Thresholds are written before the controls are run.
-- [ ] Real positive control: 2011–2013 digital pairs with PATB EO. The DTM slope must be ≈ 1 and
-      the canopy slope near 0.916.
-- [ ] Pilot on a few film rolls: per-pair noise for each estimator, and the n each needs per
-      decade. Record it in `findings.md` with its log under `data-raw/.cache/logs/parallax_*`.
+Review-1 (`review-1.md`) and the pilot (`findings.md`) changed the instrument; the approved
+goal, outcome boundary and phase order are unchanged. Estimator A is dropped (pre-1990 bases
+are interpolated). The verdict is no longer read against 0/1 but **rescaled between two
+in-pair controls classed from VRI** — ground known young at the photo date and ground known
+old — so placement attenuation, matcher response and MRDEM's DTM bias cancel to first order.
+A Phase 0 measures only nuisance quantities. Roll bc5282 is excluded (pilot leak).
 
-## Phase 2: Decision rule — fixed in `findings.md` before any measured frame is read
+## Phase 0: Feasibility — nuisance quantities only, no canopy coefficient
 
-- [ ] Quantities, the estimator chosen from Phase 1 and why, the sample design, the thresholds,
-      verdicts by decade with a roll-bootstrap 95% interval, and the comparison against fly#80's
-      VRI epoch table.
-- [ ] A stop clause: if the controls fail or the pilot's power cannot reach the decision width,
-      the outcome is "instrument cannot resolve". It is recorded and nothing more is run.
-- [ ] "What the rule cannot see", stated before the run (tilt #10, thumbnail resolution, scan
-      geometry, seasonal and leaf-off effects).
-- [ ] Plan-agent review of the rule, run concurrently. Amendments are dated and land before the
-      data they govern.
+- [x] JPEG quality of thumbnails (85, film and digital)
+- [x] Pilot matcher on bc5282 (recorded as a leak; roll excluded)
+- [ ] Matcher: coarse-to-fine global shift with a peak gate, per-patch 2-D shift, Hann window,
+      normalised patches; failure rate on ~10 film pairs across decades
+- [ ] Per pair: y-parallax SD, x-parallax residual SD after quadratic + DTM, surviving share of
+      var(DTM) and var(C), r(C, DTM) after nuisance; mirror vs non-mirror on the DTM fit
+- [ ] Control availability: how many pairs carry enough known-young and known-old VRI area
+- [ ] Power: SE of the rescaled canopy position per decade at the n available; stop if the
+      minimum detectable difference exceeds 0.3
+
+## Phase 1: Instrument
+
+- [ ] `data-raw/dem_measure-photo_parallax.R`, staged like the fly#80 script (Stage 0 versions
+      and keys, `FLY_PARALLAX_SMOKE`, `FLY_PARALLAX_STOP`), caches under the gitignored
+      `data-raw/.cache/photo_parallax/` keyed on MRDEM ETags and an algorithm tag
+- [ ] Pairs: frames number-adjacent on one roll, same lens/scale/height, both in
+      `fly_height_ratio_band()`; overlap from the measured global shift
+- [ ] Estimator: `1/p` linear in DTM and C with a quadratic nuisance in image position, C split
+      by VRI class (young-at-photo, old-at-photo, other); pooled per decade with pair fixed
+      effects; pair-bootstrap intervals
+- [ ] Synthetic controls from real thumbnail texture draped on DTM / DTM + C, with tilt, scan
+      rotation, placement error and JPEG 85: flat + fake canopy returns 0; DSM-draped returns 1;
+      the shrinkage they produce is reported
+- [ ] Digital 2011–2013 pairs as a matcher/shrinkage calibration (PATB placement vs perturbed)
+
+## Phase 2: Decision rule — fixed in `findings.md` before any measured pair is read
+
+- [ ] Quantities, sample, thresholds, the rescaled verdict per decade, and the falsifiable
+      prediction from fly#80's epoch r
+- [ ] Stop clause: the controls do not separate, or power fails → "instrument cannot resolve",
+      recorded, nothing more run
+- [ ] What the rule cannot see, stated before the run
+- [ ] Amendments dated, landing before the data they govern
 
 ## Phase 3: Measure
 
-- [ ] Sample: fly#80's sampled frames with `d ≥ 0.5%` and their adjacent frames, topped up by a
-      decade-stratified draw if Phase 1's power says so. Each draw is seeded, with design weights
-      carried.
-- [ ] Run, then report the canopy slope by decade beside the VRI "DSM worse" share. Every figure
-      the note will quote gets a producer line.
+- [ ] Sample: pairs at fly#80's sampled frames (excluding bc5282 and Phase 0 pilots), topped up
+      by a decade-stratified seeded draw if power needs it
+- [ ] Run; every figure the note quotes gets a producer line
 
 ## Phase 4: Ship the record
 
-- [ ] `inst/extdata/dem_parallax_*.csv` (controls, pairs, verdicts), written through
-      `write_if_changed()`.
-- [ ] `tests/testthat/test-fly_footprint_parallax.R`, which recomputes the note's tables and
-      prose figures from the CSVs, as `test-fly_footprint_canopy.R` does.
-- [ ] `inst/notes/terrain-correction.md`: a new fly#82 subsection under fly#80's epoch section,
-      and the "blind to" bullet updated.
-- [ ] CLAUDE.md Architecture entry for the script and a Key Decisions entry. NEWS entry; the
-      version bump is left to `/gh-pr-merge`.
+- [ ] `inst/extdata/dem_parallax_*.csv` through `write_if_changed()`
+- [ ] `tests/testthat/test-fly_footprint_parallax.R` recomputing the note's tables and figures
+- [ ] `inst/notes/terrain-correction.md`: fly#82 subsection, "blind to" bullet updated
+- [ ] CLAUDE.md Architecture + Key Decisions; NEWS (version bump left to `/gh-pr-merge`)
 
 ## Validation
 
