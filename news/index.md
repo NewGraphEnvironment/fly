@@ -2,6 +2,8 @@
 
 ## fly (development version)
 
+### 0.19.2 (2026-10-01)
+
 - **A forested frame is sized from bare earth, and measured, that does
   not matter:
   [`fly_footprint()`](https://newgraphenvironment.github.io/fly/reference/fly_footprint.md)
