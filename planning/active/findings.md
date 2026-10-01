@@ -320,3 +320,24 @@ Caches for Stage 4 are tagged with the algorithm (`a4`), so nothing computed und
 | fragile: `cy = 2018` for lidar frames | — | Kept, stated; verdict reported at `cy` ± 3 |
 | fragile, low: "lidar-majority" mislabelled | no | Relabelled "not radar-majority" |
 | (found while fixing) empty `data.frame()` with a scalar beside zero-length columns | yes, inside this round's fix | Fixed: one constructor `mk()` for empty and full; smoke passes |
+
+## Amendment 5 — fixed 2026-09-30 from code-check round 3, before any VRI result is read
+
+A frame is **known** for clause 4 only if VRI dates at least half its inventoried area
+(`unknown_share < 0.5`: treed polygons with no age or height, and stands younger than the canopy
+epoch, are undated). Round 3's smoke example was 58.6% undated and still counted in full. The
+per-decade line now also reports the weighted median undated share among known frames.
+
+## Code-check round 3 (`review-round3.md`) — disposition, and how the loop ended
+
+| finding | disposition |
+|---|---|
+| fragile: census `na_bin` guard unreachable (`aggregate()` errors on 0 rows) | Fixed: built only when any census frame is NA |
+| fragile: a frame "known" however little of it VRI dates | Amendment 5 |
+| note: test comment's 1.7e-3 is 1.7e-4 absolute, 1.3% relative | Comment corrected |
+
+The reviewer named one mechanism behind every earlier finding — a value used as what its name
+says rather than what produced it, along four axes (instrument/scale/epoch, sampling design,
+runtime type/shape, RNG state) — and enumerated every line each axis reaches, with a per-line
+verdict, in `review-round3.md`. Only the two fragile items failed. Rounds 1 and 2 each found a
+defect inside the previous fix, so the loop was ended by that enumeration, not by a quiet round.

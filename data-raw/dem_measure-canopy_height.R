@@ -532,10 +532,14 @@ cen_bin <- stats::aggregate(list(n = rep(1L, nrow(census))),
                             list(decade = census$decade, scale_band = census$scale_band,
                                  p_bin = as.character(cut(census$p_census, P_EDGES, right = FALSE))),
                             length)
-na_bin <- stats::aggregate(list(n = rep(1L, sum(is.na(census$p_census)))),
-                           list(decade = census$decade[is.na(census$p_census)],
-                                scale_band = census$scale_band[is.na(census$p_census)]), length)
-if (nrow(na_bin)) cen_bin <- rbind(cen_bin, data.frame(na_bin[, 1:2], p_bin = "none", n = na_bin$n))
+# `aggregate()` errors on zero rows rather than returning none, so this is built only when
+# there is something to count (round 3).
+if (any(is.na(census$p_census))) {
+  na_bin <- stats::aggregate(list(n = rep(1L, sum(is.na(census$p_census)))),
+                             list(decade = census$decade[is.na(census$p_census)],
+                                  scale_band = census$scale_band[is.na(census$p_census)]), length)
+  cen_bin <- rbind(cen_bin, data.frame(na_bin[, 1:2], p_bin = "none", n = na_bin$n))
+}
 cen_bin <- cen_bin[order(cen_bin$decade, cen_bin$scale_band, cen_bin$p_bin), ]
 stopifnot(sum(cen_bin$n) == nrow(census))
 if (STOP_AFTER <= 2) quit(save = "no")
@@ -873,7 +877,8 @@ ev_at <- function(shift = 0) {
                 ev$photo_year[i], ev$cy[i])
   }, numeric(6)))
   ev <- cbind(ev, vals)
-  ev$known <- is.finite(ev$r)
+  # Amendment 5: a frame is known only if VRI dates at least half its inventoried area.
+  ev$known <- is.finite(ev$r) & is.finite(ev$unknown_share) & ev$unknown_share < .5
   ev$dsm_worse <- ev$known & ev$r < .5
   ev
 }
@@ -964,18 +969,21 @@ epoch_verdict <- function(ev, quiet = FALSE) {
     enough <- nrow(k) >= 10 && kw >= .5
     holds <- enough && is.finite(sh) && sh < .10
     if (!quiet) {
-      pub("  epoch %d: %3d eligible, %3d known (weight share %.3f)%s; DSM worse on weighted share %s; weighted median r %s, c30 %.1f m",
+      pub("  epoch %d: %3d eligible, %3d known (weight share %.3f)%s; DSM worse on weighted share %s; weighted median r %s, unknown share of known frames' VRI %s, c30 %.1f m",
           dd, nrow(x), nrow(k), kw, if (enough) "" else " -- too few known, unresolved",
           if (is.finite(sh)) sprintf("%.3f", sh) else "NA",
-          if (nrow(k)) sprintf("%.3f", wq(k$r, k$weight, .5)) else "NA", wq(x$c30, x$weight, .5))
+          if (nrow(k)) sprintf("%.3f", wq(k$r, k$weight, .5)) else "NA",
+          if (nrow(k)) sprintf("%.3f", wq(k$unknown_share, k$weight, .5)) else "NA",
+          wq(x$c30, x$weight, .5))
     }
     if (holds) ok <- c(ok, as.character(dd))
   }
   ok
 }
-pub("  epoch: %d frames with d_c >= 0.5%% (weight %.0f); %d known; unknown: %d with no VRI, %d all-unknown VRI area, %d with VRI canopy 0 under DSM canopy",
+pub("  epoch: %d frames with d_c >= 0.5%% (weight %.0f); %d known; not known: %d with no VRI, %d all-unknown VRI area, %d with VRI canopy 0 under DSM canopy, %d with half or more of their VRI area undated",
     nrow(ev), sum(ev$weight), sum(ev$known), sum(ev$vri_share == 0),
-    sum(ev$vri_share > 0 & !is.finite(ev$c_now)), sum(is.finite(ev$c_now) & ev$c_now == 0))
+    sum(ev$vri_share > 0 & !is.finite(ev$c_now)), sum(is.finite(ev$c_now) & ev$c_now == 0),
+    sum(is.finite(ev$r) & !(ev$unknown_share < .5)))
 pub("  epoch: weighted median VRI share of footprint %.3f, unknown share of VRI area %.3f, replaced-since-photo share of treed %.3f",
     wq(ev$vri_share, ev$weight, .5), wq(ev$unknown_share, ev$weight, .5),
     wq(ev$replaced_share, ev$weight, .5))
