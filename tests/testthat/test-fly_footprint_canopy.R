@@ -46,10 +46,12 @@ test_that("a canopy moves a frame across the height band, so a DSM is not a pure
 
 # ---------------------------------------------------------------------------
 # The measurement, recomputed from what `data-raw/dem_measure-canopy_height.R` shipped.
-# The note's fly#80 tables are rebuilt row by row and counted. Not asserted, because no
-# shipped table carries them: the census's median nominal height above ground (4,575 m), the
-# canopy-epoch sensitivity at +/- 3 years, and the site windows' Meta and HRDEM columns. The
-# prose is read only where a figure is matched below.
+# The note's fly#80 tables are rebuilt row by row and counted, and its prose figures that a
+# shipped table can produce are matched below. Not asserted, because no shipped table carries
+# them: the census's median nominal height above ground (4,575 m) and the 46 m it implies, the
+# canopy-epoch sensitivity at +/- 3 years, the synthetic-control residuals (the script stops
+# if they fail), the Revelstoke window's 87 cells, the LidarBC tile years, and the per-land-cell
+# canopy of fly#65's frames (13.31 m), which needs their sea fraction.
 # ---------------------------------------------------------------------------
 
 canopy_tables <- function() {
@@ -177,6 +179,45 @@ test_that("every table in the note's fly#80 section is rebuilt from the shipped 
   expect_match(txt, sprintf("weighted median %s too wide", pc(wq(today, r$weight, .5))), fixed = TRUE)
   expect_match(txt, sprintf("95th of %s", pc(wq(abs(today), r$weight, .95))), fixed = TRUE)
   expect_match(txt, sprintf("over the %d sampled frames where", nrow(e)), fixed = TRUE)
+
+  # The sample, its weight, and what it reaches.
+  s <- x$sample
+  expect_match(txt, sprintf("probability sample of %d frames", nrow(s)), fixed = TRUE)
+  expect_match(txt, sprintf("the %s DEM-eligible film frames with a canopy value",
+                            format(sum(s$weight), big.mark = ",")), fixed = TRUE)
+  expect_match(txt, sprintf("the %d admitted carry %s of that weight", nrow(a),
+                            pc(sum(a$weight) / sum(s$weight), 1)), fixed = TRUE)
+  over <- a[a$d > .01, ]
+  expect_match(txt, sprintf("%d of the %d sampled frames over 1%% are fine-scale, carrying %s of their weight",
+                            sum(over$scale_band == "fine"), nrow(over),
+                            pc(sum(over$weight[over$scale_band == "fine"]) / sum(over$weight), 1)),
+               fixed = TRUE)
+  expect_match(txt, sprintf("weighted median %.2f m (95th %.2f m)", wq(a$c30, a$weight, .5),
+                            wq(a$c30, a$weight, .95)), fixed = TRUE)
+  fo <- abs(sqrt(r$area_t_dtm / r$area_t_dsm) - 1 - r$d)
+  # The note writes the exponent without a leading zero.
+  expect_match(txt, sub("e-0", "e-", sprintf("weighted median %.2e", wq(fo, r$weight, .5))),
+               fixed = TRUE)
+  ch <- sum(s$fp_dtm_height != s$fp_dsm_height, na.rm = TRUE)
+  expect_match(txt, sprintf("%s of the %d frames change classification",
+                            c("One", "Two", "Three")[ch], nrow(s)), fixed = TRUE)
+  expect_match(txt, sprintf("0 of %s random points",
+                            format(3000, big.mark = ",")), fixed = TRUE)
+  slope <- unname(stats::coef(stats::lm(imaged_over_dtm ~ 0 + mrdem_canopy, data = lp)))
+  expect_match(txt, sprintf("**%.3f** of MRDEM's", slope), fixed = TRUE)
+  # The sea: every readable site within 0.03 m, the 95th of the difference at most 0.48 m.
+  sites <- utils::read.csv(system.file("extdata/dem_canopy_sites.csv", package = "fly"))
+  sea <- sites[sites$kind == "sea" & is.finite(sites$diff_mean), ]
+  expect_lte(max(abs(sea$diff_mean)), 0.03 + 5e-3)
+  expect_gt(max(abs(sea$diff_mean)), 0.03 - 5e-3)
+  expect_match(txt, sprintf("within %.2f m of the DTM", max(abs(sea$diff_mean))), fixed = TRUE)
+  expect_match(txt, sprintf("at most %.2f m", max(sea$diff_p95)), fixed = TRUE)
+  # The 1970s: the share among known frames where canopy matters, and of the whole decade.
+  k70 <- e[e$decade == 1970 & e$known, ]
+  bad <- sum(k70$weight[k70$r < .5])
+  expect_match(txt, sprintf("%s of the 1970s ones by weight, which is %s of all 1970s frames",
+                            pc(bad / sum(k70$weight), 1),
+                            pc(bad / sum(a$weight[a$decade == 1970]), 1)), fixed = TRUE)
 })
 
 test_that("measured canopy leaves fly#65's area verdict standing", {

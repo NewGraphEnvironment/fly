@@ -228,8 +228,8 @@ rather than a property of this code.
   asked, pooled, whether the sea makes W worse than inland, and it passed, so nothing
   changed. Two qualifications are recorded, not acted on. Matched for relief (the coastal
   sample is flatter), the land-edge pass disappears, so the sea does worsen W's land edge,
-  though not its area. A uniform canopy could reverse the area verdict in principle;
-  measured (fly#80), the canopy BC has does not.
+  though not its area. A uniform canopy could reverse the area verdict in principle; with
+  each frame's measured canopy, to first order (fly#80), the canopy BC has does not.
 
   **Three things are load-bearing.**
   - The instrument changed before any frame was measured. Adjacent-frame spacing measures
@@ -255,15 +255,15 @@ rather than a property of this code.
 
   **Three things are load-bearing.**
   - **`DSM − DTM` is NRCan's model on 88% of BC.** MRDEM's DTM on radar cells is the DSM
-    minus a forest-removal model, and NRCan's HRDEM lidar covers none of those cells (0 of
-    3,000), so it cannot witness them. LidarBC can: MRDEM overstates canopy, but its DTM sits
+    minus a forest-removal model, and NRCan's HRDEM lidar covers almost none of those cells
+    (0 of 3,000 random points), so it cannot witness them. LidarBC can: MRDEM overstates canopy, but its DTM sits
     ~2.5 m under lidar ground and the two cancel (slope 0.916). Do not read `DSM − DTM` as a
     canopy height model.
   - **The ray-cast cannot decide "recommend a DSM".** A rectangle sized from a surface agrees
     with a ray-cast onto that surface by construction. Materiality comes from `fly_footprint()`
     on both surfaces; whether the DSM's canopy existed at the photo date comes from VRI stand
-    origin, and a DSM is worse only where the canopy has more than doubled since (1970s frames:
-    15%).
+    origin, and a DSM is worse only where the canopy has more than doubled since (15% of the
+    1970s frames where canopy matters, 1.3% of all 1970s frames).
   - **Five amendments, all before the data they govern existed.** Three came from code-check
     rounds, two of them inside the previous round's fix — a value used as what its name says
     rather than what produced it (scale, sampling design, type, RNG state). Read

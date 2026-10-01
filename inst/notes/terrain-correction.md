@@ -1025,7 +1025,8 @@ it, and the last row puts each frame's own `DSM − DTM` in place of a uniform `
 
 So W would be closer under bare ground and short vegetation, the two would tie near 30 m of
 canopy over every land cell, and L would be closer under taller. Measured, the mean canopy under
-these frames is a median 7.96 m coastal and 6.88 m inland, and W stays closer. The
+these frames is a median 7.96 m coastal (13.31 m per land cell) and 6.88 m inland, and to
+first order W stays closer. The
 coastal-against-inland comparison of *area* survives every row, because an inland frame is all
 land and takes the full shift; the land edge was not recomputed under canopy. See "A forested
 frame is sized from bare earth, and it does not matter (fly#80)".
@@ -1140,7 +1141,8 @@ is real:
   specification says the DTM *is* the DSM minus a forest-removal model, so there `DSM − DTM`
   is that model, not a measurement.
 - **NRCan's own lidar cannot check it.** 0 of 3,000 random points in the HRDEM lidar mosaic's
-  ground coverage over BC sit on MRDEM radar cells: MRDEM took lidar ground wherever HRDEM had it.
+  ground coverage over BC sit on MRDEM radar cells: MRDEM took lidar ground almost wherever HRDEM
+  had it (one site window, at Revelstoke, held 87 such cells).
 
 So the witness is **LidarBC** (the public `stac-elevation-bc` collection: 1 m tiles, a bare-earth
 DEM and a DSM from the same flight). 150 tiles under random radar cells, all flown 2019–2025:
@@ -1160,14 +1162,16 @@ required). On radar cells MRDEM's DSM is the imaged surface to within about a te
 were flown after the radar, so harvest and fire in between bias that slope low; it was not
 corrected.
 
-Over sea the DSM equals the DTM at every readable fly#65 site (mean difference 0.00 m), so
-nothing in fly#65 depends on which surface is passed.
+Over sea the DSM is within 0.03 m of the DTM at every readable fly#65 site (95th percentile of
+the difference at most 0.48 m, in Howe Sound), so a DSM leaves the sea cells of fly#65's frames
+where they were. It moves their land cells, which is the measured row of fly#65's canopy table.
 
 ### What it found
 
 Sizing from the DSM instead of the DTM shrinks a frame by `d = side_DTM / side_DSM − 1`.
-Measured through `fly_footprint()` on both surfaces for a probability sample of 612 frames
-(594 admitted, design-weighted to the 1,437,124 DEM-eligible film frames with a canopy value):
+Measured through `fly_footprint()` on both surfaces for a probability sample of 612 frames,
+design-weighted to the 1,437,124 DEM-eligible film frames with a canopy value; the 594 admitted
+carry 99.2% of that weight:
 
 | scale | frames | weighted median d | 95th | share over 1% |
 |---|---|---|---|---|
@@ -1180,17 +1184,19 @@ Measured through `fly_footprint()` on both surfaces for a probability sample of 
 per-corner ray-casting already costs every frame. It is small for an arithmetic reason. At the
 catalogue's median nominal height above ground of 4,575 m, 1% of width needs a mean canopy of
 46 m under the whole frame, and the mean of `DSM − DTM` under a frame, open ground and gaps
-included, is a few metres. Fine-scale frames are where it reaches 1%: low heights above
-ground, and the only band with a tail.
+included, is a weighted median 7.56 m (95th 14.49 m). Fine-scale frames are where it reaches 1%:
+103 of the 109 sampled frames over 1% are fine-scale, carrying 99.5% of their weight.
 
-Three checks, each of which had to hold for the numbers above to mean anything:
+One check the rule required, one it did not, and a report:
 
-- **First order holds.** Against a ray-cast of the true footprint onto each surface, the
-  realised canopy shift equals `d` to a median 3.0e-4. Two synthetic controls reproduce their
-  analytic answers: a flat canopy to 1e-12, and a 0/40 m canopy edge to 1.4e-6, its gap shrinking
-  fourfold as the rays densify fourfold.
-- **A DSM does not degrade the rectangle model.** The relief residual against the ray-cast is a
-  weighted 95th of 2.89% sized from the DSM and 2.86% from the DTM.
+- **A DSM does not degrade the rectangle model** (the rule's clause 2). The relief residual
+  against a ray-cast of the true footprint is a weighted 95th of 2.89% sized from the DSM and
+  2.86% from the DTM.
+- **First order holds closely.** Against the ray-cast onto each surface, the realised canopy shift
+  equals `d` to a weighted median 1.68e-4, about a tenth of the median `d` itself. No threshold
+  was fixed for this after Amendment 1 moved materiality onto `d`, so it is reported, not judged.
+  Two synthetic controls reproduce their analytic answers: a flat canopy to 1e-12, and a 0/40 m
+  canopy edge to 1.4e-6, its gap shrinking fourfold as the rays densify fourfold.
 - **The package today**, against the canopy surface, is a weighted median 0.19% too wide, with a
   95th of 2.85% — almost all of it the relief residual it carries on bare earth too.
 
@@ -1213,8 +1219,9 @@ origin, with heights carried back linearly in age, over the 215 sampled frames w
 | 1990s | 56 | 55 | 1.5% |
 | 2000s | 4 | 4 | unresolved (too few) |
 
-So a DSM would be the better surface for most frames that matter, and wrong on about one in
-seven 1970s frames. The same decades pass at a canopy epoch three years either side.
+So a DSM would be the better surface for most frames where canopy matters. It would be wrong on
+15.1% of the 1970s ones by weight, which is 1.3% of all 1970s frames. The same decades pass at a
+canopy epoch three years either side.
 
 ### The fly#65 canopy table, measured
 
@@ -1222,7 +1229,10 @@ fly#65's first-order table put a uniform canopy on every land cell and found the
 mean (W) and the land-only mean (L) tie near 30 m. With each frame's measured `DSM − DTM` in
 place of the uniform canopy, still first-order, W stays closer on area: median(|W| − |L|)
 −0.00127, against −0.00287 on bare earth. The coastal frames carry a median 7.96 m of mean
-canopy, inland 6.88 m. The canopy cannot reverse fly#65's area verdict at the canopy BC has.
+canopy, inland 6.88 m. That is a mean over the whole frame, sea included; per land cell it is a
+median 13.31 m at the coastal frames' median sea fraction of 0.366, which is why the measured
+row sits beside the uniform 15 m row. To first order, the canopy BC has does not reverse
+fly#65's area verdict.
 
 ### What the measurement is blind to
 

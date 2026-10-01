@@ -341,3 +341,32 @@ says rather than what produced it, along four axes (instrument/scale/epoch, samp
 runtime type/shape, RNG state) — and enumerated every line each axis reaches, with a per-line
 verdict, in `review-round3.md`. Only the two fragile items failed. Rounds 1 and 2 each found a
 defect inside the previous fix, so the loop was ended by that enumeration, not by a quiet round.
+
+## Code-check round 4 (`review-round4.md`, prose claims) — disposition, and how the loop ended
+
+Round 4 checked every figure and comparison in the new prose against producer lines and found the
+fly#65 defect class again: claims written from a story, not read off a producer. All 13 ✗ rows of
+its claim table are fixed:
+
+- "all of them in the fine band" → 99.5% by weight (6 mid-band frames over 1%)
+- 1,437,124 is the count *with a canopy value*; the 594 admitted carry 99.2% of the weight
+- first order quoted unweighted → weighted median 1.68e-4, and reported, not judged (Amendment 1
+  dropped its threshold)
+- HRDEM "covers none" → 0 of 3,000 random points, "almost none", Revelstoke's 87 cells named
+- sea "0.00 m at every site" → within 0.03 m (p95 at most 0.48 m); "nothing in fly#65 depends on
+  the surface" → the sea cells do not, the land cells do
+- "a few metres" → weighted median 7.56 m (95th 14.49 m)
+- "one in seven 1970s frames" / "1970s: 15%" → 15.1% of the 1970s frames where canopy matters,
+  1.3% of all 1970s frames
+- 7.96 m set beside the uniform-land table → per land cell 13.31 m at sea fraction 0.366, so the
+  measured row sits beside the 15 m row
+- "first order" restored wherever the fly#65 result was called measured
+
+Each corrected figure now has a `pub()` producer line, and every prose figure a shipped table can
+produce is matched by `test-fly_footprint_canopy.R`. The test header lists the remainder by name.
+Mutations of the 1970s denominator and the sea claim each turn the suite red.
+
+The loop ended by enumeration: round 4's claim table is the candidate set (every number and
+comparison in the new prose), and every row is now either ✓ against a producer and asserted, or
+named in the test header as not assertable. Spend: one plan review and four code-check rounds,
+past the ~5-agent guideline; rounds 2 and 4 each found real defects that would have shipped.

@@ -935,6 +935,13 @@ for (dd in sort(unique(a$decade))) {
       dd, nrow(x), sum(x$weight), wq(x$d_c, x$weight, .5), wq(x$d_c, x$weight, .95),
       sum(x$weight[x$d_c > .01]) / sum(x$weight))
 }
+o1 <- a[a$d_c > .01, ]
+pub("  over 1%%: %d frames (%s), fine band carries %.3f of their weight; mid-band share over 1%% %.6f",
+    nrow(o1), paste(names(table(o1$scale_band)), table(o1$scale_band), sep = ":", collapse = " "),
+    sum(o1$weight[o1$scale_band == "fine"]) / sum(o1$weight),
+    sum(a$weight[a$d_c > .01 & a$scale_band == "mid"]) / sum(a$weight[a$scale_band == "mid"]))
+pub("  mean DSM - DTM under the frame (c30), weighted: median %.2f m, 95th %.2f m",
+    wq(a$c30, a$weight, .5), wq(a$c30, a$weight, .95))
 rad <- a$radar_share > .5
 pub("  d_c by source: radar-majority weight share %.3f, 95th %.4f; not radar-majority 95th %.4f",
     sum(a$weight[rad]) / sum(a$weight), wq(a$d_c[rad], a$weight[rad], .95),
@@ -957,6 +964,9 @@ not_degraded <- p_dsm <= p_dtm + .01
 pub("  RECTANGLE NOT DEGRADED (DSM 95th within DTM 95th + 1 point): %s", not_degraded)
 pub("  the package today against the canopy surface, weighted: median %+.4f, 95th |.| %.4f; signed share too wide %.3f",
     wq(r$today, r$weight, .5), wq(abs(r$today), r$weight, .95), sum(r$weight[r$today > 0]) / sum(r$weight))
+fo <- abs((1 + r$today) / (1 + r$rho_dtm) - 1 - r$d_c)
+pub("  first order, weighted: median |realised - d_c| %.2e, %.3f of the weighted median d_c",
+    wq(fo, r$weight, .5), wq(fo, r$weight, .5) / wq(r$d_c, r$weight, .5))
 pub("  first order (sample, unweighted): median |(today - rho_dtm) - d_c| %.2e (realised canopy shift against predicted)",
     stats::median(abs((1 + r$today) / (1 + r$rho_dtm) - 1 - r$d_c), na.rm = TRUE))
 
@@ -984,6 +994,11 @@ epoch_verdict <- function(ev, quiet = FALSE) {
           if (nrow(k)) sprintf("%.3f", wq(k$r, k$weight, .5)) else "NA",
           if (nrow(k)) sprintf("%.3f", wq(k$unknown_share, k$weight, .5)) else "NA",
           wq(x$c30, x$weight, .5))
+    }
+    if (!quiet) {
+      all_dd <- a[a$decade == dd, ]
+      pub("  epoch %d: DSM-worse weight as a share of every admitted frame of the decade %.4f",
+          dd, sum(k$weight[k$dsm_worse]) / sum(all_dd$weight))
     }
     if (holds) ok <- c(ok, as.character(dd))
   }
@@ -1020,6 +1035,9 @@ k65 <- cm65$height_agl / (cm65$height_agl - cm65$c_coastal)
 cm65$w_c <- (1 + cm65$err_w) * k65 - 1; cm65$l_c <- (1 + cm65$err_l) * k65 - 1
 co65 <- cm65[cm65$coastal & is.finite(cm65$d) & cm65$d > 0 & cm65$n_sea > 0, ]
 in65 <- cm65[cm65$set == "inland" & !cm65$coastal, ]
+co65$sea_frac <- co65$n_sea / co65$n_cells
+pub("  fly#65 coastal frames: median sea fraction %.3f; canopy per land cell (c / (1 - sea fraction)) median %.2f m",
+    stats::median(co65$sea_frac), stats::median(co65$c_coastal / (1 - co65$sea_frac), na.rm = TRUE))
 pub("  fly#65 frames, measured canopy: coastal n=%d median %.2f m, inland n=%d median %.2f m",
     nrow(co65), stats::median(co65$c_coastal, na.rm = TRUE), nrow(in65),
     stats::median(in65$c_coastal, na.rm = TRUE))
