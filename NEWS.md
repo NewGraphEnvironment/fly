@@ -1,11 +1,13 @@
 # fly (development version)
 
-- **Photo parallax cannot say, at thumbnail resolution, what surface the camera saw at the photo date. No code changes** ([#82](https://github.com/NewGraphEnvironment/fly/issues/82)). fly#80 left one question to VRI stand origin: was the canopy MRDEM's DSM carries there when the photo was taken? Two frames adjacent by number see the same ground from two places, so the parallax difference between patches of their overlap measures height with no air base needed. A new instrument, `data-raw/dem_measure-photo_parallax.R`, recovers terrain this way.
-  - **The canopy ratio failed its synthetic test.** The question needs a ratio: canopy seen on mid-aged stands over canopy seen on old stands. A synthetic built so that fly#80's VRI model is exactly true, run on eleven pilot frames and pooled over the seven the gates admitted, as the sample would be pooled, missed the known answer in both MRDEM sources (radar 1.356 against 0.860, lidar 0.793 against 0.550).
-  - **So no sampled pair was measured**, under the rule fixed before the run.
-  - **The two causes are recorded in `inst/notes/terrain-correction.md`:** the matcher's response varies by frame while the stand classes sit in different frames, and registration under realistic centroid error can land wrong and still pass every gate.
+- **Photo parallax, as built, cannot say what surface the camera saw at the photo date. No code changes** ([#82](https://github.com/NewGraphEnvironment/fly/issues/82)).
+  - **The question.** fly#80 left one question to VRI stand origin: was the canopy MRDEM's DSM carries there when the photo was taken?
+  - **The idea.** Two frames adjacent by number see the same ground from two places. Each patch's parallax against the pair's median then gives its height against the pair's, with no air base needed. A pilot on one 1968 roll tracked terrain this way. `data-raw/dem_measure-photo_parallax.R` builds the instrument.
+  - **What failed.** The question needs a ratio: canopy seen on mid-aged stands over canopy seen on old stands. A synthetic built so that fly#80's VRI model is exactly true was run on eleven pilot frames and pooled over the seven the gates admitted. It missed the known answer in both MRDEM sources: radar 1.356 against 0.860, lidar 0.793 against 0.550.
+  - **So no canopy slope was computed on any sampled pair**, under the rule fixed before any was read.
+  - **Why is not established.** `inst/notes/terrain-correction.md` records two candidates and why neither alone accounts for the size of the miss.
   - **fly#80's estimate stands alone.** A DSM is worse on 15.1% of the 1970s frames where canopy matters.
-  - **What ships.** The synthetic controls (`inst/extdata/dem_parallax_synthetic.csv`), from which the suite rebuilds the note's tables.
+  - **What ships.** The synthetic controls, `inst/extdata/dem_parallax_synthetic.csv`, from which the suite rebuilds the note's tables.
 
 ## 0.19.2 (2026-10-01)
 

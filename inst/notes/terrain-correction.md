@@ -1238,39 +1238,51 @@ fly#65's area verdict.
 
 - **Canopy at the photo date**, except through VRI's stand origin and a linear height-age
   curve, which understates how short a young stand is. A witness from the photos themselves —
-  the parallax between adjacent frames — was built in fly#82 and failed its synthetic controls
-  at thumbnail resolution, so this estimate stands alone (below).
+  the parallax between adjacent frames — was built in fly#82 and failed its synthetic controls,
+  so this estimate stands alone (below).
 - **Tilt** (#10), as everywhere here: the ray-cast and the rectangle share the vertical camera.
 - **Film only**, as fly#58 and fly#65.
 - **A sample.** The verdicts rest on 594 admitted frames, stratified by a coarse census of
   canopy shift and scale and weighted back.
 
-## What the photos can say about the photo date: not enough, at thumbnail resolution (fly#82)
+## What the photos can say about the photo date: not enough, with this instrument (fly#82)
 
 fly#80 left one question to a model: was the canopy MRDEM's DSM carries there when the photo
-was taken? fly#82 asked the photos. Two frames adjacent by number see the same ground from two
-places, so a patch's image shifts between them by `f B / (H − h)`. Inside one overlap B, f and
-H are shared, and the parallax *difference* between patches measures their height difference
-whatever the air base is. Regressing each patch's implied height on MRDEM's DTM and on
-`C = DSM − DTM` gives a slope on C: how much of today's canopy the camera saw.
+was taken? fly#82 asked the photos.
+- **The idea.** Two frames adjacent by number see the same ground from two places, and a
+  patch's image shifts between them by `p = f B / (H − h)`.
+- **Inside one overlap**, f, B and H are shared, so each patch's parallax against the pair's
+  median gives its height against the pair's: `h − h₀ = (H − h₀)(1 − p₀ / p)`. No air base is
+  needed, and the scale `(H − h₀)` is common to every patch in the pair.
+- **The quantity.** Regressing that height on MRDEM's DTM and on `C = DSM − DTM` gives a slope
+  on C: how much of today's canopy the camera saw.
 
-**It stopped at its first verdict.** The instrument failed its synthetic controls, and under
-the rule fixed before any frame was measured, no sampled pair was measured.
-`data-raw/dem_measure-photo_parallax.R` reproduces the stop and ships
-`inst/extdata/dem_parallax_synthetic.csv`, from which the suite rebuilds this section's tables.
+**It stopped at its first verdict.**
+- The instrument failed its synthetic controls, so under the rule fixed before any sampled pair
+  was read, no canopy slope, φ or D was computed on any sampled pair.
+- Smoke runs that shook the code out matched and registered ten pairs from the head of the real
+  draw. They crashed before any slope existed, and the smoke draw was then given its own seed.
+- The pilot frames that shaped the instrument are excluded from the sample. They include roll
+  bc5282, whose canopy coefficients were computed in scratch code before the rule existed.
+- `data-raw/dem_measure-photo_parallax.R` reproduces the stop and ships
+  `inst/extdata/dem_parallax_synthetic.csv`, from which the suite rebuilds this section's
+  tables.
 
 ### What worked
 
-- **Terrain.** On the seven pilot pairs of roll bc5282 (1968), per-patch parallax recovered
-  the DTM at slopes of 0.95–1.13, after a quadratic in image position absorbed tilt, crab, scan
-  rotation and scale.
+- **Terrain, in a pilot.** On seven pairs of roll bc5282 (1968), per-patch parallax tracked the
+  DTM at slopes of 0.95–1.13. That was scratch code, before registration, with a quadratic in
+  image position absorbing tilt, crab, scan rotation and scale. It is recorded in the archived
+  planning findings; the shipped script does not reproduce it.
 - **Matching.**
-  - Coarse-to-fine phase correlation on the 1,250 px thumbnails (JPEG quality 85) gives a
-    y-parallax robust SD of 0.16–1.01 px.
-  - Candidate peaks are verified by local patches. A single whole-frame correlation locked onto
-    the wrong peak on about half the pilot pairs.
-  - The catalogue's centroid spacing is never used as the air base. Before the 1990s it is
-    interpolated along the line, and on one pair it was wrong by ×1.7.
+  - Coarse-to-fine phase correlation on the thumbnails, with candidate peaks verified by local
+    patches.
+  - A single whole-frame correlation locked onto the wrong peak on 2 of 10 pilot pairs on that
+    roll, and on several Phase 0 pairs.
+- **The catalogue's centroid spacing is never used as the air base.** In 1965, 1975 and 1985,
+  64–77% of consecutive bases along a line are equal within 0.5% (a probe in the plan review),
+  so before the 1990s the spacing carries no per-frame base. On one Phase 0 pair a centroid sat ×1.7 off the images' own
+  spacing.
 - **The plain synthetics pass.** A real thumbnail is warped by the parallax of a known surface,
   with tilt, rotation and a scale difference on both axes, and saved at JPEG 85:
 
@@ -1283,12 +1295,11 @@ the rule fixed before any frame was measured, no sampled pair was measured.
 
 ### Why it stopped
 
-The quantity reported is a ratio of two canopy slopes. Mid-aged stands are divided by stands
-VRI dates as 80 or more years old at the photo, after the bare-earth reference is removed. The
-synthetic that tests that ratio was built in a world where fly#80's VRI model is exactly true,
-on the eleven pilot frames, and pooled over the seven the gates admitted, as the sample would
-be pooled. Its known answer was
-missed in both MRDEM sources:
+The quantity reported is a ratio of two canopy slopes: mid-aged stands over stands VRI dates as
+80 or more years old at the photo, after the bare-earth reference is removed. The synthetic that
+tests that ratio was built in a world where fly#80's VRI model is exactly true. It ran on the
+eleven pilot frames and was pooled over the seven the gates admitted, as the sample would be
+pooled. It missed its known answer in both MRDEM sources:
 
 | source | displaced | φ measured | φ known | mid / old patches |
 |---|---|---|---|---|
@@ -1297,19 +1308,24 @@ missed in both MRDEM sources:
 | radar | 150 m | 46.350 | 0.860 | 135 / 65 |
 | lidar | 150 m | 0.810 | 0.553 | 173 / 43 |
 
-Two mechanisms, both visible in the shipped rows:
+A φ of 46 means the old slope was tiny against the mid one.
 
-1. **The matcher's response differs by frame, and the classes sit in different frames.**
-   - At κ = 1 the plain synthetics read between 0.975 and 1.123 at true
-     placement, and a snow-patched 1967 frame read 0.703.
-   - The pilot frames hold their classes unevenly: one carries 124 mid patches against 3 old,
-     two carry old ground and no mid.
-   - Pooled, the ratio inherits the ratio of the frames' responses. A per-frame ratio cannot
-     be used either: a frame holds a few dozen patches of each class at most.
+**Why is not established.** Two candidates, both diagnosis rather than measurement:
+
+1. **The matcher's response differs by frame, while the classes sit in different frames.**
+   - The admitted frames hold the two classes unevenly: one carries 124 mid patches against 3
+     old in its dominant source.
+   - Per frame, φ is no better. On the three admitted frames holding both classes it ranged from
+     −0.402 to 4.153 against known answers of 0.642–0.911.
+   - It cannot account for the size of the miss on its own. The plain κ = 1 synthetics span
+     0.975–1.123, a ratio of 1.15, and the pooled misses are ratios of 1.58 (radar) and 1.44
+     (lidar).
+   - Response on uniform canopy may not be response on stands, and that was not measured.
 2. **Registration can land wrong and still pass every gate.**
-   - Real centroids sit up to ~900 m from where the images say.
-   - With 150 m of displacement one plain frame's canopy slope fell to 0.403, and
-     the radar pool's old slope collapsed toward zero.
+   - With 150 m of displacement one plain frame's canopy slope fell to 0.403.
+   - Phase 0 registration moved real pairs by up to 1.1 km.
+
+Thumbnail resolution was not varied, so it is not shown to be the cause either.
 
 ### What it leaves
 
@@ -1317,15 +1333,14 @@ Two mechanisms, both visible in the shipped rows:
   on 15.1% of the 1970s frames where canopy matters.
 - **No code or default could have changed either way.** fly#80 found the DTM–DSM difference
   immaterial, so this question decides only a sentence.
-- **Two things measured on the way, recorded and not acted on:**
-  - per-patch parallax is a usable terrain witness on these thumbnails;
-  - the catalogue's film centroids are not a usable air base.
-- **Why the rule changed twice before the stop.** Three amendments (A–C) are in the archived
-  planning findings, each fixed before any sampled pair was read:
-  - a control on ground young at the photo date was dropped, because cleanly classed it held
-    2 patches in 11 pilot pairs;
-  - the bare-earth reference became fly#80's LidarBC slope per MRDEM source;
-  - the class test was pooled.
+- **Three amendments** are in the archived planning findings, each fixed before any sampled pair
+  was read:
+  - **A** dropped a digital control on exterior orientation, because the in-pair ratio was
+    meant to cancel what it measured.
+  - **B** dropped a control on ground young at the photo date, since cleanly classed it held 2
+    patches in 11 pilot pairs. It took the bare-earth reference from fly#80's LidarBC slope on
+    radar cells, and 0 on lidar cells by construction.
+  - **C** pooled the class test, because a single frame cannot estimate the ratio.
 
 ## Testing this
 

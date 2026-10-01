@@ -3,15 +3,18 @@
 # fly#80 found that sizing a frame from MRDEM's DSM rather than its DTM does not matter, and left
 # one question answered only by a model: was the canopy the DSM carries there when the photo was
 # taken? VRI stand origin with a linear height-age curve said a DSM would be worse on 15.1% of the
-# 1970s frames where canopy matters. This script asks the photos instead.
+# 1970s frames where canopy matters. This script asks the photos instead. It stops at Stage 1:
+# the instrument fails its pooled class-structured synthetic, so no sampled pair is measured
+# (inst/notes/terrain-correction.md, fly#82).
 #
 # Two frames adjacent by number see the same ground from two places, so a point's image moves
 # between them by an amount that depends on its height: x-parallax p = f B / (H - h). Inside one
-# overlap, B, f and H are shared, so the parallax DIFFERENCE between two patches measures their
-# height difference whatever the air base is. The catalogue's centroid spacing — interpolated
-# before the 1990s, wrong by x1.7 on at least one pair — is therefore never used as B. Per patch,
-# the height the photo implies is regressed on the DTM and on `C = DSM - DTM`; the slope on C is
-# how much of today's canopy the camera saw.
+# overlap, B, f and H are shared, so a patch's parallax against the pair's median gives its
+# height against the pair's, h - h0 = (H - h0)(1 - p0 / p), with no air base: the ratio p0 / p
+# cancels it. The catalogue's centroid spacing — evenly spaced along a line before the 1990s,
+# and off by x1.7 on one pilot pair — is therefore never used as B. Per patch, that height is
+# regressed on the DTM and on `C = DSM - DTM`; the slope on C is how much of today's canopy the
+# camera saw.
 #
 # That slope is not read against 0 and 1. The matcher responds to crown texture, placement blurs
 # C, and on radar cells MRDEM's DTM sits under true ground by an amount that grows with C (fly#80,

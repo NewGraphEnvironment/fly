@@ -7,11 +7,14 @@
 # shipped rows and rebuilds the tables and figures of `inst/notes/terrain-correction.md`,
 # "What the photos can say about the photo date (fly#82)".
 #
-# Not asserted, because no shipped table carries them: the pilot's DTM slopes on roll bc5282
-# (0.95-1.13), the y-parallax robust SD (0.16-1.01 px), the JPEG quality, the x1.7 centroid
-# spacing, the ~900 m registration offsets, the 0.703 snow frame, the 124-against-3 class
-# counts, the 2 young patches in 11 pairs, and fly#80's 15.1%. Each is a producer line in the
-# archived planning findings or in fly#80's own tables.
+# Not asserted, because no shipped table carries them (each has its producer line in the
+# archived planning findings or review files):
+# - the scratch pilot's DTM slopes on roll bc5282 (0.95-1.13, seven unregistered pairs);
+# - the whole-frame correlation failing on 2 of 10 pilot pairs;
+# - the 64-77% of even centroid bases (a plan-review probe) and the x1.7 centroid;
+# - the 1.1 km Phase 0 registration offset;
+# - the 2 young patches in 11 pairs;
+# - fly#80's 15.1%, which fly#80's own test pins.
 
 parallax_synthetic <- function() {
   p <- system.file("extdata", "dem_parallax_synthetic.csv", package = "fly")
@@ -112,15 +115,48 @@ test_that("every table in the note's fly#82 section is rebuilt from the shipped 
   # Prose figures with a shipped producer.
   txt <- gsub("\\s+", " ", paste(sec, collapse = " "))
   k1 <- pl$slope[pl$kappa == 1]
-  expect_match(txt, sprintf("read between %.3f and %.3f at true placement", min(k1), max(k1)),
-               fixed = TRUE)
+  expect_match(txt, sprintf("synthetics span %.3f\u2013%.3f", min(k1), max(k1)), fixed = TRUE)
   disp <- s$slope[s$set == "plain" & s$displaced_m > 0 & s$kappa == 1 & s$status == "ok"]
   expect_match(txt, sprintf("canopy slope fell to %.3f", min(disp)), fixed = TRUE)
-  expect_identical(length(unique(s$film_roll[s$set == "class"])), 11L)
-  expect_match(txt, "on the eleven pilot frames", fixed = TRUE)
-  admitted <- unique(cp$film_roll)
-  expect_identical(admitted, "7 frames")
+  cl <- s[s$set == "class", ]
+  expect_identical(length(unique(cl$film_roll)), 11L)
+  expect_match(txt, "It ran on the eleven pilot frames", fixed = TRUE)
+  # Admitted is recomputed from the statuses, per displacement, not read off the label.
+  admitted <- as.vector(tapply(cl$status == "ok", cl$displaced_m, sum))
+  expect_identical(admitted, c(7L, 7L))
   expect_match(txt, "pooled over the seven the gates admitted", fixed = TRUE)
+
+  # Candidate 1's figures: the uneven class split, the per-frame phi, and the size argument.
+  ok <- cl[cl$status == "ok", ]
+  top <- ok[which.max(ok$n_mid), ]
+  expect_match(txt, sprintf("one carries %d mid patches against %d old in its dominant source",
+                            top$n_mid, top$n_old), fixed = TRUE)
+  both <- ok[is.finite(ok$phi), ]
+  expect_identical(length(unique(both$film_roll)), 3L)
+  expect_match(txt, sprintf("ranged from %s to %.3f against known answers of %.3f\u2013%.3f",
+                            sub("^-", "\u2212", sprintf("%.3f", min(both$phi))), max(both$phi),
+                            min(both$phi_vri), max(both$phi_vri)), fixed = TRUE)
+  expect_match(txt, sprintf("a ratio of %.2f", max(k1) / min(k1)), fixed = TRUE)
+  p0 <- cp[cp$displaced_m == 0, ]
+  miss <- stats::setNames(p0$phi / p0$phi_vri, p0$case)
+  expect_match(txt, sprintf("ratios of %.2f (radar) and %.2f (lidar)", miss[["source_r"]],
+                            miss[["source_l"]]), fixed = TRUE)
+  big <- cp$phi[cp$case == "source_r" & cp$displaced_m == 150]
+  expect_match(txt, sprintf("A \u03c6 of %.0f means", big), fixed = TRUE)
+})
+
+test_that("the NEWS entry quotes the shipped pooled figures", {
+  s <- parallax_synthetic()
+  skip_if(is.null(s), "the parallax measurement is not installed")
+  np <- system.file("NEWS.md", package = "fly")
+  if (np == "") np <- testthat::test_path("..", "..", "NEWS.md")
+  skip_if(!file.exists(np), "NEWS.md is not reachable")
+  news <- paste(readLines(np, warn = FALSE), collapse = " ")
+  p0 <- s[s$set == "class_pooled" & s$displaced_m == 0, ]
+  f <- function(k, col) sprintf("%.3f", p0[[col]][p0$case == k])
+  expect_match(news, sprintf("radar %s against %s, lidar %s against %s", f("source_r", "phi"),
+                             f("source_r", "phi_vri"), f("source_l", "phi"),
+                             f("source_l", "phi_vri")), fixed = TRUE)
 })
 
 test_that("the versions the controls were run against are recorded", {
