@@ -65,36 +65,36 @@ matters, whether first order holds against a ray-cast on a real surface model, a
 - [x] Establish provenance of MRDEM's `DSM − DTM`: NRCan spec §7.2 — outside lidar the DTM is
       GLO-30 minus a forest-removal model; source layer shares over BC
 - [x] Probe the surfaces at sites (sea, noise floor, canopy): DSM − DTM against HRDEM lidar and Meta
-- [ ] Lidar-over-radar probe: random windows where HRDEM now covers MRDEM radar cells
+- [x] Lidar-over-radar probe: HRDEM covers no radar cells (0 of 3,000); LidarBC is the witness (Amendment 2), slope 0.916
 - [x] ~~Extract the ray-cast into a helper~~ — the #65 script is left untouched; the new script
       evaluates only its named function definitions (`fns_from()`, review O2)
 
 ## Phase 2: Population — how much of the catalogue sits under canopy that matters
-- [ ] New script `data-raw/dem_measure-canopy_height.R` (harness pattern, `FLY_CANOPY_SMOKE=1`,
+- [x] New script `data-raw/dem_measure-canopy_height.R` (harness pattern, `FLY_CANOPY_SMOKE=1`,
       `FLY_CANOPY_STOP=n`, caches keyed on MRDEM ETags): census of every DEM-eligible film frame
       from averaged overviews (DSM and DTM on one grid), `p_census = c̄ / (scale × focal)` — for
       stratification and binned shipping only
-- [ ] Probability sample, stratified on `p_census` × scale band, design weights
+- [x] Probability sample, stratified on `p_census` × scale band, design weights
 
 ## Phase 3: Size and ray-cast the sample
-- [ ] Canopy controls: flat canopy, 0/40 m edge with convergence, ring invariance
-- [ ] Per frame: W_dtm and W_dsm through `fly_footprint()`; admitted only where both are
+- [x] Canopy controls: flat canopy, 0/40 m edge with convergence, ring invariance
+- [x] Per frame: W_dtm and W_dsm through `fly_footprint()`; admitted only where both are
       `dem_agl` + `reported` + coverage ≥ 0.95; classification changes counted; T_dtm, T_dsm;
       c̄ at 30 m; source shares; Meta (reported)
-- [ ] fly#65's admitted frames: measured canopy under each, for the note's first-order table
-- [ ] Epoch: VRI stand origin under frames with `d_c ≥ 0.5%` (up to 250, PPS)
-- [ ] Ship `inst/extdata/dem_canopy_*.csv` via `write_if_changed()`
+- [x] fly#65's admitted frames: measured canopy under each, for the note's first-order table
+- [x] Epoch: VRI stand origin under frames with `d_c ≥ 0.5%` (up to 250, PPS)
+- [x] Ship `inst/extdata/dem_canopy_*.csv` via `write_if_changed()`
 
 ## Phase 4: Decide and land
 Contingent on Phase 3; whichever lands is reported at the PR. A new output column or changed
 default is a schema/behaviour change and goes to the user with options, docs continuing meanwhile.
-- [ ] Apply Amendment 1 as written; `inst/notes/terrain-correction.md` gets a fly#80 section built
+- [x] Apply Amendment 1 as written; `inst/notes/terrain-correction.md` gets a fly#80 section built
       from producer lines, replacing the "No canopy-height model was used" bullet, qualifying the #65
       canopy table with the measured answer, and revisiting `:824` and `:870-873`
 - [ ] `R/fly_footprint.R` "DEM sources": MRDEM's DSM added or declined with the measured reason and
       the epoch caveat; DTM-or-DSM for LidarBC and TRIM; the coastal paragraph's canopy sentence;
       `vignettes/airphoto-selection.Rmd:427-434`; `devtools::document()`
-- [ ] `tests/testthat/test-fly_footprint_canopy.R`: recompute every published table from the shipped
+- [x] `tests/testthat/test-fly_footprint_canopy.R`: recompute every published table from the shipped
       CSVs with row-count guards; a DSM tall enough to move a frame across `fly_height_ratio_band()`
 - [ ] NEWS.md (numbers from the CSVs), CLAUDE.md Architecture line and Key Decisions; edit issue
       #80's body to carry the verdict; file the photo-parallax epoch witness as a follow-up issue

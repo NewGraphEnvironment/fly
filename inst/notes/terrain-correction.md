@@ -870,8 +870,9 @@ water the surface the photo images **is** the sea, so averaging it in is the pac
 working, not failing. Measured against a ray-cast of the true footprint on MRDEM's bare
 earth, averaging land and sea (the package) is the better answer for **area**, and the
 land-only mean the issue proposed is better for where the **land edge** falls. Neither
-result is unconditional. The area verdict depends on bare earth being the imaged surface,
-and, matched for relief, the sea does make the land edge worse, although the rule's pooled
+result is unconditional. The area verdict was measured on bare earth (fly#80 found it holds
+under the canopy BC has, to first order), and, matched for relief, the sea does make the land
+edge worse, although the rule's pooled
 test passed. **No code changed**, because that pooled test said no remedy. The conditions are
 stated below so the decision can be revisited.
 
@@ -1005,13 +1006,14 @@ Paired, with 95% intervals from 2,000 roll-bootstrap resamples:
   −0.72% linear.
 - W's signed median stays between −0.14% and +0.27%.
 
-**The area verdict holds on bare earth, and a canopy can reverse it.** MRDEM is a DTM, so
-over forest the camera sees a surface higher than the one it is sized from. W and L err in
-opposite directions pooled (though not in the two lowest sea bands), and a canopy on the land
-moves both toward too wide by the same amount, so it can change which is closer. To first
+**The area verdict holds on bare earth, and under the canopy BC actually has.** MRDEM is a
+DTM, so over forest the camera sees a surface higher than the one it is sized from. W and L err
+in opposite directions pooled (though not in the two lowest sea bands), and a canopy on the land
+moves both toward too wide by the same amount, so it could change which is closer. To first
 order, with a uniform canopy of `c` metres over every land cell, the true footprint's linear
 size shrinks by `(agl − c(1 − w)) / agl`, where `w` is the frame's sea fraction. This is an
-approximation, not a re-run ray-cast, and no real shore has uniform canopy.
+approximation, not a re-run ray-cast, and no real shore has uniform canopy — so fly#80 measured
+it, and the last row puts each frame's own `DSM − DTM` in place of a uniform `c`.
 
 | canopy on the land | median(\|W\| − \|L\|) | W area 95th, coastal | inland |
 |---|---|---|---|
@@ -1019,13 +1021,14 @@ approximation, not a re-run ray-cast, and no real shore has uniform canopy.
 | 15 m | −0.00122 | 2.27% | 3.37% |
 | 30 m | +0.00014 | 2.38% | 3.62% |
 | 60 m | +0.00220 | 3.05% | 4.97% |
+| measured (fly#80) | −0.00127 | 2.27% | 3.20% |
 
-So W is closer under bare ground and short vegetation, the two tie near 30 m, and L is closer
-under tall forest. The coastal-against-inland comparison of *area* survives every row,
-because an inland frame is all land and takes the full shift; the land edge was not
-recomputed under canopy. This is a property of sizing from a
-DTM at all, and it reaches every frame the package sizes over forest, not only coastal
-ones.
+So W would be closer under bare ground and short vegetation, the two would tie near 30 m of
+canopy over every land cell, and L would be closer under taller. Measured, the mean canopy under
+these frames is a median 7.96 m coastal and 6.88 m inland, and W stays closer. The
+coastal-against-inland comparison of *area* survives every row, because an inland frame is all
+land and takes the full shift; the land edge was not recomputed under canopy. See "A forested
+frame is sized from bare earth, and it does not matter (fly#80)".
 
 **The rule's test passes pooled, and on the land edge that pass is an artefact of
 relief.** The rule fixed before the run asked whether W's 95th-percentile error on coastal
@@ -1094,7 +1097,8 @@ it bears on can be taken deliberately.
 
 ### What the measurement is blind to
 
-- **Canopy**, beyond the first-order table above. No canopy-height model was used.
+- **Canopy**, beyond first order. The table's measured row (fly#80) uses MRDEM's
+  `DSM − DTM` under each frame, not a re-run ray-cast.
 - **The ray-cast shares MRDEM with W and L.** It settles how cells should be combined, not
   whether they are right. Tilt (#10) is absent from all three candidates and from the
   reference alike.
@@ -1109,6 +1113,125 @@ it bears on can be taken deliberately.
   on it.
 - **The sample is a sample.** The 95,222 are counted; the verdicts rest on 1,242 frames
   drawn by stratum, whose median height above ground is 5,268 m.
+
+## A forested frame is sized from bare earth, and it does not matter (fly#80)
+
+`fly_footprint(dem =)` sizes a frame from the mean of the surface it is handed, and the DEM
+this package recommends, MRDEM-30's DTM, is bare earth. Over forest the camera images the
+canopy, so a frame there is drawn too wide by about `c / height_agl`, where `c` is the mean
+canopy under the frame (gaps and open ground included) — the datum-offset kind of error fly#9
+removes, left at canopy height. fly#80 measured how much that is. **It is under the threshold
+at which this package acts: no code and no recommendation changed.** The rule was fixed before
+any frame was sized and amended five times before any result it reads existed; it is in fly#80's
+archived planning findings.
+
+Every figure below is printed by `data-raw/dem_measure-canopy_height.R`, and the tables are
+rebuilt row by row by `tests/testthat/test-fly_footprint_canopy.R` from the
+`inst/extdata/dem_canopy_*.csv` it ships.
+
+### The instrument is MRDEM's own DSM, checked against LidarBC
+
+MRDEM-30 publishes a DSM on its DTM's grid, so `fly_footprint(dem = <DSM>)` is the literal
+alternative, and `DSM − DTM` is the canopy it would add. Two things decide whether that canopy
+is real:
+
+- **Where MRDEM's DTM comes from.** Over BC land, 88.3% of MRDEM is taken from radar
+  (Copernicus GLO-30, 2011–2015), 7.5% from lidar, 0.4% a blend. On radar cells NRCan's
+  specification says the DTM *is* the DSM minus a forest-removal model, so there `DSM − DTM`
+  is that model, not a measurement.
+- **NRCan's own lidar cannot check it.** 0 of 3,000 random points in the HRDEM lidar mosaic's
+  ground coverage over BC sit on MRDEM radar cells: MRDEM took lidar ground wherever HRDEM had it.
+
+So the witness is **LidarBC** (the public `stac-elevation-bc` collection: 1 m tiles, a bare-earth
+DEM and a DSM from the same flight). 150 tiles under random radar cells, all flown 2019–2025:
+
+| per tile, radar-sourced cells only | median |
+|---|---|
+| MRDEM DSM − DTM (NRCan's removal model) | 7.75 m |
+| LidarBC DSM − DEM (measured canopy) | 4.25 m |
+| MRDEM DTM − LidarBC ground | −2.50 m |
+| MRDEM DSM − LidarBC DSM | +0.34 m |
+| LidarBC DSM − MRDEM DTM (what fly should size from, above what it does) | 7.10 m |
+
+MRDEM overstates the canopy against lidar, and its radar-derived DTM sits ~2.5 m **below** the
+lidar ground, so the two cancel: the surface the camera sees stands above MRDEM's DTM by
+**0.916** of MRDEM's `DSM − DTM` (slope through the origin, inside the [0.67, 1.5] the rule
+required). On radar cells MRDEM's DSM is the imaged surface to within about a tenth. The tiles
+were flown after the radar, so harvest and fire in between bias that slope low; it was not
+corrected.
+
+Over sea the DSM equals the DTM at every readable fly#65 site (mean difference 0.00 m), so
+nothing in fly#65 depends on which surface is passed.
+
+### What it found
+
+Sizing from the DSM instead of the DTM shrinks a frame by `d = side_DTM / side_DSM − 1`.
+Measured through `fly_footprint()` on both surfaces for a probability sample of 612 frames
+(594 admitted, design-weighted to the 1,437,124 DEM-eligible film frames with a canopy value):
+
+| scale | frames | weighted median d | 95th | share over 1% |
+|---|---|---|---|---|
+| all | 594 | 0.17% | 0.46% | 1.2% |
+| to 1:15000 | 288 | 0.18% | 0.67% | 2.1% |
+| 1:15000–1:30000 | 180 | 0.16% | 0.32% | 0.0% |
+| over 1:30000 | 126 | 0.11% | 0.20% | 0.0% |
+
+**Not material**: the rule's threshold was a 95th percentile of 1%, half the ~2% that deferred
+per-corner ray-casting already costs every frame. It is small for an arithmetic reason. At the
+catalogue's median nominal height above ground of 4,575 m, 1% of width needs a mean canopy of
+46 m under the whole frame, and the mean of `DSM − DTM` under a frame, open ground and gaps
+included, is a few metres. Fine-scale frames are where it reaches 1%: low heights above
+ground, and the only band with a tail.
+
+Three checks, each of which had to hold for the numbers above to mean anything:
+
+- **First order holds.** Against a ray-cast of the true footprint onto each surface, the
+  realised canopy shift equals `d` to a median 3.0e-4. Two synthetic controls reproduce their
+  analytic answers: a flat canopy to 1e-12, and a 0/40 m canopy edge to 1.4e-6, its gap shrinking
+  fourfold as the rays densify fourfold.
+- **A DSM does not degrade the rectangle model.** The relief residual against the ray-cast is a
+  weighted 95th of 2.89% sized from the DSM and 2.86% from the DTM.
+- **The package today**, against the canopy surface, is a weighted median 0.19% too wide, with a
+  95th of 2.85% — almost all of it the relief residual it carries on bare earth too.
+
+Two of the 612 frames change classification between the surfaces (`"implausible"` on the DTM,
+`"reported"` on the DSM): a canopy can move a frame across `fly_height_ratio_band()`, so passing a
+DSM is not a pure datum shift. The test pins that.
+
+### Whether the canopy a DSM carries was there when the photo was taken
+
+Not reached by the rule, since nothing was material, and recorded because it decides whether a
+DSM would be safe to recommend. A DSM is worse than the DTM for a frame only where the canopy has
+more than doubled since the photo — a clearcut or young stand then, forest now. From VRI stand
+origin, with heights carried back linearly in age, over the 215 sampled frames where `d ≥ 0.5%`:
+
+| photo decade | eligible | known | DSM worse, weighted share |
+|---|---|---|---|
+| 1960s | 22 | 22 | 7.3% |
+| 1970s | 73 | 67 | 15.1% |
+| 1980s | 60 | 55 | 2.3% |
+| 1990s | 56 | 55 | 1.5% |
+| 2000s | 4 | 4 | unresolved (too few) |
+
+So a DSM would be the better surface for most frames that matter, and wrong on about one in
+seven 1970s frames. The same decades pass at a canopy epoch three years either side.
+
+### The fly#65 canopy table, measured
+
+fly#65's first-order table put a uniform canopy on every land cell and found the land-and-sea
+mean (W) and the land-only mean (L) tie near 30 m. With each frame's measured `DSM − DTM` in
+place of the uniform canopy, still first-order, W stays closer on area: median(|W| − |L|)
+−0.00127, against −0.00287 on bare earth. The coastal frames carry a median 7.96 m of mean
+canopy, inland 6.88 m. The canopy cannot reverse fly#65's area verdict at the canopy BC has.
+
+### What the measurement is blind to
+
+- **Canopy at the photo date**, except through VRI's stand origin and a linear height-age
+  curve, which understates how short a young stand is.
+- **Tilt** (#10), as everywhere here: the ray-cast and the rectangle share the vertical camera.
+- **Film only**, as fly#58 and fly#65.
+- **A sample.** The verdicts rest on 594 admitted frames, stratified by a coarse census of
+  canopy shift and scale and weighted back.
 
 ## Testing this
 

@@ -275,10 +275,10 @@ test_that("every table in the note's fly#65 section is rebuilt from the shipped 
   # Terminate by enumeration: six tables, each rebuilt row by row below. A seventh fails
   # here until it is accounted for, as fly#58's section guard does for its own.
   expect_identical(sum(grepl("^\\|[- |]+\\|$", sec)), 6L)
-  # And 35 table lines, so a row added to any of them fails until it is rebuilt below
-  # (6 headers, 6 separators, 23 rows: 3 site, 4 candidate, 4 canopy, 2 percentile,
+  # And 36 table lines, so a row added to any of them fails until it is rebuilt below
+  # (6 headers, 6 separators, 24 rows: 3 site, 4 candidate, 5 canopy, 2 percentile,
   # 5 relief, 5 sea band).
-  expect_identical(sum(startsWith(sec, "|")), 35L)
+  expect_identical(sum(startsWith(sec, "|")), 36L)
 
   co <- x$coastal
   inl <- x$inland
@@ -318,6 +318,19 @@ test_that("every table in the note's fly#65 section is rebuilt from the shipped 
       sprintf("| %d m | %s | %s | %s |", cm, sgn, pc(q(abs(w), .95)),
               pc(q(abs((1 + inl$err_w) * ki - 1), .95)))
     }, character(1)),
+    # The measured row (fly#80): each frame's own MRDEM DSM - DTM in place of a uniform c.
+    {
+      cp <- system.file("extdata/dem_canopy_coastal.csv", package = "fly")
+      cc <- utils::read.csv(cp, stringsAsFactors = FALSE)
+      cm <- function(d) cc$c_coastal[match(d$airp_id, cc$airp_id)]
+      kc <- co$height_agl / (co$height_agl - cm(co))
+      ki <- inl$height_agl / (inl$height_agl - cm(inl))
+      w <- (1 + co$err_w) * kc - 1
+      l <- (1 + co$err_l) * kc - 1
+      sgn <- sub("^-", "\u2212", sprintf("%+.5f", med(abs(w) - abs(l))))
+      sprintf("| measured (fly#80) | %s | %s | %s |", sgn, pc(q(abs(w), .95)),
+              pc(q(abs((1 + inl$err_w) * ki - 1), .95)))
+    },
     {
       rb <- stats::quantile(co$dem_elev_sd, 0:5 / 5)
       cb <- cut(co$dem_elev_sd, rb, include.lowest = TRUE)

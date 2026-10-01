@@ -527,6 +527,8 @@ pub("  census p (coarse canopy / nominal agl): median %.4f, 90th %.4f, 95th %.4f
     mean(census$p_census > .01, na.rm = TRUE))
 pub("  census years %d-%d; share from 1985 on %.3f", min(census$photo_year), max(census$photo_year),
     mean(census$photo_year >= 1985))
+pub("  census nominal height above ground (scale x focal): median %.0f m, 5th %.0f m; a 1%% shift there needs a mean canopy of %.0f m",
+    stats::median(census$agl_nominal), q(census$agl_nominal, .05), .01 * stats::median(census$agl_nominal))
 P_EDGES <- c(-Inf, 0, .001, .0025, .005, .0075, .01, .015, .02, .03, .05, Inf)
 cen_bin <- stats::aggregate(list(n = rep(1L, nrow(census))),
                             list(decade = census$decade, scale_band = census$scale_band,
@@ -1033,6 +1035,8 @@ out_st <- sig(sites_out)
 out_c <- sig(cc[order(cc$airp_id), ])
 out_v <- rbind(VERSIONS[, c("asset", "etag", "modified")],
                data.frame(asset = "source_share", etag = paste(names(SRC_SHARE), signif(SRC_SHARE, 6), sep = "=", collapse = ";"),
+                          modified = ""),
+               data.frame(asset = "hrdem_ground_points", etag = paste(names(hc), hc, sep = "=", collapse = ";"),
                           modified = ""))
 if (SMOKE) {
   message("smoke run: nothing written")
