@@ -80,7 +80,7 @@ A Phase 0 measures only nuisance quantities. Roll bc5282 is excluded (pilot leak
 - [x] Estimator (as amended by B): implied height on DTM and C with a quadratic nuisance in image position, C split
       by VRI class (young-at-photo, old-at-photo, other); pooled per decade with pair fixed
       effects; pair-bootstrap intervals
-- [ ] Synthetic controls from real thumbnail texture draped on DTM / DTM + C, with tilt, scan
+- [x] Synthetic controls from real thumbnail texture draped on DTM / DTM + C, with tilt, scan
       rotation, placement error and JPEG 85: flat + fake canopy returns 0; DSM-draped returns 1;
       the shrinkage they produce is reported
 - [x] ~~Digital 2011–2013 pairs as a matcher/shrinkage calibration~~ — dropped by Amendment A (findings)

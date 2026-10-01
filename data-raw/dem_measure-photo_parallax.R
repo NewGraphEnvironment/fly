@@ -932,7 +932,7 @@ if (!file.exists(SYN_FILE)) {
       cp <- c(phi = NA, phi_vri = NA, n_mid = NA, n_old = NA)
     } else {
       cp <- class_phi(m, src_window(win$wt), v, fp$a_row$photo_year, g1$H)
-      cls_st[[i]] <- attr(cp, "stats")
+      cls_st[i] <- list(attr(cp, "stats"))
       sl <- c(slope = NA, se = NA, n = cp[["n"]], r2_full = cp[["r2_full"]], g_se = cp[["g_se"]])
     }
     # Every pair gate applies to a synthetic as to a real pair: one the gates refuse is "gated",
@@ -1009,9 +1009,13 @@ for (i in seq_len(nrow(SYN))) {
       } else if (SYN$set[i] == "plain") "(displaced, reported)"
       else if (SYN$set[i] == "class") "(per frame, diagnostic)" else "(too few patches)")
 }
-plain_ok <- all(vapply(split(SYN[pl, ], SYN$case[pl]), function(z) {
-  sum(z$pass %in% TRUE) >= 2 && !any(z$pass %in% FALSE)
-}, logical(1)))
+# Split ALL undisplaced plain rows, refused ones included, on the four cases as fixed levels: a
+# case whose every frame was refused must fail, not vanish into `all(logical(0))` (round 5).
+pu <- SYN$set == "plain" & SYN$displaced_m == 0
+plain_ok <- all(vapply(split(SYN[pu, ], factor(SYN$case[pu],
+                                               levels = c("flat_C0", "flat_C1", "dtm_C0", "dtm_C1"))),
+                       function(z) sum(z$pass %in% TRUE) >= 2 && !any(z$pass %in% FALSE),
+                       logical(1)))
 class_ok <- all(vapply(c(0, 150), function(off) {
   z <- SYN[qual & SYN$displaced_m == off, ]
   nrow(z) >= 1 && all(z$pass)
@@ -1168,9 +1172,15 @@ st_all <- vapply(SAMPLE$airp_id, function(id) readRDS(file.path(PAIRS_DIR, paste
                  character(1))
 fails <- st_all[grepl("^failed:", st_all)]
 if (length(fails)) {
-  tab <- table(fails)
+  # Grouped with digits masked: messages carry pair-specific numbers (terra's "too few values
+  # ... 0 < N", curl's byte counts), so exact text never groups a shared cause (round 5). And a
+  # total over 1% of the sample, or more than 2 pairs, refuses whatever the messages say.
+  tab <- table(gsub("[0-9]+", "#", fails))
   for (k in seq_along(tab)) pub("  failed x%d: %s", tab[[k]], names(tab)[k])
-  if (any(tab >= 2)) stop("systematic failures (a message shared by two or more pairs); fix before Stage 4")
+  if (any(tab >= 2) || length(fails) > max(2, 0.01 * nrow(SAMPLE))) {
+    stop(length(fails), " pairs failed (shared messages or over 1% of the sample); fix the cause, ",
+         "delete their .rds and .attempts files in ", PAIRS_DIR, ", and run again")
+  }
 }
 if (STOP_AFTER < 4) quit(save = "no")
 

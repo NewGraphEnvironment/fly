@@ -389,6 +389,41 @@ The class-structured synthetic is measured the way the verdict is.
 
 The plain-case acceptance (Amendment B 5) is unchanged.
 
+## Code-check — rounds 1–5 on `dem_measure-photo_parallax.R` (`review-round{1..5}.md`)
+
+| Round | Findings | Fixed | Accepted | Inside previous fix? |
+|---|---|---|---|---|
+| 1 | 13 | 13 | 0 | — |
+| 2 | 7 | 7 | 0 | y (6 of 7) |
+| 3 | 7 (+ mechanism, enumeration) | 7 | 0 | y (4) |
+| 4 | 7 (58-row enumeration) | 7 | 0 | y (3) |
+| 5 | 2 (82-row enumeration) | 2 | 0 | y (2) |
+
+- **Mechanism** (named in round 3): a guard computed on one object while the quantity it
+  protects is computed on a sibling. The pairs it took were:
+  - point against resample;
+  - normal against mirror placement;
+  - the pair list against a per-source column;
+  - the printed line against the CSV column;
+  - `diag > 0` against carrying information;
+  - an error's text against its cause.
+- **How it ended.** Round 5 enumerated every guard, gate, filter, keep-mask, status
+  classification and stop check against the quantity each protects: **82 rows**. Two were
+  defective, and both fixes are probed (`r5probe.R`).
+  - Restore-the-bug check: the old pass logic returns TRUE when every frame of a case is
+    refused; the new logic returns FALSE.
+  - Digit-masked grouping joins the two "too few values … N" messages.
+
+  The loop ended on that enumeration, not on a reviewer reporting "clean".
+- **What the rounds caught that mattered most:**
+  - the intercept sensitivity could never run, and failed toward pass;
+  - φ_VRI zeroed undated patches;
+  - transient failures were cached;
+  - a STOP still wrote estimates;
+  - a systematic failure would have read as "controls do not separate".
+- **Spend:** seven review agents in total (two plan reviews, five code-check rounds), past the
+  usual five, because every round through round 5 found a defect inside the previous fix.
+
 ## Errors Encountered
 
 | Error | Resolution |
@@ -396,3 +431,7 @@ The plain-case acceptance (Amendment B 5) is unchanged.
 | Whole-frame phase correlation locked onto wrong peaks (~half the pilot pairs) | Candidate peaks verified by 128 px patch matching; median of patches |
 | A tight magnitude window from centroid spacing rejected the right peak (bc85054, spacing ×1.7 off) | Window loosened to [0.25, 3]; verification decides |
 | `sf` geometry lost after `names(r) <- tolower(names(r))` on a subset print | Transform before renaming, or use the cached roll object directly |
+| PSOCK worker: base `mean()` on a SpatRaster returns NA when terra is loaded but not attached | Band arithmetic `(r1 + r2 + r3) / 3` |
+| `apply(Z, 2, resid_on, X = N)`: `X` collided with `apply`'s own argument | Anonymous function |
+| `gp$r` (VRI ratio) would overwrite `gp$r` (image row) | Renamed `rv` |
+| `vri_over()` defined after Stage 1 used it | Moved above Stage 1 |
