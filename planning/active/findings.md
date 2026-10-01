@@ -121,6 +121,107 @@ shrinkage directly with a known answer. The digital route would add the fly#38 P
 traps, a 120 mm format that is extrapolated, and a B/H of ~0.25 that halves the signal, for
 a number nothing downstream would read. Recorded rather than silently skipped.
 
+## Decision rule — fixed 2026-10-01, before any Phase 3 pair is measured
+
+### Quantities
+
+A **pair** is film frame A and frame A+1 on one roll, with the same scale, lens and height, both
+DEM-eligible in fly#80's census (reported height inside `fly_height_ratio_band()`).
+
+- **Patch**: 64 px window on a 32 px grid inside the overlap. Its 2-D shift between the frames
+  comes from phase correlation, coarse to fine (`global_shift()`, `patch_shifts()`).
+  - **x-parallax p** is the shift along the global shift direction.
+  - **y-parallax q** is the shift across it.
+- **Placement**: each patch centre is ray-cast onto MRDEM's DTM (the fly#65 `raycast`) from A's
+  catalogue centroid. Image rotation comes from the shift direction and the A→B bearing.
+  Placement is then registered: offset, rotation (±8°) and scale (±8%), normal and mirrored.
+  The registration maximises R² of `1/p ~ quadratic(x, y) + DTM` over all matched patches, and
+  never sees C.
+- **DTM, C**: MRDEM-30 DTM and `C = DSM − DTM`, focal-meaned to the patch's ground size and read
+  bilinearly at the placed point.
+- **Implied height**: `y = (H − e_w)(1 − median(p)/p)`, where `e_w` is the DTM at A's centroid
+  and H is the catalogue height.
+- **Class**, from VRI (`VEG_COMP_LYR_R1_POLY`) stand age at the photo year,
+  `PROJ_AGE_1 − (projection year − photo year)`. A patch takes a class when 4 of its 5 sample
+  points (the centre and four points half-way to its corners) agree; otherwise it is `other`.
+  | class | condition |
+  |---|---|
+  | `young` | treed, age 0–10 at the photo |
+  | `old` | treed, age ≥ 80 at the photo |
+  | `mid` | treed, age 11–79 |
+  | `post` | treed, stand originated after the photo |
+  | `other` | non-treed, unaged, or no VRI |
+- **Model**: per pair, y and each `C·[class = k]` are residualised on that pair's intercept,
+  quadratic in image position and DTM. The residuals are stacked over pairs and the class slopes
+  `b_k` solved by weighted least squares. Each pair is weighted by `1 / var(residual of y on
+  the nuisance)`.
+- **φ_mid = (b_mid − b_young) / (b_old − b_young)**: the share of today's canopy the camera saw
+  on mid stands, in units of an old stand. **φ_post** is defined the same way.
+- **φ_VRI**: what fly#80's model predicts φ_mid to be. The model is linear height-age from
+  origin O, so `r = (photo − O)/(2013 − O)`. The predicted slope is `Σ r·C⊥² / Σ C⊥²` over mid
+  patches, where C⊥ is the class's residualised canopy.
+
+### Gates — on matching, placement and regressors, never on C's coefficient
+
+- Patch: correlation peak ≥ 0.1, p > 0, the ray met the DTM, finite DTM and C, and the
+  quadratic-residual y-parallax within 3 × MAD.
+- Pair: matched; registration R² ≥ 0.5; |rotation| ≤ 6° and |scale| ≤ 6%, since a value at the
+  ±8 search bound is a failed registration; at least 50 usable patches.
+
+### Sample
+
+- **Frame**: fly#80's census rows (keyed on the same MRDEM ETags), with
+  `p_census ≥ 0.0025` (canopy matters), decades 1960–2000. Frame +1 must be in the census on the
+  same roll with the same scale, lens and height. Centroid spacing must be within
+  [0.15, 0.7] of the format side on the ground; this is a turn and line-break guard, not a
+  base.
+- **Excluded**: roll bc5282 (the pilot leak) and every Phase 0 pilot roll.
+- **Draw**: per decade, rows are shuffled with `set.seed(82)`, one pair is kept per roll, and the
+  first **90** are taken. The draw is uniform within a decade, so every pair carries equal
+  weight. The pooled all-decade figure pools pairs, not decades.
+- `FLY_PARALLAX_SMOKE=1` draws 2 per decade, into a separate cache.
+
+### Verdicts, in order
+
+1. **Instrument.** Every undisplaced synthetic control passes: κ = 0 slope within 0.10 of 0,
+   κ = 1 within 0.15 of 1. If any fails, STOP: "instrument fails its synthetic controls".
+   With 150 m of displacement the slope is reported as the placement shrinkage and has no
+   threshold.
+2. **Controls separate.** Over all decades pooled, `b_old − b_young ≥ 0.25` and the
+   pair-bootstrap 95% interval (2,000 resamples of pairs within decade, `set.seed(8203)`)
+   excludes 0. Otherwise STOP: "the photos cannot separate canopy that existed from canopy that
+   did not". That is recorded as the outcome, and nothing below is read.
+3. **Controls per decade or pooled.** A decade uses its own `b_young`, `b_old` when it has at
+   least 100 young patches in at least 5 pairs, and the same for old. Otherwise φ uses the
+   pooled controls, with the decade's own `b_mid`, and says so.
+4. **Resolved.** A decade is resolved when it has at least 10 gated pairs and the 95% interval
+   of φ_mid is no wider than 0.6.
+5. **Against VRI**, per resolved decade and pooled:
+   - **AGREES**: φ_VRI is inside the interval.
+   - **MORE CANOPY THAN VRI**: the interval's lower bound is above φ_VRI. VRI's linear curve
+     understated the canopy at the photo date, so fly#80's "DSM worse" shares overstate the
+     harm.
+   - **LESS CANOPY THAN VRI**: the upper bound is below φ_VRI, so fly#80's shares understate
+     the harm.
+6. **Outcome.** Only `inst/notes/terrain-correction.md` changes (the epoch subsection and the
+   "blind to" bullet), whatever the verdict: fly#80's materiality verdict already closed off
+   code and defaults. A result that seems to argue otherwise goes to the user at the PR.
+
+### What the rule cannot see, stated before the run
+
+- **The controls are VRI's own.** They are taken at its clean ends, where age is unambiguous
+  and the height-age curve's shape barely matters (0–10 y: near bare; ≥ 80 y: near
+  asymptote). An old stand still grew between the photo and 2013, so φ = 1 means "as much as
+  an old stand", not "all of today's canopy".
+- **Patch scale.** A patch is ~140 m (1:10,000) to ~470 m (1:40,000) on the ground, so canopy
+  finer than that is averaged.
+- **Orientation beyond a quadratic.** Tilt, crab, scan rotation and scale differences are
+  modelled; anything of higher order is residual.
+- **The scene itself.** Season, snow, leaf-off deciduous stands and shadow length are as they
+  were on the day.
+- **Census p ≥ 0.25% only.** The verdict is about frames where canopy matters, as fly#80's
+  epoch table was.
+
 ## Errors Encountered
 
 | Error | Resolution |

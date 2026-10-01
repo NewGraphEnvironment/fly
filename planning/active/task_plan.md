@@ -87,11 +87,11 @@ A Phase 0 measures only nuisance quantities. Roll bc5282 is excluded (pilot leak
 
 ## Phase 2: Decision rule — fixed in `findings.md` before any measured pair is read
 
-- [ ] Quantities, sample, thresholds, the rescaled verdict per decade, and the falsifiable
+- [x] Quantities, sample, thresholds, the rescaled verdict per decade, and the falsifiable
       prediction from fly#80's epoch r
-- [ ] Stop clause: the controls do not separate, or power fails → "instrument cannot resolve",
+- [x] Stop clause: the controls do not separate, or power fails → "instrument cannot resolve",
       recorded, nothing more run
-- [ ] What the rule cannot see, stated before the run
+- [x] What the rule cannot see, stated before the run
 - [ ] Amendments dated, landing before the data they govern
 
 ## Phase 3: Measure
