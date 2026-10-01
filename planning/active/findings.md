@@ -491,8 +491,8 @@ reproducible.
 - **What ended it.** Cutting the prose to claims a shipped row or a cited record produces, then
   enumerating all 137. Round 3's 9 were fixed against producers it had already verified, and
   every test assertion was shown able to fail: ten mutations, all red.
-- **Cost.** Eleven review agents in all (two plan, five code-check, three record, one rule
-  review counted in the plan two).
+- **Cost.** Ten review agents in all: two plan reviews (the plan and the rule), five
+  code-check rounds and three record rounds.
 
 ## Errors Encountered
 
