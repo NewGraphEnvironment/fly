@@ -69,6 +69,15 @@ keyed on MRDEM's ETags; every draw seeds itself. Ships `inst/extdata/dem_canopy_
 `test-fly_footprint_canopy.R` recomputes. `FLY_CANOPY_SMOKE=1` writes nothing,
 `FLY_CANOPY_STOP=n` stops after stage n. The Meta CHM and HRDEM coverage it reads are
 downloaded into the gitignored cache by hand; the error says which
+- `data-raw/dem_measure-photo_parallax.R` — fly#82: whether parallax between adjacent
+thumbnails can say what surface the camera saw at the photo date. It **stopped at its
+synthetic controls**, so no sampled pair was measured. The script reproduces the stop and ships
+`inst/extdata/dem_parallax_synthetic.csv` and `_versions.csv`, which
+`test-fly_footprint_parallax.R` recomputes. Pulls `raycast` and the fly#80 helpers with
+`fns_from()`. Caches are keyed on MRDEM's three ETags, the census and an algorithm tag.
+`FLY_PARALLAX_SMOKE=1` writes nothing and prints no slope; `FLY_PARALLAX_STOP=n` stops after
+stage n. Worker code avoids `mean()` on a SpatRaster: in a PSOCK worker terra is loaded but not
+attached, and the result is NA
 - `data-raw/height_calibrate-lower_tail_rolls.R` — settles the lower tail of `flying_height`
 per roll (fly#60) with adjacent-frame spacing and the hand transcription of the province's
 logbook scans in `data-raw/flying_height_logbooks.csv`, which is an input and is never
@@ -268,6 +277,29 @@ rather than a property of this code.
     rounds, two of them inside the previous round's fix — a value used as what its name says
     rather than what produced it (scale, sampling design, type, RNG state). Read
     `inst/notes/terrain-correction.md` before reopening this
+
+- **Photo parallax cannot date the canopy at thumbnail resolution, and the study stopped
+  before any sampled pair** (fly#82, no code change).
+  - **What works.** Per-patch parallax between number-adjacent thumbnails recovers terrain: a
+    DTM slope of 0.95–1.13 on the pilot pairs, with a quadratic in image position absorbing
+    tilt, crab and scan rotation. The plain synthetic controls pass.
+  - **What failed.** The canopy estimand is a ratio of a mid-stand slope to an old-stand slope.
+    Its class-structured synthetic, pooled as the sample would be, missed the known answer in
+    both MRDEM sources: radar 1.356 against 0.860, lidar 0.793 against 0.550. Two causes:
+    - the matcher's response differs by frame, and the classes sit in different frames;
+    - registration under realistic centroid error can land wrong and still pass every gate.
+  - **So fly#80's VRI estimate stands alone.**
+  - **Three things are load-bearing.**
+    - **Never use catalogue centroid spacing as the air base.** Before the 1990s it is
+      interpolated along the line, and it was wrong by ×1.7 on a pilot pair.
+    - **Test the ratio as it will be estimated, pooled.** A per-frame φ test was ill-posed and
+      had to be replaced (Amendment C). The plain synthetics passed while the estimand failed.
+    - **Three amendments (A–C) came before any sampled pair.** Five code-check rounds ended
+      on an 82-row enumeration of guard against protected quantity; the shared mechanism was a
+      guard computed on a sibling of the object it protects.
+
+    Read `inst/notes/terrain-correction.md` and the archived planning findings before
+    reopening this.
 
 - **Terrain error is a datum offset, not slope** (v0.5.0, #9) — `FLYING_HEIGHT` is metres **above sea level**,
 and reported scale is referenced to an elevation above the ground the photos cover, so it understates footprint

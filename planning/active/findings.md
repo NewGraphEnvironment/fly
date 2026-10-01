@@ -424,6 +424,55 @@ The plain-case acceptance (Amendment B 5) is unchanged.
 - **Spend:** seven review agents in total (two plan reviews, five code-check rounds), past the
   usual five, because every round through round 5 found a defect inside the previous fix.
 
+## Outcome — STOP at verdict 1: the instrument fails its synthetic controls (2026-10-01, algorithm a6, `parallax_stage1_a6.log`, `parallax_final.log`)
+
+No sampled pair was measured. Under the rule, nothing below the stop is run or read.
+
+**Plain synthetics (Amendment B 5): pass.**
+- Undisplaced κ=0: −0.029 to +0.070. κ=1: 0.975 to 1.123.
+- Displaced 150 m, κ=1: 1.111, **0.403**, 1.022. bc85054 lost its registration while
+  passing every gate. Displaced rows carry no threshold; it is reported.
+
+**Pooled class-structured synthetic (Amendment C): FAIL in both sources and both pools.**
+
+| source | displaced | φ measured | φ known (VRI world) | mid / old patches |
+|---|---|---|---|---|
+| radar | 0 | 1.356 | 0.860 | 135 / 65 |
+| lidar | 0 | 0.793 | 0.550 | 172 / 43 |
+| radar | 150 m | 46.35 | 0.860 | 135 / 65 |
+| lidar | 150 m | 0.810 | 0.553 | 173 / 43 |
+
+- **Frames.** 7 of the 11 were admitted. The 4 refused: bc5225 and bc81009 (registration
+  bound), bc78110 and bcb96017 (no global match).
+
+**Why the instrument fails.** Both mechanisms are visible in the shipped rows; what follows is
+diagnosis, not a further measurement.
+1. **The matcher's response differs by frame, and the classes sit in different frames.**
+   - At κ=1 the plain synthetics read 0.975–1.123 undisplaced, and bc5225 read 0.703 at true
+     placement (`rot2.R`).
+   - The frames hold their classes unevenly:
+     - **bc78129**: 124 mid patches against 3 old, counted in its dominant source; its 3 km
+       window is 66% radar.
+     - **bcb96067 and bcb00031**: old patches and no mid ones.
+   - So the pool's mid and old columns are drawn from different frames.
+   - φ is a ratio of a mid slope to an old slope, so pooled over frames it inherits the ratio
+     of the frames' responses. Review-2 4b and S5 anticipated this. The pooled synthetic is
+     what measured it.
+2. **Registration can land wrong and still pass every gate.** Displaced 150 m, the radar pool's
+   old slope collapsed to near zero (φ 46), and bc85054's plain κ=1 fell to 0.403. Real
+   centroids are off by up to ~900 m (Phase 0), so a test passed only undisplaced would not
+   protect the sample.
+
+**What this leaves for the epoch question.** fly#80's VRI estimate remains the only one: a DSM
+worse on 15.1% of the 1970s frames where canopy matters. Photo parallax at thumbnail resolution
+cannot check it. Per-patch parallax resolves terrain: the DTM slope came back near 1 on every
+pilot pair. But the canopy ratio needs matcher response and placement to be equal across frames,
+and the synthetics show they are not.
+
+**Outcome (rule verdict 6).** Only `inst/notes/terrain-correction.md` changes: a fly#82
+subsection and the "blind to" bullet. The script and its synthetic CSV ship so the stop is
+reproducible.
+
 ## Errors Encountered
 
 | Error | Resolution |

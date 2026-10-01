@@ -1024,6 +1024,26 @@ SYN_OK <- plain_ok && class_ok
 shrink <- with(SYN, slope[set == "plain" & kappa == 1 & displaced_m > 0 & status == "ok"])
 pub("  synthetic controls %s; plain kappa 1 displaced 150 m: %s", if (SYN_OK) "PASS" else "FAIL",
     paste(sprintf("%.3f", shrink), collapse = ", "))
+
+sig <- function(d) {
+  num <- vapply(d, is.double, logical(1))
+  d[num] <- lapply(d[num], signif, 10)
+  d
+}
+write_versions <- function() {
+  vers <- rbind(VERSIONS[, c("asset", "etag", "modified")],
+                data.frame(asset = c("census", "algorithm"), etag = c(basename(CENSUS), ALG),
+                           modified = c("", "")))
+  write_if_changed(vers, "inst/extdata/dem_parallax_versions.csv")
+  write_if_changed(sig(SYN), "inst/extdata/dem_parallax_synthetic.csv")
+}
+# Verdict 1: an instrument that fails its synthetic controls is not applied to the sample. Nothing
+# below runs; what is written is the controls and the versions they were run against.
+if (!SYN_OK) {
+  pub("  STOP (synthetic): the instrument fails its synthetic controls; no sampled pair is measured")
+  if (!SMOKE) write_versions()
+  quit(save = "no")
+}
 if (STOP_AFTER < 2) quit(save = "no")
 
 # ---------------------------------------------------------------------------
@@ -1460,16 +1480,7 @@ if (SMOKE) {
 }
 
 if (!SMOKE) {
-  sig <- function(d) {
-    num <- vapply(d, is.double, logical(1))
-    d[num] <- lapply(d[num], signif, 10)
-    d
-  }
-  vers <- rbind(VERSIONS[, c("asset", "etag", "modified")],
-                data.frame(asset = c("census", "algorithm"), etag = c(basename(CENSUS), ALG),
-                           modified = c("", "")))
-  write_if_changed(vers, "inst/extdata/dem_parallax_versions.csv")
-  write_if_changed(sig(SYN), "inst/extdata/dem_parallax_synthetic.csv")
+  write_versions()
   write_if_changed(sig(pairs_out), "inst/extdata/dem_parallax_pairs.csv")
   write_if_changed(sig(VERDICTS), "inst/extdata/dem_parallax_verdicts.csv")
 }

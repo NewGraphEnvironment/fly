@@ -96,9 +96,8 @@ A Phase 0 measures only nuisance quantities. Roll bc5282 is excluded (pilot leak
 
 ## Phase 3: Measure
 
-- [ ] Sample: pairs at fly#80's sampled frames (excluding bc5282 and Phase 0 pilots), topped up
-      by a decade-stratified seeded draw if power needs it
-- [ ] Run; every figure the note quotes gets a producer line
+- [x] ~~Sample~~ — not drawn into measurement: STOP at verdict 1 (findings, "Outcome")
+- [x] ~~Run~~ — not run, per the rule's stop clause; the synthetic rows are the producer lines
 
 ## Phase 4: Ship the record
 
