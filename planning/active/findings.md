@@ -473,6 +473,27 @@ and the synthetics show they are not.
 subsection and the "blind to" bullet. The script and its synthetic CSV ship so the stop is
 reproducible.
 
+## Record review — three rounds on the note, NEWS, CLAUDE.md and headers (`review-record{1,2,3}.md`)
+
+| Round | Claims enumerated | Wrong or unsupported | Inside previous rewrite? |
+|---|---|---|---|
+| 1 | 87 | 28 (14 findings + 3 test) | — |
+| 2 | 118 | 23 (12 + 4 test) | y |
+| 3 | 137 | 9 (7 findings) | y, all wording |
+
+- **The defect class was the one CLAUDE.md names for fly#65 and fly#80:** prose written from
+  the story rather than read off a producer line.
+- **The worst instances:**
+  - "no sampled pair was measured": smoke runs had matched pairs from the real draw. What holds
+    is that no canopy slope was computed on one.
+  - a causal size argument resting on three frames;
+  - a terrain figure credited to the shipped script that came from scratch code.
+- **What ended it.** Cutting the prose to claims a shipped row or a cited record produces, then
+  enumerating all 137. Round 3's 9 were fixed against producers it had already verified, and
+  every test assertion was shown able to fail: ten mutations, all red.
+- **Cost.** Eleven review agents in all (two plan, five code-check, three record, one rule
+  review counted in the plan two).
+
 ## Errors Encountered
 
 | Error | Resolution |

@@ -77,8 +77,8 @@ thumbnails can say what surface the camera saw at the photo date.
     `test-fly_footprint_parallax.R` recomputes, and `_versions.csv`.
   - **Helpers.** Pulls `raycast` and the fly#80 helpers with `fns_from()`.
   - **Caching.** Keyed on MRDEM's three ETags, the census and an algorithm tag.
-  - **Smoke.** `FLY_PARALLAX_SMOKE=1` writes nothing and computes no slope on a sampled pair;
-    it prints the synthetic slopes.
+  - **Smoke.** `FLY_PARALLAX_SMOKE=1` draws its own pairs with its own seed. It prints and writes
+    no slope, φ or D of a pair; it prints the synthetic slopes.
   - **Worker trap.** Worker code avoids `mean()` on a SpatRaster: in a PSOCK worker terra is
     loaded but not attached, and the result is NA.
 - `data-raw/height_calibrate-lower_tail_rolls.R` — settles the lower tail of `flying_height`
@@ -286,8 +286,8 @@ rather than a property of this code.
   fly#80's VRI estimate stands alone.
   - **The ratio.** Mid-stand over old-stand canopy slope. The synthetic, in a world where
     fly#80's VRI model is true, missed in both MRDEM sources.
-  - **The plain synthetics passed**, so a test of single slopes says nothing about the ratio.
-    Test a ratio estimand pooled, as it will be estimated.
+  - **The plain synthetics passed**, so a passing single-slope test is necessary but not
+    sufficient for the ratio. Test a ratio estimand pooled, as it will be estimated.
   - **Why it fails is not established** (fly#85).
   - **Never use catalogue centroid spacing as an air base.** It is evenly spaced along lines
     before the 1990s, and it was ×1.7 off on a pilot pair.

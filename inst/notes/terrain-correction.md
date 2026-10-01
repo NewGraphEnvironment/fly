@@ -1259,8 +1259,8 @@ was taken? fly#82 asked the photos.
 
 **It stopped at its first verdict.** The instrument failed its synthetic controls, so under the
 decision rule no canopy slope, φ or D was computed on any pair of the real draw.
-- Early smoke runs drew from the head of that draw and crashed before any slope existed. Smoke
-  runs now use their own seed.
+- The first smoke run drew from the head of that draw and crashed before any slope existed.
+  Smoke runs since use their own seed.
 - `data-raw/dem_measure-photo_parallax.R` reproduces the stop and ships
   `inst/extdata/dem_parallax_synthetic.csv`, from which the suite rebuilds this section's
   tables.
@@ -1313,8 +1313,8 @@ to change is filed as fly#85.
   on 15.1% of the 1970s frames where canopy matters.
 - **No code or default could have changed either way.** fly#80 found the DTM–DSM difference
   immaterial, so this question decides only a sentence.
-- **The plan changed three times, each before any pair of the real draw was read** (archived
-  planning findings):
+- **The plan changed three times, each before any canopy slope was computed on a pair of the
+  real draw** (archived planning findings):
   - **Amendment A**, before the decision rule, dropped a digital control on exterior
     orientation.
   - **Amendments B and C** amended the rule. B replaced a control on ground young at the photo

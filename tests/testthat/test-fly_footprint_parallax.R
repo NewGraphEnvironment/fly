@@ -8,10 +8,12 @@
 # photos can say about the photo date (fly#82)") and of the NEWS entry. CLAUDE.md and code
 # comments are not pinned.
 #
-# Not asserted, because no shipped table carries them (each has its producer in the archived
-# planning findings or review files): the 64-77% of even centroid bases (a plan-review probe),
-# the x1.7 spacing on a Phase 0 pair, the JPEG quality, and fly#80's 15.1%, which fly#80's own
-# test pins.
+# Not asserted here:
+# - figures no shipped table carries, each with its producer in the archived planning findings
+#   or review files: the 64-77% of even centroid bases (a plan-review probe), the x1.7 spacing
+#   on a Phase 0 pair, and the plan's three amendments;
+# - "80 or more years", the old-stand threshold, which is the script's code;
+# - fly#80's 15.1%, pinned by `test-fly_footprint_canopy.R`.
 
 parallax_synthetic <- function() {
   p <- system.file("extdata", "dem_parallax_synthetic.csv", package = "fly")

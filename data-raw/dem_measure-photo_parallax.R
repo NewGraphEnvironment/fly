@@ -30,8 +30,8 @@
 # pairs (Amendment B).
 #
 # The rule — every threshold, class, gate and verdict — was fixed in fly#82's planning findings
-# ("Decision rule"), after Amendment A and before Amendments B and C, all before any pair of the
-# real draw was read. Read it before changing anything here.
+# ("Decision rule"), after Amendment A and before Amendments B and C, all before any canopy slope
+# was computed on a pair of the real draw. Read it before changing anything here.
 #
 # Everything is public: the BC Data Catalogue's airphoto centroids, thumbnails and VRI, and
 # NRCan's MRDEM-30.
@@ -45,8 +45,9 @@
 #   Stage 3  per pair: match, place, register, sample the DEM, class from VRI (cached)
 #   Stage 4  the verdicts; write `inst/extdata/dem_parallax_*.csv`
 #
-#   FLY_PARALLAX_SMOKE=1 runs one frame per synthetic case and two pairs a decade, drawn with
-#   its own seed, into a separate cache; it writes nothing and prints no slope of a pair
+#   FLY_PARALLAX_SMOKE=1 runs one frame per undisplaced synthetic case and two pairs a decade,
+#   drawn with its own seed, into its own measurement cache (thumbnails and roll metadata are
+#   shared); it writes nothing and prints no slope, phi or D of a pair
 #   FLY_PARALLAX_STOP=<n> stops after stage n
 
 pkgload::load_all(quiet = TRUE)

@@ -101,16 +101,16 @@ A Phase 0 measures only nuisance quantities. Roll bc5282 is excluded (pilot leak
 
 ## Phase 4: Ship the record
 
-- [ ] `inst/extdata/dem_parallax_*.csv` through `write_if_changed()`
-- [ ] `tests/testthat/test-fly_footprint_parallax.R` recomputing the note's tables and figures
-- [ ] `inst/notes/terrain-correction.md`: fly#82 subsection, "blind to" bullet updated
-- [ ] CLAUDE.md Architecture + Key Decisions; NEWS (version bump left to `/gh-pr-merge`)
+- [x] `inst/extdata/dem_parallax_synthetic.csv` and `_versions.csv` through `write_if_changed()` (no pairs or verdicts CSV: the study stopped)
+- [x] `tests/testthat/test-fly_footprint_parallax.R` recomputing the note's tables and figures
+- [x] `inst/notes/terrain-correction.md`: fly#82 section, "blind to" bullet updated
+- [x] CLAUDE.md Architecture + Key Decisions; NEWS (version bump left to `/gh-pr-merge`); follow-up fly#85
 
 ## Validation
 
-- [ ] Tests pass (`devtools::test()`), lintr clean
-- [ ] `/code-check` clean on each commit (rounds until a round finds nothing inside the previous fix; prose claims enumerated against producer lines)
-- [ ] PWF checkboxes match landed work
+- [x] Tests pass (`devtools::test()`: 2,777 before the record rewrite), lintr clean on the test
+- [x] `/code-check`: five rounds on the instrument (82-row enumeration), three on the record (137-claim enumeration)
+- [x] PWF checkboxes match landed work
 - [ ] `/planning-archive` on completion (README with Measurement and Evidence), then `/gh-pr-push`
 
 ## Verification

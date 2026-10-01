@@ -18,3 +18,7 @@
   synthetic harness tested Hann sampling, gradient nuisance and three registration schemes.
   Amendment B fixed; algorithm a2. Smoke run caught a PSOCK `mean()` dispatch bug (colour
   thumbnails) and an `apply(X =)` collision; neither computed a coefficient.
+- Stage 1 under a6: plain synthetics pass, pooled class synthetic FAILS in both sources → STOP
+  at verdict 1; no canopy slope computed on any pair of the real draw
+- Record written (note section, test, NEWS, CLAUDE.md), reviewed three rounds to a 137-claim
+  enumeration; follow-up filed as fly#85
