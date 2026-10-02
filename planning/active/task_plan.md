@@ -84,16 +84,16 @@ Exploration facts that shape the plan:
   the turn to the next line. Refused today; with a table it would be written rotated onto the
   turn. File an issue, fix in `fly_bearing()` (forward step much longer than the backward one →
   take the backward bearing), test it.
-- [ ] Tests first: table integrity (values in {0,90,180,270}, unique key, shipped ∩ excluded = ∅,
+- [x] Tests first: table integrity (values in {0,90,180,270}, unique key, shipped ∩ excluded = ∅,
   coverage against `_population.csv`, verdicts and states recomputed from `_pairs.csv` /
   `_legs.csv`); bc5282 231/232 now get the table's value; an unmeasured roll is still refused and
   its warning names its state and `fly_rotation_calibrate()`; a rotated square frame that is not
   film is refused as such, not as "added after the snapshot"; user column overrides the table
   (tested with a value that differs from the table's) and `NA` falls through to it; the table
   never reaches a non-square frame; restore-the-bug on the lookup.
-- [ ] Update `test-fly_georef.R` "a rotated film frame is refused" (network) and the override
+- [x] Update `test-fly_georef.R` "a rotated film frame is refused" (network) and the override
   tests that set 0.
-- [ ] `fly_film_rotation_table()` internal reader; lookup before the refusal; precedence user
+- [x] `fly_film_rotation_table()` internal reader; lookup before the refusal; precedence user
   column > table > refusal (the scalar `rotation` argument never reaches a rotated frame);
   warning text driven by the ledger instead of the hard-coded "0 for bc5282 / 90 for bc83062".
 

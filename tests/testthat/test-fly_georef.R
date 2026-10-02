@@ -187,12 +187,11 @@ test_that("a frame with no flight bearing is georeferenced due north, and says s
 })
 
 
-test_that("a rotated film frame is refused rather than georeferenced on a guess", {
-  # fly#26. Film footprints are rotated onto the flight bearing now, and the image's
-  # corner mapping is a per-roll property — measured 0 for bc5282 (1968) against 90 for
-  # bc83062 (1983), so there is no constant to apply. A wrong mapping here produces a
-  # valid GeoTIFF over the right ground with the picture a quarter turn out, which
-  # nothing downstream would report, so the frame is skipped instead.
+test_that("a rotated film frame takes its roll's measured rotation, and is refused without one", {
+  # fly#26 found the film corner mapping flight-relative but per roll; fly#53 ships the rolls
+  # it measured. A wrong mapping produces a valid GeoTIFF over the right ground with the
+  # picture a quarter turn out, which nothing downstream would report, so a roll with no
+  # measured value is skipped instead.
   skip_if_offline()
   centroids <- sf::st_read(testdata_path("photo_centroids.gpkg"), quiet = TRUE)
 
@@ -205,27 +204,38 @@ test_that("a rotated film frame is refused rather than georeferenced on a guess"
   fp <- fly_footprint(pair)
   expect_true(all(is.finite(fp$footprint_bearing)))
   expect_true(all(fly_is_square(fp)))
+  expect_true("bc5282" %in% fly_film_rotation_table()$film_roll)       # premise
 
   fetched <- fly_fetch(pair, type = "thumbnail", dest_dir = withr::local_tempdir())
   skip_if_not(all(fetched$success), "thumbnails not reachable")
 
+  collect <- function(expr) {
+    warns <- character(0)
+    res <- withCallingHandlers(expr, warning = function(w) {
+      warns <<- c(warns, conditionMessage(w))
+      invokeRestart("muffleWarning")
+    })
+    list(res = res, warns = warns)
+  }
+
+  # Measured: written, with no refusal.
+  got <- collect(fly_georef(fetched, pair, dest_dir = withr::local_tempdir()))
+  expect_true(all(got$res$success))
+  expect_false(any(grepl("per-roll property", got$warns)))
+
+  # The same frames under a roll fly has no record of: refused, one warning per frame,
+  # nothing written.
+  unknown <- pair
+  unknown$film_roll <- "bcx00001"
   dest <- withr::local_tempdir()
-  # One warning per refused frame, so both are collected rather than letting
-  # `expect_warning()` absorb the first and leak the second.
-  warns <- character(0)
-  res <- withCallingHandlers(
-    fly_georef(fetched, pair, dest_dir = dest),
-    warning = function(w) { warns <<- c(warns, conditionMessage(w)); invokeRestart("muffleWarning") }
-  )
-  expect_equal(sum(grepl("per-roll property", warns)), 2)
-  expect_false(any(res$success))
+  got <- collect(fly_georef(fetched, unknown, dest_dir = dest))
+  expect_equal(sum(grepl("per-roll property", got$warns)), 2)
+  expect_false(any(got$res$success))
   expect_equal(length(list.files(dest, pattern = "\\.tif$")), 0)
 
-  # And the documented escape hatch still works: supply the roll's measured rotation and
-  # the same frames georeference. This is the remedy the warning names, so it is run
-  # rather than merely described — a guard whose advice nobody executes is a guard whose
-  # advice can be wrong.
-  pair$rotation <- 0L
-  res2 <- fly_georef(fetched, pair, dest_dir = withr::local_tempdir())
+  # And the remedy the warning names is run rather than merely described: supply a
+  # rotation and the same frames georeference.
+  unknown$rotation <- 0L
+  res2 <- fly_georef(fetched, unknown, dest_dir = withr::local_tempdir())
   expect_true(all(res2$success))
 })

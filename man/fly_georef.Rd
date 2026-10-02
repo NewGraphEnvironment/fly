@@ -56,8 +56,8 @@ argument does not reach it. \code{"auto"} (default) derives a 90°-quantized
 rotation from the bearing; with the bearing now carried by the geometry,
 that formula only ever sees bearingless frames and returns its \code{NA}
 default of 180. A \code{rotation} column in \code{photos_sf} overrides everything,
-rotated or not — which is the supported way to georeference film (see
-\strong{Rotation}). Carrying a film-era \code{rotation} column into a batch of
+rotated or not, including the measured film table (see \strong{Rotation}).
+Carrying a film-era \code{rotation} column into a batch of
 digital frames overrides the correct mapping with the wrong one — drop
 the column, or set it to \code{NA} for those rows.}
 
@@ -89,36 +89,36 @@ fixed mapping: the top-left pixel maps to the ring's rear-left corner, so the
 top of the image points 270° round from the heading. Measured in fly#38 on
 both bundled cameras by three independent routes, which agree.
 
-A \strong{rotated square} footprint — a film frame with a bearing — is \strong{skipped
-with a warning} unless \code{photos_sf} carries a \code{rotation} value for it. There
-is no constant to apply, and that is a measurement rather than an omission.
-fly#26 scored all four rotations by adjacent-frame overlap over four
-contiguous legs:\tabular{lllll}{
-   roll \tab year \tab bearing \tab best rotation \tab margin \cr
-   bc5282 \tab 1968 \tab 230° \tab 0 \tab 0.089 \cr
-   bc83062 \tab 1983 \tab 150° \tab 90 \tab 0.135 \cr
-   bc83062 \tab 1983 \tab 93° \tab 90 \tab 0.196 \cr
-   bc83062 \tab 1983 \tab 62° \tab 90 \tab 0.152 \cr
-}
+A \strong{rotated square} footprint — a film frame with a bearing — takes its
+\strong{roll's measured rotation}, and is \strong{skipped with a warning} when there is
+none. There is no film constant: the mapping is flight-relative but differs
+between rolls, and fly#53 measured it per roll by adjacent-frame overlap over
+a stratified sample of the catalogue. \code{inst/extdata/film_rotations.csv} ships
+the 56 rolls that met the rule — 44 at 90, 10 at 270, 2 at 0 — and
+\code{film_rotations_excluded.csv} lists every other film roll in the catalogue
+snapshot with the reason it is not shipped, which the warning names. A roll in
+neither was added to the catalogue since.
 
+The shipped values fall into eras (270 for the 305 mm rolls of 1964-73, 0 for
+the two 153 mm rolls of 1967-68, 90 from 1974) with an exception — bcc00116
+(2000) is 270 — and three unshipped rolls each have a decisive leg against their
+era too, so nothing is inferred for a roll that was not measured. A wrong mapping
+writes a valid GeoTIFF over the right ground with the picture turned a quarter
+or half turn, which nothing downstream would report, so the frame is refused
+instead, as fly refuses an unknown recording format in \code{\link[=fly_footprint]{fly_footprint()}}.
 
-bc83062 returns the same answer at three widely separated bearings, so the
-mapping is genuinely flight-relative — but it is a quarter turn from
-bc5282's, on the two eras fly#26 named at the outset. Applying either as a
-global constant would be wrong for the other roll, and the failure it
-produces is a valid GeoTIFF over the right ground with the picture turned 90°,
-which nothing downstream would report. So the frame is refused instead, as
-fly refuses an unknown recording format in \code{\link[=fly_footprint]{fly_footprint()}}.
+For a roll the table does not cover, measure it with \code{\link[=fly_rotation_calibrate]{fly_rotation_calibrate()}}
+and join the result, or set the column yourself after checking one frame against
+known ground:
 
-To georeference film, check one frame of the roll against known ground and
-set the column:
-
-\if{html}{\out{<div class="sourceCode">}}\preformatted{photos$rotation <- dplyr::case_when(
-  photos$film_roll == "bc5282"  ~ 0L,    # measured, fly#26
-  photos$film_roll == "bc83062" ~ 90L,   # measured, fly#26
-  .default = NA                          # refused rather than guessed
-)
+\if{html}{\out{<div class="sourceCode">}}\preformatted{cal <- fly_rotation_calibrate(roll)            # the roll's catalogue rows
+roll$rotation <- cal$rotation[match(roll$film_roll, cal$film_roll)]
 }\if{html}{\out{</div>}}
+
+\strong{Precedence} for a rotated film frame: a non-\code{NA} \code{rotation} column value, then
+the shipped table, then refusal. The scalar \code{rotation} argument never reaches it.
+Values were measured on the public thumbnails; a full-resolution scan delivered in
+another orientation is not covered.
 
 Every non-\code{NA} value in that column must be 0, 90, 180 or 270; anything else
 is an error naming the value, rather than a rotation silently applied as
@@ -204,11 +204,10 @@ of \code{\link[=fly_footprint]{fly_footprint()}}.
 centroids <- sf::st_read(system.file("testdata/photo_centroids.gpkg", package = "fly"))
 
 # Frames 231 and 232 of bc5282 are adjacent, so they get a flight bearing and
-# their footprints are rotated onto it. Film needs the roll's measured rotation
-# supplied; without it the frames are refused rather than turned a quarter turn.
+# their footprints are rotated onto it. bc5282 is a measured roll, so its
+# rotation comes from the shipped table; an unmeasured roll would be refused.
 pair <- centroids[centroids$film_roll == "bc5282" &
                     centroids$frame_number \%in\% c(231, 232), ]
-pair$rotation <- 0L   # measured for bc5282 in fly#26
 
 fetched <- fly_fetch(pair, type = "thumbnail", dest_dir = tempdir())
 georef <- fly_georef(fetched, pair, dest_dir = tempdir())

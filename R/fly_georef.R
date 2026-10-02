@@ -39,8 +39,8 @@
 #'   rotation from the bearing; with the bearing now carried by the geometry,
 #'   that formula only ever sees bearingless frames and returns its `NA`
 #'   default of 180. A `rotation` column in `photos_sf` overrides everything,
-#'   rotated or not — which is the supported way to georeference film (see
-#'   **Rotation**). Carrying a film-era `rotation` column into a batch of
+#'   rotated or not, including the measured film table (see **Rotation**).
+#'   Carrying a film-era `rotation` column into a batch of
 #'   digital frames overrides the correct mapping with the wrong one — drop
 #'   the column, or set it to `NA` for those rows.
 #' @return A tibble with columns `airp_id`, `source`, `dest`, and `success`.
@@ -61,36 +61,36 @@
 #' top of the image points 270° round from the heading. Measured in fly#38 on
 #' both bundled cameras by three independent routes, which agree.
 #'
-#' A **rotated square** footprint — a film frame with a bearing — is **skipped
-#' with a warning** unless `photos_sf` carries a `rotation` value for it. There
-#' is no constant to apply, and that is a measurement rather than an omission.
-#' fly#26 scored all four rotations by adjacent-frame overlap over four
-#' contiguous legs:
+#' A **rotated square** footprint — a film frame with a bearing — takes its
+#' **roll's measured rotation**, and is **skipped with a warning** when there is
+#' none. There is no film constant: the mapping is flight-relative but differs
+#' between rolls, and fly#53 measured it per roll by adjacent-frame overlap over
+#' a stratified sample of the catalogue. `inst/extdata/film_rotations.csv` ships
+#' the 56 rolls that met the rule — 44 at 90, 10 at 270, 2 at 0 — and
+#' `film_rotations_excluded.csv` lists every other film roll in the catalogue
+#' snapshot with the reason it is not shipped, which the warning names. A roll in
+#' neither was added to the catalogue since.
 #'
-#' | roll | year | bearing | best rotation | margin |
-#' | --- | --- | --- | --- | --- |
-#' | bc5282 | 1968 | 230° | 0 | 0.089 |
-#' | bc83062 | 1983 | 150° | 90 | 0.135 |
-#' | bc83062 | 1983 | 93° | 90 | 0.196 |
-#' | bc83062 | 1983 | 62° | 90 | 0.152 |
+#' The shipped values fall into eras (270 for the 305 mm rolls of 1964-73, 0 for
+#' the two 153 mm rolls of 1967-68, 90 from 1974) with an exception — bcc00116
+#' (2000) is 270 — and three unshipped rolls each have a decisive leg against their
+#' era too, so nothing is inferred for a roll that was not measured. A wrong mapping
+#' writes a valid GeoTIFF over the right ground with the picture turned a quarter
+#' or half turn, which nothing downstream would report, so the frame is refused
+#' instead, as fly refuses an unknown recording format in [fly_footprint()].
 #'
-#' bc83062 returns the same answer at three widely separated bearings, so the
-#' mapping is genuinely flight-relative — but it is a quarter turn from
-#' bc5282's, on the two eras fly#26 named at the outset. Applying either as a
-#' global constant would be wrong for the other roll, and the failure it
-#' produces is a valid GeoTIFF over the right ground with the picture turned 90°,
-#' which nothing downstream would report. So the frame is refused instead, as
-#' fly refuses an unknown recording format in [fly_footprint()].
-#'
-#' To georeference film, check one frame of the roll against known ground and
-#' set the column:
+#' For a roll the table does not cover, measure it with [fly_rotation_calibrate()]
+#' and join the result, or set the column yourself after checking one frame against
+#' known ground:
 #' ```
-#' photos$rotation <- dplyr::case_when(
-#'   photos$film_roll == "bc5282"  ~ 0L,    # measured, fly#26
-#'   photos$film_roll == "bc83062" ~ 90L,   # measured, fly#26
-#'   .default = NA                          # refused rather than guessed
-#' )
+#' cal <- fly_rotation_calibrate(roll)            # the roll's catalogue rows
+#' roll$rotation <- cal$rotation[match(roll$film_roll, cal$film_roll)]
 #' ```
+#'
+#' **Precedence** for a rotated film frame: a non-`NA` `rotation` column value, then
+#' the shipped table, then refusal. The scalar `rotation` argument never reaches it.
+#' Values were measured on the public thumbnails; a full-resolution scan delivered in
+#' another orientation is not covered.
 #'
 #' Every non-`NA` value in that column must be 0, 90, 180 or 270; anything else
 #' is an error naming the value, rather than a rotation silently applied as
@@ -175,11 +175,10 @@
 #' centroids <- sf::st_read(system.file("testdata/photo_centroids.gpkg", package = "fly"))
 #'
 #' # Frames 231 and 232 of bc5282 are adjacent, so they get a flight bearing and
-#' # their footprints are rotated onto it. Film needs the roll's measured rotation
-#' # supplied; without it the frames are refused rather than turned a quarter turn.
+#' # their footprints are rotated onto it. bc5282 is a measured roll, so its
+#' # rotation comes from the shipped table; an unmeasured roll would be refused.
 #' pair <- centroids[centroids$film_roll == "bc5282" &
 #'                     centroids$frame_number %in% c(231, 232), ]
-#' pair$rotation <- 0L   # measured for bc5282 in fly#26
 #'
 #' fetched <- fly_fetch(pair, type = "thumbnail", dest_dir = tempdir())
 #' georef <- fly_georef(fetched, pair, dest_dir = tempdir())
@@ -314,6 +313,16 @@ fly_georef <- function(fetch_result, photos_sf,
     }
   }
 
+  # The measured per-roll film rotations (fly#53), consulted only for a rotated square
+  # footprint that carries no user value. Read once, matched once.
+  film_rolls <- if ("film_roll" %in% names(photos_sf)) {
+    as.character(photos_sf[["film_roll"]])
+  } else {
+    rep(NA_character_, nrow(photos_sf))
+  }
+  film_tab <- fly_film_rotation_table()
+  table_rot <- film_tab$rotation[match(film_rolls, film_tab$film_roll)]
+
   results <- dplyr::tibble(
     airp_id = ids,
     source  = fetch_result$dest,
@@ -352,31 +361,23 @@ fly_georef <- function(fetch_result, photos_sf,
     # applying `bearing_to_rotation()` on top would count it twice.
     user_val <- if (user_rotation_col) user_rot[j] else NA_integer_
 
-    # A rotated SQUARE footprint — film — is refused unless the caller supplied the
-    # roll's rotation. Handled here as its own statement rather than as a branch of the
-    # `rot <-` chain below, because it does not produce a rotation: it skips the frame,
-    # and a `next` buried inside an assigned `if` reads as though it returned one.
-    if (is.na(user_val) && rotated[j] && !non_square[j]) {
-      roll_lab <- if ("film_roll" %in% names(photos_sf)) {
-        paste0("roll ", photos_sf[["film_roll"]][j])
-      } else {
-        "this roll"
-      }
-      warning(
-        basename(src), ": film frame on a flight line bearing ",
-        round(footprints$footprint_bearing[j], 1), " degrees. Its footprint is rotated ",
-        "onto that bearing, but the image's corner mapping is a per-roll property that ",
-        "`fly` cannot derive \u2014 measured 0 for bc5282 (1968) and 90 for bc83062 ",
-        "(1983). Skipped rather than written a quarter turn out. Set a `rotation` ",
-        "column on `photos_sf` for ", roll_lab, " once you have checked one frame ",
-        "against known ground. See `inst/notes/georeferencing.md`.",
-        call. = FALSE
-      )
+    # A rotated SQUARE footprint — film — takes the roll's measured rotation from the
+    # shipped table, and is refused when the table has none and the caller supplied none.
+    # Handled here as its own statement rather than as a branch of the `rot <-` chain
+    # below, because a refusal does not produce a rotation: it skips the frame, and a
+    # `next` buried inside an assigned `if` reads as though it returned one.
+    film_branch <- rotated[j] && !non_square[j]
+    if (is.na(user_val) && film_branch && is.na(table_rot[j])) {
+      warning(fly_film_refusal(basename(src), footprints$footprint_bearing[j],
+                               film_rolls[j], photos_sf[["media"]][j]),
+              call. = FALSE)
       next
     }
 
     rot <- if (!is.na(user_val)) {
       user_val
+    } else if (film_branch) {
+      table_rot[j]
     } else if (rotated[j] && non_square[j]) {
       fly_digital_rotation()
     } else if (has_rotation_col) {
@@ -663,4 +664,90 @@ fly_gcp_anisotropy <- function(gcp, ncol_px, nrow_px) {
   h <- sqrt(sum((g[3, ] - g[2, ])^2)) / nrow_px
   if (!is.finite(w) || !is.finite(h) || h == 0) return(NA_real_)
   w / h
+}
+
+
+# The measured per-roll film rotations (fly#53): one row per roll that met the rule in
+# `fly_rotation_calibrate()`, produced by `data-raw/georef_calibrate-film_rotations.R`. Every
+# other film roll in the catalogue snapshot is in `film_rotations_excluded.csv` with its state,
+# so an unlisted film roll is one added to the catalogue since — not an omission.
+fly_film_rotation_table <- function() {
+  path <- system.file("extdata/film_rotations.csv", package = "fly")
+  if (!nzchar(path)) {
+    stop("`film_rotations.csv` is missing from the installed package.", call. = FALSE)
+  }
+  utils::read.csv(path, colClasses = c(film_roll = "character", rotation = "integer"))
+}
+
+fly_film_rotation_ledger <- function() {
+  path <- system.file("extdata/film_rotations_excluded.csv", package = "fly")
+  if (!nzchar(path)) {
+    stop("`film_rotations_excluded.csv` is missing from the installed package.",
+         call. = FALSE)
+  }
+  utils::read.csv(path, colClasses = c(film_roll = "character", state = "character",
+                                       retrieved = "character"))
+}
+
+# What each ledger state means, for the refusal warning. Kept beside the reader so a state
+# the generator writes and this does not name fails a test rather than printing NA.
+fly_film_rotation_states <- function() {
+  c(
+    legs_disagree          = "measured, and its legs named different rotations",
+    single_direction       = paste("its lines all fly within 90 degrees of each other, which",
+                                   "cannot separate a flight-relative mapping from a fixed one"),
+    single_direction_measured = paste("measured, and the legs that decided all fly within",
+                                      "90 degrees of each other"),
+    one_decisive_leg       = "measured, and only one leg decided",
+    no_decisive_leg        = "measured, and no leg decided",
+    thumbnails_unavailable = "its thumbnails could not be fetched",
+    legs_unscorable        = "its legs could not be scored",
+    no_qualifying_leg      = "it has no run of 6 or more adjacent frames on one line",
+    one_qualifying_leg     = "it has only one line long enough to measure",
+    not_sampled            = "it is measurable but was not in the sample"
+  )
+}
+
+# The warning for a rotated square footprint `fly_georef()` will not write.
+fly_film_refusal <- function(file, bearing, roll, media) {
+  head <- paste0(file, ": square footprint rotated onto a flight bearing of ",
+                 round(bearing, 1), " degrees. ")
+  tail <- paste0(" Skipped rather than written a quarter turn out. ",
+                 "See `inst/notes/georeferencing.md`.")
+  if (!is.null(media) && !is.na(media) && !grepl("^Film", media)) {
+    return(paste0(head, "It is not film (`media` is \"", media, "\"), so neither the ",
+                  "digital mapping nor the measured film table applies to it. Set a ",
+                  "`rotation` column for it once checked against known ground.", tail))
+  }
+  why <- if (is.na(roll)) {
+    "It has no `film_roll`, and the film corner mapping is a per-roll property."
+  } else {
+    led <- fly_film_rotation_ledger()
+    k <- match(roll, led$film_roll)
+    if (is.na(k)) {
+      # The snapshot date is on the UNMEASURED rows; a measured row carries the day the
+      # tables were written, which is later and would move "added since" forward.
+      snap <- led$retrieved[!led$measured]
+      if (!length(snap)) snap <- led$retrieved
+      snap <- if (length(snap)) max(snap) else "the snapshot"
+      paste0("Roll ", roll, " is not in fly's film rotation ledger, which covers every ",
+             "film roll in the catalogue as of ", snap, ", so it was added since.")
+    } else {
+      # `[` rather than `[[`: an absent name is NA under `[` and an error under `[[` on an
+      # atomic vector, and a state the generator writes that this map lacks must not abort
+      # the batch from inside a warning. The test pins the map against the ledger.
+      key <- led$state[k]
+      # One state name is reached two ways, and the explanation differs: unmeasured, the
+      # roll's lines all fly within 90 degrees; measured, only its DECISIVE legs do.
+      if (identical(key, "single_direction") && isTRUE(as.logical(led$measured[k]))) {
+        key <- "single_direction_measured"
+      }
+      means <- unname(fly_film_rotation_states()[key])
+      paste0("Roll ", roll, " has no measured rotation: ",
+             if (is.na(means)) led$state[k] else means, ".")
+    }
+  }
+  paste0(head, "The film corner mapping is a per-roll property. ", why,
+         " Measure the roll with `fly_rotation_calibrate()` and join its `rotation`, ",
+         "or set a `rotation` column after checking one frame against known ground.", tail)
 }
