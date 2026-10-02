@@ -44,6 +44,14 @@ needs a threshold in footprint-sides that this function cannot measure. Since
 axis-aligned rectangle while a wrong azimuth costs a rectangle confidently
 rotated onto ground the frame does not cover.
 
+\strong{A line's last frame looks backward.} Frame numbers run straight through a turn,
+so the next frame by number after a line's last is the first of the next line, and
+the step between them is the jump across the turn. Where a frame has an adjacent
+neighbour on both sides and the forward step is more than 1.5 times a backward step
+that itself continues the line (or the forward step has zero length), it takes the
+backward bearing instead. Over the catalogue this moves 42,001 frames by more than 10
+degrees (fly#87). A bearing that could only come from a zero-length step is \code{NA}.
+
 To keep bearings across a subset, call \code{fly_bearing()} on the contiguous roll
 first and carry the column: subsetting removes neighbours, and a frame whose
 neighbour was dropped has no adjacent one left.

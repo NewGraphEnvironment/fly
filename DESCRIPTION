@@ -28,6 +28,7 @@ Imports:
     rlang,
     stringr
 Suggests:
+    bcdata,
     bookdown,
     curl,
     furrr,

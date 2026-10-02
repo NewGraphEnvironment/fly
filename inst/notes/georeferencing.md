@@ -190,6 +190,13 @@ low score and must not compete for `which.max()`.
 | bc83062 | 1983 | 93° | **90** | 0.196 | 183 |
 | bc83062 | 1983 | 62° | **90** | 0.152 | 152 |
 
+> **Correction (fly#53).** The last two rows do not describe legs that exist in the catalogue
+> as it stands. Frames 108-118 of bc83062 are not one line: 106-115 fly 153°, 116 and 117 are
+> absent, and 118 onward fly 73°, so a subset handed to `fly_footprint()` leaves 118
+> unrotated. Frames 152-162 fly **251°**, not 62°. Whether the catalogue changed or the labels
+> were wrong is not recoverable. The flight-relative conclusion below survives on better
+> evidence — see "The measured rolls" — but these two rows are not part of it.
+
 Two conclusions, pointing opposite ways:
 
 1. **The mapping is flight-relative.** bc83062 returns the same answer at three widely
@@ -212,6 +219,11 @@ The first two rows agree to within 10° of *geographic* azimuth (230, 240), whic
 like a scanner delivering a fixed orientation regardless of heading. That model predicts
 rotation 180 for the 93° and 62° legs. Both measured **90**. Falsified.
 
+That falsification rested on the two rows corrected above, so on its own it no longer
+stands. fly#53 settles it directly: every shipped roll carries two decisive legs at least
+90° apart that agree, and many are reverse pairs, where a geographic mapping predicts a
+180° shift.
+
 ### What was tried and rejected
 
 - **Detrending** (subtract a 9-cell local mean before correlating) collapses the digital
@@ -223,9 +235,89 @@ rotation 180 for the 93° and 62° legs. Both measured **90**. Falsified.
   bearings 180.4, 359.9 and 0.1. On a cardinal heading every rotation is a whole quarter
   turn of the same square, so the measurement is degenerate and would report a winner
   drawn from noise. The calibration script asserts this as a premise and skips such a leg.
+  **fly#53 measured the premise and dropped it**: on the two known-answer rolls every
+  decisive cardinal leg agreed with its roll, including a reverse pair, and the undecided
+  ones abstained rather than deciding wrong. What a cardinal leg cannot do alone is separate
+  flight-relative from geographic, which the roll rule's 90° separation does.
 - **The bundled fixture on its own.** After fly#26's adjacency guard exactly one true
   frame-to-frame diagonal pair survives in it. One pair is not a measurement, so the legs
   are pulled from the public catalogue.
+
+### The measured rolls (fly#53)
+
+fly#26 had two rolls and could not say whether the mapping is per roll, per era or per
+scanner. fly#53 measured a stratified sample with `fly_rotation_calibrate()` — the same
+function a caller runs on their own roll — and ships the rolls that met a rule fixed before
+any thumbnail was read (`planning/archive/*issue-53*/findings.md`, with seven dated
+amendments, all made before the campaign read a thumbnail).
+
+**The rule.** A *leg* is a run of 6 or more frames adjacent by number whose steps stay
+within 10° of the first and within ×1.5 of the median spacing, on any bearing; up to the
+6 longest per roll are scored on their central 11 frames. Each leg is georeferenced at the
+four rotations with `fly_georef()`'s defaults and every adjacent pair scored by the
+correlation of their common ground at 25 m. A leg is **decisive** when the best rotation
+beats *each* competing rotation on enough pairs that a one-sided sign test gives
+p ≤ 0.05 (5 of 5 … 9 of 10). A roll **ships** on two or more decisive legs that agree, two of
+them at least 90° apart.
+
+Why 90, not less: if a roll's scans came off in a fixed *geographic* orientation, a leg's
+winner would be `round90(T − bearing)`, and two legs closer than 90° would agree by chance —
+two times in three at 30°. Only 90° or more makes a geographic roll contradict itself. The
+shipped value is applied on every bearing the roll flies, so this is the question that
+matters.
+
+**The sample.** 6,716 film rolls in the catalogue snapshot; 6,575 eligible (two
+qualifying legs ≥ 90° apart, from the centroids alone); 4 per series × 5-year stratum in
+seeded random order, continuing past rolls with no thumbnails (at most 12 examined per
+stratum). 116 examined, 79 with thumbnails.
+
+| | rolls |
+|---|---|
+| shipped — rotation 90 | 44 |
+| shipped — rotation 270 | 10 |
+| shipped — rotation 0 | 2 |
+| measured, legs disagree | **0** |
+| measured, not shipped | 60 |
+
+No measured roll contradicted itself, and the 23 measured rolls with decisive legs on more
+than one mission (scale and flying height) agree across them. The 60 not shipped are
+`legs_unscorable` 26 (all infrared film, which `fly_footprint()` does not size — fly#89),
+`thumbnails_unavailable` 13, `no_decisive_leg` 10, `one_decisive_leg` 8 and
+`single_direction` 3.
+
+**Why the key is the roll.**
+
+| | 0 | 90 | 270 |
+|---|---|---|---|
+| focal 153 | 2 | 11 | 0 |
+| focal 305 | 0 | 33 | 10 |
+| before 1974 | 2 | 0 | 9 |
+| 1974 on | 0 | 44 | 1 |
+
+Among the shipped rolls, 0 is bc5270 and bc5282 (1967-68, 153 mm), 270 is every 305 mm
+roll from 1964 to 1973, and 90 is every roll from 1974 to 2010 — except **bcc00116 (2000,
+305 mm), which is 270** on three decisive legs, one a reverse of the other two. A per-era
+default would have written that roll a half turn wrong with nothing downstream to report
+it. Three rolls that did not ship each have one decisive leg against their era as well:
+bc7397 (1972, 305 mm) at 90, bc5650 (1975, 153 mm) at 0 and bcb00037 (2000, 305 mm) at
+270. The table
+reaches only rolls that were measured; every other film roll is in
+`film_rotations_excluded.csv` with its state, and `fly_georef()`'s refusal names it.
+
+**What it cannot witness.**
+
+- **Full-resolution scans.** Only thumbnails are public, so every verdict is for the
+  thumbnail delivery.
+- **A scan mirrored about the flight line.** Both frames' centres sit on that axis, so a
+  mirrored pair agrees with itself exactly, and overlap scoring cannot see it. Only known
+  ground can — the water check of fly#38.
+- **The vertex convention.** As above, every value is a composite with `fly_rectangles()`'
+  vertex order and is void if that changes.
+- **Rolls added after the snapshot**, which are absent from both tables and refused.
+
+`data-raw/georef_calibrate-film_rotations.R` reproduces all of it. The suite recomputes
+every shipped verdict from `film_rotations_pairs.csv` and every roll state from
+`film_rotations_legs.csv`.
 
 ### Closure is by copy, not by recomputation
 

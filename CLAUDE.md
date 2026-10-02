@@ -35,6 +35,15 @@ checks can and cannot catch, and the PDF extraction traps these specific reports
 digital corner mapping, and the one of them that was wrong while looking strongest.
 `data-raw/georef_calibrate-corner_mapping.R` reproduces all three from public data — exterior
 orientation via `patb_georef_url`, adjacent-frame overlap correlation, and FWA lake darkness
+- `R/fly_rotation_calibrate.R` — the film corner-mapping measurement (#53): legs from
+step bearing and spacing, adjacent-frame overlap at four rotations, the sign-test verdict
+and the roll states. `data-raw/georef_calibrate-film_rotations.R` runs it over a
+stratified sample and writes `inst/extdata/film_rotations.csv` (shipped),
+`_excluded.csv` (every other film roll, with its state), `_legs.csv`, `_pairs.csv` and
+`_population.csv`; `test-fly_film_rotations.R` recomputes every verdict and state from
+them. Resumable under the gitignored `data-raw/.cache/film_rotations/`; it reads the
+centroid cache `height_calibrate-flying_height_slip.R` builds. `FLY_FILMROT_SMOKE=1`
+writes nothing
 - `R/fly_mask.R` — the frame-collar mask: GDAL `nearblack -alg floodfill` through
 `sf::gdal_utils()`, plus the two measured constants and the runaway guard. `fly_georef(mask =)`
 routes through it
@@ -135,7 +144,33 @@ exactly as #26 said at the outset. A fixed-geographic rival was tested and falsi
 `fly_georef()` **refuses** a rotated film frame unless the caller supplies the roll's
 `rotation`, rather than writing a valid GeoTIFF over the right ground with the picture
 turned 90 degrees. Do not "finish" this by picking one of the two numbers. Read
-`inst/notes/georeferencing.md`
+`inst/notes/georeferencing.md`. **Corrected by #53:** bc83062 108:118 is not a leg in
+today's catalogue and 152:162 flies 251, not 62, so "three separate bearings" and the
+geographic falsification rest on #53's reverse-leg evidence instead
+
+- **Film rotations ship per roll, measured, and every other film roll is ledgered with
+why** (#53) — `fly_georef()` takes a rotated square footprint's rotation from
+`inst/extdata/film_rotations.csv` (56 rolls) when the caller's `rotation` column has none,
+and otherwise refuses with a warning naming the roll's state in
+`film_rotations_excluded.csv` (the other 6,660 film rolls of the snapshot) and pointing at
+`fly_rotation_calibrate()`, which runs the same measurement and rule on any roll.
+
+  **Four things are load-bearing.**
+  - **The key is the roll, by measurement as well as by decision.** Among shipped rolls,
+    270 is every 305 mm roll of 1964-73, 0 the two 153 mm rolls of 1967-68, 90 every roll
+    from 1974 — except bcc00116 (2000), which is 270; three unshipped rolls each have a
+    decisive leg against their era too. Do not add an era or focal-length default.
+  - **Two decisive legs at least 90° apart.** Closer than that, a roll scanned in a fixed
+    geographic orientation agrees with itself by chance (two times in three at 30°).
+  - **An absent measurement never shares an encoding with a real one.** Three code-check
+    rounds running each found a gap reported as a measurement — a warp error as a refusal, an
+    unscored leg as `scored`, an all-NA column as a refused rotation, which shipped a leg
+    as decisive against an untested rival. The scorer returns `refused` explicitly and
+    `scored` is gated by `fly_rotation_could_decide()`, the verdict's own precondition.
+  - **The rule was fixed before any thumbnail was read**; its seven amendments are dated
+    in the archived findings. Cardinal legs qualify (measured; #26's premise was not).
+  Thumbnails only; a scan mirrored about the flight line is invisible to overlap. Read
+  `inst/notes/georeferencing.md`, "The measured rolls"
 
 - **`fly_bearing()` refuses a neighbour that is not adjacent by frame number** (v0.9.0,
 #26) — it used to take the azimuth to the next frame *present in the object handed to it*.
@@ -146,7 +181,12 @@ Harmless while nothing consumed it, and it made geometry **batch-dependent** —
 same photo covered different ground depending on the subset. Adjacency is demonstrable;
 "close enough to be on one line" needs a threshold in footprint-sides that nothing here
 can measure. Seven of the twenty bundled frames keep a bearing. To hold bearings across a
-subset, call `fly_bearing()` on the contiguous roll and carry the column
+subset, call `fly_bearing()` on the contiguous roll and carry the column. **A line's last
+frame looks backward** (#87): its next frame by number starts the next line, so where the
+forward step is zero, or over 1.5x a backward step that itself continues the line, the
+backward bearing is used — 42,001 catalogue frames move by more than 10 degrees. The
+continuation check is load-bearing: without it 479 correct frames whose short backward
+step is off-line were turned, with it 37
 
 - **A frame with no calibration is sized from the camera the province names, and an
 unknown serial refuses rather than reading the name beside it** (v0.10.0, #50) —

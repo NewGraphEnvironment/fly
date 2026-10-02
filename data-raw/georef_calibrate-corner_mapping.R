@@ -236,6 +236,12 @@ for (i in c(1, 2)) {
 #   bc83062   1983     93       90        0.196        183
 #   bc83062   1983     62       90        0.152        152
 #
+# CORRECTION (fly#53): rows 3 and 4 are not legs in the catalogue as it stands — 108:118
+# runs 153 degrees to frame 115, has no 116 or 117, and turns to 73 at 118; 152:162 flies
+# 251, not 62. The film measurement now lives in `fly_rotation_calibrate()` and
+# `data-raw/georef_calibrate-film_rotations.R`, which also drops the cardinal-leg premise
+# below after measuring it. This section is kept as the record of #26.
+#
 # Two things follow, and they point opposite ways:
 #
 # 1. The mapping IS flight-relative. bc83062 returns 90 at three widely separated

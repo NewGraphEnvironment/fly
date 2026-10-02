@@ -33,6 +33,31 @@ digital_photos <- function(i = 19:24) {
   sf::st_read(testdata_path("photo_centroids_digital.gpkg"), quiet = TRUE)[i, ]
 }
 
+# Stand in for the shipped film rotation table and ledger (fly#53), so the routing is tested
+# against values chosen to be distinguishable rather than against whatever the campaign
+# measured. 270 for bc5282 is deliberately neither #26's 0 nor the override value 90 used
+# below, so no assertion can pass by coincidence.
+local_film_table <- function(rolls = character(0), rotations = integer(0),
+                             ledger = data.frame(film_roll = character(0),
+                                                 measured = logical(0),
+                                                 state = character(0),
+                                                 retrieved = character(0)),
+                             env = parent.frame()) {
+  testthat::local_mocked_bindings(
+    fly_film_rotation_table = function() {
+      data.frame(film_roll = rolls, rotation = as.integer(rotations))
+    },
+    fly_film_rotation_ledger = function() ledger,
+    .package = "fly",
+    .env = env
+  )
+}
+
+film_pair <- function() {
+  film <- sf::st_read(testdata_path("photo_centroids.gpkg"), quiet = TRUE)
+  film[film$film_roll == "bc5282" & film$frame_number %in% c(231, 232), ]
+}
+
 
 test_that("a non-square footprint gets the measured digital rotation, not the bearing", {
   photos <- digital_photos()
@@ -52,7 +77,7 @@ test_that("a non-square footprint gets the measured digital rotation, not the be
 test_that("a mixed batch routes on rotation, not on shape", {
   # Three populations, and fly#26 made them three rather than two:
   #   rotated non-square (digital)  -> the measured constant
-  #   rotated square     (film)     -> REFUSED, the mapping is per-roll
+  #   rotated square     (film)     -> the roll's measured rotation, REFUSED without one
   #   unrotated          (either)   -> the pre-existing `rotation` path
   #
   # The fixture must reach all three. Rows 1-4 of the film file are frames 176, 221,
@@ -67,6 +92,8 @@ test_that("a mixed batch routes on rotation, not on shape", {
   lone <- film[film$film_roll == "bc5306" & film$frame_number %in% c(26, 89), cols]
   mix  <- rbind(pair, lone, dig[1:3, cols])
 
+  # bc5282 is unmeasured here, so the film pair reaches the refusal.
+  local_film_table()
   fp <- suppressWarnings(fly_footprint(mix))
   rotated <- is.finite(fp$footprint_bearing)
   # Premises, one per population, so a fixture change fails by naming the real cause.
@@ -88,18 +115,136 @@ test_that("a mixed batch routes on rotation, not on shape", {
 
 
 test_that("a user rotation column overrides the film refusal", {
-  # The documented escape hatch, and the only supported way to georeference rotated
-  # film. Asserted here on the same fixture as the refusal above so the two cannot
-  # drift apart.
-  film <- sf::st_transform(sf::st_read(testdata_path("photo_centroids.gpkg"), quiet = TRUE), 3005)
-  pair <- film[film$film_roll == "bc5282" & film$frame_number %in% c(231, 232), ]
+  # The documented escape hatch for a roll the table does not cover. Asserted on the same
+  # fixture as the refusal above so the two cannot drift apart.
+  local_film_table()
+  pair <- film_pair()
   expect_true(all(is.finite(suppressWarnings(fly_footprint(pair))$footprint_bearing)))
 
-  pair$rotation <- 0L
+  pair$rotation <- 90L
   seen <- capture_rotations(
     suppressWarnings(fly_georef(fake_fetch(pair), pair, dest_dir = tempfile()))
   )
-  expect_equal(unname(unlist(seen)[paste0("f", pair$airp_id, ".jpg")]), c(0L, 0L))
+  expect_equal(unname(unlist(seen)[paste0("f", pair$airp_id, ".jpg")]), c(90L, 90L))
+})
+
+
+test_that("a measured roll takes the table's rotation instead of being refused", {
+  local_film_table("bc5282", 270L)
+  pair <- film_pair()
+  warns <- character(0)
+  seen <- capture_rotations(withCallingHandlers(
+    fly_georef(fake_fetch(pair), pair, dest_dir = tempfile()),
+    warning = function(w) {
+      warns <<- c(warns, conditionMessage(w))
+      invokeRestart("muffleWarning")
+    }
+  ))
+  expect_equal(unname(unlist(seen)[paste0("f", pair$airp_id, ".jpg")]), c(270L, 270L))
+  expect_false(any(grepl("per-roll property", warns)))
+})
+
+
+test_that("a user value outranks the table, and NA in the column falls through to it", {
+  local_film_table("bc5282", 270L)
+  pair <- film_pair()
+  pair$rotation <- c(90L, NA)
+  seen <- capture_rotations(
+    suppressWarnings(fly_georef(fake_fetch(pair), pair, dest_dir = tempfile()))
+  )
+  expect_equal(unname(unlist(seen)[paste0("f", pair$airp_id, ".jpg")]), c(90L, 270L))
+})
+
+
+test_that("the scalar `rotation` argument does not reach a measured film frame", {
+  local_film_table("bc5282", 270L)
+  pair <- film_pair()
+  seen <- capture_rotations(
+    suppressWarnings(fly_georef(fake_fetch(pair), pair, dest_dir = tempfile(), rotation = 0))
+  )
+  expect_equal(unique(unlist(seen)), 270L)
+})
+
+
+test_that("the film table never reaches a non-square frame", {
+  # A digital roll listed in the table — which the generator never writes, so this is the
+  # guard and not the data — still takes the measured digital constant.
+  photos <- digital_photos()
+  local_film_table(unique(photos$film_roll), rep(0L, length(unique(photos$film_roll))))
+  seen <- capture_rotations(
+    suppressWarnings(fly_georef(fake_fetch(photos), photos, dest_dir = tempfile()))
+  )
+  expect_equal(unique(unlist(seen)), fly_digital_rotation())
+})
+
+
+test_that("the refusal says which state an unshipped roll is in, and the way out", {
+  ledger <- data.frame(film_roll = "bc5282", measured = TRUE, state = "legs_disagree",
+                       retrieved = "2026-10-02")
+  local_film_table(ledger = ledger)
+  pair <- film_pair()
+  warns <- character(0)
+  withCallingHandlers(
+    capture_rotations(fly_georef(fake_fetch(pair), pair, dest_dir = tempfile())),
+    warning = function(w) {
+      warns <<- c(warns, conditionMessage(w))
+      invokeRestart("muffleWarning")
+    }
+  )
+  refusals <- warns[grepl("per-roll property", warns)]
+  expect_length(refusals, 2)
+  expect_match(refusals, "bc5282 has no measured rotation: measured, and its legs named different",
+               all = TRUE)
+  expect_match(refusals, "fly_rotation_calibrate()", fixed = TRUE, all = TRUE)
+})
+
+
+test_that("a film roll missing from the ledger is reported as added since the snapshot", {
+  # The snapshot date is the unmeasured rows'; the measured row's later date must not
+  # move "added since" forward (code-check P3/P4 round 1).
+  ledger <- data.frame(film_roll = c("bc9999", "bc9998"), measured = c(FALSE, TRUE),
+                       state = c("not_sampled", "no_decisive_leg"),
+                       retrieved = c("2026-09-18", "2026-10-02"))
+  local_film_table(ledger = ledger)
+  pair <- film_pair()
+  pair$film_roll <- "bcx00001"
+  warns <- character(0)
+  withCallingHandlers(
+    capture_rotations(fly_georef(fake_fetch(pair), pair, dest_dir = tempfile())),
+    warning = function(w) {
+      warns <<- c(warns, conditionMessage(w))
+      invokeRestart("muffleWarning")
+    }
+  )
+  refusals <- warns[grepl("per-roll property", warns)]
+  expect_length(refusals, 2)
+  expect_match(refusals, "not in fly's film rotation ledger.*as of 2026-09-18", all = TRUE)
+})
+
+
+test_that("a square, rotated frame that is not film is refused as not film", {
+  # A digital frame sized through `format_size` onto a square footprint reaches the same
+  # branch. "Added to the catalogue since" would be false for it; it was never in the
+  # ledger because it is not film. Asserted on the message builder, since no bundled frame
+  # reaches this branch.
+  local_film_table()
+  msg <- fly_film_refusal("x.jpg", 45, "bcd13304", "Digital - Colour")
+  expect_match(msg, "It is not film")
+  expect_no_match(msg, "ledger")
+  # Film, and no roll at all.
+  expect_match(fly_film_refusal("x.jpg", 45, NA, "Film - BW"), "has no `film_roll`")
+  # No `media` column: treated as film, which is what the table and the ledger key on.
+  expect_match(fly_film_refusal("x.jpg", 45, "bcx1", NULL), "not in fly's film rotation ledger")
+})
+
+
+test_that("single_direction is explained by how it was reached", {
+  ledger <- data.frame(film_roll = c("bcA", "bcB"), measured = c(FALSE, TRUE),
+                       state = "single_direction", retrieved = "2026-09-18")
+  local_film_table(ledger = ledger)
+  expect_match(fly_film_refusal("x.jpg", 45, "bcA", "Film - BW"), "its lines all fly within")
+  expect_match(fly_film_refusal("x.jpg", 45, "bcB", "Film - BW"),
+               "measured, and the legs that decided")
 })
 
 
