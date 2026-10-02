@@ -34,7 +34,7 @@ Exploration facts that shape the plan:
   Suggests and stays there (guarded with `requireNamespace()`).
 
 ## Phase 1: Pre-register the rule (committed before any thumbnail is read)
-- [ ] Write into `findings.md` and commit:
+- [x] Write into `findings.md` and commit:
   - **Leg**: ≥ 6 frames consecutive by `frame_number` on one roll, all with finite
     `footprint_bearing` from `fly_footprint()`, bearing spread ≤ 10°, not cardinal (median
     distance from a multiple of 90 ≥ 15°, the section-4 premise).
