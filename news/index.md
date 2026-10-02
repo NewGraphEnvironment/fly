@@ -2,6 +2,8 @@
 
 ## fly (development version)
 
+### 0.21.0 (2026-10-02)
+
 - **Infrared film is now sized as the 9-inch negative, because that was
   measured**
   ([\#89](https://github.com/NewGraphEnvironment/fly/issues/89)).
