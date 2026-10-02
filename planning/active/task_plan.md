@@ -107,12 +107,12 @@ Found in fly#53's film rotation campaign, where every drawn roll of the `bci` an
 
 ## Phase 5: Calibrate the IR rolls' rotations
 
-- [ ] `georef_calibrate-film_rotations.R`: stamp `retrieved` per roll from when that roll was
+- [x] `georef_calibrate-film_rotations.R`: stamp `retrieved` per roll from when that roll was
   measured, not from the date of the run. Otherwise a partial re-run restamps all 116 measured
   rolls.
-- [ ] Remove the drawn IR rolls' `cal/*.rds` and re-run Stage 3 (smoke first). The draw depends
+- [x] Remove the drawn IR rolls' `cal/*.rds` and re-run Stage 3 (smoke first). The draw depends
   only on thumbnail availability, so the drawn set stays the same.
-- [ ] Regenerate the five `film_rotations*.csv`. Diff to confirm only IR rows moved.
+- [x] Regenerate the five `film_rotations*.csv`. Diff to confirm only IR rows moved.
   `test-fly_film_rotations.R` must pass.
 
 ## Phase 6: Documentation and release notes

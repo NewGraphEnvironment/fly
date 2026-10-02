@@ -27,4 +27,7 @@
   the final fix text now has a producer line in `data-raw/format_measure-infrared_film.R` and an
   assertion in `test-fly_footprint_infrared.R` (42 pass). Round 3 found 56 out-of-band IR frames on
   three wrong-scale roll-heights: filed fly#91, out of scope here
+- Phase 5: 26 drawn IR rolls re-measured from the same draw (`data-raw/.cache/filmrot_ir.log`):
+  bcc23 ships at 270 (57 rolls), bcf07060 one_decisive_leg, 24 thumbnails_unavailable; every
+  non-IR row of all five `film_rotations*.csv` identical to HEAD
 - Full suite before the round-3/4 test additions: FAIL 0 | PASS 4993

@@ -102,6 +102,11 @@ deliberate defects survived the first six
 - `mixed_media_fixture()` in `tests/testthat/setup.R` — synthesized frames whose format nothing resolves;
 `digital_fixture()` beside it covers every resolver branch, and `footprint_cases()` sweeps the 12 input
 shapes the invariant tests run over
+- `data-raw/format_measure-infrared_film.R` — fly#89: whether infrared film is the 9-inch
+negative. Adjacent-frame spacing (fly#60's window), thumbnail aspect and collar, and the camera
+the logbook names, hand-read into `data-raw/infrared_film_logbooks.csv` (an input, never
+regenerated). Ships five `inst/extdata/infrared_film_*.csv`, which `test-fly_footprint_infrared.R`
+recomputes and holds `fly_film_media()` to. `FLY_IRFILM_SMOKE=1` writes nothing
 - `data-raw/make_testdata.R` — generates test data from diggs cached data
 
 ## Key Decisions
@@ -150,9 +155,9 @@ geographic falsification rest on #53's reverse-leg evidence instead
 
 - **Film rotations ship per roll, measured, and every other film roll is ledgered with
 why** (#53) — `fly_georef()` takes a rotated square footprint's rotation from
-`inst/extdata/film_rotations.csv` (56 rolls) when the caller's `rotation` column has none,
+`inst/extdata/film_rotations.csv` (57 rolls) when the caller's `rotation` column has none,
 and otherwise refuses with a warning naming the roll's state in
-`film_rotations_excluded.csv` (the other 6,660 film rolls of the snapshot) and pointing at
+`film_rotations_excluded.csv` (the other 6,659 film rolls of the snapshot) and pointing at
 `fly_rotation_calibrate()`, which runs the same measurement and rule on any roll.
 
   **Four things are load-bearing.**
@@ -334,6 +339,30 @@ rather than a property of this code.
 
   Read `inst/notes/terrain-correction.md` and the archived planning findings before
   reopening this.
+
+- **Infrared film is the 9-inch negative, measured, and one rule amendment was written after
+  the data** (#89) — `Film - BW IR` and `Film - Colour IR` (3,825 frames, 32 rolls) were
+  `unknown_format`, and they are now in `fly_film_media()`.
+  - **Spacing.** 27 rolls fit 9 inches and exclude 5 in and 70 mm.
+  - **Thumbnails.** The 4 rolls that have any match film in aspect and collar.
+  - **Logbooks.** Every page that writes a format writes 9 x 9 or names an RC 10, and the
+    serial-only pages name bodies that also flew BW/colour rolls sized at 9 inches.
+
+  **Four things are load-bearing.**
+  - **The pre-registered rule stopped on 4 rolls, and the amendment is not a pass.** Their
+    spacing is below the window, where every smaller format fits worse. The amendment, written
+    after the numbers and approved, records them as `fits_no_format`. Do not tighten W1 back to
+    "contradicts" without an alternative that actually fits.
+  - **`bcf517` is ambiguous.** One of its readings favours 5 inches.
+  - **Spacing cannot separate 23 cm from 18 cm.** Six rolls' logbooks write 9 x 9 or name an
+    RC 10, eleven name only camera bodies that also flew 9-inch BW/colour, and 15 have no page.
+  - **56 out-of-band IR frames sit on three wrong-scale roll-heights** (fly#91), drawn at nominal
+    until tabled. Only `bci9` falls in a population the #60/#72 rules read; `bc5312` and
+    `bci12` leave the band only through terrain.
+
+  The #54, #58, #65 and #80 scripts are pinned to the BW/colour set they were measured over, so
+  re-running them reproduces what shipped. Read `inst/notes/camera-formats.md`, "Infrared film
+  is the 9-inch negative"
 
 - **Terrain error is a datum offset, not slope** (v0.5.0, #9) — `FLYING_HEIGHT` is metres **above sea level**,
 and reported scale is referenced to an elevation above the ground the photos cover, so it understates footprint

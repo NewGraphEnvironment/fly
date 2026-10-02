@@ -274,24 +274,31 @@ stratum). 116 examined, 79 with thumbnails.
 | | rolls |
 |---|---|
 | shipped — rotation 90 | 44 |
-| shipped — rotation 270 | 10 |
+| shipped — rotation 270 | 11 |
 | shipped — rotation 0 | 2 |
 | measured, legs disagree | **0** |
-| measured, not shipped | 60 |
+| measured, not shipped | 59 |
 
 No measured roll contradicted itself, and the 23 measured rolls with decisive legs on more
-than one mission (scale and flying height) agree across them. The 60 not shipped are
-`legs_unscorable` 26 (all infrared film, which `fly_footprint()` does not size — fly#89),
-`thumbnails_unavailable` 13, `no_decisive_leg` 10, `one_decisive_leg` 8 and
+than one mission (scale and flying height) agree across them. The 59 not shipped are
+`thumbnails_unavailable` 37, `no_decisive_leg` 10, `one_decisive_leg` 9 and
 `single_direction` 3.
+
+The 26 infrared rolls among the measured were first recorded `legs_unscorable`, because
+`fly_footprint()` did not size infrared film. Every leg the calibration attempted (up to six
+per roll) came back `not_rotated` before its thumbnails were asked for, and the rest were
+`not_scored`, over the six-leg cap. fly#89 established that infrared film is the 9-inch negative
+(`inst/notes/camera-formats.md`) and re-measured those 26 alone, from the same draw: `bcc23`
+(1969, 305 mm) ships at 270, `bcf07060` has one decisive leg, and the other 24 carry no
+thumbnails at all. Every other roll's row is unchanged.
 
 **Why the key is the roll.**
 
 | | 0 | 90 | 270 |
 |---|---|---|---|
 | focal 153 | 2 | 11 | 0 |
-| focal 305 | 0 | 33 | 10 |
-| before 1974 | 2 | 0 | 9 |
+| focal 305 | 0 | 33 | 11 |
+| before 1974 | 2 | 0 | 10 |
 | 1974 on | 0 | 44 | 1 |
 
 Among the shipped rolls, 0 is bc5270 and bc5282 (1967-68, 153 mm), 270 is every 305 mm
