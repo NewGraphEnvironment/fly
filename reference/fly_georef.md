@@ -130,8 +130,8 @@ A **rotated square** footprint — a film frame with a bearing — takes its
 there is none. There is no film constant: the mapping is flight-relative
 but differs between rolls, and fly#53 measured it per roll by
 adjacent-frame overlap over a stratified sample of the catalogue.
-`inst/extdata/film_rotations.csv` ships the 56 rolls that met the rule —
-44 at 90, 10 at 270, 2 at 0 — and `film_rotations_excluded.csv` lists
+`inst/extdata/film_rotations.csv` ships the 57 rolls that met the rule —
+44 at 90, 11 at 270, 2 at 0 — and `film_rotations_excluded.csv` lists
 every other film roll in the catalogue snapshot with the reason it is
 not shipped, which the warning names. A roll in neither was added to the
 catalogue since.
@@ -286,6 +286,6 @@ georef
 #> # A tibble: 2 × 4
 #>   airp_id source                               dest                      success
 #>     <int> <chr>                                <chr>                     <lgl>  
-#> 1  699426 /tmp/Rtmp8JWn5S/bc5282_232_thumb.jpg /tmp/Rtmp8JWn5S/bc5282_2… TRUE   
-#> 2  699425 /tmp/Rtmp8JWn5S/bc5282_231_thumb.jpg /tmp/Rtmp8JWn5S/bc5282_2… TRUE   
+#> 1  699426 /tmp/RtmpXCkOAa/bc5282_232_thumb.jpg /tmp/RtmpXCkOAa/bc5282_2… TRUE   
+#> 2  699425 /tmp/RtmpXCkOAa/bc5282_231_thumb.jpg /tmp/RtmpXCkOAa/bc5282_2… TRUE   
 ```

@@ -37,7 +37,36 @@
 
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="development version" id="fly-development-version">fly (development version)<a class="anchor" aria-label="anchor" href="#fly-development-version"></a></h2>
-<div class="section level3">
+<ul><li>
+<strong>Infrared film is now sized as the 9-inch negative, because that was measured</strong> (<a href="https://github.com/NewGraphEnvironment/fly/issues/89" class="external-link">#89</a>).
+<ul><li>
+<strong>What changed.</strong> <code>Film - BW IR</code> (771 frames, 7 rolls) and <code>Film - Colour IR</code> (3,054 frames, 25 rolls) were <code>unknown_format</code> with empty geometry. They are now sized from <code>negative_size</code> with <code>footprint_basis</code> set to their media value. <code><a href="../reference/fly_coverage.html">fly_coverage()</a></code>, <code><a href="../reference/fly_select.html">fly_select()</a></code>, <code><a href="../reference/fly_overlap.html">fly_overlap()</a></code> and <code><a href="../reference/fly_filter.html">fly_filter()</a></code> now count them, and the <a href="https://github.com/NewGraphEnvironment/fly/issues/54" class="external-link">#54</a> <code>flying_height</code> check applies: 3,769 sit inside the band and 56 fall back to nominal scale. Those 56 are on three roll-heights where spacing fits the reported height and rejects nominal: a right height beside a wrong <code>scale</code>. They are drawn at the wrong width, with or without a DEM, until they are tabled (<a href="https://github.com/NewGraphEnvironment/fly/issues/91" class="external-link">#91</a>).</li>
+<li>
+<strong>Callers already sizing IR through <code>format_size</code>.</strong> These frames used to skip the <a href="https://github.com/NewGraphEnvironment/fly/issues/54" class="external-link">#54</a> check; it now applies to them too.</li>
+<li>
+<strong>How it was established.</strong> <code>data-raw/format_measure-infrared_film.R</code> used three witnesses:
+<ul><li>
+<strong>Adjacent-frame spacing</strong>, fly#60’s instrument, against the BW/colour window 0.557–0.780. 27 of 32 rolls fit 9 inches and exclude 5 inches and 70 mm.</li>
+<li>
+<strong>Thumbnails</strong>: the 4 rolls that have any match BW/colour film in aspect and collar. That is weak evidence, since a 5-inch or 70 mm frame is square too.</li>
+<li>
+<strong>Logbooks</strong>, 27 pages read by hand. Every page that writes a format writes 9 x 9 or names an RC 10, and the rest name camera bodies that also flew BW/colour rolls already sized at 9 inches.</li>
+</ul></li>
+<li>
+<strong>Where the evidence is thin.</strong>
+<ul><li>The pre-registered rule stopped on four rolls whose spacing no format fits (9-inch overlap 0.19–0.27 on the nominal reading, where a smaller format fits worse still). An amendment written after those numbers, and recorded as such, named them <code>fits_no_format</code>.</li>
+<li>
+<code>bcf517</code> (13 frames) is ambiguous: one of its two readings favours 5 inches.</li>
+<li>Spacing cannot separate 23 cm from 18 cm. Six rolls’ logbooks write 9 x 9 or name an RC 10, and 11 more name camera bodies that also flew 9-inch BW/colour, but 15 rolls have no logbook page at all.</li>
+</ul></li>
+<li>
+<strong>Reproducibility.</strong> Five <code>inst/extdata/infrared_film_*.csv</code> ship, and the suite recomputes every verdict from them. See <code>inst/notes/camera-formats.md</code>, “Infrared film is the 9-inch negative”.</li>
+<li>
+<strong>Film rotations.</strong> The 26 infrared rolls fly#53 measured were recorded <code>legs_unscorable</code> only because their footprints were empty. Re-measured: <code>bcc23</code> (1969, 305 mm) ships at 270, so <code>film_rotations.csv</code> now has 57 rolls. <code>bcf07060</code> has one decisive leg, and the other 24 have no thumbnails at all. Every other roll’s row is unchanged. <code>data-raw/georef_calibrate-film_rotations.R</code> now dates each roll by when it was measured, so a partial re-run no longer restamps the rest.</li>
+<li>
+<strong>Earlier measurements are unchanged.</strong> The <a href="https://github.com/NewGraphEnvironment/fly/issues/54" class="external-link">#54</a>, <a href="https://github.com/NewGraphEnvironment/fly/issues/58" class="external-link">#58</a>, <a href="https://github.com/NewGraphEnvironment/fly/issues/65" class="external-link">#65</a> and <a href="https://github.com/NewGraphEnvironment/fly/issues/80" class="external-link">#80</a> scripts now spell out the BW/colour set they were measured over, so re-running them reproduces what shipped.</li>
+</ul></li>
+</ul><div class="section level3">
 <h3 id="id_0200-development-version">0.20.0 (2026-10-02)<a class="anchor" aria-label="anchor" href="#id_0200-development-version"></a></h3>
 <ul><li>
 <strong><code><a href="../reference/fly_georef.html">fly_georef()</a></code> now georeferences film from a shipped table of measured per-roll rotations, and every other film roll is recorded with the reason it is not in it</strong> (<a href="https://github.com/NewGraphEnvironment/fly/issues/53" class="external-link">#53</a>). A rotated film frame used to be refused unless you supplied the roll’s <code>rotation</code>. 56 rolls now resolve from <code>inst/extdata/film_rotations.csv</code>: 44 at 90, 10 at 270 and 2 at 0. Your own <code>rotation</code> column still wins. The other 6,660 film rolls in the catalogue snapshot are in <code>film_rotations_excluded.csv</code> with their state, and the refusal warning names it.

@@ -64,7 +64,8 @@ footprint from the centroid of an estimated footprint is not meaningful.</p></dd
 
 <dt id="arg-negative-size">negative_size<a class="anchor" aria-label="anchor" href="#arg-negative-size"></a></dt>
 <dd><p>Negative dimension in inches (default 9 for standard
-9" x 9"). Applies to film frames, and to every frame when there is no
+9" x 9"). Applies to film frames — <code>media</code> <code>"Film - BW"</code>, <code>"Film - Colour"</code>,
+<code>"Film - BW IR"</code> and <code>"Film - Colour IR"</code> — and to every frame when there is no
 <code>media</code> column. It never sizes a digital frame — see <code>format_size</code>.</p></dd>
 
 
@@ -128,7 +129,11 @@ neighbours, and still yielding a coverage percentage.</p>
 <p>Each row is therefore sized from its <code>media</code> value, and <code>footprint_basis</code>
 records the outcome:</p>
 <dl><dt>the <code>media</code> value</dt>
-<dd><p>format resolved from the format table</p></dd>
+<dd><p>format resolved from the format table: one of the
+four film values, sized from <code>negative_size</code> (infrared film since fly#89,
+measured to be the same 9-inch negative); a value named in <code>format_size</code>; or
+a digital frame whose camera the shipped table resolved by calibration or
+PAT-B identity</p></dd>
 
 <dt><code>"inferred_format"</code></dt>
 <dd><p>digital frame with no calibration and no camera

@@ -26,8 +26,10 @@ fly_footprint(centroids_sf, negative_size = 9, format_size = NULL, dem = NULL)
 - negative_size:
 
   Negative dimension in inches (default 9 for standard 9" x 9"). Applies
-  to film frames, and to every frame when there is no `media` column. It
-  never sizes a digital frame — see `format_size`.
+  to film frames — `media` `"Film - BW"`, `"Film - Colour"`,
+  `"Film - BW IR"` and `"Film - Colour IR"` — and to every frame when
+  there is no `media` column. It never sizes a digital frame — see
+  `format_size`.
 
 - format_size:
 
@@ -98,7 +100,11 @@ Each row is therefore sized from its `media` value, and
 
 - the `media` value:
 
-  format resolved from the format table
+  format resolved from the format table: one of the four film values,
+  sized from `negative_size` (infrared film since fly#89, measured to be
+  the same 9-inch negative); a value named in `format_size`; or a
+  digital frame whose camera the shipped table resolved by calibration
+  or PAT-B identity
 
 - `"inferred_format"`:
 
