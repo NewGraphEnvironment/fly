@@ -14,3 +14,11 @@
 - Phase 2: `fly_rotation_calibrate()` with four code-check rounds (table in findings.md)
 - Filed fly#87 (leg-end bearing) from plan review G1; fix in the working tree for Phase 4
 - Campaign running: 116 rolls examined, 79 with thumbnails
+- Campaign complete: 116 examined, 56 shipped (44 / 10 / 2 at 90 / 270 / 0), 0 legs_disagree;
+  two rolls re-run after round-4 fixes (bcc217, bcc315), result unchanged
+- Filed fly#89 (infrared film unsized) from the 26 `legs_unscorable` rolls
+- Phases 3-4 code-check: 2 rounds, ended by enumeration of zero-length-heading sites
+- Full suite 4,912 passed / 0 failed / 0 skipped (NOT_CRAN); R CMD check 0/0/3 pre-existing
+  NOTEs; installed size 6.0 MB (extdata 3.9 MB)
+- Commits: d1e1a53 (calibrator), 59eadcd (campaign + ledger), 7f070c1 (fly#87),
+  10fef11 (fly_georef lookup), docs commit

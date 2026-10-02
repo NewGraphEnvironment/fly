@@ -98,19 +98,19 @@ Exploration facts that shape the plan:
   warning text driven by the ledger instead of the hard-coded "0 for bc5282 / 90 for bc83062".
 
 ## Phase 5: Documentation
-- [ ] `fly_georef()` **Rotation** section; `fly_rotation_calibrate()` roxygen; `_pkgdown.yml`
+- [x] `fly_georef()` **Rotation** section; `fly_rotation_calibrate()` roxygen; `_pkgdown.yml`
   reference entry; `devtools::document()`
-- [ ] `inst/notes/georeferencing.md`: new section — rule and amendments, sample, result by
+- [x] `inst/notes/georeferencing.md`: new section — rule and amendments, sample, result by
   stratum and segment, why the key is the roll, what it cannot witness (full-res scans, mirrored
   scans, unsampled rolls, the vertex convention); correct #26's leg table (108-118 is not a leg,
   152-162 flies 251°) here, in `fly_georef()` roxygen, CLAUDE.md and the corner-mapping script
-- [ ] README line on flight-line rotation; `bcdata` to Suggests (used in the example)
-- [ ] `NEWS.md`; `CLAUDE.md` Key Decisions + Architecture lines
-- [ ] `lintr::lint_package()`, `NOT_CRAN=true` full `devtools::test()`, `pkgdown::check_pkgdown()`
+- [x] README line on flight-line rotation; `bcdata` to Suggests (used in the example)
+- [x] `NEWS.md`; `CLAUDE.md` Key Decisions + Architecture lines
+- [x] `lintr::lint_package()`, `NOT_CRAN=true` full `devtools::test()`, `pkgdown::check_pkgdown()`
 
 ## Validation
-- [ ] Tests pass
-- [ ] `/code-check` clean on each commit
-- [ ] PWF checkboxes match landed work
+- [x] Tests pass
+- [x] `/code-check` clean on each commit
+- [x] PWF checkboxes match landed work
 - [ ] `/planning-archive` on completion
 
