@@ -217,6 +217,9 @@ one <- function(roll) {
   }, error = function(e) list(ok = FALSE, msg = conditionMessage(e)))
   # A failure is not cached, so a second run retries it.
   if (!res$ok) return(paste("failed:", res$msg))
+  # The date travels with the measurement, so a re-run that calibrates a few rolls does not
+  # restamp every other one with the day it happened to run (fly#89).
+  res$cal$measured_on <- format(Sys.Date(), "%Y-%m-%d")
   save_atomic(res$cal, out)
   "measured"
 }
@@ -262,7 +265,24 @@ if (SMOKE) {
 # Stage 4 — write
 # ---------------------------------------------------------------------------
 stopifnot(setequal(cal$film_roll, drawn), !anyDuplicated(cal$film_roll))
-measured_on <- format(Sys.Date(), "%Y-%m-%d")
+# Each roll's own measurement date. A cal file written before fly#89 carries none; its date is
+# the one the shipped tables already record for it, and a roll that has neither stops the run
+# rather than being stamped with today.
+if (!"measured_on" %in% names(cal)) cal$measured_on <- NA_character_
+legacy <- is.na(cal$measured_on)
+if (any(legacy)) {
+  prev_ship <- utils::read.csv(OUT, stringsAsFactors = FALSE)
+  prev_excl <- utils::read.csv(OUT_EXCL, stringsAsFactors = FALSE)
+  prev_excl <- prev_excl[prev_excl$measured, ]
+  prev <- data.frame(film_roll = c(prev_ship$film_roll, prev_excl$film_roll),
+                     measured = c(prev_ship$measured, prev_excl$retrieved))
+  cal$measured_on[legacy] <- prev$measured[match(cal$film_roll[legacy], prev$film_roll)]
+  undated <- cal$film_roll[is.na(cal$measured_on)]
+  if (length(undated)) {
+    stop("no measurement date for ", paste(undated, collapse = ", "),
+         ": its cal file predates fly#89 and the shipped tables do not list it as measured")
+  }
+}
 
 legs <- dplyr::bind_rows(lapply(seq_len(nrow(cal)), function(i) {
   l <- cal$legs[[i]]
@@ -286,7 +306,7 @@ shipped <- do.call(rbind, lapply(seq_len(nrow(ship)), function(i) {
              bearings = paste(round(l$bearing, 1), collapse = ";"),
              frames = paste(l$first_frame, l$last_frame, sep = "-", collapse = ";"),
              margins = paste(sprintf("%.3f", l$margin), collapse = ";"),
-             method = "overlap_r25_signtest", measured = measured_on)
+             method = "overlap_r25_signtest", measured = ship$measured_on[i])
 }))
 
 excl <- roll_meta[!roll_meta$film_roll %in% shipped$film_roll, ]
@@ -296,7 +316,7 @@ excl$state <- ifelse(measured, cal$state[m_idx], excl$cache_state)
 excl$measured <- measured
 excl$legs_found[measured] <- cal$legs_found[m_idx[measured]]
 excl$legs_qualifying[measured] <- cal$legs_qualifying[m_idx[measured]]
-excl$retrieved <- ifelse(measured, measured_on, SNAPSHOT)
+excl$retrieved <- ifelse(measured, cal$measured_on[m_idx], SNAPSHOT)
 excluded <- excl[order(excl$film_roll), c("film_roll", "measured", "state", "retrieved")]
 
 # Every film roll in the snapshot appears exactly once across the two tables.
