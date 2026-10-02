@@ -2,6 +2,28 @@
 
 ## fly (development version)
 
+- **Photo parallax, as built, cannot say what surface the camera saw at
+  the photo date. No code changes**
+  ([\#82](https://github.com/NewGraphEnvironment/fly/issues/82)).
+  - **The question.** fly#80 left one question to VRI stand origin: was
+    the canopy MRDEM’s DSM carries there when the photo was taken?
+  - **The instrument.** `data-raw/dem_measure-photo_parallax.R` reads it
+    from the parallax between frames adjacent by number. The question
+    needs a ratio: canopy seen on mid-aged stands over canopy seen on
+    old stands.
+  - **What failed.** A synthetic built so that fly#80’s VRI model is
+    exactly true, pooled over the seven pilot frames the gates admitted,
+    missed the known ratio in both MRDEM sources: radar 1.356 against
+    0.860, lidar 0.793 against 0.550.
+  - **So no canopy slope was computed on the real draw.** Why it fails
+    is not established
+    ([\#85](https://github.com/NewGraphEnvironment/fly/issues/85)).
+  - **fly#80’s estimate stands alone.** A DSM is worse on 15.1% of the
+    1970s frames where canopy matters.
+  - **What ships.** The synthetic controls,
+    `inst/extdata/dem_parallax_synthetic.csv`, from which the suite
+    rebuilds the tables in `inst/notes/terrain-correction.md`.
+
 ### 0.19.2 (2026-10-01)
 
 - **A forested frame is sized from bare earth, and measured, that does
