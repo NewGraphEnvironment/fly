@@ -16,7 +16,8 @@ vertex count; this is refused rather than coerced, because re-estimating a
 footprint from the centroid of an estimated footprint is not meaningful.}
 
 \item{negative_size}{Negative dimension in inches (default 9 for standard
-9" x 9"). Applies to film frames, and to every frame when there is no
+9" x 9"). Applies to film frames — \code{media} \code{"Film - BW"}, \code{"Film - Colour"},
+\code{"Film - BW IR"} and \code{"Film - Colour IR"} — and to every frame when there is no
 \code{media} column. It never sizes a digital frame — see \code{format_size}.}
 
 \item{format_size}{Named numeric vector of recording-format widths in inches,
@@ -81,7 +82,11 @@ Each row is therefore sized from its \code{media} value, and \code{footprint_bas
 records the outcome:
 
 \describe{
-\item{the \code{media} value}{format resolved from the format table}
+\item{the \code{media} value}{format resolved from the format table: one of the
+four film values, sized from \code{negative_size} (infrared film since fly#89,
+measured to be the same 9-inch negative); a value named in \code{format_size}; or
+a digital frame whose camera the shipped table resolved by calibration or
+PAT-B identity}
 \item{\code{"inferred_format"}}{digital frame with no calibration and no camera
 named in its PAT-B file, sized from a format inferred from its \code{focal_length}}
 \item{\code{"assumed_default"}}{no \code{media} column; \code{negative_size} applied}

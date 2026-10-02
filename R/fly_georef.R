@@ -66,7 +66,7 @@
 #' none. There is no film constant: the mapping is flight-relative but differs
 #' between rolls, and fly#53 measured it per roll by adjacent-frame overlap over
 #' a stratified sample of the catalogue. `inst/extdata/film_rotations.csv` ships
-#' the 56 rolls that met the rule — 44 at 90, 10 at 270, 2 at 0 — and
+#' the 57 rolls that met the rule — 44 at 90, 11 at 270, 2 at 0 — and
 #' `film_rotations_excluded.csv` lists every other film roll in the catalogue
 #' snapshot with the reason it is not shipped, which the warning names. A roll in
 #' neither was added to the catalogue since.
@@ -725,8 +725,8 @@ fly_film_refusal <- function(file, bearing, roll, media) {
     led <- fly_film_rotation_ledger()
     k <- match(roll, led$film_roll)
     if (is.na(k)) {
-      # The snapshot date is on the UNMEASURED rows; a measured row carries the day the
-      # tables were written, which is later and would move "added since" forward.
+      # The snapshot date is on the UNMEASURED rows; a measured row carries the day that
+      # roll was calibrated, which is later and would move "added since" forward.
       snap <- led$retrieved[!led$measured]
       if (!length(snap)) snap <- led$retrieved
       snap <- if (length(snap)) max(snap) else "the snapshot"

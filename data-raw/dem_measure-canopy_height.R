@@ -465,7 +465,10 @@ if (!file.exists(CENSUS)) {
   stopifnot(!anyDuplicated(frames$airp_id))
   frames$scale_n <- suppressWarnings(as.numeric(sub("^1:", "", frames$scale)))
   # fly#58's eligibility, unchanged, so the denominator is the one it published.
-  film <- frames[frames$media %in% fly_film_media() &
+  # The film set these shipped tables were measured over, spelled out rather than read from
+  # `fly_film_media()`: fly#89 added infrared film to that, and a re-run must reproduce what
+  # shipped rather than redraw from a population 3,825 frames larger.
+  film <- frames[frames$media %in% c("Film - BW", "Film - Colour") &
                    is.finite(frames$scale_n) & frames$scale_n > 0 &
                    is.finite(frames$flying_height) & frames$flying_height > 0 &
                    is.finite(frames$focal_length) & frames$focal_length > 0, ]

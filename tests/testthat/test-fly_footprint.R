@@ -97,6 +97,39 @@ test_that("fly_footprint format_size override sizes digital frames", {
   expect_equal(digital$footprint_basis, rep("Digital - Colour", 2))
 })
 
+# Infrared film is the 9-inch negative (fly#89): spacing, thumbnails and the logbooks say so,
+# and `test-fly_footprint_infrared.R` holds that measurement to its shipped tables. These
+# pin what follows from it — sized as film, by every route that asks whether a frame is film.
+test_that("infrared film is sized as the 9-inch negative and records its own media", {
+  film <- mixed_media_fixture()[1:2, ]
+  ir <- film
+  ir$media <- c("Film - BW IR", "Film - Colour IR")
+  fp <- expect_no_warning(fly_footprint(ir))
+  expect_equal(fp$footprint_basis, c("Film - BW IR", "Film - Colour IR"))
+  area <- function(x) as.numeric(sf::st_area(sf::st_transform(x, 3005)))
+  # Same points and scales as the BW and colour rows, so the same ground.
+  expect_equal(area(fp), area(fly_footprint(film)))
+  expect_equal(area(fp)[1], (9 * 0.0254 * 12000)^2, tolerance = 0.01)
+})
+
+test_that("the camera table never sizes an infrared frame", {
+  d <- digital_fixture()[5, ]
+  # Premise: focal 100 resolves through the digital focal-length fallback.
+  expect_true(fly_camera_format(d)$resolved)
+  d$media <- "Film - Colour IR"
+  expect_false(fly_camera_format(d)$resolved)
+})
+
+test_that("an infrared frame's flying_height is held against its scale like any film frame", {
+  skip_if_no_terra()
+  hf <- height_fixture()[c(1, 2, 4), ]
+  hf$media <- "Film - Colour IR"
+  fp <- suppressWarnings(fly_footprint(hf, dem = flat_dem()))
+  # Clean, slipped and implausible, exactly as the same three BW frames come back.
+  expect_identical(fp$height_source, height_fixture_source()[c(1, 2, 4)])
+  expect_false(any(sf::st_is_empty(sf::st_geometry(fp))))
+})
+
 test_that("fly_footprint falls back to negative_size when media is absent", {
   photos <- mixed_media_fixture()
   photos$media <- NULL

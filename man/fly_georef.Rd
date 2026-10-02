@@ -94,7 +94,7 @@ A \strong{rotated square} footprint — a film frame with a bearing — takes it
 none. There is no film constant: the mapping is flight-relative but differs
 between rolls, and fly#53 measured it per roll by adjacent-frame overlap over
 a stratified sample of the catalogue. \code{inst/extdata/film_rotations.csv} ships
-the 56 rolls that met the rule — 44 at 90, 10 at 270, 2 at 0 — and
+the 57 rolls that met the rule — 44 at 90, 11 at 270, 2 at 0 — and
 \code{film_rotations_excluded.csv} lists every other film roll in the catalogue
 snapshot with the reason it is not shipped, which the warning names. A roll in
 neither was added to the catalogue since.
