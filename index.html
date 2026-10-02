@@ -83,7 +83,7 @@
 <li>
 <strong>Fetch</strong> — download thumbnails, flight logs, and camera calibration reports from the BC Data Catalogue, optionally in parallel (<code>fly_fetch</code>)</li>
 <li>
-<strong>Georeference</strong> — warp the scanned images onto their estimated footprints as GeoTIFFs (BC Albers), with automatic flight-line rotation, for film and digital frames alike (<code>fly_bearing</code>, <code>fly_georef</code>)</li>
+<strong>Georeference</strong> — warp the scanned images onto their estimated footprints as GeoTIFFs (BC Albers), rotated onto the flight line, with digital frames on a measured constant and film on a measured per-roll table; measure a roll the table does not cover (<code>fly_bearing</code>, <code>fly_georef</code>, <code>fly_rotation_calibrate</code>)</li>
 </ul>
 </div>
 <div class="section level2">

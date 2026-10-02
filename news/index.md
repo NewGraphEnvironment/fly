@@ -2,6 +2,67 @@
 
 ## fly (development version)
 
+- **[`fly_georef()`](https://newgraphenvironment.github.io/fly/reference/fly_georef.md)
+  now georeferences film from a shipped table of measured per-roll
+  rotations, and every other film roll is recorded with the reason it is
+  not in it**
+  ([\#53](https://github.com/NewGraphEnvironment/fly/issues/53)). A
+  rotated film frame used to be refused unless you supplied the roll’s
+  `rotation`. 56 rolls now resolve from
+  `inst/extdata/film_rotations.csv`: 44 at 90, 10 at 270 and 2 at 0.
+  Your own `rotation` column still wins. The other 6,660 film rolls in
+  the catalogue snapshot are in `film_rotations_excluded.csv` with their
+  state, and the refusal warning names it.
+  - **New
+    [`fly_rotation_calibrate()`](https://newgraphenvironment.github.io/fly/reference/fly_rotation_calibrate.md)**
+    measures any roll the table does not cover, by the same method and
+    rule that built it. Pass the roll’s catalogue rows and join the
+    result onto `rotation`.
+  - **The method.** Adjacent-frame overlap correlation at all four
+    rotations. A leg is decisive only when a sign test beats every rival
+    rotation. A roll ships on two or more decisive legs that agree, two
+    of them at least 90 degrees apart, because a roll scanned in a fixed
+    geographic orientation would agree with itself on two legs closer
+    than that. The rule was fixed before any thumbnail was read, and its
+    seven amendments are dated and reasoned.
+  - **The sample.** 116 rolls were examined across 27 roll-series ×
+    5-year strata. No measured roll’s legs disagreed, and no roll’s
+    missions disagreed with each other.
+  - **Why the key is the roll.** The shipped rolls fall into eras: 270
+    for the 305 mm rolls of 1964-73, 0 for the two 153 mm rolls of
+    1967-68, and 90 for every roll from 1974, except bcc00116 (2000),
+    which is 270. Three measured rolls that did not ship also each have
+    a decisive leg against their era: bc7397 (1972) at 90, bc5650 (1975)
+    at 0, and bcb00037 (2000) at 270. A per-era default would have
+    written bcc00116 a half turn wrong.
+  - **Two corrections to fly#26.** One of its four film legs (bc83062
+    108-118) is not a leg in today’s catalogue, and another (152-162)
+    flies 251 degrees, not 62. Its rejection of a fixed geographic
+    orientation rested on those two, so it is re-established on reverse
+    legs instead. Its “cardinal legs are degenerate” premise was
+    measured and dropped.
+  - **What the table does not cover.** Every verdict is for the public
+    thumbnails, not full-resolution scans, and overlap cannot detect a
+    scan mirrored about the flight line. Infrared film is not sized by
+    [`fly_footprint()`](https://newgraphenvironment.github.io/fly/reference/fly_footprint.md)
+    at all
+    ([\#89](https://github.com/NewGraphEnvironment/fly/issues/89)), so
+    its rolls are unmeasured.
+- **The last frame of a flight line is no longer rotated onto the turn**
+  ([\#87](https://github.com/NewGraphEnvironment/fly/issues/87)). Frame
+  numbers run straight through a turn, so
+  [`fly_bearing()`](https://newgraphenvironment.github.io/fly/reference/fly_bearing.md)
+  gave each line’s last frame the azimuth of the jump to the next line.
+  A frame now takes the backward bearing when its forward step is zero
+  length, or more than 1.5x a backward step that itself continues the
+  line. Over the 1,670,471 catalogue frames this changes the bearing of
+  **48,139 (2.88%)**, 5,390 of them digital. **42,001** move by more
+  than 10 degrees, 4,225 of them digital, and those digital frames had
+  been georeferenced onto the turn. A bearing that could only come from
+  a zero-length step is `NA` rather than 0 (10 frames). Footprints,
+  coverage and georeferencing change only for the frames whose bearing
+  changed.
+
 ### 0.19.3 (2026-10-01)
 
 - **Photo parallax, as built, cannot say what surface the camera saw at
@@ -1189,12 +1250,12 @@
   silently dropping `footprint_basis`, `footprint_terrain`, `height_agl`
   and `dem_coverage` whenever its input carried the `tbl_df` class
   ([\#35](https://github.com/NewGraphEnvironment/fly/issues/35)).
-  `bcdata::collect()` returns exactly that class, so every caller
-  querying `WHSE_IMAGERY_AND_BASE_MAPS.AIMG_PHOTO_CENTROIDS_SP` — the
-  documented source for this package — lost the whole reporting surface
-  0.4.0 and 0.5.0 added, and the documented “filter on
-  `footprint_basis`” and “filter on `dem_coverage`” workflows were
-  unreachable from it
+  [`bcdata::collect()`](https://dplyr.tidyverse.org/reference/compute.html)
+  returns exactly that class, so every caller querying
+  `WHSE_IMAGERY_AND_BASE_MAPS.AIMG_PHOTO_CENTROIDS_SP` — the documented
+  source for this package — lost the whole reporting surface 0.4.0 and
+  0.5.0 added, and the documented “filter on `footprint_basis`” and
+  “filter on `dem_coverage`” workflows were unreachable from it
 - Geometry and every downstream number were always correct; what was
   lost was the audit trail, which is what made it invisible.
   [`sf::st_sf()`](https://r-spatial.github.io/sf/reference/sf.html)

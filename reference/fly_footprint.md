@@ -69,8 +69,8 @@ the DEM already spans the frame, so any missing cells are nodata inside
 its extent and no re-crop will recover them. Frames whose format could
 not be resolved get an empty geometry. Every class the input carries is
 carried through, so a tibble-backed sf — which is what
-`bcdata::collect()` returns — comes back tibble-backed. The order is not
-preserved:
+[`bcdata::collect()`](https://dplyr.tidyverse.org/reference/compute.html)
+returns — comes back tibble-backed. The order is not preserved:
 [`sf::st_transform()`](https://r-spatial.github.io/sf/reference/st_transform.html)
 moves `sf` to the front, so a `bcdc_sf` input returns
 `sf, bcdc_sf, ...`, as it always has.

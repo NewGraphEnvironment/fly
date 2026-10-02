@@ -119,8 +119,8 @@ argument does not reach it. <code>"auto"</code> (default) derives a 90°-quantiz
 rotation from the bearing; with the bearing now carried by the geometry,
 that formula only ever sees bearingless frames and returns its <code>NA</code>
 default of 180. A <code>rotation</code> column in <code>photos_sf</code> overrides everything,
-rotated or not — which is the supported way to georeference film (see
-<strong>Rotation</strong>). Carrying a film-era <code>rotation</code> column into a batch of
+rotated or not, including the measured film table (see <strong>Rotation</strong>).
+Carrying a film-era <code>rotation</code> column into a batch of
 digital frames overrides the correct mapping with the wrong one — drop
 the column, or set it to <code>NA</code> for those rows.</p></dd>
 
@@ -149,24 +149,31 @@ still axis-parallel, and a square gives nothing away at any bearing.</p>
 fixed mapping: the top-left pixel maps to the ring's rear-left corner, so the
 top of the image points 270° round from the heading. Measured in fly#38 on
 both bundled cameras by three independent routes, which agree.</p>
-<p>A <strong>rotated square</strong> footprint — a film frame with a bearing — is <strong>skipped
-with a warning</strong> unless <code>photos_sf</code> carries a <code>rotation</code> value for it. There
-is no constant to apply, and that is a measurement rather than an omission.
-fly#26 scored all four rotations by adjacent-frame overlap over four
-contiguous legs:</p><table class="table table"><tr><td>roll</td><td>year</td><td>bearing</td><td>best rotation</td><td>margin</td></tr><tr><td>bc5282</td><td>1968</td><td>230°</td><td>0</td><td>0.089</td></tr><tr><td>bc83062</td><td>1983</td><td>150°</td><td>90</td><td>0.135</td></tr><tr><td>bc83062</td><td>1983</td><td>93°</td><td>90</td><td>0.196</td></tr><tr><td>bc83062</td><td>1983</td><td>62°</td><td>90</td><td>0.152</td></tr></table><p>bc83062 returns the same answer at three widely separated bearings, so the
-mapping is genuinely flight-relative — but it is a quarter turn from
-bc5282's, on the two eras fly#26 named at the outset. Applying either as a
-global constant would be wrong for the other roll, and the failure it
-produces is a valid GeoTIFF over the right ground with the picture turned 90°,
-which nothing downstream would report. So the frame is refused instead, as
-fly refuses an unknown recording format in <code><a href="fly_footprint.html">fly_footprint()</a></code>.</p>
-<p>To georeference film, check one frame of the roll against known ground and
-set the column:</p>
-<p></p><div class="sourceCode"><pre><code><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a>photos<span class="sc">$</span>rotation <span class="ot">&lt;-</span> dplyr<span class="sc">::</span><span class="fu">case_when</span>(</span>
-<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a>  photos<span class="sc">$</span>film_roll <span class="sc">==</span> <span class="st">"bc5282"</span>  <span class="sc">~</span> <span class="dv">0</span><span class="dt">L</span>,    <span class="co"># measured, fly#26</span></span>
-<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a>  photos<span class="sc">$</span>film_roll <span class="sc">==</span> <span class="st">"bc83062"</span> <span class="sc">~</span> <span class="dv">90</span><span class="dt">L</span>,   <span class="co"># measured, fly#26</span></span>
-<span id="cb1-4"><a href="#cb1-4" tabindex="-1"></a>  <span class="at">.default =</span> <span class="cn">NA</span>                          <span class="co"># refused rather than guessed</span></span>
-<span id="cb1-5"><a href="#cb1-5" tabindex="-1"></a>)</span></code></pre><p></p></div>
+<p>A <strong>rotated square</strong> footprint — a film frame with a bearing — takes its
+<strong>roll's measured rotation</strong>, and is <strong>skipped with a warning</strong> when there is
+none. There is no film constant: the mapping is flight-relative but differs
+between rolls, and fly#53 measured it per roll by adjacent-frame overlap over
+a stratified sample of the catalogue. <code>inst/extdata/film_rotations.csv</code> ships
+the 56 rolls that met the rule — 44 at 90, 10 at 270, 2 at 0 — and
+<code>film_rotations_excluded.csv</code> lists every other film roll in the catalogue
+snapshot with the reason it is not shipped, which the warning names. A roll in
+neither was added to the catalogue since.</p>
+<p>The shipped values fall into eras (270 for the 305 mm rolls of 1964-73, 0 for
+the two 153 mm rolls of 1967-68, 90 from 1974) with an exception — bcc00116
+(2000) is 270 — and three unshipped rolls each have a decisive leg against their
+era too, so nothing is inferred for a roll that was not measured. A wrong mapping
+writes a valid GeoTIFF over the right ground with the picture turned a quarter
+or half turn, which nothing downstream would report, so the frame is refused
+instead, as fly refuses an unknown recording format in <code><a href="fly_footprint.html">fly_footprint()</a></code>.</p>
+<p>For a roll the table does not cover, measure it with <code><a href="fly_rotation_calibrate.html">fly_rotation_calibrate()</a></code>
+and join the result, or set the column yourself after checking one frame against
+known ground:</p>
+<p></p><div class="sourceCode"><pre><code><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a>cal <span class="ot">&lt;-</span> <span class="fu">fly_rotation_calibrate</span>(roll)            <span class="co"># the roll's catalogue rows</span></span>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a>roll<span class="sc">$</span>rotation <span class="ot">&lt;-</span> cal<span class="sc">$</span>rotation[<span class="fu">match</span>(roll<span class="sc">$</span>film_roll, cal<span class="sc">$</span>film_roll)]</span></code></pre><p></p></div>
+<p><strong>Precedence</strong> for a rotated film frame: a non-<code>NA</code> <code>rotation</code> column value, then
+the shipped table, then refusal. The scalar <code>rotation</code> argument never reaches it.
+Values were measured on the public thumbnails; a full-resolution scan delivered in
+another orientation is not covered.</p>
 <p>Every non-<code>NA</code> value in that column must be 0, 90, 180 or 270; anything else
 is an error naming the value, rather than a rotation silently applied as
 something other than what was written. <strong>The column's meaning changed in
@@ -250,11 +257,10 @@ of <code><a href="fly_footprint.html">fly_footprint()</a></code>.</p>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Geodetic CRS:  WGS 84</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Frames 231 and 232 of bc5282 are adjacent, so they get a flight bearing and</span></span></span>
-<span class="r-in"><span><span class="co"># their footprints are rotated onto it. Film needs the roll's measured rotation</span></span></span>
-<span class="r-in"><span><span class="co"># supplied; without it the frames are refused rather than turned a quarter turn.</span></span></span>
+<span class="r-in"><span><span class="co"># their footprints are rotated onto it. bc5282 is a measured roll, so its</span></span></span>
+<span class="r-in"><span><span class="co"># rotation comes from the shipped table; an unmeasured roll would be refused.</span></span></span>
 <span class="r-in"><span><span class="va">pair</span> <span class="op">&lt;-</span> <span class="va">centroids</span><span class="op">[</span><span class="va">centroids</span><span class="op">$</span><span class="va">film_roll</span> <span class="op">==</span> <span class="st">"bc5282"</span> <span class="op">&amp;</span></span></span>
 <span class="r-in"><span>                    <span class="va">centroids</span><span class="op">$</span><span class="va">frame_number</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">231</span>, <span class="fl">232</span><span class="op">)</span>, <span class="op">]</span></span></span>
-<span class="r-in"><span><span class="va">pair</span><span class="op">$</span><span class="va">rotation</span> <span class="op">&lt;-</span> <span class="fl">0L</span>   <span class="co"># measured for bc5282 in fly#26</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="va">fetched</span> <span class="op">&lt;-</span> <span class="fu"><a href="fly_fetch.html">fly_fetch</a></span><span class="op">(</span><span class="va">pair</span>, type <span class="op">=</span> <span class="st">"thumbnail"</span>, dest_dir <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> Downloaded 2 of 2 files</span>
@@ -264,8 +270,8 @@ of <code><a href="fly_footprint.html">fly_footprint()</a></code>.</p>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;"># A tibble: 2 × 4</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   airp_id source                               dest                      success</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>     <span style="color: #949494; font-style: italic;">&lt;int&gt;</span> <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>                                <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>                     <span style="color: #949494; font-style: italic;">&lt;lgl&gt;</span>  </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">1</span>  <span style="text-decoration: underline;">699</span>426 /tmp/RtmpLhKkiz/bc5282_232_thumb.jpg /tmp/RtmpLhKkiz/bc5282_2… TRUE   </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">2</span>  <span style="text-decoration: underline;">699</span>425 /tmp/RtmpLhKkiz/bc5282_231_thumb.jpg /tmp/RtmpLhKkiz/bc5282_2… TRUE   </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">1</span>  <span style="text-decoration: underline;">699</span>426 /tmp/RtmpY6Z6Xs/bc5282_232_thumb.jpg /tmp/RtmpY6Z6Xs/bc5282_2… TRUE   </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">2</span>  <span style="text-decoration: underline;">699</span>425 /tmp/RtmpY6Z6Xs/bc5282_231_thumb.jpg /tmp/RtmpY6Z6Xs/bc5282_2… TRUE   </span>
 <span class="r-in"><span></span></span>
 </code></pre></div>
     </div>

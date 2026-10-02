@@ -106,7 +106,7 @@ already spans the frame, so any missing cells are nodata inside its extent and
 no re-crop will recover them.
 Frames whose format could not be resolved get an empty geometry. Every
 class the input carries is carried through, so a tibble-backed sf — which
-is what <code>bcdata::collect()</code> returns — comes back tibble-backed. The order
+is what <code><a href="https://dplyr.tidyverse.org/reference/compute.html" class="external-link">bcdata::collect()</a></code> returns — comes back tibble-backed. The order
 is not preserved: <code><a href="https://r-spatial.github.io/sf/reference/st_transform.html" class="external-link">sf::st_transform()</a></code> moves <code>sf</code> to the front, so a
 <code>bcdc_sf</code> input returns <code>sf, bcdc_sf, ...</code>, as it always has.</p>
     </div>

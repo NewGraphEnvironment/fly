@@ -20,6 +20,8 @@
   : Mask the black frame border of an airphoto scan
 - [`fly_overlap()`](https://newgraphenvironment.github.io/fly/reference/fly_overlap.md)
   : Compute pairwise overlap between photo footprints
+- [`fly_rotation_calibrate()`](https://newgraphenvironment.github.io/fly/reference/fly_rotation_calibrate.md)
+  : Measure a film roll's corner mapping from its own overlapping frames
 - [`fly_select()`](https://newgraphenvironment.github.io/fly/reference/fly_select.md)
   : Select photos covering an AOI
 - [`fly_summary()`](https://newgraphenvironment.github.io/fly/reference/fly_summary.md)

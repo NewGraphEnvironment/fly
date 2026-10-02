@@ -42,9 +42,10 @@ BC](reference/figures/readme-priority.png)
   reports from the BC Data Catalogue, optionally in parallel
   (`fly_fetch`)
 - **Georeference** — warp the scanned images onto their estimated
-  footprints as GeoTIFFs (BC Albers), with automatic flight-line
-  rotation, for film and digital frames alike (`fly_bearing`,
-  `fly_georef`)
+  footprints as GeoTIFFs (BC Albers), rotated onto the flight line, with
+  digital frames on a measured constant and film on a measured per-roll
+  table; measure a roll the table does not cover (`fly_bearing`,
+  `fly_georef`, `fly_rotation_calibrate`)
 
 ## Installation
 
