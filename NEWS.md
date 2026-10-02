@@ -1,5 +1,7 @@
 # fly (development version)
 
+## 0.21.0 (2026-10-02)
+
 - **Infrared film is now sized as the 9-inch negative, because that was measured** ([#89](https://github.com/NewGraphEnvironment/fly/issues/89)).
   - **What changed.** `Film - BW IR` (771 frames, 7 rolls) and `Film - Colour IR` (3,054 frames, 25 rolls) were `unknown_format` with empty geometry. They are now sized from `negative_size` with `footprint_basis` set to their media value. `fly_coverage()`, `fly_select()`, `fly_overlap()` and `fly_filter()` now count them, and the #54 `flying_height` check applies: 3,769 sit inside the band and 56 fall back to nominal scale. Those 56 are on three roll-heights where spacing fits the reported height and rejects nominal: a right height beside a wrong `scale`. They are drawn at the wrong width, with or without a DEM, until they are tabled ([#91](https://github.com/NewGraphEnvironment/fly/issues/91)).
   - **Callers already sizing IR through `format_size`.** These frames used to skip the #54 check; it now applies to them too.
