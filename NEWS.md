@@ -1,5 +1,20 @@
 # fly (development version)
 
+- **Infrared film is now sized as the 9-inch negative, because that was measured** ([#89](https://github.com/NewGraphEnvironment/fly/issues/89)).
+  - **What changed.** `Film - BW IR` (771 frames, 7 rolls) and `Film - Colour IR` (3,054 frames, 25 rolls) were `unknown_format` with empty geometry. They are now sized from `negative_size` with `footprint_basis` set to their media value. `fly_coverage()`, `fly_select()`, `fly_overlap()` and `fly_filter()` now count them, and the #54 `flying_height` check applies: 3,769 sit inside the band and 56 fall back to nominal scale. Those 56 are on three roll-heights where spacing fits the reported height and rejects nominal: a right height beside a wrong `scale`. They are drawn at the wrong width, with or without a DEM, until they are tabled ([#91](https://github.com/NewGraphEnvironment/fly/issues/91)).
+  - **Callers already sizing IR through `format_size`.** These frames used to skip the #54 check; it now applies to them too.
+  - **How it was established.** `data-raw/format_measure-infrared_film.R` used three witnesses:
+    - **Adjacent-frame spacing**, fly#60's instrument, against the BW/colour window 0.557–0.780. 27 of 32 rolls fit 9 inches and exclude 5 inches and 70 mm.
+    - **Thumbnails**: the 4 rolls that have any match BW/colour film in aspect and collar. That is weak evidence, since a 5-inch or 70 mm frame is square too.
+    - **Logbooks**, 27 pages read by hand. Every page that writes a format writes 9 x 9 or names an RC 10, and the rest name camera bodies that also flew BW/colour rolls already sized at 9 inches.
+  - **Where the evidence is thin.**
+    - The pre-registered rule stopped on four rolls whose spacing no format fits (9-inch overlap 0.19–0.27 on the nominal reading, where a smaller format fits worse still). An amendment written after those numbers, and recorded as such, named them `fits_no_format`.
+    - `bcf517` (13 frames) is ambiguous: one of its two readings favours 5 inches.
+    - Spacing cannot separate 23 cm from 18 cm. Six rolls' logbooks write 9 x 9 or name an RC 10, and 11 more name camera bodies that also flew 9-inch BW/colour, but 15 rolls have no logbook page at all.
+  - **Reproducibility.** Five `inst/extdata/infrared_film_*.csv` ship, and the suite recomputes every verdict from them. See `inst/notes/camera-formats.md`, "Infrared film is the 9-inch negative".
+  - **Film rotations.** The 26 infrared rolls fly#53 measured were recorded `legs_unscorable` only because their footprints were empty. Re-measured: `bcc23` (1969, 305 mm) ships at 270, so `film_rotations.csv` now has 57 rolls. `bcf07060` has one decisive leg, and the other 24 have no thumbnails at all. Every other roll's row is unchanged. `data-raw/georef_calibrate-film_rotations.R` now dates each roll by when it was measured, so a partial re-run no longer restamps the rest.
+  - **Earlier measurements are unchanged.** The #54, #58, #65 and #80 scripts now spell out the BW/colour set they were measured over, so re-running them reproduces what shipped.
+
 ## 0.20.0 (2026-10-02)
 
 - **`fly_georef()` now georeferences film from a shipped table of measured per-roll rotations, and every other film roll is recorded with the reason it is not in it** ([#53](https://github.com/NewGraphEnvironment/fly/issues/53)). A rotated film frame used to be refused unless you supplied the roll's `rotation`. 56 rolls now resolve from `inst/extdata/film_rotations.csv`: 44 at 90, 10 at 270 and 2 at 0. Your own `rotation` column still wins. The other 6,660 film rolls in the catalogue snapshot are in `film_rotations_excluded.csv` with their state, and the refusal warning names it.

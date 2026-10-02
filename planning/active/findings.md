@@ -96,7 +96,49 @@ frame is not a live alternative — no mapping camera exposes one — and spacin
 
 ### Amendments
 
-(none)
+**Amendment 1 (2026-10-02, after the W1 results of the first full run and the plan review were
+read; approved by the user).** Written after the data, and disclosed as such: the first full run
+had printed every roll's W1 medians, and the reviewer had computed per-roll nominal medians from
+the cache.
+
+*Why.* As registered, `contradicts` meant "no measurable reading's median in the window". Four
+rolls (bcf07060, bci3, bci95063, bci96066) sit BELOW the window at 0.19-0.27 on the nominal
+reading (0.11-0.27 on the reported height). A format smaller
+than 9 inches moves implied overlap further down, so for these rolls every candidate smaller
+format fits worse than 9 inches does; only a format larger than 9 inches could fit, and none is
+a live alternative. The registered definition therefore fired on spacing that is evidence about
+flight design, not format. On the other side, a 9-inch pass did not exclude 5 inches (review-1
+B3), and `excludes_5in` was reported but carried no weight.
+
+*W1 outcomes, amended.* Per roll, over its measurable readings (unchanged: `p_nominal`, and
+`p_reported` on in-band frames, each needing at least 5 finite values):
+- `pass` — 9 inches in the window under some reading, and neither 5 inches nor 70 mm in the
+  window under any reading.
+- `ambiguous` — 9 inches in the window and an alternative also in it.
+- `contradicts` — 9 inches out under every reading, and an alternative in the window under some
+  reading.
+- `fits_no_format` — no candidate in the window. Recorded; neither pass nor contradiction.
+- `unmeasurable` — unchanged.
+
+*Decision, amended.* Add a media value when both controls pass and no roll of it
+`contradicts` under W1, W2 or W3. `ambiguous` and `fits_no_format` rolls are named in the note.
+
+*What spacing cannot separate, stated rather than gated.* An 18 cm frame sized at 9 inches would
+land in the window for most rolls (review-1 put it at 96%), so W1 cannot tell 23 cm from 18 cm and
+does not try; 18 cm is not added as a W1 alternative, because it would make every roll
+`ambiguous`. That separation rests on W3 — six rolls whose pages write `9 x 9` or name an RC10 —
+and on the observation below. fly sizes BW and colour at 23 cm on no stronger witness.
+
+*Same-camera observation (recorded, not a gate).* Every camera serial written on an IR page
+without a format (110398, 110399, 122520, 124223, ZE#1, and ZE#2 alongside 110398) is also written on BW/colour pages
+in `data-raw/flying_height_logbooks.csv`, on rolls fly sizes at 9 inches. A mapping camera's
+format is fixed by its body. Kept in `same_camera_bw_colour`; the pre-registered
+`camera_format` class of those pages stays `unrecognised`.
+
+*Base rate (control c, reported).* Over the 6,680 BW/colour rolls with at least 5 bases, 5.76%
+have a nominal median outside the window (3.11% below, 2.65% above); 13 (0.19%) sit at or below
+0.30, all flown 1972-1979 (the script's control (c) line prints each figure). The four IR rolls are unusual, not the ordinary tail — but unusual in
+the direction no smaller format explains.
 
 ## First full run (2026-10-02, 14:31-14:39 UTC) — the rule fired
 
@@ -122,11 +164,32 @@ fits low forward overlap. A format smaller than 9 inches would push implied over
 still; only a larger one could lift it into the window. So the four contradictions are
 evidence about how these rolls were flown or catalogued, not about format — review-1 B1.
 
-**Status:** per the rule, stopped on the media change and escalated to the user. Independent
-work (logbook transcription, the rotation stamping fix, pinning the data-raw scripts)
-continues meanwhile. Any rule change is an amendment made after these numbers were read.
+**Status at the time:** per the rule, stopped on the media change and escalated to the user,
+who approved amendment 1 (below). Superseded by "Result under amendment 1".
+
+## Result under amendment 1 (runs 4-5, 2026-10-02)
+
+`data-raw/.cache/irfilm_run5.log`; shipped as the five `inst/extdata/infrared_film_*.csv`.
+
+- Controls (a) 0.635, (b) 0.343 outside, (c) 5.76% of 6,680 BW/colour rolls outside the window.
+- **W1:** 27 pass, 1 ambiguous (bcf517), 4 fits_no_format (bcf07060, bci3, bci95063, bci96066),
+  0 contradicts. Per media: BW IR 5 / 0 / 2, Colour IR 22 / 1 / 2. bcf517's nominal reading fits
+  both 9 in (0.770) and 5 in (0.587); its reported reading puts 9 in outside (0.816) and 5 in
+  inside (0.668) — one reading favours 5 in. It has no thumbnail and no logbook page.
+- **W2:** 4 pass (bc5312, bc5367, bcc23, bcf07060), 422 thumbnails, 0 declined.
+- **W3:** 27 pages on 17 rolls; 6 pass (bc5312, bc5367, bcc23, bcc7, bcc8, bcf335), 11
+  unrecognised (serial only), 0 contradicts; the transcription matches the catalogue's page URLs
+  exactly, roll by roll (guard proved by dropping one page: it stops naming bci9).
+- **#54 band:** 3,769 reported, 56 outside the band, 0 slip-repairable. The 56 sit on three
+  roll-heights (bc5312, bci12, bci9) where spacing fits the reported height and rejects nominal:
+  a right height beside a wrong scale. Only bci9 (ratio asl 2.436) is in a population the
+  fly#60/#72 rules read; bc5312 (0.731) and bci12 (0.762) leave the band only through terrain.
+  Filed as fly#91 (code-check rounds 3-4).
+- **Decision:** add `Film - BW IR` and `Film - Colour IR`.
 
 ## Errors Encountered
 
 | Error | Resolution |
 |-------|------------|
+| W3 guard named every roll with no logbook URL | `paste0(roll, "__", character(0))` is length one; guard the empty case |
+| Second run measured no collar: `fly_mask()` keeps existing masked copies with NA fractions | `overwrite = TRUE` |

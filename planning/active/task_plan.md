@@ -64,7 +64,7 @@ Found in fly#53's film rotation campaign, where every drawn roll of the `bci` an
 
 ## Phase 2: Measurement script
 
-- [ ] `data-raw/format_measure-infrared_film.R`:
+- [x] `data-raw/format_measure-infrared_film.R`:
   - Stage 0: IR frames from the centroid cache.
   - Stage 1: pull IR rolls via bcdata into a gitignored `data-raw/.cache/infrared_film/` (reads
     the #53 roll cache where present, never writes it).
@@ -74,32 +74,35 @@ Found in fly#53's film rotation campaign, where every drawn roll of the `bci` an
   - Stage 4: thumbnails via `fly_fetch(type = "thumbnail")`, then aspect and `fly_mask` collar.
   - Stage 5: verdict per the pre-registered rule; print a producer line for every figure.
   - `FLY_IRFILM_SMOKE=1` writes nothing.
-- [ ] Ship `inst/extdata/infrared_film_spacing.csv` (per roll: frames, bases, medians per
-  reading and per format, `r` summary, verdict) and `inst/extdata/infrared_film_thumbnails.csv`
-  (per frame: dims, collar fraction, mask declined).
-- [ ] `tests/testthat/test-fly_footprint_infrared.R` recomputes every roll verdict and the
+- [x] Ship five `inst/extdata/infrared_film_*.csv` — `frames` (every IR frame: base, elevation,
+  height class), `window` (air base of the sweep's random frames), `thumbnails`, `pages` (the W3
+  fields of the transcription) and `rolls` (one row per roll, the three verdicts). Amended from
+  the two CSVs first planned so the test recomputes from frames rather than reading summaries.
+- [x] `tests/testthat/test-fly_footprint_infrared.R` recomputes every roll verdict and the
   media-level decision from the shipped CSVs, using the same thresholds.
 
 ## Phase 3: Logbook transcription
 
-- [ ] Read every IR roll's `flight_log_url` page by hand.
-- [ ] Write `data-raw/infrared_film_logbooks.csv`. This is an input that is never regenerated,
-  with the same columns as `flying_height_logbooks.csv` plus `camera_as_written`.
-- [ ] The script reads it as W3, and the test holds W3's verdict to it.
+- [x] Read every IR roll's `flight_log_url` page by hand.
+- [x] Write `data-raw/infrared_film_logbooks.csv`. This is an input that is never regenerated.
+  Its columns are the ones W3 needs (camera, focal, format and film type as written, the
+  pre-registered class, and a `same_camera_bw_colour` cross-reference), not the height columns
+  of `flying_height_logbooks.csv`.
+- [x] The script reads it as W3, and the test holds W3's verdict to it.
 
 ## Phase 4: Size IR as film (only if Phase 1's decision passes)
 
-- [ ] Write failing tests first in `test-fly_footprint.R`:
+- [x] Write failing tests first in `test-fly_footprint.R`:
   - an IR frame is sized at `negative_size`;
   - `footprint_basis` equals its media value;
   - `fly_camera_format()` is not consulted;
   - the height check applies (`film_like`);
   - `format_size` can override an IR value.
-- [ ] Prove the tests go red against the old `fly_film_media()`.
-- [ ] Add `"Film - BW IR"` and `"Film - Colour IR"` to `fly_film_media()`. Update its comment,
+- [x] Prove the tests go red against the old `fly_film_media()`.
+- [x] Add `"Film - BW IR"` and `"Film - Colour IR"` to `fly_film_media()`. Update its comment,
   the `media` roxygen in `fly_footprint()` (~line 515), and the comment at
   `fly_camera_format.R:241`.
-- [ ] Pin the four data-raw scripts to a literal `c("Film - BW", "Film - Colour")`, with a comment
+- [x] Pin the four data-raw scripts to a literal `c("Film - BW", "Film - Colour")`, with a comment
   naming it as the set their shipped tables were measured over (#89).
 
 ## Phase 5: Calibrate the IR rolls' rotations
@@ -114,11 +117,11 @@ Found in fly#53's film rotation campaign, where every drawn roll of the `bci` an
 
 ## Phase 6: Documentation and release notes
 
-- [ ] Add an "Infrared film" section to `inst/notes/camera-formats.md`: the witnesses, the
+- [x] Add an "Infrared film" section to `inst/notes/camera-formats.md`: the witnesses, the
   numbers read off producer lines, and what spacing cannot separate.
-- [ ] Add a `NEWS.md` entry.
-- [ ] `CLAUDE.md`: a Key Decisions entry, and list the new script and CSVs in Architecture.
-- [ ] Run `devtools::document()`, `lintr::lint_package()` and `pkgdown::check_pkgdown()`.
+- [x] Add a `NEWS.md` entry.
+- [x] `CLAUDE.md`: a Key Decisions entry, and list the new script and CSVs in Architecture.
+- [x] Run `devtools::document()`, `lintr::lint_package()` and `pkgdown::check_pkgdown()`.
 
 ## Validation
 

@@ -1,8 +1,14 @@
 # Catalogue `media` values recorded on film, and so sized by `negative_size`.
 # Digital media are deliberately absent: a sensor's width is not in the centroid
 # metadata, so those frames are left unresolved rather than guessed. See fly#30.
+#
+# The infrared stocks are here because their format was measured, not assumed (fly#89):
+# adjacent-frame spacing on 27 of their 32 rolls fits the 9-inch negative and excludes 5 in
+# and 70 mm, the 4 rolls with thumbnails match BW/colour film in aspect and collar, and every
+# logbook page that writes a format writes 9 x 9 or names an RC 10.
+# `test-fly_footprint_infrared.R` holds this list to that measurement.
 fly_film_media <- function() {
-  c("Film - BW", "Film - Colour")
+  c("Film - BW", "Film - Colour", "Film - BW IR", "Film - Colour IR")
 }
 
 # Refuse anything that is not one point per frame.
@@ -519,7 +525,8 @@ fly_is_square <- function(footprints) {
 #'   vertex count; this is refused rather than coerced, because re-estimating a
 #'   footprint from the centroid of an estimated footprint is not meaningful.
 #' @param negative_size Negative dimension in inches (default 9 for standard
-#'   9" x 9"). Applies to film frames, and to every frame when there is no
+#'   9" x 9"). Applies to film frames — `media` `"Film - BW"`, `"Film - Colour"`,
+#'   `"Film - BW IR"` and `"Film - Colour IR"` — and to every frame when there is no
 #'   `media` column. It never sizes a digital frame — see `format_size`.
 #' @param format_size Named numeric vector of recording-format widths in inches,
 #'   keyed by `media` value, merged over the shipped film defaults. Frames it names are
@@ -576,7 +583,11 @@ fly_is_square <- function(footprints) {
 #' records the outcome:
 #'
 #' \describe{
-#'   \item{the `media` value}{format resolved from the format table}
+#'   \item{the `media` value}{format resolved from the format table: one of the
+#'     four film values, sized from `negative_size` (infrared film since fly#89,
+#'     measured to be the same 9-inch negative); a value named in `format_size`; or
+#'     a digital frame whose camera the shipped table resolved by calibration or
+#'     PAT-B identity}
 #'   \item{`"inferred_format"`}{digital frame with no calibration and no camera
 #'     named in its PAT-B file, sized from a format inferred from its `focal_length`}
 #'   \item{`"assumed_default"`}{no `media` column; `negative_size` applied}

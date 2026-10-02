@@ -240,7 +240,8 @@ fly_camera_format <- function(centroids_sf) {
   media <- as.character(centroids_sf$media)
   # Film is sized from `negative_size`; this table describes sensors only. Restricting
   # to digital also stops a fallback row keyed on focal length from quietly resolving a
-  # film frame that happens to share the focal length.
+  # film frame that happens to share the focal length. "Not film" is read off
+  # `fly_film_media()`, so the infrared stocks left this branch when fly#89 added them there.
   digital <- !is.na(media) & !(media %in% fly_film_media())
   if (!any(digital)) {
     return(none)

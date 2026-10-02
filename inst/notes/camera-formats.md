@@ -233,3 +233,116 @@ height the across-track one:
 So these frames pass the aspect gate. That settles the pairing, not the quarter turn:
 rotations 90 and 270 remain geometrically indistinguishable — see
 `inst/notes/georeferencing.md`.
+
+## Infrared film is the 9-inch negative (fly#89)
+
+Until fly#89, `fly_film_media()` named `Film - BW` and `Film - Colour` only. The catalogue's
+infrared stocks fell through to `unknown_format` and drew empty footprints: `Film - BW IR`
+(771 frames, 7 rolls) and `Film - Colour IR` (3,054 frames, 25 rolls). IR aerial film was
+flown in the same mapping cameras as panchromatic, so 9 inches was the likely answer. But
+fly#30 refuses to size a format on likelihood, because a wrong negative still draws a
+plausible rectangle. So the format was measured first.
+
+`data-raw/format_measure-infrared_film.R` produced every figure below. It ships five
+`inst/extdata/infrared_film_*.csv`, and `test-fly_footprint_infrared.R` recomputes them. The rule
+was pre-registered and then amended once after its first result. Both versions are in
+`planning/archive/*issue-89*/findings.md`.
+
+### Three witnesses
+
+- **Spacing (W1, every roll).** This is fly#60's instrument: the air base to the adjacent frame
+  number, set against the designed ~60% forward overlap.
+  - Readings: implied overlap at 9 inches, from nominal scale, and from the reported height less
+    MRDEM on frames inside the #54 band.
+  - The window is 0.557 to 0.780: the central 95% over the sweep's 2,481 in-band random BW/colour
+    frames.
+  - Controls: those frames give a median of 0.635 at 9 inches and 0.343 at 5 inches.
+  - The same medians are computed at 5 inches and 70 mm. A pass means 9 inches fits **and**
+    neither alternative does.
+- **Thumbnails (W2).** Only 4 rolls carry any: `bc5312`, `bc5367`, `bcc23` and `bcf07060` (422
+  frames).
+  - All 4 pass against the BW/colour sweep's 254 film frames: median aspect 1, collar fraction at
+    most 0.0707.
+  - `fly_mask()` declined none.
+  - This is weak evidence. A thumbnail is resampled to ~1,250 px, and a 5-inch or 70 mm frame is
+    square too.
+- **Logbooks (W3).** 27 pages on 17 rolls, read by hand into
+  `data-raw/infrared_film_logbooks.csv`.
+  - 6 rolls write the format or name a 23 cm camera: `bc5312` and `bc5367` (RC 8, 9" x 9"),
+    `bcc23`, `bcc7` and `bcc8` (Zeiss ZE.2, 9 x 9), and `bcf335` (RC 10).
+  - The other 11 name only a camera serial and stay `unrecognised`: 110398, 110399, 122520,
+    124223, ZE #1 and ZE #2.
+  - No page names a camera of another format.
+
+### The result
+
+| | pass | ambiguous | no format fits | contradicts |
+|---|---|---|---|---|
+| `Film - BW IR` (7 rolls) | 5 | 0 | 2 | 0 |
+| `Film - Colour IR` (25 rolls) | 22 | 1 | 2 | 0 |
+
+**No format fits four rolls.** On `bcf07060`, `bci3`, `bci95063` and `bci96066`, the 9-inch
+overlap medians are 0.19 to 0.27 on the nominal reading (0.11 to 0.27 on the reported height),
+below the window.
+
+- **The pre-registered rule called this a contradiction and stopped.** A smaller format makes
+  implied overlap *lower*: `bcf07060` is 0.20 at 9 inches and -0.44 at 5 inches. Only a format
+  larger than 9 inches could lift these rolls into the window.
+- **Amendment 1 named the outcome `fits_no_format`.** It was written after the numbers and
+  approved as such. The four rolls are recorded, neither pass nor contradiction.
+- **The rolls themselves look like low-overlap flying.** Looked at by eye after the verdict,
+  not measured: `bcf07060` frames 010 and 011 show eight fiducials and a `30BCC (IR) 07060`
+  data strip, and share little ground. `bci95063` and `bci96066` were flown at the same 1:7000-7200 and 305 mm
+  as `bci93044`/`bci93045`, which sit at 0.65.
+- **It is far commoner on IR than on BW/colour.** Over the 6,680 BW/colour rolls with at least 5 air bases, 5.76% fall
+  outside the window on the nominal reading, but only 13 (0.19%) sit at or below 0.30, all flown
+  1972-1979. On IR it is 4 of 32 rolls, two of them from the 1990s and one from 2007. Why those
+  missions flew so little overlap is not established; what spacing does establish is that no
+  smaller format explains it.
+
+**`bcf517` is ambiguous.** It has 13 frames at 1:4000 and 153 mm.
+
+- On the nominal reading, both 9 inches (0.770) and 5 inches (0.587) fit.
+- On the reported height, 5 inches fits (0.668) and 9 inches does not (0.816). So one reading
+  favours the smaller format.
+- It has no thumbnail and no logbook page.
+
+It is sized at 9 inches with the rest of `Film - Colour IR`, and named here so nobody reads it as
+confirmed.
+
+### What spacing cannot separate
+
+An 18 cm frame sized at 9 inches lands in the window on most rolls, so W1 cannot tell 23 cm from
+18 cm, and 18 cm is not a W1 alternative. That separation rests on two things:
+
+- **W3:** six rolls write `9 x 9` or name an RC 10.
+- **A cross-check recorded alongside it, not a gate.** Every serial on an `unrecognised` page also
+  appears on BW/colour pages in `data-raw/flying_height_logbooks.csv`, on rolls fly sizes at
+  9 inches. For example, 110399 flew `bc7717`, `bc78153` and `bc80122`. A mapping camera's format
+  is fixed by its body.
+
+### What changes for a caller
+
+- **IR frames are sized, everywhere.** They are now `footprint_basis = "Film - BW IR"` /
+  `"Film - Colour IR"`, and `fly_coverage()`, `fly_select()`, `fly_overlap()` and `fly_filter()`
+  count them.
+- **The #54 height check now reaches IR frames.** The band and slip factor were calibrated on BW
+  and colour film only (the ceiling on BW/colour film and digital). On IR, 3,769 frames sit
+  inside the band, 56 outside it, and none is slip-repairable.
+- **Those 56 are not right at nominal scale.** They sit on three roll-heights: `bc5312`,
+  `bci12` and `bci9`.
+  - On each, spacing fits the reported height (0.594, 0.620, 0.620) and rejects nominal
+    (0.805, 0.807, 0.228). Each logbook page writes the catalogued height: 11.0, 12.08 and
+    19.5 thousand feet.
+  - So each is a right height beside a wrong `scale`, the defect fly#60 and fly#72 tabled for
+    BW and colour.
+  - Only `bci9` falls in a population those rules read. Its height is 2.436 times
+    `scale x focal` above sea level, inside #72's `near_upper`. `bc5312` (0.731) and `bci12`
+    (0.762) leave the band only through terrain, which neither rule reaches.
+  - Until fly#91 tables them, they are drawn at nominal scale, with or without a `dem`. That
+    is about 2x (`bc5312`, `bci12`) or 0.5x (`bci9`) the width the spacing supports.
+- **Callers already sizing IR through `format_size` see the change.** A caller passing
+  `format_size = c("Film - Colour IR" = 9)` already sized these frames, but skipped the #54
+  check; it now applies.
+- **`fly_camera_format()` no longer considers IR frames.** Before, they reached its digital
+  branch and only failed to resolve because no focal-length fallback matched 153 or 305.
