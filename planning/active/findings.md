@@ -98,6 +98,34 @@ frame is not a live alternative — no mapping camera exposes one — and spacin
 
 (none)
 
+## First full run (2026-10-02, 14:31-14:39 UTC) — the rule fired
+
+`data-raw/.cache/irfilm_run1.log`. Stages 0-4 ran; Stage 5 stopped as designed (no logbook
+transcription yet). Nothing written to `inst/extdata`.
+
+- Population as pre-registered: 3,825 frames, 32 rolls, no duplicated (roll, frame) key, every
+  frame with terrain under it. 422 thumbnails on 4 rolls (bc5312, bc5367, bcc23, bcf07060); 17
+  rolls carry a logbook page.
+- **Controls passed.** Window (2,481 in-band random frames) 0.557 to 0.780; (a) median 0.635;
+  (b) at 5 in 0.343, outside.
+- **W1: 28 pass, 4 contradict** — bcf07060 (p_nominal 0.200 / p_reported 0.224), bci3
+  (0.274 / 0.113), bci95063 (0.191 / 0.212), bci96066 (0.274 / 0.273). All four are BELOW the
+  window. Two are BW IR and two Colour IR, so under the rule as written both media values are
+  blocked. 27 of the 28 passes put 5 in outside the window; all 28 put 70 mm outside.
+- **W2: 4 pass**, 0 declined. bcf07060 collar median 0.0486, aspect 1.
+- **#54 band on IR frames**: 3,769 reported, 56 outside the band, 0 slip-repairable.
+
+**A look at bcf07060, taken after the verdict, labelled as such.** Frames 010 and 011 are
+square 23 cm mapping frames: eight fiducials (corners and side midpoints) and a data strip
+`30BCC (IR) 07060 No.010` — a 30 cm cone, matching focal 305. They share little ground, which
+fits low forward overlap. A format smaller than 9 inches would push implied overlap lower
+still; only a larger one could lift it into the window. So the four contradictions are
+evidence about how these rolls were flown or catalogued, not about format — review-1 B1.
+
+**Status:** per the rule, stopped on the media change and escalated to the user. Independent
+work (logbook transcription, the rotation stamping fix, pinning the data-raw scripts)
+continues meanwhile. Any rule change is an amendment made after these numbers were read.
+
 ## Errors Encountered
 
 | Error | Resolution |
