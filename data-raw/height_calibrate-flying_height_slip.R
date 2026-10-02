@@ -117,7 +117,10 @@ stopifnot(abs(nrow(frames) - n_catalogue) / n_catalogue < 0.001)
 stopifnot(!anyDuplicated(frames$airp_id))
 
 scale_n <- suppressWarnings(as.numeric(sub("^1:", "", frames$scale)))
-is_film <- frames$media %in% fly_film_media()
+# The film set these shipped tables were measured over, spelled out rather than read from
+# `fly_film_media()`: fly#89 added infrared film to that, and a re-run must reproduce what
+# shipped rather than redraw from a population 3,825 frames larger.
+is_film <- frames$media %in% c("Film - BW", "Film - Colour")
 usable  <- is_film & is.finite(scale_n) & scale_n > 0 &
   is.finite(frames$focal_length) & frames$focal_length > 0 &
   is.finite(frames$flying_height) & frames$flying_height > 0
@@ -310,8 +313,8 @@ message("lower tail x2, by catalogued focal length: ",
               collapse = ", "))
 
 # The ceiling: highest height on a frame with nothing wrong with it, film and digital.
-# `Digital`, by name: `!is_film` would sweep in the infrared film stocks, which fly does not
-# size at all and whose heights run higher.
+# `Digital`, by name: `!is_film` would sweep in the infrared film stocks, which this sweep
+# did not measure (fly#89 added them to film later) and whose heights run higher.
 digital <- frames[grepl("^Digital", frames$media) & is.finite(frames$flying_height), ]
 message(sprintf("\nhighest legitimate film flying_height (ratio_asl <= 3): %d m; digital: %d m; ceiling %d m",
                 max(film$flying_height[film$ratio_asl <= 3]), max(digital$flying_height),

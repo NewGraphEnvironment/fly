@@ -307,7 +307,10 @@ if (file.exists(SELECTION)) {
   # is counted on the same denominator `dem_coverage_population.csv` publishes. Film only:
   # a digital frame's `scale` is not an image scale (fly#32), and fly#58 found only 6 of its
   # 173 digital candidates DEM-sized at all.
-  film <- frames[frames$media %in% fly_film_media() &
+  # The film set these shipped tables were measured over, spelled out rather than read from
+  # `fly_film_media()`: fly#89 added infrared film to that, and a re-run must reproduce what
+  # shipped rather than redraw from a population 3,825 frames larger.
+  film <- frames[frames$media %in% c("Film - BW", "Film - Colour") &
                    is.finite(frames$scale_n) & frames$scale_n > 0 &
                    is.finite(frames$flying_height) & frames$flying_height > 0 &
                    is.finite(frames$focal_length) & frames$focal_length > 0, ]

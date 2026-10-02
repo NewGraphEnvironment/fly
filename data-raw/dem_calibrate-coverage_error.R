@@ -128,7 +128,10 @@ stopifnot(!anyDuplicated(frames$airp_id))
 pub("  %d centroids cached", nrow(frames))
 
 frames$scale_n <- suppressWarnings(as.numeric(sub("^1:", "", frames$scale)))
-frames$is_film <- frames$media %in% fly_film_media()
+# The film set these shipped tables were measured over, spelled out rather than read from
+# `fly_film_media()`: fly#89 added infrared film to that, and a re-run must reproduce what
+# shipped rather than redraw from a population 3,825 frames larger.
+frames$is_film <- frames$media %in% c("Film - BW", "Film - Colour")
 
 # The film frames the DEM route would size. Film only, and that is a decision rather than a
 # convenience. Digital DEM eligibility is `!by_gsd & from_table`, and `from_table` resolves
