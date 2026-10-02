@@ -34,6 +34,14 @@
 #' axis-aligned rectangle while a wrong azimuth costs a rectangle confidently
 #' rotated onto ground the frame does not cover.
 #'
+#' **A line's last frame looks backward.** Frame numbers run straight through a turn,
+#' so the next frame by number after a line's last is the first of the next line, and
+#' the step between them is the jump across the turn. Where a frame has an adjacent
+#' neighbour on both sides and the forward step is more than 1.5 times a backward step
+#' that itself continues the line (or the forward step has zero length), it takes the
+#' backward bearing instead. Over the catalogue this moves 42,001 frames by more than 10
+#' degrees (fly#87). A bearing that could only come from a zero-length step is `NA`.
+#'
 #' To keep bearings across a subset, call `fly_bearing()` on the contiguous roll
 #' first and carry the column: subsetting removes neighbours, and a frame whose
 #' neighbour was dropped has no adjacent one left.
@@ -90,8 +98,41 @@ fly_bearing <- function(photos_sf) {
   adjacent <- function(a, b) isTRUE(rolls[a] == rolls[b]) &&
     isTRUE(abs(frames[b] - frames[a]) == 1)
 
+  step <- function(a, b) sqrt((x[b] - x[a])^2 + (y[b] - y[a])^2)
+  azimuth <- function(a, b) (atan2(x[b] - x[a], y[b] - y[a]) * 180 / pi) %% 360
+  turn <- function(p, q) abs(((p - q + 180) %% 360) - 180)
+
+  # A line's last frame: its next frame by number starts the following line, so the
+  # forward step is the jump across the turn (bc5282 22 -> 23 is 13.2 km at 129 degrees on
+  # a line flying 309). Such a frame takes the backward bearing when the forward step is
+  # zero length, or over 1.5x a non-zero backward step that itself continues the line —
+  # the step before it within 10 degrees, where there is one. The last condition is what
+  # keeps an unusually SHORT, off-line backward step from looking like the line: measured
+  # over the catalogue, judging a step right when the step beyond it continues it, the
+  # rule corrects 41,581 frames and turns 37 that were right (479 without the check). It
+  # moves 42,001 frames by more than 10 degrees in all. 1.5 is the spacing tolerance `fly_rotation_legs()` finds a leg with.
+  #
+  # `isTRUE()` throughout: an empty POINT has NA coordinates, and an NA step must leave the
+  # frame on the old path rather than abort the batch with "missing value where TRUE/FALSE
+  # needed" (code-check, fly#87). fly#87.
+  leg_end <- function(i) {
+    if (!(i > 1 && i < length(ord) && adjacent(i, i - 1) && adjacent(i, i + 1))) {
+      return(FALSE)
+    }
+    fwd <- step(i, i + 1)
+    back <- step(i - 1, i)
+    if (isTRUE(fwd == 0) && isTRUE(back > 0)) return(TRUE)
+    if (!isTRUE(back > 0 && fwd > 1.5 * back)) return(FALSE)
+    # The step before must itself have a heading: two frames at one point give
+    # `atan2(0, 0)`, which would compare the backward step against north.
+    if (i > 2 && adjacent(i - 1, i - 2) && isTRUE(step(i - 2, i - 1) > 0)) {
+      return(isTRUE(turn(azimuth(i - 1, i), azimuth(i - 2, i - 1)) <= 10))
+    }
+    TRUE
+  }
+
   for (i in seq_along(ord)) {
-    if (i < length(ord) && adjacent(i, i + 1)) {
+    if (i < length(ord) && adjacent(i, i + 1) && !leg_end(i)) {
       # Forward bearing to next frame on same roll
       dx <- x[i + 1] - x[i]
       dy <- y[i + 1] - y[i]
@@ -104,6 +145,15 @@ fly_bearing <- function(photos_sf) {
     }
     # else: no adjacent neighbour on this roll, stays NA
   }
+  # Two frames catalogued at one point give `atan2(0, 0)`, a bearing of 0 that is no
+  # heading, so a bearing taken from a zero-length step is NA. `leg_end()` already turns a
+  # frame away from a zero-length FORWARD step when its backward one is usable.
+  zero <- vapply(seq_along(ord), function(i) {
+    fwd <- i < length(ord) && adjacent(i, i + 1) && !leg_end(i)
+    used <- if (fwd) step(i, i + 1) else if (i > 1 && adjacent(i, i - 1)) step(i - 1, i) else NA
+    isTRUE(used == 0)
+  }, logical(1))
+  bearing[ord[zero]] <- NA_real_
 
   photos_sf$bearing <- bearing
   photos_sf

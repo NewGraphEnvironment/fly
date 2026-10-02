@@ -80,7 +80,7 @@ Exploration facts that shape the plan:
   agree. Findings, not a wider rule.
 
 ## Phase 4: `fly_georef()` consults the table
-- [ ] Leg-end bearing (plan review G1): `fly_bearing()` gives a line's last frame the azimuth of
+- [x] Leg-end bearing (plan review G1): `fly_bearing()` gives a line's last frame the azimuth of
   the turn to the next line. Refused today; with a table it would be written rotated onto the
   turn. File an issue, fix in `fly_bearing()` (forward step much longer than the backward one →
   take the backward bearing), test it.
