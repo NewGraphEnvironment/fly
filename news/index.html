@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fly</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.19.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.20.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,8 @@
 
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="development version" id="fly-development-version">fly (development version)<a class="anchor" aria-label="anchor" href="#fly-development-version"></a></h2>
+<div class="section level3">
+<h3 id="id_0200-development-version">0.20.0 (2026-10-02)<a class="anchor" aria-label="anchor" href="#id_0200-development-version"></a></h3>
 <ul><li>
 <strong><code><a href="../reference/fly_georef.html">fly_georef()</a></code> now georeferences film from a shipped table of measured per-roll rotations, and every other film roll is recorded with the reason it is not in it</strong> (<a href="https://github.com/NewGraphEnvironment/fly/issues/53" class="external-link">#53</a>). A rotated film frame used to be refused unless you supplied the roll’s <code>rotation</code>. 56 rolls now resolve from <code>inst/extdata/film_rotations.csv</code>: 44 at 90, 10 at 270 and 2 at 0. Your own <code>rotation</code> column still wins. The other 6,660 film rolls in the catalogue snapshot are in <code>film_rotations_excluded.csv</code> with their state, and the refusal warning names it.
 <ul><li>
@@ -54,7 +56,8 @@
 </ul></li>
 <li>
 <strong>The last frame of a flight line is no longer rotated onto the turn</strong> (<a href="https://github.com/NewGraphEnvironment/fly/issues/87" class="external-link">#87</a>). Frame numbers run straight through a turn, so <code><a href="../reference/fly_bearing.html">fly_bearing()</a></code> gave each line’s last frame the azimuth of the jump to the next line. A frame now takes the backward bearing when its forward step is zero length, or more than 1.5x a backward step that itself continues the line. Over the 1,670,471 catalogue frames this changes the bearing of <strong>48,139 (2.88%)</strong>, 5,390 of them digital. <strong>42,001</strong> move by more than 10 degrees, 4,225 of them digital, and those digital frames had been georeferenced onto the turn. A bearing that could only come from a zero-length step is <code>NA</code> rather than 0 (10 frames). Footprints, coverage and georeferencing change only for the frames whose bearing changed.</li>
-</ul><div class="section level3">
+</ul></div>
+<div class="section level3">
 <h3 id="id_0193-development-version">0.19.3 (2026-10-01)<a class="anchor" aria-label="anchor" href="#id_0193-development-version"></a></h3>
 <ul><li>
 <strong>Photo parallax, as built, cannot say what surface the camera saw at the photo date. No code changes</strong> (<a href="https://github.com/NewGraphEnvironment/fly/issues/82" class="external-link">#82</a>).

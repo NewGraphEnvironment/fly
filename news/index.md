@@ -2,6 +2,8 @@
 
 ## fly (development version)
 
+### 0.20.0 (2026-10-02)
+
 - **[`fly_georef()`](https://newgraphenvironment.github.io/fly/reference/fly_georef.md)
   now georeferences film from a shipped table of measured per-roll
   rotations, and every other film roll is recorded with the reason it is
