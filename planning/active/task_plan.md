@@ -61,11 +61,11 @@ Exploration facts that shape the plan:
   state, legs_found, legs_qualifying` and list-columns `legs` (with `segment`) and `pairs`.
 
 ## Phase 3: Campaign script and the ledger
-- [ ] `data-raw/georef_calibrate-film_rotations.R` — positive control → legs from cache → stratified
+- [x] `data-raw/georef_calibrate-film_rotations.R` — positive control → legs from cache → stratified
   draw → `fly_rotation_calibrate()` per roll (PSOCK, thumbnails cached under gitignored
   `data-raw/.cache/film_rotations/`) → write CSVs. `pkgload::load_all()`, seeded, refuses to write
   if any roll errored. `FLY_FILMROT_SMOKE=1` reruns #26's four legs and writes nothing.
-- [ ] Ships:
+- [x] Ships:
   - `inst/extdata/film_rotations.csv` — shipped rolls: `film_roll, rotation, photo_year, series,
     focal_length, media, legs, bearings, frames, margins, method, measured`
   - `inst/extdata/film_rotations_excluded.csv` — **every other film roll in the catalogue**
@@ -75,7 +75,7 @@ Exploration facts that shape the plan:
     the test recomputes verdicts and states rather than trusting them
   - `inst/extdata/film_rotations_population.csv` — rolls per series × bin (all / eligible /
     drawn), so the ledger's coverage is testable without the gitignored cache
-- [ ] Run it; record the per-stratum tabulation (series, era, focal, media): does any stratum hold
+- [x] Run it; record the per-stratum tabulation (series, era, focal, media): does any stratum hold
   one value throughout, does any roll disagree with itself, do one roll's segments (missions)
   agree. Findings, not a wider rule.
 

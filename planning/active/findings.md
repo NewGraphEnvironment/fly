@@ -221,3 +221,62 @@ the 5-pair minimum read from one helper.
 | 2 | 1 fragile | 1 | yes (same class as R1 #3) |
 | 3 | 2 bugs | 2 | yes (inside the R2 gate) |
 | 4 | 0 bugs, 2 fragile; enumeration | 2 | no |
+
+## Campaign result (2026-10-02, `data-raw/georef_calibrate-film_rotations.R`)
+
+Every figure below is read from the shipped CSVs (`inst/extdata/film_rotations*.csv`).
+
+- Population: **6,716** film rolls in the cache snapshot (2026-09-18); **6,575** eligible (≥ 2
+  qualifying legs ≥ 90° apart, from the cache alone); 27 series × 5-year strata.
+- **116** rolls examined in draw order, **79** with thumbnails on at least half their frames.
+- **56 shipped** — 44 at **90**, 10 at **270**, 2 at **0**. **No roll's decisive legs
+  disagreed** (`legs_disagree` = 0). 250 of 406 scored legs were decisive; decisive margins
+  run 0.055-0.697, median 0.247. Shipped rolls carry 2-6 decisive legs (9 / 8 / 15 / 13 / 11).
+- Measured and not shipped (60): `legs_unscorable` 26, `thumbnails_unavailable` 13,
+  `no_decisive_leg` 10, `one_decisive_leg` 8, `single_direction` 3. The 26 unscorable are
+  infrared film (`Film - Colour IR` / `Film - BW IR`), which `fly_footprint()` sizes as an
+  unknown format — every bci and bcf roll drawn, and three bcc rolls of 1965-69. Filed as
+  fly#89.
+- Unmeasured (6,600): `not_sampled` 6,459, `single_direction` 63, `one_qualifying_leg` 62,
+  `no_qualifying_leg` 16.
+- **Within a roll, missions agree.** 23 measured rolls have decisive legs on more
+  than one segment (scale / flying height); in none does the rotation differ across them.
+
+**The pattern, and why it is not a rule.**
+
+| | 0 | 90 | 270 |
+|---|---|---|---|
+| focal 153 | 2 | 11 | 0 |
+| focal 305 | 0 | 33 | 10 |
+| before 1974 | 2 | 0 | 9 |
+| 1974 on | 0 | 44 | 1 |
+
+0 is bc5270 and bc5282 (1967-68, 153 mm); 270 is every 305 mm roll measured from 1964 to 1973;
+90 is every roll measured from 1974 to 2010 — **except bcc00116 (2000, 305 mm), which is 270**,
+on three decisive legs (265°, 85°, 85°). One exception in 45 post-1973 rolls is exactly what a
+per-era default would get silently wrong, and it is a quarter turn wrong twice over. The table
+stays keyed on the roll, by the gate decision and now by measurement.
+
+**Flight-relative, re-established.** #26's falsification of a fixed-geographic mapping rested on
+two legs that do not exist as recorded (amendment 3). The campaign settles it directly: every
+shipped roll carries two decisive legs ≥ 90° apart that agree, and many are reverse pairs
+(bc4234 261° / 82°, bc4261 91° / 271°, bc7049 357° / 177°) where a geographic mapping would
+predict a 180° shift.
+
+## Code-check, Phases 3-4
+
+| round | findings | fixed | inside previous fix? |
+|---|---|---|---|
+| 1 | 1 bug (refusal quoted the measured rows' date as the snapshot), 4 fragile (single_direction wording; zero backward step; NA coordinates abort `fly_bearing()`; 479 frames turned by a short off-line backward step) | 5 | — |
+| 2 | 4 published claims (#87 figures were the issue's, not the shipped rule's; bcc00116 called the only exception; "two #26 legs do not exist"; "four rounds"), 1 fragile (zero-length step judged in the continuation check) | 5 | yes (inside round-1 fix 5) |
+
+Ended by enumeration of the mechanism round 2 named — a heading taken from a zero-length step.
+Every bearing computation in the package (`grep atan2 R/`): `fly_bearing.R` forward bearing
+(zero → NA), backward bearing (zero → NA), continuation `azimuth(i - 1, i)` (reached only when
+`back > 0`), `azimuth(i - 2, i - 1)` (guarded `step > 0`); `fly_rotation_calibrate.R` step
+bearings (used only on `adj` steps, which require `s > 0`) and the leg median (over `adj` steps
+only). Six sites, all guarded.
+
+fly#87 figures derived by running HEAD's and the branch's `fly_bearing()` over all 1,670,471
+cached frames: 48,139 change bearing (2.88%), 5,390 digital; 42,001 by more than 10 degrees,
+4,225 digital; 10 become NA, none newly finite.
