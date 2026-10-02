@@ -1,5 +1,7 @@
 # fly (development version)
 
+## 0.20.0 (2026-10-02)
+
 - **`fly_georef()` now georeferences film from a shipped table of measured per-roll rotations, and every other film roll is recorded with the reason it is not in it** ([#53](https://github.com/NewGraphEnvironment/fly/issues/53)). A rotated film frame used to be refused unless you supplied the roll's `rotation`. 56 rolls now resolve from `inst/extdata/film_rotations.csv`: 44 at 90, 10 at 270 and 2 at 0. Your own `rotation` column still wins. The other 6,660 film rolls in the catalogue snapshot are in `film_rotations_excluded.csv` with their state, and the refusal warning names it.
   - **New `fly_rotation_calibrate()`** measures any roll the table does not cover, by the same method and rule that built it. Pass the roll's catalogue rows and join the result onto `rotation`.
   - **The method.** Adjacent-frame overlap correlation at all four rotations. A leg is decisive only when a sign test beats every rival rotation. A roll ships on two or more decisive legs that agree, two of them at least 90 degrees apart, because a roll scanned in a fixed geographic orientation would agree with itself on two legs closer than that. The rule was fixed before any thumbnail was read, and its seven amendments are dated and reasoned.
