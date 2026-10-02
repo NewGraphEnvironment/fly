@@ -105,3 +105,119 @@ Either failing stops the run.
 thumbnail delivery; a full-resolution scan delivered in another orientation is not covered.
 Every verdict is a composite with `fly_rectangles()`' vertex order (vertex 1 at
 `bearing + 225`), and void if that changes.
+
+## Controls (2026-10-02, after pre-registration commit 6e25af5)
+
+Run through `fly_rotation_score_leg()` + `fly_rotation_verdict()`, `mask = "border"`.
+
+| leg | verdict | decisive | margin | means 0 / 90 / 180 / 270 |
+|---|---|---|---|---|
+| digital bcd UltraCam, bundled 19:24 (sorted by roll, frame) | **270** | yes (5/5) | 0.634 | refused / +0.027 / refused / +0.661 |
+| bc5282 226-236 | **0** | **no** | 0.092 | +0.390 / +0.298 / +0.222 / +0.281 |
+| bc83062 63-73 | **90** | yes | 0.265 | +0.105 / +0.450 / +0.186 / +0.043 |
+| bc83062 108-118 | — | — | — | `not_rotated`: not a leg in today's catalogue |
+| bc83062 152-162 | **90** | **no** | 0.136 | +0.142 / +0.315 / +0.178 / +0.014 |
+
+The harness reproduces #26 in **direction** on every leg it can score (0, 90, 90) and the
+digital control, so the control passes as pre-registered (it named rotations, not decisiveness).
+Decisiveness is the new layer and it is stricter than #26's mean margin: bc5282's leg wins
+pairs 1-4 and 9-10 clearly for 0 and loses pairs 5-7 to 90/270, so a sign test against each
+rival does not clear. #26's margins were never tested against a null; this says the 0.089 one
+would not have survived one.
+
+**#26's "bc83062 b=93, frames 108-118" is not a leg in the catalogue as it stands.** Frames 116
+and 117 are absent; 106-115 fly 153° and 118-120 fly 73°. A subset handed to `fly_footprint()`
+leaves 118 with no adjacent neighbour, so it is drawn unrotated. Whether the catalogue changed
+since #26 or #26's label was wrong is not recoverable from here. The note's table quotes this
+row and is corrected in Phase 5.
+
+Runtime: ~10 s per 6-frame leg including downloads, ~20 s for 11 frames, single process.
+
+## Amendments to the pre-registered rule (2026-10-02)
+
+Made after the plan review (`review-plan.md`) and after reading **control** thumbnails only, before
+any campaign thumbnail. Each says what prompted it, so a reader can judge whether the controls
+steered it.
+
+1. **Cardinal legs qualify.** The section-4 premise ("a cardinal leg is degenerate") was asserted,
+   never measured, and it would have left ~5,000 of 6,716 rolls with no qualifying leg — a
+   calibrator that answers `no_qualifying_leg` for three rolls in four is no route out. Measured on
+   the two known-answer rolls (`fly_rotation_score_leg()`, central 11 frames of each cardinal leg):
+
+   | roll | frames | bearing | verdict | decisive | margin |
+   |---|---|---|---|---|---|
+   | bc83062 | 46-56 | 91.9 | 90 | yes | 0.222 |
+   | bc83062 | 5-15 | 89.3 | 90 | yes | 0.194 |
+   | bc83062 | 25-35 | 271.9 | 90 | yes | 0.189 |
+   | bc5282 | 110-120 | 169.9 | 0 | yes | 0.178 |
+   | bc5282 | 133-143 | 349.8 | 0 | no | 0.011 |
+   | bc5282 | 25-35 | 167.5 | 90 | no | 0.010 |
+   | bc5282 | 41-51 | 345.2 | 270 | no | 0.006 |
+
+   Every decisive cardinal leg agrees with its roll's known answer, including a reverse pair on
+   bc83062 (89.3 and 271.9 — geographic would have predicted a 180 shift between them); the
+   undecided ones are undecided, not wrong. What a cardinal leg cannot do alone is separate
+   flight-relative from geographic, and that is the roll rule's job (amendment 2). A leg now
+   qualifies on **≥ 6 frames** alone.
+2. **Roll separation is ≥ 90°, not ≥ 30°** — in the roll rule, in eligibility and in
+   `single_direction`. Reasoned, not measured: under a geographic truth a leg's winner is
+   `round90(T - b)`, so two legs Δb < 90 apart pick the same rotation with probability
+   `1 - Δb/90` — two in three at 30°. Only Δb ≥ 90 guarantees a geographic roll disagrees with
+   itself. #26's rejected rival sat at 80° apart.
+3. **Controls restated.** #26's "bc83062 108:118 at 93°" is not a leg (106-115 fly 153°, 116-117
+   absent, 118 onward 73°) and "152:162 at 62°" flies **251°**. The control is now: the digital
+   leg returns 270 decisive, and each #26 leg that exists (bc5282 226-236, bc83062 63-73 and
+   152-162) returns #26's direction. Decisiveness is not required of them; #26's margins came from
+   an unmasked `srcnodata = "0"` pipeline (pre v0.11.0), so only winners are comparable.
+4. **Two states added.** A leg on which the stretch guard refused all four rotations is `refused`,
+   not `scored`; a roll none of whose legs could be scored for a reason other than thumbnails is
+   `legs_unscorable`. Folding both into `no_decisive_leg` ("scored, none decided") was false.
+5. **Segment recorded.** 605 eligible rolls carry more than one scale. Each leg records its
+   `segment` (scale / flying height), and the campaign tabulates whether decisive legs on one roll
+   but different segments agree — the only data here that bears on roll vs scanning batch. Not a
+   shipping requirement: the key is the roll, by decision at the gate.
+6. **Ledger states for an unmeasured roll**, from the cache: `no_qualifying_leg`,
+   `one_qualifying_leg`, `single_direction`, `not_sampled`, with a `measured` column separating
+   them from the same names reached by measurement.
+
+Limit added to "what this cannot witness": overlap scoring cannot see a **reflection about the
+flight line** — both frames' centres sit on that axis, so a mirrored scan agrees with its
+neighbour exactly. Only known ground (the section-3 water check) can.
+7. **The draw continues until a stratum has 4 rolls with thumbnails** (at most 12 examined per
+   stratum). The smoke run drew bc4196 and bc4200 (1963), and neither carries a single
+   `thumbnail_image_url` — the cache cannot see availability, so a fixed draw of 4 spends the
+   stratum on rolls that cannot be measured. The draw *order* is still the seeded permutation
+   fixed before anything is read; which rolls are examined depends on availability only, never
+   on a verdict. A roll counts when at least half its frames carry a URL. Every roll examined is
+   calibrated and recorded (an imageless one lands in `thumbnails_unavailable`), so the ledger's
+   `measured` covers everything looked at.
+
+Code-check round 2 (P2) added a leg status, `too_little_overlap`: a leg is `scored` only when
+two rotations each have 5 finite pairs, i.e. when it could have been decisive. Pairs share under
+500 cells at 25 m on a 1:3000 frame, and such a leg was reading as a measured non-decision —
+the same class as amendment 4.
+
+Code-check round 3 (P2) named the mechanism behind all three rounds: **an absent
+measurement and a real one shared one encoding**, so downstream code inferred which it was —
+`FALSE` for refusal-or-error (round 1), `status == "scored"` for scored-or-empty (rounds 1-2),
+and an all-NA column for refused-or-no-pairs (round 3). Round 3 found the last one shipping a
+leg as decisive against a rival it was never tested on. Fixed at the source: the scorer
+returns `refused` explicitly, the verdict takes it, and `scored` is gated by
+`fly_rotation_could_decide()`, the verdict's own precondition. The campaign was stopped before
+any roll was calibrated (41 pulls cached) and restarted on the fixed code.
+
+Code-check round 4 (P2) found no defect inside the round-3 fix and terminated the loop by
+enumeration: every NA / NULL / FALSE / empty-string / zero-row encoding across the calibrator,
+the table test and the campaign script, each checked for whether its two meanings can still be
+confused; `fly_rotation_could_decide()` brute-forced equivalent to the verdict's precondition
+over 19,993 random NA/refusal patterns. Two fragile points fixed: zero-length steps no longer
+join a leg (`atan2(0, 0)` is north; one qualifying such leg in the catalogue, bc7223 110-119),
+and `too_little_overlap` legs now ship their pairs so the table test recomputes the gate, with
+the 5-pair minimum read from one helper.
+
+| P2 round | findings | fixed | inside previous fix? |
+|---|---|---|---|
+| 1 | 1 bug, 3 fragile | 4 | — |
+| 2 | 1 fragile | 1 | yes (same class as R1 #3) |
+| 3 | 2 bugs | 2 | yes (inside the R2 gate) |
+| 4 | 0 bugs, 2 fragile; enumeration | 2 | no |
