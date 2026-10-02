@@ -1237,12 +1237,88 @@ fly#65's area verdict.
 ### What the measurement is blind to
 
 - **Canopy at the photo date**, except through VRI's stand origin and a linear height-age
-  curve, which understates how short a young stand is. An observed witness — the parallax
-  between adjacent frames — is filed as fly#82.
+  curve, which understates how short a young stand is. A witness from the photos themselves —
+  the parallax between adjacent frames — was built in fly#82 and failed its synthetic controls,
+  so this estimate stands alone (below).
 - **Tilt** (#10), as everywhere here: the ray-cast and the rectangle share the vertical camera.
 - **Film only**, as fly#58 and fly#65.
 - **A sample.** The verdicts rest on 594 admitted frames, stratified by a coarse census of
   canopy shift and scale and weighted back.
+
+## What the photos can say about the photo date: not enough, with this instrument (fly#82)
+
+fly#80 left one question to a model: was the canopy MRDEM's DSM carries there when the photo
+was taken? fly#82 asked the photos.
+- **The idea.** Two frames adjacent by number see the same ground from two places, and a
+  patch's image shifts between them by `p = f B / (H − h)`.
+- **Inside one overlap**, f, B and H are shared, so each patch's parallax against the pair's
+  median gives its height against the pair's: `h − h₀ = (H − h₀)(1 − p₀ / p)`. No air base is
+  needed.
+- **The quantity.** Regressing that height on MRDEM's DTM and on `C = DSM − DTM` gives a slope
+  on C: how much of today's canopy the camera saw.
+
+**It stopped at its first verdict.** The instrument failed its synthetic controls, so under the
+decision rule no canopy slope, φ or D was computed on any pair of the real draw.
+- The first smoke run drew from the head of that draw and crashed before any slope existed.
+  Smoke runs since use their own seed.
+- `data-raw/dem_measure-photo_parallax.R` reproduces the stop and ships
+  `inst/extdata/dem_parallax_synthetic.csv`, from which the suite rebuilds this section's
+  tables.
+
+### What passed
+
+- **The plain synthetics.** A real thumbnail is warped by the parallax of a known surface, with
+  tilt, rotation and a scale difference on both axes, and saved as JPEG:
+
+| case | frames passing | slope range |
+|---|---|---|
+| flat ground, κ = 0 | 3 of 3 | −0.029 to +0.013 |
+| flat ground, κ = 1 | 3 of 3 | +0.989 to +1.063 |
+| terrain, κ = 0 | 3 of 3 | −0.029 to +0.070 |
+| terrain, κ = 1 | 3 of 3 | +0.975 to +1.123 |
+
+- **The catalogue's centroid spacing is never used as the air base.** In a plan-review probe,
+  64–77% of consecutive bases in 1965, 1975 and 1985 were equal within 0.5%, so the spacing
+  carries no per-frame base there. On one Phase 0 pair the spacing was ×1.7 what the
+  images showed.
+
+### Why it stopped
+
+The quantity reported is a ratio of two canopy slopes: mid-aged stands over stands VRI dates as
+80 or more years old at the photo, after the bare-earth reference is removed. The synthetic that
+tests that ratio was built in a world where fly#80's VRI model is exactly true. It ran on eleven
+Phase 0 pilot frames and was pooled over the seven the gates admitted, as the sample would be
+pooled. It missed its known answer in both MRDEM sources:
+
+| source | displaced | φ measured | φ known | mid / old patches |
+|---|---|---|---|---|
+| radar | no | 1.356 | 0.860 | 135 / 65 |
+| lidar | no | 0.793 | 0.550 | 172 / 43 |
+| radar | 150 m | 46.350 | 0.860 | 135 / 65 |
+| lidar | 150 m | 0.810 | 0.553 | 173 / 43 |
+
+**Why is not established.** Two candidates, neither measured:
+1. **The matcher's response differs between frames that carry different classes.** The shipped
+   rows show response only on uniform canopy: 0.975–1.123 over three frames, one of which
+   (bcc01030) also holds both classes.
+2. **Registration lands wrong and still passes every gate.** With 150 m of displacement one
+   plain frame's canopy slope fell to 0.403, and that frame passed every gate.
+
+Thumbnail resolution was not varied, so it is not shown to be the cause either. What would have
+to change is filed as fly#85.
+
+### What it leaves
+
+- **fly#80's VRI figure** remains the only estimate of canopy at the photo date: a DSM worse
+  on 15.1% of the 1970s frames where canopy matters.
+- **No code or default could have changed either way.** fly#80 found the DTM–DSM difference
+  immaterial, so this question decides only a sentence.
+- **The plan changed three times, each before any canopy slope was computed on a pair of the
+  real draw** (archived planning findings):
+  - **Amendment A**, before the decision rule, dropped a digital control on exterior
+    orientation.
+  - **Amendments B and C** amended the rule. B replaced a control on ground young at the photo
+    date with fly#80's bare-earth reference. C pooled the class test.
 
 ## Testing this
 

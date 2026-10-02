@@ -69,6 +69,18 @@ keyed on MRDEM's ETags; every draw seeds itself. Ships `inst/extdata/dem_canopy_
 `test-fly_footprint_canopy.R` recomputes. `FLY_CANOPY_SMOKE=1` writes nothing,
 `FLY_CANOPY_STOP=n` stops after stage n. The Meta CHM and HRDEM coverage it reads are
 downloaded into the gitignored cache by hand; the error says which
+- `data-raw/dem_measure-photo_parallax.R` — fly#82: whether parallax between adjacent
+thumbnails can say what surface the camera saw at the photo date.
+  - **It stops at its Stage 1 synthetic controls**, so no canopy slope is computed on any
+    sampled pair.
+  - **Ships** `inst/extdata/dem_parallax_synthetic.csv`, whose verdicts and note tables
+    `test-fly_footprint_parallax.R` recomputes, and `_versions.csv`.
+  - **Helpers.** Pulls `raycast` and the fly#80 helpers with `fns_from()`.
+  - **Caching.** Keyed on MRDEM's three ETags, the census and an algorithm tag.
+  - **Smoke.** `FLY_PARALLAX_SMOKE=1` draws its own pairs with its own seed. It prints and writes
+    no slope, φ or D of a pair; it prints the synthetic slopes.
+  - **Worker trap.** Worker code avoids `mean()` on a SpatRaster: in a PSOCK worker terra is
+    loaded but not attached, and the result is NA.
 - `data-raw/height_calibrate-lower_tail_rolls.R` — settles the lower tail of `flying_height`
 per roll (fly#60) with adjacent-frame spacing and the hand transcription of the province's
 logbook scans in `data-raw/flying_height_logbooks.csv`, which is an input and is never
@@ -268,6 +280,20 @@ rather than a property of this code.
     rounds, two of them inside the previous round's fix — a value used as what its name says
     rather than what produced it (scale, sampling design, type, RNG state). Read
     `inst/notes/terrain-correction.md` before reopening this
+
+- **Photo parallax, as built, cannot date the canopy, and no canopy slope was computed on the
+  real draw** (fly#82, no code change). Its ratio estimand failed its own pooled synthetic, so
+  fly#80's VRI estimate stands alone.
+  - **The ratio.** Mid-stand over old-stand canopy slope. The synthetic, in a world where
+    fly#80's VRI model is true, missed in both MRDEM sources.
+  - **The plain synthetics passed**, so a passing single-slope test is necessary but not
+    sufficient for the ratio. Test a ratio estimand pooled, as it will be estimated.
+  - **Why it fails is not established** (fly#85).
+  - **Never use catalogue centroid spacing as an air base.** It is evenly spaced along lines
+    before the 1990s, and it was ×1.7 off on a pilot pair.
+
+  Read `inst/notes/terrain-correction.md` and the archived planning findings before
+  reopening this.
 
 - **Terrain error is a datum offset, not slope** (v0.5.0, #9) — `FLYING_HEIGHT` is metres **above sea level**,
 and reported scale is referenced to an elevation above the ground the photos cover, so it understates footprint
