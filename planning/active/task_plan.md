@@ -37,9 +37,9 @@ Found in fly#53's film rotation campaign, where every drawn roll of the `bci` an
 
 ## Phase 1: Pre-register the rule (committed before any IR measurement)
 
-- [ ] Write the rule into `findings.md`: population, three witnesses, pass/contradict criteria,
+- [x] Write the rule into `findings.md`: population, three witnesses, pass/contradict criteria,
   controls, decision.
-- [ ] **W1 spacing** (every roll that has adjacent frames):
+- [x] **W1 spacing** (every roll that has adjacent frames):
   - Compute per-frame implied forward overlap at 9" two ways:
     - from nominal scale (`p_nominal`);
     - from reported height less the MRDEM elevation (`p_reported`).
@@ -49,17 +49,17 @@ Found in fly#53's film rotation campaign, where every drawn roll of the `bci` an
   - A roll **contradicts** if both readings sit outside the window on the same side.
   - Also report the 5" and 70 mm medians, to show per roll that the test discriminates.
   - Control: the in-band random BW/colour frames reproduce about 0.6. If they don't, stop.
-- [ ] **W2 thumbnails** (rolls that have them):
+- [x] **W2 thumbnails** (rolls that have them):
   - aspect inside the film sweep's range (`mask_border_sweep.csv`, `nc/nr`);
   - `fly_mask` collar fraction at threshold 16 inside the BW/colour sweep range;
   - record mask declines.
-- [ ] **W3 logbooks:** a camera named on a page must be one with a 23 cm format. Pages that
+- [x] **W3 logbooks:** a camera named on a page must be one with a 23 cm format. Pages that
   name no camera are recorded as such, not counted.
-- [ ] **Decision:**
+- [x] **Decision:**
   - Add both media values only if W1 passes on every roll it can measure and no W2 or W3
     observation contradicts.
   - On any contradiction: stop, record it, and escalate. No per-roll table in this issue.
-- [ ] Not a gate, but reported: the `r` distribution of IR frames, i.e. how many the #54 band
+- [x] Not a gate, but reported: the `r` distribution of IR frames, i.e. how many the #54 band
   check will refuse or repair once they count as film.
 
 ## Phase 2: Measurement script
