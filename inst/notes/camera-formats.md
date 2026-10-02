@@ -310,6 +310,22 @@ below the window.
 It is sized at 9 inches with the rest of `Film - Colour IR`, and named here so nobody reads it as
 confirmed.
 
+### Why catalogue spacing is admissible here when fly#82 refused it
+
+fly#82 refuses catalogue centroid spacing as a per-pair air base. Before the 1990s the
+centroids are plotted evenly along a line, and one pair was ×1.7 off what its images showed.
+19 of these 32 rolls predate 1990, so the question is fair. W1 differs from fly#82 in two ways:
+
+- **It reads a roll median, not a pair.** This part is reasoning. Plotting a line's frames
+  evenly spreads its true length over them, so the mean base survives even where one pair is
+  wrong.
+- **It is relative.** The window comes from BW/colour frames whose spacing was plotted the
+  same way, so W1 asks whether IR rolls look like 9-inch rolls measured by the same instrument.
+  The pre-1990 and later IR rolls scatter alike: the median per-roll coefficient of variation
+  of base is 0.0916 (22 rolls) and 0.0925 (10 rolls).
+
+fly#60 settled heights with the same instrument on the same eras.
+
 ### What spacing cannot separate
 
 An 18 cm frame sized at 9 inches lands in the window on most rolls, so W1 cannot tell 23 cm from

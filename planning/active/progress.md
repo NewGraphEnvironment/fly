@@ -31,3 +31,6 @@
   bcc23 ships at 270 (57 rolls), bcf07060 one_decisive_leg, 24 thumbnails_unavailable; every
   non-IR row of all five `film_rotations*.csv` identical to HEAD
 - Full suite before the round-3/4 test additions: FAIL 0 | PASS 4993
+- Plan review A1 answered in the note: why a roll median of catalogue spacing is admissible
+  when fly#82 refused it per pair; base-scatter producer line added (0.0916 / 0.0925)
+- Full suite after all test additions: FAIL 0 | PASS 5006

@@ -273,6 +273,14 @@ print(roll_spacing[, c("film_roll", "media", "frames", "n_base", "n_reported", "
                        "w1")],
       row.names = FALSE, digits = 3)
 
+# fly#82 refused catalogue spacing as a per-pair air base, because before the 1990s centroids
+# are plotted evenly along a line. A roll median is a different reading of it; printed so the
+# note's comparison of the two eras has a producer.
+cv <- tapply(ir$base, ir$film_roll, function(b) stats::sd(b, na.rm = TRUE) / mean(b, na.rm = TRUE))
+pre <- tapply(ir$photo_year, ir$film_roll, min)[names(cv)] < 1990
+pub("  base scatter (median per-roll CV): before 1990 %.4f on %d rolls, from 1990 %.4f on %d rolls",
+    stats::median(cv[pre]), sum(pre), stats::median(cv[!pre]), sum(!pre))
+
 # Reported, not a gate: how the #54 check will treat these frames once they count as film.
 k <- fly_height_slip_factor()
 r_rep <- (ir$flying_height / k - ir$elev) / (ir$scale_n * ir$focal_length / 1000)

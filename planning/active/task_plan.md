@@ -125,8 +125,8 @@ Found in fly#53's film rotation campaign, where every drawn roll of the `bci` an
 
 ## Validation
 
-- [ ] Tests pass (full `devtools::test()`, and `NOT_CRAN=true` on any single-file re-run).
-- [ ] `/code-check` clean on each commit.
-- [ ] PWF checkboxes match landed work.
+- [x] Tests pass (full `devtools::test()`, and `NOT_CRAN=true` on any single-file re-run).
+- [x] `/code-check` clean on each commit.
+- [x] PWF checkboxes match landed work.
 - [ ] `/planning-archive` on completion, then `/gh-pr-push`.
 
