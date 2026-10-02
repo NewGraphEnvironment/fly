@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fly</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.19.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.19.3</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,8 @@
 
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="development version" id="fly-development-version">fly (development version)<a class="anchor" aria-label="anchor" href="#fly-development-version"></a></h2>
+<div class="section level3">
+<h3 id="id_0193-development-version">0.19.3 (2026-10-01)<a class="anchor" aria-label="anchor" href="#id_0193-development-version"></a></h3>
 <ul><li>
 <strong>Photo parallax, as built, cannot say what surface the camera saw at the photo date. No code changes</strong> (<a href="https://github.com/NewGraphEnvironment/fly/issues/82" class="external-link">#82</a>).
 <ul><li>
@@ -52,7 +54,8 @@
 <li>
 <strong>What ships.</strong> The synthetic controls, <code>inst/extdata/dem_parallax_synthetic.csv</code>, from which the suite rebuilds the tables in <code>inst/notes/terrain-correction.md</code>.</li>
 </ul></li>
-</ul><div class="section level3">
+</ul></div>
+<div class="section level3">
 <h3 id="id_0192-development-version">0.19.2 (2026-10-01)<a class="anchor" aria-label="anchor" href="#id_0192-development-version"></a></h3>
 <ul><li>
 <strong>A forested frame is sized from bare earth, and measured, that does not matter: <code><a href="../reference/fly_footprint.html">fly_footprint()</a></code> is unchanged</strong> (<a href="https://github.com/NewGraphEnvironment/fly/issues/80" class="external-link">#80</a>). Over forest the camera images the canopy, so a frame sized from MRDEM’s bare-earth DTM is drawn slightly too wide. Sized through <code><a href="../reference/fly_footprint.html">fly_footprint()</a></code> on both MRDEM’s DTM and its DSM (published on the same grid), over a probability sample of 612 film frames weighted back to the 1,437,124 DEM-eligible ones with a canopy value, the DSM shrinks a frame by a weighted median of <strong>0.17%</strong> of width and <strong>0.46%</strong> at the 95th percentile. 1.2% of frames move more than 1%, 99.5% of them by weight fine-scale (2.1% of frames at 1:15000 or finer). The rule fixed before the run called it material at a 95th percentile of 1%, so nothing changed, and the DTM stays the recommendation. A ray-cast of the true footprint confirms the first-order shift to a weighted median 1.68e-4, and a DSM does not degrade the rectangle model (95th-percentile relief residual 2.89% against 2.86%).</li>

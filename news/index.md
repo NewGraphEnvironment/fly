@@ -2,6 +2,8 @@
 
 ## fly (development version)
 
+### 0.19.3 (2026-10-01)
+
 - **Photo parallax, as built, cannot say what surface the camera saw at
   the photo date. No code changes**
   ([\#82](https://github.com/NewGraphEnvironment/fly/issues/82)).
