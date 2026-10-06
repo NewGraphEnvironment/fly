@@ -229,3 +229,82 @@ catalogue but were not reading for this stratum. Nothing in the rule distinguish
 
 No existing row of either table changed. 81 roll-heights on 60 rolls have no page transcribed. Two of those
 rolls (`bcb04001`, `bcc07085`) have no page in the catalogue at all. That leaves 176 pages on 58 rolls to read.
+
+## Blind logbook read (Phase 4)
+
+Five general-purpose transcribers (told not to spawn) each read about 36 pages, packed whole by roll. Each
+batch was copied into its own scratch directory with the brief (`transcriber_brief.md`, archived) and nothing
+else: no catalogue height, scale or lens, no repo file. Each batch also carried one page already in
+`flying_height_logbooks.csv`, as a blind control.
+
+**Consolidation (a processing step, written after batch 5 returned and before any generator run).**
+- The new readers transcribed the forms literally. These forms log each strip's start (ST) and end (END)
+  final on separate lines, with the height dittoed between them.
+- fly#60's transcriber had written such a strip as one range. Left literal, the finals between ST and END
+  would read as uncovered, and coverage (condition 1) would fail on notation.
+- So the appended rows are consolidated page by page (`consolidate.R`, archived):
+  - lines are sorted by first final;
+  - consecutive lines at the same interpreted height and lens are merged into one range;
+  - lines at different heights, or with no height or no range, are never merged, so the frames between them
+    stay uncovered rather than guessed.
+- The check is batch 5's control page, `bc79026_2`. Six literal lines (finals 141, 147, 148, 159, 160, 169,
+  all "22.0"/ditto, 305 mm) consolidate to exactly the existing row: 141-169, 22,000 ft, 305 mm.
+- The raw per-line transcriptions are archived beside the PWF as evidence.
+
+**Read.** 1,382 literal lines from 176 pages on 58 rolls, consolidated into 406 rows and appended with
+`control = FALSE`. The raw files are in `transcription/batch*_rows.csv`.
+
+**Controls**, one already-transcribed page per batch:
+
+| batch | page | existing row | blind read, consolidated |
+|---|---|---|---|
+| 1 | `bc81027_4` | 138-164, 6,500 ft, 153 | 138-164, 6,500 ft, 153 |
+| 2 | `bc84029_2` | 202-249, 16,500 ft, 304 | 202-233, 16,500 ft, 304 |
+| 3 | `bc81012_2` | 192-195, 8,300 ft, 153 | 192-195, 8,300 ft, 153 |
+| 4 | `bc78051_1` | 1-131, 22,500 ft, 305 | 1-131, 22,500 ft, 305 |
+| 5 | `bc79026_2` | 141-169, 22,000 ft, 305 | 141-169, 22,000 ft, 305 |
+
+- Height and lens agree on all five.
+- Batch 2's range is narrower. That form writes the height only on Start lines and leaves the Finish column
+  blank. The consolidation as written does not extend a run through a line with no height, so the last
+  strip (234-249) stays uncovered. That was left alone: the rule was fixed before this result, and a
+  narrower range can only withhold coverage, so it can only exclude.
+
+**Frame ranges against the catalogue's frame numbers.** On the median roll the logbook covers every
+catalogued frame.
+- `bc5546` is the exception: its page writes finals 1-160, and the catalogue holds 195-206. Those frames
+  stay uncovered, so the refusal path applies; nothing is guessed.
+- Low-coverage rolls (`bcb98001` 0.09, `bcb90008` 0.10, `bc5072` 0.35) are pages whose lines carry no
+  height or no finals.
+
+## Result (Phase 5, `run_rolls.log`)
+
+| terrain tail | roll-heights | frames |
+|---|---|---|
+| tabled (factor 1, `scale_wrong`, logbook) | 62 (60 BW/colour, 2 IR) | 1,375 (1,344 BW/colour) |
+| excluded by A2: spacing fits nominal | 176 | 2,380 |
+| excluded by A2: cannot fit the catalogued height | 35 | 647 |
+| no logbook page covers these frames | 10 | 65 |
+| logbook height is not a named multiple | 3 | 99 |
+| logbook height or frame range not read | 5 | 90 |
+| spacing rejects the logbook's height | 6 | 64 |
+| logbook names a different lens (spacing fits the reported height) | 1 | 54 |
+| logbook writes the catalogue's scale | 1 | 20 |
+| logbook covers under half the frames | 1 | 10 |
+
+- **Tabled rows.**
+  - `r_corrected` is 0.313-0.619, median 0.536. These frames were drawn at nominal, about twice the width
+    the spacing supports.
+  - Overlap at the logbook height is 0.562-0.773, median 0.625.
+- **Partial agreement.** Three rows (`bc5225` 914 m, `bc5595` 2,651 m, `bc78104` 2,438 m) are tabled with
+  the logbook agreeing on a subset of the frames: 4/7, 15/28 and 97/106. Their `r_corrected` is the
+  subset median. The suite recompute assumed full agreement; it now bounds a subset row by the range of its
+  frames.
+- **No existing row moved.** Every row of both tables is unchanged; the diff is additions only (60 table
+  rows, 238 exclusions). The two IR terrain rows are byte-identical, so A2 moved nothing that was there.
+- **Reach.**
+  - The terrain keys reach 4,233 catalogue frames against 1,375 measured. The rest are frames in band on
+    the same roll-height, which `fly_footprint()` never hands to the table, and which the shipped census
+    reproduces by key.
+  - The census covers only the stratum. A key also reaches frames on the same roll-height that are out of
+    band with r <= 0 (A3), and the `r_reported > 0` gate keeps those off the table.
