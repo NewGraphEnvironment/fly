@@ -687,8 +687,9 @@ any page is read, from quantities no logbook can change:
   frame's ground is below 0.98 of the height: a logbook height under a frame's ground gives an
   overlap above 1, which can lift a subset median into the window from below. A roll-height
   with such a frame is bounded by nothing and goes to the logbook. The first version missed
-  this, and a code-check round found it on three roll-heights; none has a page, so none moved
-  beyond its reason.
+  this, and a code-check round found it on three roll-heights (`bc77026`, and `bc77072` at
+  two heights). Their six pages, read blind, write the catalogued heights, and spacing then
+  rejects them, so they are excluded for that reason rather than by A2.
 
 So A2 excludes only roll-heights the unamended rule could never accept, and only the rest had
 their pages read. Its two reasons say which half fired and claim nothing about whether a page
@@ -709,8 +710,8 @@ a hypothesis.
 
 The 92 roll-heights A2 left to the logbook sit on 69 rolls. Pages were already transcribed for
 some, and five of those were already accepted from pages read blind for fly#60 and fly#72. The
-other 176 pages, on 58 rolls, were read blind by five transcribers given only the images. Each
-batch carried one page already transcribed, as a control: all five agree on height and lens.
+other 182 pages, on 60 rolls, were read blind by six transcribers given only the images. Each
+batch carried one page already transcribed, as a control: all six agree on height and lens.
 
 These forms log each strip's start and end on separate lines with the height dittoed between,
 so the literal lines are consolidated page by page. Consecutive lines at one height and lens
@@ -724,10 +725,10 @@ blank on each end line, it covers 202, 219 and 233 where the existing row covers
 | tabled at factor 1, `scale_wrong` | 62 | 1,375 |
 | spacing fits nominal scale (A2) | 176 | 2,380 |
 | spacing cannot fit the catalogued height within 2% (A2) | 32 | 472 |
-| no logbook page covers these frames | 13 | 240 |
+| no logbook page covers these frames | 10 | 65 |
 | logbook height or frame range not read | 5 | 90 |
 | logbook height is not a named multiple of the catalogue's | 3 | 99 |
-| spacing rejects the logbook's height | 6 | 64 |
+| spacing rejects the logbook's height | 9 | 239 |
 | logbook names a different lens, and spacing fits the reported height | 1 | 54 |
 | logbook writes the catalogue's scale | 1 | 20 |
 | logbook covers under half the frames | 1 | 10 |

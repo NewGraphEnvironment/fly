@@ -348,7 +348,7 @@ frames: nominal fits 90, reported fits 105, neither 14
 == infrared census outside the band: 56 frames; near_upper 25 (bci9), terrain 31 (bc5312, bci12) ==
 BW/colour terrain census: 4773 frames on 216 rolls; the random draw's 12 of 2500 are all in it
 A2: of 300 terrain roll-heights, 176 fit nominal (2380 frames), 32 cannot fit the catalogued height (472), 92 go to the logbook (1952 frames, 69 rolls)
-logbook pages for 11 rolls: 6 fetched or cached, 0 failed
+logbook pages for 9 rolls: 0 fetched or cached, 0 failed
 
 == logbook controls (catalogue values withheld from the reader) ==
  film_roll frames_final log_ft log_focal
@@ -862,7 +862,7 @@ logbook pages for 11 rolls: 6 fetched or cached, 0 failed
  terrain   bc78107       1978          7925          305   40000 129         0
  terrain   bc77110       1977          2835          153   12000 119       119
  terrain   bc79121       1979          2438          153   10000 116         0
- terrain   bc77026       1977          2042          305    6000 107         0
+ terrain   bc77026       1977          2042          305    6000 107        73
  terrain   bc78104       1978          2438          153   20000 106        97
  terrain   bc81120       1981          3536          153   20000  96        96
  terrain   bc83006       1983          1311          153    8000  77         0
@@ -879,7 +879,7 @@ logbook pages for 11 rolls: 6 fetched or cached, 0 failed
  terrain   bc78128       1978          2347          305   10000  54         0
  terrain   bc82044       1982          2743          305   10000  54        54
  terrain   bc89073       1989          3048          305   15000  53         0
- terrain   bc77072       1977          1981          153   10000  52         0
+ terrain   bc77072       1977          1981          153   10000  52        52
  terrain   bc78059       1978          3810          305   12000  48        48
  terrain    bc7597       1974          4114          305   10000  46         0
  terrain    bc5120       1964          1920          153   10000  44        44
@@ -945,7 +945,7 @@ logbook pages for 11 rolls: 6 fetched or cached, 0 failed
  terrain    bc5312       1968          3353          153   30000  17        17
  terrain   bc78128       1978          8382          305   40000  17         0
  terrain    bc5272       1967          1524          153    9600  16         0
- terrain   bc77072       1977          1829          153   10000  16         0
+ terrain   bc77072       1977          1829          153   10000  16        12
  terrain    bc5121       1964          2286          153   10000  16        16
  terrain    bc5120       1964          2347          153   10000  16        16
  terrain   bc82044       1982          2316          305   10000  16        16
@@ -1158,7 +1158,7 @@ logbook pages for 11 rolls: 6 fetched or cached, 0 failed
        0          0               0     NA       0     NA       NA
      119          0               0      1     119   9300   2834.6
        0          0               0     NA       0     NA       NA
-       0          0               0     NA       0     NA       NA
+      73          0               0      1      73   6700   2042.2
       97          0               0      1      97   8000   2438.4
       96          0               0      1      96  11600   3535.7
        0          0               0     NA       0     NA       NA
@@ -1175,7 +1175,7 @@ logbook pages for 11 rolls: 6 fetched or cached, 0 failed
        0          0               0     NA       0     NA       NA
       54          0               0      1      54   9000   2743.2
        0          0               0     NA       0     NA       NA
-       0          0               0     NA       0     NA       NA
+      52          0               0      1      52   6500   1981.2
       48          0               0      1      48  12500   3810.0
        0          0               0     NA       0     NA       NA
       44          0               0      1      44   6300   1920.2
@@ -1241,7 +1241,7 @@ logbook pages for 11 rolls: 6 fetched or cached, 0 failed
       17          0               0      1      17  11000   3352.8
        0          0               0     NA       0     NA       NA
        0          0               0     NA       0     NA       NA
-       0          0               0     NA       0     NA       NA
+      12          0               0      1      12   6000   1828.8
       16          0               0      1      16   7500   2286.0
       16          0               0      1      16   7700   2347.0
        7          0               0      1       7   7600   2316.5
@@ -1454,7 +1454,7 @@ logbook pages for 11 rolls: 6 fetched or cached, 0 failed
                               0            0            0              0
            153                0            0            0              0
                               0            0            0              0
-                              0            0            0              0
+           305                0            0            0              0
            153                0            0            0              0
            153                0            0            0              0
                               0            0            0              0
@@ -1471,7 +1471,7 @@ logbook pages for 11 rolls: 6 fetched or cached, 0 failed
                               0            0            0              0
         152.26               54            0            0              0
                               0            0            0              0
-                              0            0            0              0
+           153                0            0            0              0
            305                0            0            0              0
                               0            0            0              0
            153                0            0            0              0
@@ -1537,7 +1537,7 @@ logbook pages for 11 rolls: 6 fetched or cached, 0 failed
            153                0            0            0              0
                               0            0            0              0
                               0            0            0              0
-                              0            0            0              0
+           153                0            0            0              0
            153                0            0            0              0
            153                0            0            0              0
         152.26               16            0            0              0
@@ -1750,7 +1750,7 @@ logbook pages for 11 rolls: 6 fetched or cached, 0 failed
  0.65804209      0          NA          NA
  0.79538217    119  0.61948451   0.5379847
  0.69351400      0          NA          NA
- 0.41861761      0          NA          NA
+ 0.41861761     73 -1.94741962   0.1990492
  0.81700366     97  0.68516985   0.5839542
  0.82281765     96  0.66623947   0.5542255
  0.63535681      0          NA          NA
@@ -1767,7 +1767,7 @@ logbook pages for 11 rolls: 6 fetched or cached, 0 failed
  0.64679626      0          NA          NA
  0.82908527     54  0.61088590   0.4696230
  0.66148023      0          NA          NA
- 0.17639366      0          NA          NA
+ 0.17639366     52 -0.70523911   0.4797059
  0.85807896     48  0.76347005   0.5547541
  0.49964207      0          NA          NA
  0.82199771     44  0.65218843   0.5115948
@@ -1833,7 +1833,7 @@ logbook pages for 11 rolls: 6 fetched or cached, 0 failed
  0.80545398     17  0.59416825   0.4734205
  0.61073658      0          NA          NA
  0.93548296      0          NA          NA
- 0.23861055      0          NA          NA
+ 0.23861055     12 -3.24004949   0.1620261
  0.76421332     16  0.58168771   0.5633333
  0.78827419     16  0.61353313   0.5904314
  0.68056730      7  0.30110868   0.4566164
@@ -2198,7 +2198,7 @@ upper                               1                        NA          NA
              no logbook page covers these frames; nominal scale still applies
   lower                                                                     0
   near_upper                                                                1
-  terrain                                                                  13
+  terrain                                                                  10
   upper                                                                     0
             
              spacing cannot fit the catalogued height within 2%, whatever the logbook reads; nominal scale still applies
@@ -2228,7 +2228,7 @@ upper                               1                        NA          NA
              spacing rejects the logbook's height; nominal scale still applies
   lower                                                                      0
   near_upper                                                                 7
-  terrain                                                                    6
+  terrain                                                                    9
   upper                                                                      0
            logbook covers under half the frames
 lower                                        15
@@ -2293,7 +2293,7 @@ upper                                                                 1271
            no logbook page covers these frames; nominal scale still applies
 lower                                                                    NA
 near_upper                                                                4
-terrain                                                                 240
+terrain                                                                  65
 upper                                                                    NA
            spacing cannot fit the catalogued height within 2%, whatever the logbook reads; nominal scale still applies
 lower                                                                                                               NA
@@ -2318,7 +2318,7 @@ upper                                                                    10
            spacing rejects the logbook's height; nominal scale still applies
 lower                                                                     NA
 near_upper                                                                31
-terrain                                                                   64
+terrain                                                                  239
 upper                                                                     NA
        tail film_roll flying_height focal_length scale_n    factor
       lower    bc5224          1082          153   15840   1.00000

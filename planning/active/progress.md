@@ -17,3 +17,6 @@
   A2 preview 176 nominal / 35 cannot / 87 to the logbook (1,746 frames). The source differs from the
   frozen copy only by lint reflow.
 - Full suite on 6f73de0: [ FAIL 0 | WARN 0 | SKIP 0 | PASS 5403 ]
+- Code-check round 1: 4 findings, all fixed (9305262); generator re-run, three exclusions reclassified.
+- Re-ran the committed census script from cache: both shipped CSVs byte-identical; preview 176 / 32 / 90
+  BW/colour to the logbook, matching the generator's 92 with the two IR rows.

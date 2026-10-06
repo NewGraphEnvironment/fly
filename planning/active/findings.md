@@ -221,14 +221,14 @@ A2 over the 300 terrain roll-heights, the 298 BW/colour plus the 2 IR:
 
 - 176 fit nominal (2,380 frames);
 - 35 cannot fit the catalogued height within 2% (647; 32 and 472 after code-check round 1);
-- 89 go to the logbook (1,777 frames, 67 rolls). Pages were fetched for those rolls: 176 new pages, 0 failed.
+- 89 go to the logbook (1,777 frames, 67 rolls; 92, 1,952 and 69 after code-check round 1). Pages were fetched for those rolls: 176 new pages, 0 failed.
 
 **Five roll-heights are already accepted** from pages fly#60/#72 transcribed blind for their own tails:
 `bc5598` 2255 m, `bc5689` 1524, `bc7211` 3505, `bc78104` 2438, `bcc544` 1768. Those readers were blind to the
 catalogue but were not reading for this stratum. Nothing in the rule distinguishes why a page was transcribed.
 
-No existing row of either table changed. 81 roll-heights on 60 rolls have no page transcribed. Two of those
-rolls (`bcb04001`, `bcc07085`) have no page in the catalogue at all. That leaves 176 pages on 58 rolls to read.
+No existing row of either table changed. 81 roll-heights on 60 rolls have no page transcribed (84 on 62 after code-check round 1). Two of those
+rolls (`bcb04001`, `bcc07085`) have no page in the catalogue at all. That leaves 176 pages on 58 rolls to read (182 on 60 after round 1; batch 6 read the other six).
 
 ## Blind logbook read (Phase 4)
 
@@ -251,7 +251,7 @@ else: no catalogue height, scale or lens, no repo file. Each batch also carried 
   all "22.0"/ditto, 305 mm) consolidate to exactly the existing row: 141-169, 22,000 ft, 305 mm.
 - The raw per-line transcriptions are archived beside the PWF as evidence.
 
-**Read.** 1,382 literal lines from 176 pages on 58 rolls, consolidated into 406 rows and appended with
+**Read.** 1,382 literal lines from 176 pages on 58 rolls, consolidated into 406 rows (408 after the round-1 consolidation fix) and appended with
 `control = FALSE`. The raw files are in `transcription/batch*_rows.csv`.
 
 **Controls**, one already-transcribed page per batch:
@@ -341,8 +341,8 @@ Four findings, all real, none moving a tabled row:
      excludes only what the rule could never accept, which the first implementation did not meet.
    - The fix covers the generator, the census preview and the suite recompute.
    - Three roll-heights move from "cannot fit" to the logbook: `bc77026` 2042 m (107 frames), and `bc77072`
-     at 1981 m (52) and 1829 m (16). The catalogue links no page for either roll, so they read "no logbook
-     page covers these frames".
+     at 1981 m (52) and 1829 m (16). The re-run fetched six pages for them. Recording them as having no page
+     was WRONG: `ls --color` defeated an anchored grep (round 2). Batch 6 reads them; see below.
    - Corrected A2 counts: 176 / **32** (472 frames) / **92** to the logbook (1,952, 69 rolls). A2 now
      excludes 208, not 211.
 2. **The prefilter's upper arm as implemented is `coarse < need_high + M`.** The pre-registration wrote
@@ -360,3 +360,30 @@ Four findings, all real, none moving a tabled row:
 
 After the fixes the generator was re-run (`run_rolls.log`). The only table change is the three
 reclassified exclusions. No other row moved, and the tabled count is 62 / 1,375 as before.
+
+## Code-check round 2 (`review-round2.md`): a defect inside round 1's fix
+
+- **Finding 1.** Round 1's A2 fix sent three roll-heights to the logbook. The re-run fetched six pages for
+  them (`bc77026_2/3`, `bc77072_1-4`), and nobody read them. The shipped reason said "no logbook page covers
+  these frames", and the findings and note said the rolls had no page.
+- **Cause.** My check for the pages was `ls | grep '^bc77026__'`. Here `ls` is aliased to `ls --color`, so
+  the anchored grep could never match. A broken probe was read as an absence.
+- **Fixes.**
+  - **Batch 6.** One transcriber read the six pages blind, with control `bc7692_5`, which matched its
+    existing row exactly (99-129, 14,800 ft, 305 mm). 13 consolidated rows were appended.
+  - **Result.** The pages write the catalogued heights: `bc77026` 6,700 ft = 2,042 m, `bc77072` 6,500 ft =
+    1,981 m and 6,000 ft = 1,829 m. Spacing rejects them at those heights, so all three are excluded as
+    "spacing rejects the logbook's height". The table is unchanged at 62 / 1,375.
+  - **The outcome table moves.**
+
+    | row | before | after |
+    |---|---|---|
+    | no logbook page | 13 / 240 | 10 / 65 |
+    | spacing rejects | 6 / 64 | 9 / 239 |
+
+  - **Guard.** After the fetch, the generator stops if any cached page of a terrain roll A2 leaves to the
+    logbook is missing from the transcription. Proven: on the tree before batch 6, the generator stopped
+    naming exactly the six pages.
+- **Finding 2.** Four figures in this file predated the round-1 fixes. They are now annotated in place.
+
+Totals now: 182 pages on 60 rolls read in six batches, six controls agreeing on height and lens.

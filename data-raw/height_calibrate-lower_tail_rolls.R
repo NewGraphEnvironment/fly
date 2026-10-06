@@ -379,6 +379,18 @@ cached <- if (dir.exists(LOG_DIR)) unique(sub("__.*", "", list.files(LOG_DIR))) 
 if (length(setdiff(want, cached))) fetch_logbooks(setdiff(want, cached))
 
 logs <- read.csv("data-raw/flying_height_logbooks.csv", colClasses = "character")
+# Every cached page of a terrain roll A2 leaves to the logbook must have been read (fly#93). The
+# set of those rolls moves whenever A2 or the census does, and the pages are fetched here but
+# read by hand, so a page fetched and never transcribed would otherwise reach `settle()` as "no
+# logbook page covers these frames": an absent reading reported as an absent page (code-check
+# round 2, where six pages on two rolls a fix had just sent to the logbook were exactly that).
+terr_rolls <- unique(a2$film_roll[is.na(a2$a2_reason)])
+cached_pages <- if (dir.exists(LOG_DIR)) list.files(LOG_DIR) else character()
+unread <- cached_pages[sub("__.*", "", cached_pages) %in% terr_rolls & !cached_pages %in% logs$file]
+if (length(unread)) {
+  stop(length(unread), " logbook pages of terrain rolls sent to the logbook are not transcribed in ",
+       "data-raw/flying_height_logbooks.csv: ", paste(unread, collapse = ", "))
+}
 logs$frame_from <- as.integer(logs$frame_from)
 logs$frame_to <- as.integer(logs$frame_to)
 logs$log_ft <- as.numeric(logs$height_ft_interpreted)
