@@ -101,3 +101,40 @@ pages condition 4 could be silently disabled by notation. The pattern is widened
 `/` as well as `:` after the leading 1. No existing row of `flying_height_logbooks.csv` has a
 `/` in `scale_as_written` (checked: 25 rows carry a scale, all `1:`), so this changes no
 BW/colour verdict; the regenerated CSVs are diffed to prove it.
+
+## Blind logbook read (Phase 2)
+
+One general-purpose subagent transcribed the six cached pages (`bc5312_1/2`, `bcir12_1/2`,
+`bcir9_1/2`). It was given only the images and the schema, with no catalogue height, scale or
+lens, and was told not to open any repo file, issue or note. It wrote 51 rows, appended to
+`data-raw/flying_height_logbooks.csv` with `control = FALSE` and covering every row on every
+page. The #89 reviewer who first read these heights could see the catalogue values; this
+reader could not.
+
+| roll-height (catalogue) | frames | blind read | as metres | #89 reviewer |
+|---|---|---|---|---|
+| `bc5312` 3353 m 1:30000 153 mm | 46-62 | 11.0 (rows 46-51, 52-56, 57-62) | 3352.8 | 11.0 |
+| `bci12` 3682 m 1:15840 305 mm | 1-14 | 12.08 | 3682.0 | 12.08 |
+| `bci9` 5944 m 1:8000 305 mm | 12-36 | 19.5 (rows 12-19, 20-25, 26-36) | 5943.6 | 19.5 |
+
+All three agree with the catalogued height to within the catalogue's whole-metre storage, and
+the two readers agree with each other. Focal lengths: 6" printed on the `bc5312` form, and
+12" beside camera ZE 110399 on the `bci12` and `bci9` pages. Both match the catalogue.
+
+Flagged by the reader and checked:
+- **`12.08` is written with two decimals.** Read as 12,080 ft; this is the catalogue's
+  3,682 m to 0.02 m.
+- **`bci9` sheet 2.** "Scale 1/15,840" is written once at the foot of the page. The reader
+  copied it to that sheet's rows, finals 101-128 at 19,350 ft (= 5,898 m, the catalogue's
+  other `bci9` key) and one 6.0 row. It does not reach frames 12-36, so it neither vetoes nor
+  supports the `bci9` row, as the issue said.
+- **The sheet-2 finals run to 128, but the catalogue holds `bci9` 1-118.** That is outside
+  the disputed frames.
+- **`bc5312` sheet 2.** "11 A.S.L." is written in the drift column against field exposures
+  82-95, which carry no final numbers. Height left uninterpreted; it reaches no catalogued
+  frame.
+- **`bci12` sheet 2.** Overwritten red finals on 54-81 are marked `partial`. Outside the
+  disputed frames.
+
+Coverage of the catalogue's frame numbers: `bc5312` 1-62 against catalogue 1-62, `bci12`
+1-81 against 1-81, `bci9` 1-128 against 1-118.

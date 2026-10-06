@@ -78,13 +78,13 @@ What exploration established:
 
 ## Phase 2: Blind logbook transcription
 
-- [ ] Spawn one transcriber (general-purpose, told not to spawn). It gets the six cached page
+- [x] Spawn one transcriber (general-purpose, told not to spawn). It gets the six cached page
   images and the `flying_height_logbooks.csv` schema, and nothing about the catalogue's
   height, scale or lens. It is told not to read the issue, `inst/extdata/`, `planning/` or
   the notes.
-- [ ] Append its rows to `data-raw/flying_height_logbooks.csv`, with `control = FALSE`. Check
+- [x] Append its rows to `data-raw/flying_height_logbooks.csv`, with `control = FALSE`. Check
   the frame ranges against the roll's catalogue frame numbers before using them.
-- [ ] Record in `findings.md` that this reader was blind and that #89's reviewer was not.
+- [x] Record in `findings.md` that this reader was blind and that #89's reviewer was not.
   List any disagreement between the two readings.
 
 ## Phase 3: Generator
