@@ -127,21 +127,21 @@ blind, and the findings will say so:
 
 ## Phase 4: Blind logbook transcription
 
-- [ ] Split the cached pages of the ~51 new rolls across about 4-5 general-purpose transcribers.
+- [x] Split the cached pages of the ~51 new rolls across about 4-5 general-purpose transcribers.
   - Each is told not to spawn, and not to open any repo file, issue, note or `inst/extdata/`.
   - Each gets the images and the `flying_height_logbooks.csv` schema only, with no catalogue height, scale
     or lens.
   - Each writes rows to a scratchpad file and reports only its path.
-- [ ] Each batch carries one already-transcribed page as a blind control. Its rows are compared with the
+- [x] Each batch carries one already-transcribed page as a blind control. Its rows are compared with the
   existing ones, and disagreements are recorded.
-- [ ] Append the rows with `control = FALSE`. Check frame ranges against catalogue frame numbers. Record the
+- [x] Append the rows with `control = FALSE`. Check frame ranges against catalogue frame numbers. Record the
   reader's blindness and the control agreement in `findings.md`.
 
 ## Phase 5: Regenerate and diff
 
-- [ ] Run the generator and keep the log in `planning/active/run_rolls.log`. Regenerate
+- [x] Run the generator and keep the log in `planning/active/run_rolls.log`. Regenerate
   `flying_height_rolls.csv` and `_excluded.csv`.
-- [ ] Diff both CSVs. Every existing row, the two IR terrain rows included, must be byte-identical. Only new
+- [x] Diff both CSVs. Every existing row, the two IR terrain rows included, must be byte-identical. Only new
   BW/colour `terrain` rows may appear.
 
 ## Phase 6: Tests

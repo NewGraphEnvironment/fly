@@ -192,7 +192,7 @@ test_that("the table holds against the sweep, census and logbooks it was measure
   in_band <- function(r) r >= band[1] & r <= band[2]
   # Four sets, one per tail: fly#60's lower tail, fly#71's #54-slipped frames — the upper
   # tail that dividing by 10.764 brings into the band — fly#72's near_upper frames beyond
-  # the band, the r ~ 2 mass, and fly#91's terrain frames (built below).
+  # the band, the r ~ 2 mass, and the terrain frames of fly#91 and fly#93 (built below).
   up <- s[s$set == "upper_tail", ]
   up <- up[in_band((up$flying_height / fly_height_slip_factor() - up$elev) /
                      (up$scale_n * up$focal_length / 1000)), ]
@@ -211,15 +211,18 @@ test_that("the table holds against the sweep, census and logbooks it was measure
   expect_true(all(xor(ir_near, ir_terr)))
   expect_identical(c(sum(ir_near), sum(ir_terr)), c(25L, 31L))
   cols <- c("film_roll", "flying_height", "focal_length", "scale_n", "elev")
+  # fly#93: the BW/colour frames of the terrain stratum, a census of its own, join the IR ones.
+  bw <- utils::read.csv(system.file("extdata/flying_height_terrain_frames.csv", package = "fly"))
   sets <- list(lower = s[s$set == "lower_tail", cols], upper = up[, cols],
-               near_upper = rbind(nu[, cols], ir[ir_near, cols]), terrain = ir[ir_terr, cols])
+               near_upper = rbind(nu[, cols], ir[ir_near, cols]),
+               terrain = rbind(ir[ir_terr, cols], bw[, cols]))
 
   # Contract: the named slips, one cause each, and nothing else. The upper tail names only
   # 1/10 by factor: a logbook confirming 10.764 is excluded, since #54's repair already sizes
   # it. The one relation that is not a factor is a leading digit, which only a same-roll
   # sibling can name (fly#74), so its row carries the ratio it implies and a cause saying so.
   expect_setequal(unique(tab$tail), c("lower", "upper", "near_upper", "terrain"))
-  expect_setequal(unique(excl$tail), c("lower", "upper", "near_upper"))
+  expect_setequal(unique(excl$tail), c("lower", "upper", "near_upper", "terrain"))
   expect_true(all(tab$witness %in% c("logbook", "sibling")))
   # An excluded row says why each witness passed it over: the logbook in `reason`, the
   # same-roll sibling in `sibling_reason`.
@@ -276,8 +279,19 @@ test_that("the table holds against the sweep, census and logbooks it was measure
     for (i in seq_len(nrow(tb))) {
       d <- set[key(set) == key(tb)[i], ]
       expect_gt(nrow(d), 0)
-      r <- median((tb$height_m[i] - d$elev) / (d$scale_n * d$focal_length / 1000))
-      expect_true(abs(r - tb$r_corrected[i]) <= 0.001, info = key(tb)[i])
+      r_all <- (tb$height_m[i] - d$elev) / (d$scale_n * d$focal_length / 1000)
+      r <- median(r_all)
+      # The generator's median runs over the frames whose logbook agrees. Where that is every
+      # frame it is pinned; where it is a subset (three fly#93 terrain rows, whose logbook
+      # covers part of the roll-height), the shipped figure is a median of some of these
+      # frames, so it lies within their range — the bound amendment A2 also rests on.
+      if (isTRUE(tb$frames_logbook[i] == tb$frames_measured[i]) || tb$witness[i] != "logbook") {
+        expect_true(abs(r - tb$r_corrected[i]) <= 0.001, info = key(tb)[i])
+      } else {
+        expect_true(tb$r_corrected[i] >= min(r_all) - 0.001 && tb$r_corrected[i] <= max(r_all) + 0.001,
+                    info = key(tb)[i])
+        r <- tb$r_corrected[i]
+      }
       # A height-slip row must land in the band; a scale-wrong row by definition does not,
       # and stays on the side of the band its tail came from — below it for terrain.
       if (tb$factor[i] == 1 && tl == "near_upper") {
@@ -316,8 +330,10 @@ test_that("the table holds against the sweep, census and logbooks it was measure
   expect_identical(ir_rows$witness, rep("logbook", 3))
   expect_equal(ir_rows$logbook_ft, c(11000, 12080, 19500))
   expect_identical(as.integer(ir_rows$frames_logbook), c(17L, 14L, 25L))
-  # Nothing else carries the new tail: it holds exactly these two roll-heights.
-  expect_identical(sum(tab$tail == "terrain"), 2L)
+  # The infrared terrain tail holds exactly these two roll-heights; fly#93's BW/colour rows
+  # are pinned in `test-fly_footprint_terrain_tail.R`.
+  ir_rolls <- unique(ir$film_roll)
+  expect_identical(sum(tab$tail == "terrain" & tab$film_roll %in% ir_rolls), 2L)
   expect_false(any(excl$film_roll %in% c("bc5312", "bci12", "bci9")))
 
   # fly#71's finding, pinned: on every tabled slipped roll-height the logbook sits within
@@ -551,4 +567,49 @@ test_that("the infrared roll-heights are sized from the logbook height (fly#91)"
   expect_gt(w[3], 1.9 * w_nominal[3])
   # The control is untouched by the table: nominal scale, as before.
   expect_equal(w[4], w_nominal[4], tolerance = 1e-3)
+})
+
+
+test_that("a BW/colour terrain roll-height is sized from the logbook height (fly#93)", {
+  skip_if_no_terra()
+  # bc5598: 2,255 m, 153 mm, 1:12000, a 1974 BW roll whose logbook reads 7,400 ft. In band
+  # above sea level (ratio 1.23); over ground at 1,300 m it is below the band only through the
+  # ground. The control differs only in scale, so no row reaches it.
+  bw <- sf::st_sf(
+    airp_id = 1:2,
+    film_roll = "bc5598",
+    scale = c("1:12000", "1:12500"),
+    media = "Film - BW",
+    focal_length = 153,
+    flying_height = 2255,
+    geometry = sf::st_sfc(
+      lapply(c(-126.60, -126.55), function(x) sf::st_point(c(x, 54.40))),
+      crs = 4326
+    )
+  )
+  bb <- sf::st_bbox(sf::st_transform(bw, 3005))
+  dem <- terra::rast(xmin = bb[["xmin"]] - 30000, xmax = bb[["xmax"]] + 30000,
+                     ymin = bb[["ymin"]] - 30000, ymax = bb[["ymax"]] + 30000,
+                     resolution = 100, crs = "EPSG:3005")
+  terra::values(dem) <- 1300
+  scale_n <- c(12000, 12500)
+  nominal <- scale_n * 0.153
+  band <- fly_height_ratio_band()
+  expect_true(all(2255 / nominal >= band[1] & 2255 / nominal <= band[2]))   # premise
+  expect_true(all((2255 - 1300) / nominal < band[1]))
+
+  tab <- fly_height_roll_table()
+  row <- tab[tab$film_roll == "bc5598" & tab$flying_height == 2255 & tab$scale_n == 12000, ]
+  expect_identical(nrow(row), 1L)
+  expect_identical(row$tail, "terrain")
+  expect_identical(row$cause, "scale_wrong")
+
+  fp <- suppressWarnings(fly_footprint(bw, dem = dem))
+  expect_identical(fp$height_source, c("corrected_roll_table", "implausible"))
+  expect_equal(fp$height_agl[1], row$height_m - 1300)
+  w <- roll_width(fp)
+  expect_equal(w[1], 9 * 0.0254 * (row$height_m - 1300) / 0.153, tolerance = 1e-3)
+  # About half the nominal width it was drawn at before; the control keeps nominal exactly.
+  expect_lt(w[1], 0.6 * 9 * 0.0254 * scale_n[1])
+  expect_equal(w[2], 9 * 0.0254 * scale_n[2], tolerance = 1e-3)
 })
