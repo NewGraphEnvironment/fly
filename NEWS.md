@@ -1,5 +1,18 @@
 # fly (development version)
 
+## 0.22.0 (2026-10-06)
+
+- **Three infrared roll-heights with a wrong `scale` are now sized from the height flown** ([#91](https://github.com/NewGraphEnvironment/fly/issues/91)).
+  - **What changed.** v0.21.0 brought infrared film into the #54 height check, and 56 IR frames fell outside the band. With a `dem`, they were drawn at nominal scale:
+    - about twice the width the spacing supports on `bc5312` and `bci12`;
+    - about half of it on `bci9`.
+
+    All three roll-heights are now in `flying_height_rolls.csv` at factor 1 (`scale_wrong`). `fly_footprint(dem = )` therefore sizes the 56 frames from the logbook height and reports `height_source = "corrected_roll_table"`. Without a `dem` nothing changes; every film frame is nominal there.
+  - **How it was established.** The rule was committed before the logbook pages were read, and the pages were then transcribed blind. They give 11.0, 12.08 and 19.5 thousand feet, the catalogued heights. Spacing at those heights is 0.594, 0.620 and 0.620, inside the 0.557-0.780 window, and at nominal scale it is 0.805, 0.807 and 0.228.
+  - **A new `tail`, `terrain`.** `bci9` is settled alongside fly#72's `near_upper` sample. `bc5312` and `bci12` are in band above sea level and leave it only through the ground beneath them, which no existing tail held, so they carry `tail = "terrain"` under the same rule.
+  - **One amendment, written before the read.** The logbook scale pattern accepted only `1:N`, and these pages write `1/15,840`. It now accepts both, and no BW/colour row changes. Every BW/colour row of both roll tables is byte-identical to v0.21.0.
+  - **Not done.** The same terrain-only population exists among BW/colour frames: 12 of 2,500 random draws, roughly 7,000 frames. No rule reaches it yet ([#93](https://github.com/NewGraphEnvironment/fly/issues/93)).
+
 ## 0.21.0 (2026-10-02)
 
 - **Infrared film is now sized as the 9-inch negative, because that was measured** ([#89](https://github.com/NewGraphEnvironment/fly/issues/89)).
