@@ -48,21 +48,21 @@ What exploration established:
 
 ## Phase 1: Pre-register the rule (committed before any IR roll-height is classified)
 
-- [ ] Write the populations into `findings.md`:
+- [x] Write the populations into `findings.md`:
   - **IR census.** The `outside_band` frames of `infrared_film_frames.csv`.
   - **`near_upper`.** Ratio above sea level in (2, 3] goes to `near_upper`. Today that is
     `bci9`.
   - **`terrain`.** Ratio above sea level inside the band, ratio above ground outside it.
     Today that is `bc5312` and `bci12`.
   - **Anything else.** Any other combination stops the script rather than being assigned.
-- [ ] Write the rule into `findings.md`. It is #72's `near_upper` rule, unchanged, applied to
+- [x] Write the rule into `findings.md`. It is #72's `near_upper` rule, unchanged, applied to
   both sets:
   - the logbook covers at least half the frames, and at least 90% of those name factor 1;
   - no legible logbook focal length contradicts the catalogue's;
   - spacing under the logbook height fits the window **and** spacing at nominal does not;
   - no legible logbook scale equals the catalogue's;
   - the sibling witness is not applied, because the scale is in dispute, not the height.
-- [ ] Audit every rule step for a BW/colour assumption and record a verdict for each:
+- [x] Audit every rule step for a BW/colour assumption and record a verdict for each:
   - **9-inch `FORMAT_M`:** settled for IR by #89.
   - **Window:** comes from BW/colour random frames. #89's W1 already holds 27 of the 32 IR
     rolls to it.
@@ -73,7 +73,7 @@ What exploration established:
   - **Disjoint-strata assertion:** `terrain` is disjoint by construction.
 
   Any amendment is labelled as such.
-- [ ] Record what each outcome would mean, including a refusal: a row that fails ships in
+- [x] Record what each outcome would mean, including a refusal: a row that fails ships in
   `_excluded.csv` with the reason that fired.
 
 ## Phase 2: Blind logbook transcription
