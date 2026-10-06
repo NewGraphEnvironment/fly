@@ -48,6 +48,9 @@
 "near_upper","bc85079",6401,305,10000,1,"scale_wrong","logbook",21000,,6400.8,2,2,0.632,1.686
 "near_upper","bc85080",6401,305,10000,1,"scale_wrong","logbook",21000,,6400.8,7,7,0.618,1.815
 "near_upper","bc85081",6401,305,10000,1,"scale_wrong","logbook",21000,,6400.8,3,3,0.581,1.68
+"near_upper","bci9",5944,305,8000,1,"scale_wrong","logbook",19500,,5943.6,25,25,0.62,2.03
+"terrain","bc5312",3353,153,30000,1,"scale_wrong","logbook",11000,,3352.8,17,17,0.594,0.473
+"terrain","bci12",3682,305,15840,1,"scale_wrong","logbook",12080,,3682,14,14,0.62,0.506
 "upper","bc5596",26212,153,12000,0.1,"height_decimal_dropped","sibling",,203,2621,8,,0.619,0.957
 "upper","bc78065",4115,153,2000,0.1,"height_decimal_dropped","logbook",1350,,411.5,24,24,0.594,0.975
 "upper","bc78078",9449,153,6000,0.1,"height_decimal_dropped","logbook",3100,,944.9,15,15,0.622,0.957

@@ -15,6 +15,12 @@
 # the other half the catalogued height is the one flown and `scale` is the wrong field. The
 # logbooks are read against it the same way, with 1 the only factor named.
 #
+# fly#91 adds the infrared frames fly#89 brought into the band check. The sweep holds none,
+# so they come from the IR census `format_measure-infrared_film.R` ships. `bci9` falls in
+# #72's stratum and joins it. `bc5312` and `bci12` are in band above sea level and leave it
+# only through terrain, which no stratum above holds, so they are a fourth tail, `terrain`,
+# under the near_upper rule unchanged. Run that script first as well.
+#
 # Everything here is public. It reads what `height_calibrate-flying_height_slip.R` cached
 # (`data-raw/.cache/centroids/`, every frame's x/y/frame_number) and shipped
 # (`inst/extdata/flying_height_sweep.csv`, terrain under the sampled frames) — run that
@@ -196,6 +202,65 @@ print(rolls, row.names = FALSE)
 saveRDS(rolls, "data-raw/.cache/lower_tail_rolls.rds")
 
 # ---------------------------------------------------------------------------
+# Stage 3b — the infrared census (fly#91)
+# ---------------------------------------------------------------------------
+#
+# fly#89 sized infrared film as the 9-inch negative, and the sweep above is pinned to the
+# BW/colour set it was measured over, so no IR frame is in any of its strata. The IR frames
+# outside the band come instead from `infrared_film_frames.csv`, a census of every IR frame
+# whose `elev` is the sweep's own measure (the mean under the nominal 9-inch square). Each
+# goes to the stratum its ratio above sea level puts it in, by the rule fixed before the
+# logbooks were read (archived findings of fly#91):
+#   near_upper  2 < ratio <= 3 and beyond the band — #72's stratum, settled alongside its
+#               sample (rbind into the same set), not drawn into it;
+#   terrain     ratio above sea level inside the band and above ground outside it: out of
+#               band only because of the ground under it, which no other tail holds.
+# Anything else stops the script: a frame no rule was fixed for is not assigned to one.
+irf <- read.csv("inst/extdata/infrared_film_frames.csv")
+irf <- irf[irf$height_class == "outside_band", ]
+# The census's air base and this script's must be the same measurement.
+ir_base <- base$base[match(irf$airp_id, base$airp_id)]
+stopifnot(identical(is.finite(ir_base), is.finite(irf$base)),
+          all(abs(ir_base - irf$base) <= 0.1, na.rm = TRUE))
+irs <- data.frame(airp_id = irf$airp_id, photo_year = irf$photo_year, film_roll = irf$film_roll,
+                  scale_n = irf$scale_n, focal_length = irf$focal_length,
+                  flying_height = irf$flying_height, elev = irf$elev, set = NA_character_,
+                  base = ir_base)
+irs$f_m <- irs$focal_length / 1000
+irs$nominal_agl <- irs$scale_n * irs$f_m
+irs$r <- (irs$flying_height - irs$elev) / irs$nominal_agl
+ir_overlap <- function(side) 1 - irs$base / side
+irs$p_nominal  <- ir_overlap(FORMAT_M * irs$scale_n)
+irs$p_reported <- ir_overlap(FORMAT_M * (irs$flying_height - irs$elev) / irs$f_m)
+for (k in c(2, 10, K)) {
+  irs[[sprintf("p_x%s", format(round(k, 3)))]] <-
+    ir_overlap(FORMAT_M * (irs$flying_height * k - irs$elev) / irs$f_m)
+}
+irs$p_div <- ir_overlap(FORMAT_M * (irs$flying_height / K - irs$elev) / irs$f_m)
+stopifnot(setequal(names(irs), names(s)))
+irs <- irs[, names(s)]
+ratio_asl <- irs$flying_height / irs$nominal_agl
+irs$set[ratio_asl > 2 & ratio_asl <= 3 & irs$r > band[2]] <- "near_upper"
+irs$set[in_band(ratio_asl) & !in_band(irs$r) & irs$r > 0] <- "terrain"
+if (anyNA(irs$set)) {
+  stop("IR frames outside the band in no stratum fly#91 fixed a rule for: ",
+       paste(unique(irs$film_roll[is.na(irs$set)]), collapse = ", "))
+}
+ir_near <- irs[irs$set == "near_upper", ]
+terr <- irs[irs$set == "terrain", ]
+message(sprintf("\n== infrared census outside the band: %d frames; near_upper %d (%s), terrain %d (%s) ==",
+                nrow(irs), nrow(ir_near), paste(unique(ir_near$film_roll), collapse = ", "),
+                nrow(terr), paste(unique(terr$film_roll), collapse = ", ")))
+# Reported, not a gate: the same terrain-only population among BW/colour frames, which this
+# script does not settle (it holds no census of it, only the random sample's share).
+rnd_all <- s[s$set == "random", ]
+rnd_terr <- in_band(rnd_all$flying_height / rnd_all$nominal_agl) & !in_band(rnd_all$r) &
+  is.finite(rnd_all$r) & rnd_all$r > 0
+message(sprintf("BW/colour random frames out of band only through terrain: %d of %d (%d below, %d above)",
+                sum(rnd_terr), nrow(rnd_all), sum(rnd_terr & rnd_all$r < band[1]),
+                sum(rnd_terr & rnd_all$r > band[2])))
+
+# ---------------------------------------------------------------------------
 # Stage 4 — the logbooks: what height and lens the crew wrote down
 # ---------------------------------------------------------------------------
 #
@@ -230,11 +295,13 @@ fetch_logbooks <- function(rolls) {
   invisible(u)
 }
 # Fetched for every roll with no page in the cache: the lower tail (fly#60), #54's slipped
-# frames (fly#71) and the near_upper frames beyond the band (fly#72). A roll the catalogue
+# frames (fly#71), the near_upper frames beyond the band (fly#72) and the infrared census
+# outside it (fly#91). A roll the catalogue
 # links no page for is queried again on each run, which costs one request and changes
 # nothing. Delete the directory to refetch everything.
 want <- unique(c(rolls$film_roll, s$film_roll[s$set == "upper_tail"],
-                 s$film_roll[s$set == "near_upper" & is.finite(s$r) & s$r > band[2]]))
+                 s$film_roll[s$set == "near_upper" & is.finite(s$r) & s$r > band[2]],
+                 irs$film_roll))
 cached <- if (dir.exists(LOG_DIR)) unique(sub("__.*", "", list.files(LOG_DIR))) else character()
 if (length(setdiff(want, cached))) fetch_logbooks(setdiff(want, cached))
 
@@ -250,8 +317,12 @@ logs$log_focal <- as.numeric(logs$focal_mm)
 # may follow it, however spaced: "1:15,000 123" or "1:15840 12 frames" is read as no scale
 # at all rather than swallowed into 15,000,123 or cut short. A missed scale only withholds a
 # veto; a misread one could fire it.
+#
+# Either "1:" or "1/" (fly#91, amendment A1, written before the infrared pages were read):
+# those pages write "Scale 1/15,840", which a colon-only pattern reads as no scale at all,
+# silently withholding the veto. No BW/colour row writes a slash, so no verdict moves.
 scale_pat <- paste0(
-  "^\\s*\\(?\\s*(?:scale\\s*:\\s*)?1\\s*:\\s*",
+  "^\\s*\\(?\\s*(?:scale\\s*:?\\s*)?1\\s*[:/]\\s*",
   "([0-9]{1,3}(?:,[0-9]{3})+|[0-9]{1,3}(?: [0-9]{3})+|[0-9]+)",
   "(?![0-9]|,[0-9]|\\s+[0-9])"
 )
@@ -403,11 +474,16 @@ message(sprintf("\n== near_upper beyond the band: %d frames on %d rolls ==", nro
 
 lower_v <- settle(lower, named = c(1, 10, 100), tail = "lower")
 upper_v <- settle(upper, named = c(1 / 10, 1 / K), tail = "upper")
+# fly#91: the infrared near_upper frames join #72's sample under the same rule; the terrain
+# frames are their own tail, under the same rule again (see Stage 5).
+near <- rbind(near, ir_near[, names(near)])
 near_v <- settle(near, named = 1, tail = "near_upper")
+terr_v <- settle(terr, named = 1, tail = "terrain")
 saveRDS(list(verdict = lower_v$verdict, frames = lower_v$frames),
         "data-raw/.cache/lower_tail_verdict.rds")
 saveRDS(upper_v, "data-raw/.cache/upper_tail_verdict.rds")
 saveRDS(near_v, "data-raw/.cache/near_upper_verdict.rds")
+saveRDS(terr_v, "data-raw/.cache/terrain_verdict.rds")
 
 # The control fly#60 read blind must now settle as a slipped roll, at x0.1.
 ctl78 <- upper_v$verdict[upper_v$verdict$film_roll == "bc78065", ]
@@ -437,8 +513,13 @@ if (!(nrow(ctl78) == 1 && isTRUE(all.equal(ctl78$factor, 0.1)))) {
 # readings on offer, the catalogued height and nominal scale, are a factor of ~2 apart, which
 # spacing separates. A factor-1 row there is the upper-side mirror of the lower tail's
 # `scale_wrong`: the same cause, from the other side of the band.
+#
+# The terrain frames (fly#91) go through the near_upper rule unchanged, fixed before their
+# logbooks were read: their ratio above sea level is inside the band and only the ground
+# takes them out of it, so the two readings on offer are again the catalogued height and
+# nominal scale, ~2x apart, and spacing must fit the one and reject the other.
 
-v <- rbind(lower_v$verdict, upper_v$verdict, near_v$verdict)
+v <- rbind(lower_v$verdict, upper_v$verdict, near_v$verdict, terr_v$verdict)
 v$covered <- v$n_logbook / v$n
 v$agreeing <- ifelse(v$n_logbook > 0, v$n_agree / v$n_logbook, 0)
 v$focal_conflict <- v$n_focal_conflict > 0
@@ -450,7 +531,7 @@ v$spacing_ok <- fits(v$p_corrected)
 # alone is not enough: on a lens roll the reported height implies ~0.80 overlap, and the
 # window's top is 0.78. And a legible logbook scale equal to the catalogue's vetoes the row,
 # since `scale` is the field the row says is wrong.
-nu_row <- v$tail == "near_upper"
+nu_row <- v$tail %in% c("near_upper", "terrain")
 v$spacing_ok[nu_row] <- v$spacing_ok[nu_row] & !fits(v$p_nominal[nu_row])
 v$scale_veto <- nu_row & v$n_scale_same > 0
 is_f <- function(f) is.finite(v$factor) & abs(v$factor - f) < 1e-9
@@ -602,9 +683,9 @@ v$sibling_frame <- NA_real_
 v$sibling_reason <- NA_character_
 v$sibling_rel <- NA_character_
 for (i in which(!v$accept)) {
-  # A near_upper roll-height's height is not what is in dispute — its scale is — so there is
+  # A near_upper or terrain roll-height's height is not what is in dispute — its scale is — so there is
   # no relation between heights for a neighbour to name.
-  if (v$tail[i] == "near_upper") {
+  if (v$tail[i] %in% c("near_upper", "terrain")) {
     v$sibling_reason[i] <- "not applied: the scale is disputed, not the height"
     next
   }
@@ -654,8 +735,8 @@ if (!c2_ok) {
 # the table is not read as a list of frames drawn at nominal scale.
 up <- v$tail == "upper" & !v$accept & v$reason != "logbook confirms #54's 10.764"
 v$reason[up] <- paste0(v$reason[up], "; #54's 10.764 still applies")
-# Likewise a near_upper roll-height left out is drawn at nominal scale, as it was before.
-nu <- v$tail == "near_upper" & !v$accept & !grepl("nominal scale", v$reason, fixed = TRUE)
+# Likewise a near_upper or terrain roll-height left out is drawn at nominal scale, as before.
+nu <- v$tail %in% c("near_upper", "terrain") & !v$accept & !grepl("nominal scale", v$reason, fixed = TRUE)
 v$reason[nu] <- paste0(v$reason[nu], "; nominal scale still applies")
 v$cause <- dplyr::case_when(
   !v$accept ~ NA_character_,
@@ -687,7 +768,7 @@ excluded_out <- excluded_out[order(excluded_out$tail, excluded_out$film_roll,
                                    excluded_out$flying_height), ]
 stopifnot(nrow(rolls_out) + nrow(excluded_out) == nrow(v),
           sum(rolls_out$frames_measured) + sum(excluded_out$frames_measured) ==
-            nrow(lower) + nrow(upper) + nrow(near))
+            nrow(lower) + nrow(upper) + nrow(near) + nrow(terr))
 
 message(sprintf("\n== verdict: %d roll-heights corrected (%d frames), %d excluded (%d frames) ==",
                 nrow(rolls_out), sum(rolls_out$frames_measured),
@@ -698,8 +779,9 @@ print(table(excluded_out$tail, excluded_out$reason))
 print(tapply(excluded_out$frames_measured, list(excluded_out$tail, excluded_out$reason), sum))
 print(rolls_out, row.names = FALSE)
 
-# The key reaches only the frames it was measured on: count what each row would touch
-# across the whole catalogue, on the same four fields `fly_footprint()` matches.
+# The key reaches only the roll-heights it was measured on: count what each row would touch
+# across the whole catalogue, on the same four fields `fly_footprint()` matches. A census tail
+# reaches exactly its measured frames; near_upper, measured on a sample, reaches more.
 key_all <- key4(frames$film_roll, frames$flying_height, frames$focal_length,
                 suppressWarnings(as.numeric(sub("^1:", "", frames$scale))))
 reach <- vapply(seq_len(nrow(rolls_out)), function(i) {
@@ -709,8 +791,11 @@ reach <- vapply(seq_len(nrow(rolls_out)), function(i) {
 stopifnot(all(reach >= rolls_out$frames_measured))
 message(sprintf("frames the corrections reach in the whole catalogue: %d (measured: %d)",
                 sum(reach), sum(rolls_out$frames_measured)))
-# The tails cannot share a key: a height cannot be both under and over the band, and a
-# near_upper roll-height (2 < r above sea level <= 3) cannot be a slipped one (> 3).
+print(rbind(reach = tapply(reach, rolls_out$tail, sum),
+            measured = tapply(rolls_out$frames_measured, rolls_out$tail, sum)))
+# The tails cannot share a key: a height cannot be both under and over the band, a
+# near_upper roll-height (2 < r above sea level <= 3) cannot be a slipped one (> 3), and a
+# terrain one is inside the band above sea level, where every other tail is outside it.
 stopifnot(!anyDuplicated(key4(v$film_roll, v$flying_height, v$focal_length, v$scale_n)))
 
 write.csv(rolls_out, "inst/extdata/flying_height_rolls.csv", row.names = FALSE, na = "")

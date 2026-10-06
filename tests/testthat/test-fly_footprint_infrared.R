@@ -109,7 +109,7 @@ test_that("the #54 band classes and the three out-of-band roll-heights recompute
   expect_equal(cls, fr$height_class)
   expect_equal(as.vector(table(factor(cls, c("reported", "outside_band", "slip_repairable")))),
                c(3769, 56, 0))
-  # The note and fly#91: each out-of-band roll-height is a right height beside a wrong scale —
+  # The note: each out-of-band roll-height is a right height beside a wrong scale —
   # spacing fits the reported height and rejects nominal — and only bci9 sits where the fly#60 /
   # fly#72 strata reach (ratio above sea level <= 0.5, or 2 to 3).
   ob <- fr[cls == "outside_band", ]
@@ -130,6 +130,12 @@ test_that("the #54 band classes and the three out-of-band roll-heights recompute
                       numeric(1))
   stratum <- ratio_asl <= 0.5 | (ratio_asl > 2 & ratio_asl <= 3)
   expect_equal(names(ratio_asl)[stratum], "bci9")
+  # fly#91 tabled all three, `bci9` under #72's near_upper and the other two under the
+  # `terrain` tail, so with a DEM none of the 56 is drawn at nominal scale any more.
+  tab <- fly_height_roll_table()
+  ob_key <- unique(paste(ob$film_roll, ob$flying_height, ob$focal_length, ob$scale_n))
+  expect_true(all(ob_key %in% paste(tab$film_roll, tab$flying_height, tab$focal_length,
+                                    tab$scale_n)))
 })
 
 test_that("every thumbnail-bearing roll looks like a 9-inch film frame", {

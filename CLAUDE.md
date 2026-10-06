@@ -95,7 +95,8 @@ per roll (fly#60) with adjacent-frame spacing and the hand transcription of the 
 logbook scans in `data-raw/flying_height_logbooks.csv`, which is an input and is never
 regenerated. Writes `inst/extdata/flying_height_rolls.csv` and
 `flying_height_rolls_excluded.csv`; `test-fly_footprint_height_rolls.R` holds both to the
-sweep
+sweep. It also reads the infrared census `infrared_film_frames.csv` (fly#91), which the
+BW/colour sweep does not hold, so run `format_measure-infrared_film.R` first
 - `height_fixture()` and `flat_dem()` in `tests/testthat/setup.R` — eight frames over level
 ground, each reaching one height check by a stated route; rows 7 and 8 exist because two
 deliberate defects survived the first six
@@ -356,9 +357,11 @@ rather than a property of this code.
   - **`bcf517` is ambiguous.** One of its readings favours 5 inches.
   - **Spacing cannot separate 23 cm from 18 cm.** Six rolls' logbooks write 9 x 9 or name an
     RC 10, eleven name only camera bodies that also flew 9-inch BW/colour, and 15 have no page.
-  - **56 out-of-band IR frames sit on three wrong-scale roll-heights** (fly#91), drawn at nominal
-    until tabled. Only `bci9` falls in a population the #60/#72 rules read; `bc5312` and
-    `bci12` leave the band only through terrain.
+  - **56 out-of-band IR frames sit on three wrong-scale roll-heights**, tabled by fly#91.
+    `bci9` is under `near_upper`. `bc5312` and `bci12` leave the band only through terrain,
+    which no tail held, so they got a fourth tail, `terrain`, under #72's rule unchanged
+    and fixed before a blind logbook read. The same BW/colour population is unmeasured
+    (fly#93); do not fold it into `lower`, which is defined as ratio above sea level <= 0.5.
 
   The #54, #58, #65 and #80 scripts are pinned to the BW/colour set they were measured over, so
   re-running them reproduces what shipped. Read `inst/notes/camera-formats.md`, "Infrared film
