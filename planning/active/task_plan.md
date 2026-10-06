@@ -50,27 +50,27 @@ blind, and the findings will say so:
 
 ## Phase 1: Pre-register (committed before the exact census is read and before any page is transcribed)
 
-- [ ] `findings.md` records what was already known when the rule was written, so it cannot be called blind:
+- [x] `findings.md` records what was already known when the rule was written, so it cannot be called blind:
   the coarse counts and the coarse spacing split above.
-- [ ] **Population.** Usable BW/colour film frames, using the sweep's filter spelled out (not
+- [x] **Population.** Usable BW/colour film frames, using the sweep's filter spelled out (not
   `fly_film_media()`).
   - `ratio_asl` is in band.
   - `r = (flying_height - elev) / nominal_agl` is out of band, with `r > 0`.
   - `elev` is the sweep's measure: the mean of MRDEM-30 under the nominal 9-inch square, axis-aligned.
   - A frame above the band through terrain needs ground below sea level. If one appears, the script stops.
-- [ ] **Prefilter.** A frame is read exactly if `coarse_elev > flying_height - band[1] * nominal_agl - M`.
+- [x] **Prefilter.** A frame is read exactly if `coarse_elev > flying_height - band[1] * nominal_agl - M`.
   - `M` is 2x the largest |coarse - exact| over the sweep's frames, computed in the script and printed.
   - A producer line prints the smallest slack among census frames, as evidence the margin was not binding.
-- [ ] **Controls**, all required to pass:
+- [x] **Controls**, all required to pass:
   - every sweep frame in the stratum (12 in `random`) is in the census;
   - every sweep frame the exact read touches reproduces the shipped sweep `elev` to 0.1 m;
   - `base` matches the generator's f1 rule.
-- [ ] **Rule.** #72's near_upper rule, unchanged, with `named = 1` and no sibling witness:
+- [x] **Rule.** #72's near_upper rule, unchanged, with `named = 1` and no sibling witness:
   - logbook coverage of at least 0.5 of frames, and at least 0.9 of covered frames naming factor 1;
   - no focal-length conflict;
   - spacing fits the logbook height and rejects nominal;
   - no logbook scale equal to the catalogue's.
-- [ ] **Amendment A2 (evaluation order).**
+- [x] **Amendment A2 (evaluation order).**
   - Condition 3 is first evaluated at the catalogued height (`p_reported`), because factor 1 means the
     logbook height is within 2% of it.
   - A roll-height that fails is not transcribed. It ships in `_excluded.csv` with the reason that fired:
@@ -80,7 +80,7 @@ blind, and the findings will say so:
   - A roll-height that passes gets the full rule, with condition 3 re-checked at the logbook height.
   - A2 can only exclude, never accept.
   - It is applied to the whole `terrain` tail. The IR rows pass it, which the diff shows.
-- [ ] Record what each outcome means:
+- [x] Record what each outcome means:
   - accepted rows are tabled `scale_wrong` at factor 1, `witness = logbook`;
   - excluded rows carry the reason that fired;
   - the 143 roll-heights that fit nominal only are reported as nominal-correct, which is the "fine as

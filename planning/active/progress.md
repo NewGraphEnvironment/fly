@@ -7,3 +7,7 @@
 - Created branch `93-bw-colour-frames-out-of-the-height-band` off main
 - Scaffolded PWF baseline from issue #93 with approved phases
 - Next: Phase 1 pre-registration
+- Phase 1: rule pre-registered in findings.md before the exact census and any transcription. A2 was tightened
+  from "condition 3 at p_reported" to a provably exclusion-only test: the nominal half, plus the frame range at
+  0.98-1.02 of the height, because p_corrected is a median over the agreeing subset at a height within 2%.
+  The prefilter also covers the above-band side and coarse-nodata frames.
