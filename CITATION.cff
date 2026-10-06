@@ -9,7 +9,7 @@ type: software
 license: MIT
 title: 'fly: Historic Airphoto Footprints, Selection and Georeferencing for British
   Columbia'
-version: 0.21.0
+version: 0.22.0
 abstract: Estimate ground footprints from airphoto centroids and scale, compute coverage
   of areas of interest, select minimum photo sets using greedy set-cover, fetch scans
   and flight metadata from the BC Data Catalogue, and georeference the images onto
@@ -21,7 +21,7 @@ authors:
   orcid: https://orcid.org/0000-0002-3495-2128
 repository-code: https://github.com/NewGraphEnvironment/fly
 url: https://newgraphenvironment.github.io/fly/
-date-released: '2026-10-02'
+date-released: '2026-10-06'
 contact:
 - family-names: Irvine
   given-names: Allan
