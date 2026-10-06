@@ -112,17 +112,17 @@ blind, and the findings will say so:
 
 ## Phase 3: Generator, `data-raw/height_calibrate-lower_tail_rolls.R`
 
-- [ ] Read the terrain census:
+- [x] Read the terrain census:
   - assert its `base` equals the generator's to 0.1 m;
   - derive `f_m`, `nominal_agl`, `r`, `p_nominal`, `p_reported` and the `p_x*` columns as Stage 3b does;
   - `rbind` it with the IR terrain frames into `terr`.
-- [ ] Add the A2 prescreen per roll-height on `p_reported`/`p_nominal`. `want` gains only rolls that pass.
-- [ ] Add a Stage 5 `reason` arm for prescreened roll-heights, ahead of the logbook arms, worded so the
+- [x] Add the A2 prescreen per roll-height on `p_reported`/`p_nominal`. `want` gains only rolls that pass.
+- [x] Add a Stage 5 `reason` arm for prescreened roll-heights, ahead of the logbook arms, worded so the
   "nominal scale" suffix test still holds.
-- [ ] Extend the frame-count reconciliation and the disjoint-key `stopifnot` to the new frames.
-- [ ] Replace the "Reported, not a gate" random-sample line with the completeness reconciliation.
-- [ ] Update the header comment with a fly#93 paragraph.
-- [ ] Dry run to fetch pages into `data-raw/.cache/logbooks/`. Before transcription, the refusal path should
+- [x] Extend the frame-count reconciliation and the disjoint-key `stopifnot` to the new frames.
+- [x] Replace the "Reported, not a gate" random-sample line with the completeness reconciliation.
+- [x] Update the header comment with a fly#93 paragraph.
+- [x] Dry run to fetch pages into `data-raw/.cache/logbooks/`. Before transcription, the refusal path should
   send every passing row to `_excluded` as "no logbook page".
 
 ## Phase 4: Blind logbook transcription

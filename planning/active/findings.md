@@ -189,3 +189,43 @@ The plan review is `review-plan.md`. The smoke run read 1,074 candidate frames f
   - Frames above the band still stop the script.
 - **S1.** The A2(a) "spacing fits nominal" roll-heights are consistent with a height recorded above ground
   rather than above sea level. That is a hypothesis, not an outcome, and it is not tested here.
+
+## Census result (Phase 2, `run_census.log`)
+
+| step | n |
+|---|---|
+| usable BW/colour film frames | 1,437,147 |
+| in band above sea level | 1,389,968 |
+| read exactly (2 margin passes, M 223.6 → 285.4 m) | 18,747 |
+| out of band below, r > 0: **the census** | **4,773** on 298 roll-heights, 216 rolls |
+| r <= 0, terrain at or above the aircraft (A3, untailed) | 374 on 15 rolls |
+| above the band | 0 |
+| no terrain under the frame | 23 |
+
+- **Coarse error.** Against the sweep's 7,156 frames: median 6.8 m, max 111.8 m. Over the 18,724 frames read
+  exactly: median 7.7 m, max 142.7 m. The second pass did not raise it.
+- **Margin slack.** The smallest among census frames is 217.4 m of M = 285.4 m. No census frame sits more than
+  the worst error inside the prefilter.
+- **Control 1.** 136 sweep frames read again, max |difference| 0.050 m. That is the 0.1 m rounding of the
+  shipped column.
+- **Control 2.** 12 of 12 sweep random frames are in the census.
+- **Control 3.** 1,000 frames read from the 500 m past the prefilter: 0 out of band.
+- **By decade:** 1960s 625, 1970s 2,710, 1980s 1,318, 1990s 109, 2000s 11.
+
+The issue's estimate was ~7,000 (3,500-11,900) from 12 draws. The census is 4,773 below the band, plus 374 at
+r <= 0, which the random draw's definition (`r > 0`) also excluded.
+
+## Dry run of the generator (Phase 3, `run_rolls_dry.log`)
+
+A2 over the 300 terrain roll-heights, the 298 BW/colour plus the 2 IR:
+
+- 176 fit nominal (2,380 frames);
+- 35 cannot fit the catalogued height within 2% (647);
+- 89 go to the logbook (1,777 frames, 67 rolls). Pages were fetched for those rolls: 176 new pages, 0 failed.
+
+**Five roll-heights are already accepted** from pages fly#60/#72 transcribed blind for their own tails:
+`bc5598` 2255 m, `bc5689` 1524, `bc7211` 3505, `bc78104` 2438, `bcc544` 1768. Those readers were blind to the
+catalogue but were not reading for this stratum. Nothing in the rule distinguishes why a page was transcribed.
+
+No existing row of either table changed. 81 roll-heights on 60 rolls have no page transcribed. Two of those
+rolls (`bcb04001`, `bcc07085`) have no page in the catalogue at all. That leaves 176 pages on 58 rolls to read.
