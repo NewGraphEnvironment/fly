@@ -11,3 +11,8 @@
   from "condition 3 at p_reported" to a provably exclusion-only test: the nominal half, plus the frame range at
   0.98-1.02 of the height, because p_corrected is a median over the agreeing subset at a height within 2%.
   The prefilter also covers the above-band side and coarse-nodata frames.
+- Phase 2: census script written; two smoke runs (the first stopped on r <= 0 frames → A3). Full census from a
+  frozen copy (`run_census.log`): 18,747 read exactly over 2 margin passes (M 223.6 → 285.4 m);
+  4,773 frames, 298 roll-heights, 216 rolls; r <= 0 374 frames on 15 rolls; Controls 1-3 pass;
+  A2 preview 176 nominal / 35 cannot / 87 to the logbook (1,746 frames). The source differs from the
+  frozen copy only by lint reflow.

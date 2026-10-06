@@ -88,27 +88,27 @@ blind, and the findings will say so:
 
 ## Phase 2: Census script, `data-raw/height_measure-terrain_tail.R`
 
-- [ ] Read the centroid cache and apply the sweep's BW/colour filter.
-- [ ] Build the coarse DTM with the `gdal_translate -outsize ... -r average` recipe from
+- [x] Read the centroid cache and apply the sweep's BW/colour filter.
+- [x] Build the coarse DTM with the `gdal_translate -outsize ... -r average` recipe from
   `dem_measure-canopy_height.R`, cached under the gitignored `data-raw/.cache/terrain_tail/`. Take box means
   with a summed-area table.
-- [ ] Measure `M` on the sweep and apply the prefilter.
-- [ ] Read MRDEM-30 exactly on a PSOCK cluster, with the sweep's worker: chunks of 50,
+- [x] Measure `M` on the sweep and apply the prefilter.
+- [x] Read MRDEM-30 exactly on a PSOCK cluster, with the sweep's worker: chunks of 50,
   `terra::extract(fun = mean, na.rm = TRUE)`.
   - The cache is resumable and saved atomically.
   - The script refuses to report if any chunk failed.
   - The worker is copied, because the sweep's is an anonymous closure. The elevation-reproduction control
     proves the copy matches.
-- [ ] Compute `base` with the f1 adjacency rule. Classify, run the controls, and print producer lines:
+- [x] Compute `base` with the f1 adjacency rule. Classify, run the controls, and print producer lines:
   - counts per step;
   - roll-heights and rolls;
   - the coarse-vs-exact error;
   - the A2 spacing split.
-- [ ] Ship two files:
+- [x] Ship two files:
   - `inst/extdata/flying_height_terrain_frames.csv`: out-of-band frames, with the IR census's columns;
   - `inst/extdata/flying_height_terrain_population.csv`: the step counts.
   - `FLY_TERRAIN_SMOKE=1` writes nothing.
-- [ ] Run it. Keep the log in `planning/active/run_census.log`.
+- [x] Run it. Keep the log in `planning/active/run_census.log`.
 
 ## Phase 3: Generator, `data-raw/height_calibrate-lower_tail_rolls.R`
 
