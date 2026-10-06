@@ -89,63 +89,64 @@ What exploration established:
 
 ## Phase 3: Generator
 
-- [ ] In `height_calibrate-lower_tail_rolls.R`, after the existing controls:
+- [x] In `height_calibrate-lower_tail_rolls.R`, after the existing controls:
   - read the IR census;
   - recompute `base` from `f1` and assert it equals the shipped `base` (to 0.1 m);
   - derive `f_m`, `nominal_agl`, `r`, `p_nominal` and `p_reported` as Stage 2 does;
   - split into the two sets, and stop on any frame neither set takes.
-- [ ] Logbook fetching:
+- [x] Logbook fetching:
   - add the IR rolls to `want`, so `fetch_logbooks()` caches their pages under
     `data-raw/.cache/logbooks/`;
   - `near_v <- settle(rbind(near, ir_near), ...)`;
   - add `terr_v <- settle(ir_terrain, named = 1, tail = "terrain")`.
-- [ ] Stage 5 changes:
+- [x] Stage 5 changes:
   - `nu_row` becomes `tail %in% c("near_upper", "terrain")`, covering both the
     spacing-rejects-nominal condition and the scale veto;
   - the sibling skip and the "nominal scale still applies" suffix cover `terrain`;
   - the frame-count reconciliation and the disjoint-key `stopifnot` include the IR frames;
   - the comment on disjoint tails explains why `terrain` is disjoint.
-- [ ] Print the BW/colour random-sample count of terrain-driven out-of-band frames, as a
+- [x] Print the BW/colour random-sample count of terrain-driven out-of-band frames, as a
   reported line, not a gate.
-- [ ] Update the header comment (fly#91 paragraph), then run the script and regenerate
+- [x] Update the header comment (fly#91 paragraph), then run the script and regenerate
   `flying_height_rolls.csv` and `_excluded.csv`.
-- [ ] Diff the CSVs. Only IR rows may appear, and every BW/colour row must be byte-identical.
-- [ ] Commit the log under `data-raw/logs/` per convention.
+- [x] Diff the CSVs. Only IR rows may appear, and every BW/colour row must be byte-identical.
+- [x] Keep the run log: this repo commits no `data-raw/logs/`, so it rides in
+  `planning/active/run_rolls.log` and is archived with the PWF.
 
 ## Phase 4: Tests
 
-- [ ] `test-fly_footprint_height_rolls.R`:
+- [x] `test-fly_footprint_height_rolls.R`:
   - the tail sets become four values;
   - the recompute builds `near_upper` as sweep plus IR, and `terrain` from
     `infrared_film_frames.csv`;
   - a `terrain` scale-wrong row must sit below `band[1]`;
   - pin the three IR rows: key, factor 1, `scale_wrong`, logbook witness, and `height_m`
     equal to the logbook's feet times 0.3048.
-- [ ] Add a `fly_footprint()` test. Fixture frames keyed to the three IR rows, over a flat
+- [x] Add a `fly_footprint()` test. Fixture frames keyed to the three IR rows, over a flat
   DEM, must return `height_source == "corrected_roll_table"` and a width from `height_m`,
   not nominal. A control frame differing only in scale must stay nominal.
-- [ ] `test-fly_footprint_infrared.R`: update the fly#91 comment, and assert that the three
+- [x] `test-fly_footprint_infrared.R`: update the fly#91 comment, and assert that the three
   out-of-band keys are now tabled.
-- [ ] Prove the guards fire, in a scratch copy:
+- [x] Prove the guards fire, in a scratch copy:
   - drop `terrain` from `nu_row` and check spacing rejection still holds;
   - remove one IR row from the table and check the fixture test fails;
   - mislabel the tail and check the set test fails.
-- [ ] Run `devtools::test()` and `lintr`.
+- [x] Run `devtools::test()` and `lintr`.
 
 ## Phase 5: Docs
 
-- [ ] `R/fly_footprint.R`: add `terrain` to the roll-table comment block, and to roxygen
+- [x] `R/fly_footprint.R`: add `terrain` to the roll-table comment block, and to roxygen
   wherever the tails are listed. Then run `devtools::document()`.
-- [ ] `inst/notes/terrain-correction.md`: add a fly#91 subsection. Its table is built from the
+- [x] `inst/notes/terrain-correction.md`: add a fly#91 subsection. Its table is built from the
   producer lines, with the BW/colour terrain-driven population stated as unmeasured.
-- [ ] `inst/notes/camera-formats.md`: replace "Until fly#91 tables them..." with the measured
+- [x] `inst/notes/camera-formats.md`: replace "Until fly#91 tables them..." with the measured
   outcome.
-- [ ] `CLAUDE.md`: update the #89 Key Decision bullet, and the Architecture line for the
+- [x] `CLAUDE.md`: update the #89 Key Decision bullet, and the Architecture line for the
   generator to say it now reads the IR census.
 
 ## Phase 6: Close-out
 
-- [ ] File the follow-up issue for the BW/colour terrain-driven stratum, with the count and
+- [x] File the follow-up issue for the BW/colour terrain-driven stratum, with the count and
   the method. Link it from the note.
 - [ ] `/code-check` before each commit, then `/planning-archive` and `/gh-pr-push`.
 

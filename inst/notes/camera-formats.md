@@ -354,9 +354,14 @@ An 18 cm frame sized at 9 inches lands in the window on most rolls, so W1 cannot
     BW and colour.
   - Only `bci9` falls in a population those rules read. Its height is 2.436 times
     `scale x focal` above sea level, inside #72's `near_upper`. `bc5312` (0.731) and `bci12`
-    (0.762) leave the band only through terrain, which neither rule reaches.
-  - Until fly#91 tables them, they are drawn at nominal scale, with or without a `dem`. That
-    is about 2x (`bc5312`, `bci12`) or 0.5x (`bci9`) the width the spacing supports.
+    (0.762) leave the band only through terrain, which neither rule reached.
+  - fly#91 tabled all three in `flying_height_rolls.csv` at factor 1 (`scale_wrong`). `bci9`
+    went under `near_upper`, and `bc5312` and `bci12` under a new `terrain` tail. Each had
+    its logbook height read blind, and spacing fitted that height and rejected nominal. With
+    a `dem` they are now drawn from the height the crew flew. Before, they were drawn at
+    nominal, about 2x (`bc5312`, `bci12`) or 0.5x (`bci9`) the width the spacing supports.
+    Without a `dem` every film frame is still nominal. See `terrain-correction.md`,
+    "Infrared frames".
 - **Callers already sizing IR through `format_size` see the change.** A caller passing
   `format_size = c("Film - Colour IR" = 9)` already sized these frames, but skipped the #54
   check; it now applies.

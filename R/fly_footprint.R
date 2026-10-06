@@ -264,7 +264,9 @@ fly_flying_height_max <- function() 16000
 # LARGE. That last case is fly#71: rolls flown before 2003 that #54 divides by 10.764. `tail` records
 # which side of the band the roll-height came from: `lower`, `upper` (#54's slipped frames), or
 # `near_upper` (fly#72) — the r ~ 2 mass, where a factor of 1 is the same `scale_wrong` cause
-# reached from above the band, and the only factor named there. `height_m` is the height used — the logbook's,
+# reached from above the band, and the only factor named there — or `terrain` (fly#91), infrared
+# frames in band above sea level and out of it only through the ground beneath them, under the
+# same rule and with the same single factor. `height_m` is the height used — the logbook's,
 # converted, since the catalogue's rounding survives multiplying by the factor.
 #
 # fly#74 added a third witness where no logbook settles a roll-height: a frame adjacent by
@@ -275,11 +277,13 @@ fly_flying_height_max <- function() 16000
 # names it in `sibling_frame`, and has no `logbook_ft`. A leading-digit row's `factor` is the
 # ratio it implies rather than a named slip; only `factor != 1` is read from it here.
 #
-# Keyed on roll, height, lens and scale together, so the table reaches only the frames it
-# was measured on. Every lower-tail roll-height it does not correct, every #54-slipped one
-# it does not reach, and every sampled near_upper one it leaves on nominal scale, is listed
+# Keyed on roll, height, lens and scale together, so the table reaches only the roll-heights
+# it was measured on. Every lower-tail roll-height it does not correct, every #54-slipped one
+# it does not reach, and every near_upper or terrain one it leaves on nominal scale, is listed
 # with its reason in `flying_height_rolls_excluded.csv`: an unlisted roll is unmeasured, not
-# clean. The near_upper rows come from a 600-frame sample of that stratum, not a census.
+# clean. The BW/colour near_upper rows come from a 600-frame sample of that stratum, not a
+# census; the infrared rows (fly#91) from a census of every IR frame outside the band. The
+# BW/colour frames out of band only through terrain are unmeasured.
 # Produced by `data-raw/height_calibrate-lower_tail_rolls.R`; see
 # `inst/notes/terrain-correction.md`.
 fly_height_roll_table <- function() {
@@ -732,7 +736,8 @@ fly_is_square <- function(footprints) {
 #'     the roll-heights in `inst/extdata/flying_height_rolls.csv`, which the
 #'     province's flight logbooks, or failing them an adjacent frame on the same
 #'     roll in an exact named relation, together with the spacing between adjacent
-#'     frames, settled (fly#60, fly#71, fly#72, fly#74): a height with one or two digits dropped (a logbook "20.0",
+#'     frames, settled (fly#60, fly#71, fly#72, fly#74, fly#91): a height with one
+#'     or two digits dropped (a logbook "20.0",
 #'     thousands of feet, catalogued as 2,000 ft), a height recorded ten times too
 #'     large, a leading digit added, or a correct height beside a wrong `scale` —
 #'     on either side of the band, including frames around twice their nominal

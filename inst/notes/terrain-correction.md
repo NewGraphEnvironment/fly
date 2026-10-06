@@ -325,9 +325,11 @@ catalogue stores whole metres of a converted figure, so `bc7280`'s 20,000 ft is 
 ×100 of that is 96 m short.
 
 `fly_footprint(dem = )` consults `inst/extdata/flying_height_rolls.csv` before #54's repair,
-keyed on roll, height, lens and scale together — which reaches exactly the 1,001 measured
+keyed on roll, height, lens and scale together — which reached exactly the 1,001 measured
 frames (1,300 since fly#71 added the upper tail, and 1,438 since fly#74 added a same-roll
-witness, both below) — and marks those frames
+witness, both below). Since fly#72 only the census tails reach exactly what they measured:
+lower 1,130, upper 308 and terrain (fly#91) 31. `near_upper`, measured on a sample, reaches
+3,252 catalogue frames against 145 measured, 4,721 against 1,614 in all. It marks those frames
 `"corrected_roll_table"`. A height slip must still reconcile
 the frame's own ratio, as #54's does. A scale-wrong row cannot be asked that, since the ratio
 is against the wrong scale, but its height must clear the ground. The table also reaches a
@@ -547,7 +549,8 @@ The result:
   `bc79043` is the reverse — 12" written, spacing fitting the reported height — and is
   excluded with a reason saying the witnesses disagree.
 
-**Bound.** `near_upper` is a 600-frame sample of 2 < r above sea level ≤ 3, not a census.
+**Bound.** The BW/colour `near_upper` rows come from a 600-frame sample of 2 < r above sea level ≤ 3,
+not a census. (The one infrared row, `bci9`, comes from fly#91's IR census.)
 Not measured: roll-heights no sampled frame sits on; the 505 `upper_tail` census frames that
 #54 does not repair; and frames just under the stratum's floor. The largest known group is
 there: **1,534 frames on nine 1985 rolls** (`bc85063`–`bc85091`) at 6,096 m, 305 mm and
@@ -557,6 +560,63 @@ neighbours `bc85080` and `bc85081` log 20,000 ft in the pages read here, and the
 `bc85079`–`bc85081` are the same camera, lens and scale — so they are likely the same
 `scale_wrong`, and unmeasured (fly#78). A third random frame, `bc5703` (1:6000, 153 mm, r 1.99), looks
 like the 1972–76 group. An unlisted roll-height stays on nominal scale.
+
+## Infrared frames: one beyond the band, two out of it only through terrain (fly#91)
+
+**Verified:** 2026-10-06 · **Issues:** fly#91 (from fly#89), spawned fly#93 · **Produced by:**
+`data-raw/height_calibrate-lower_tail_rolls.R`, sets `near_upper` and `terrain`, reading the
+census `inst/extdata/infrared_film_frames.csv`
+
+fly#89 sized infrared film as the 9-inch negative, so IR frames now reach the #54 check, and
+56 of them fall outside the band. The sweep the rules above read is BW/colour only (pinned
+there so a re-run reproduces what shipped), so none of the 56 was in any of its strata. The
+generator now reads them from fly#89's IR census, whose `elev` and air base are measured the
+way the sweep's are; the script asserts the two air bases agree.
+
+Each frame goes to the stratum its ratio above sea level puts it in, by a rule fixed before
+the logbooks were read:
+
+- **`near_upper`** (2 < ratio ≤ 3): `bci9`, 25 frames, ratio 2.436. It is settled alongside
+  #72's sample, not drawn into it.
+- **`terrain`**, a new tail. These are frames in band above sea level that only the ground
+  takes out of it: `bc5312` (0.731) and `bci12` (0.762), 31 frames. No other tail holds
+  such a frame, since every other tail is outside the band above sea level.
+- **Anything else stops the script.** No frame falls there today.
+
+Both sets ran under #72's `near_upper` rule, unchanged:
+
+1. the logbook covers at least half the frames, and at least 90% of those name factor 1;
+2. no legible lens contradicts the catalogue;
+3. spacing fits the logbook height **and** rejects nominal scale;
+4. no legible logbook scale equals the catalogue's.
+
+The audit for BW/colour assumptions found one. The scale pattern read only `1:N`, and these
+pages write `1/15,840`, which would have silently withheld condition 4. It now accepts
+either, and no BW/colour row changes. The window (0.557 to 0.780) is taken from BW/colour
+frames, as fly#89's W1 already did for IR.
+
+New pages were transcribed blind into `data-raw/flying_height_logbooks.csv`, with the reader
+given only the images. All three read back as catalogued:
+
+| roll-height | tail | frames | logbook | height used | overlap at nominal | at logbook height | r |
+|---|---|---|---|---|---|---|---|
+| `bc5312` 3,353 m, 1:30000, 153 mm | terrain | 17 | 11.0 | 3,352.8 m | 0.805 | 0.594 | 0.473 |
+| `bci12` 3,682 m, 1:15840, 305 mm | terrain | 14 | 12.08 | 3,682.0 m | 0.807 | 0.620 | 0.506 |
+| `bci9` 5,944 m, 1:8000, 305 mm | near_upper | 25 | 19.5 | 5,943.6 m | 0.228 | 0.620 | 2.030 |
+
+All three are tabled at factor 1, `scale_wrong`, on the logbook's witness. Their keys reach
+exactly the 56 frames, and every BW/colour row of both tables is byte-identical to the
+previous run. With a DEM these frames are now drawn from the height the crew flew: about
+half the nominal width on `bc5312` and `bci12`, and about twice it on `bci9`. Without a DEM
+every film frame is still nominal, as before.
+
+**`bci9`'s logbook scale is not a witness.** Sheet 2 writes "Scale 1/15,840" once, at the
+foot of a page whose finals are 101-128. Frames 12-36 are on sheet 1, which writes no scale,
+so condition 4 had nothing to read on them.
+
+**Bound.** This is a census of IR frames and nothing else. The same terrain-only population
+exists among BW/colour frames: 12 of the 2,500 random draws are out of band only through the
+ground, all below it. No rule here reads them, and they are unmeasured (fly#93).
 
 ## What a partially covered footprint costs (fly#58)
 
