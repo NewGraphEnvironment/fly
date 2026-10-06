@@ -9,7 +9,7 @@
 #
 # Finding them needs the DEM under every candidate, and 1.39 million frames are in band above
 # sea level. So:
-#   1. a coarse picture of MRDEM (`gdal_translate -outsize`, overviews averaged, ~250 m) gives
+#   1. a coarse picture of MRDEM (`gdal_translate -outsize`, overviews averaged, ~314 m) gives
 #      every frame a box mean in four summed-area-table lookups;
 #   2. a margin M, twice the worst coarse error over every frame whose exact mean is known,
 #      decides which frames could be out of band, and only those are read exactly;
@@ -373,8 +373,8 @@ p_win <- unname(quantile(1 - rnd_in$base / (FORMAT_M * (rnd_in$flying_height - r
                                              (rnd_in$focal_length / 1000)),
                          c(.025, .975), na.rm = TRUE))
 fits <- function(p) is.finite(p) & p >= p_win[1] & p <= p_win[2]
-# Overlap at `k` times the catalogued height. A frame whose ground sits within that height has
-# no finite value, and on the low side no bound at all.
+# Overlap at `k` times the catalogued height. A frame whose ground sits within 2% of the
+# aircraft bounds nothing, so its roll-height is always previewed as going to the logbook.
 p_at <- function(d, k) {
   side <- d$flying_height * k - d$elev
   ifelse(side > 0, 1 - d$base / (FORMAT_M * side / (d$focal_length / 1000)), -Inf)
@@ -384,8 +384,9 @@ a2 <- do.call(rbind, lapply(split(terr, list(terr$film_roll, terr$flying_height,
   ok <- is.finite(d$base)
   data.frame(n = nrow(d),
              nominal_fits = fits(median(1 - d$base / (FORMAT_M * d$scale_n), na.rm = TRUE)),
-             reported_can = any(ok) && max(p_at(d[ok, ], 1.02)) >= p_win[1] &&
-               min(p_at(d[ok, ], 0.98)) <= p_win[2])
+             reported_can = any(ok) && (any(ok & d$flying_height * 0.98 <= d$elev) ||
+                                          (max(p_at(d[ok, ], 1.02)) >= p_win[1] &&
+                                             min(p_at(d[ok, ], 0.98)) <= p_win[2])))
 }))
 pub(paste0("  A2 preview (window %.3f-%.3f): spacing fits nominal %d roll-heights (%d frames); ",
            "cannot fit the catalogued height within 2%% %d (%d); to transcribe %d (%d frames)"),

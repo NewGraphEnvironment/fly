@@ -16,3 +16,4 @@
   4,773 frames, 298 roll-heights, 216 rolls; r <= 0 374 frames on 15 rolls; Controls 1-3 pass;
   A2 preview 176 nominal / 35 cannot / 87 to the logbook (1,746 frames). The source differs from the
   frozen copy only by lint reflow.
+- Full suite on 6f73de0: [ FAIL 0 | WARN 0 | SKIP 0 | PASS 5403 ]

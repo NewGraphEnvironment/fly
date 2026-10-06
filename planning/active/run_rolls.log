@@ -347,8 +347,8 @@ frames: nominal fits 90, reported fits 105, neither 14
 
 == infrared census outside the band: 56 frames; near_upper 25 (bci9), terrain 31 (bc5312, bci12) ==
 BW/colour terrain census: 4773 frames on 216 rolls; the random draw's 12 of 2500 are all in it
-A2: of 300 terrain roll-heights, 176 fit nominal (2380 frames), 35 cannot fit the catalogued height (647), 89 go to the logbook (1777 frames, 67 rolls)
-logbook pages for 9 rolls: 0 fetched or cached, 0 failed
+A2: of 300 terrain roll-heights, 176 fit nominal (2380 frames), 32 cannot fit the catalogued height (472), 92 go to the logbook (1952 frames, 69 rolls)
+logbook pages for 11 rolls: 6 fetched or cached, 0 failed
 
 == logbook controls (catalogue values withheld from the reader) ==
  film_roll frames_final log_ft log_focal
@@ -2198,13 +2198,13 @@ upper                               1                        NA          NA
              no logbook page covers these frames; nominal scale still applies
   lower                                                                     0
   near_upper                                                                1
-  terrain                                                                  10
+  terrain                                                                  13
   upper                                                                     0
             
              spacing cannot fit the catalogued height within 2%, whatever the logbook reads; nominal scale still applies
   lower                                                                                                                0
   near_upper                                                                                                           0
-  terrain                                                                                                             35
+  terrain                                                                                                             32
   upper                                                                                                                0
             
              spacing fits nominal scale, which no logbook height changes; nominal scale still applies
@@ -2293,12 +2293,12 @@ upper                                                                 1271
            no logbook page covers these frames; nominal scale still applies
 lower                                                                    NA
 near_upper                                                                4
-terrain                                                                  65
+terrain                                                                 240
 upper                                                                    NA
            spacing cannot fit the catalogued height within 2%, whatever the logbook reads; nominal scale still applies
 lower                                                                                                               NA
 near_upper                                                                                                          NA
-terrain                                                                                                            647
+terrain                                                                                                            472
 upper                                                                                                               NA
            spacing fits nominal scale, which no logbook height changes; nominal scale still applies
 lower                                                                                            NA

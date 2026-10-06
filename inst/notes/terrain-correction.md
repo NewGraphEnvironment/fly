@@ -637,8 +637,8 @@ are in band above sea level. A coarse picture of MRDEM (the COG's overviews aver
 be out of band, and only those are read exactly, by the sweep's own instrument (the mean of
 MRDEM-30 under the nominal 9-inch square, axis-aligned). `M` started from the sweep's worst
 error (111.8 m) and was then held to every frame read: the sweep over-represents large
-footprints, and the error grows on small ones over steep ground. The second pass raised it to
-285.4 m and the third read left it there.
+footprints, and the error grows on small ones over steep ground. The first pass's reads raised
+it to 285.4 m, and the second pass's reads left it there.
 
 | step | frames |
 |---|---|
@@ -683,7 +683,12 @@ any page is read, from quantities no logbook can change:
 - Under factor 1 the height used is within 2% of the catalogue's, and `p_corrected` is a
   median over the frames whose logbook agrees. Each frame's value lies between its overlap at
   0.98 and at 1.02 of the height, and a median of any subset lies within its members' range.
-  If that range misses the window, the rule fails whatever is read.
+  If that range misses the window, the rule fails whatever is read. That holds only while each
+  frame's ground is below 0.98 of the height: a logbook height under a frame's ground gives an
+  overlap above 1, which can lift a subset median into the window from below. A roll-height
+  with such a frame is bounded by nothing and goes to the logbook. The first version missed
+  this, and a code-check round found it on three roll-heights; none has a page, so none moved
+  beyond its reason.
 
 So A2 excludes only roll-heights the unamended rule could never accept, and only the rest had
 their pages read. Its two reasons say which half fired and claim nothing about whether a page
@@ -692,8 +697,8 @@ was read, because a roll's pages are transcribed whole.
 | A2 outcome | roll-heights | frames |
 |---|---|---|
 | spacing fits nominal scale | 176 | 2,380 |
-| spacing cannot fit the catalogued height within 2% | 35 | 647 |
-| to the logbook | 89 | 1,777 |
+| spacing cannot fit the catalogued height within 2% | 32 | 472 |
+| to the logbook | 92 | 1,952 |
 
 (Over all 300 terrain roll-heights, the two IR ones included; both go to the logbook.) The
 176 where nominal fits are where nominal scale is already right and the height field is the
@@ -702,7 +707,7 @@ a hypothesis.
 
 ### What the logbooks said
 
-The 89 roll-heights A2 left to the logbook sit on 67 rolls. Pages were already transcribed for
+The 92 roll-heights A2 left to the logbook sit on 69 rolls. Pages were already transcribed for
 some, and five of those were already accepted from pages read blind for fly#60 and fly#72. The
 other 176 pages, on 58 rolls, were read blind by five transcribers given only the images. Each
 batch carried one page already transcribed, as a control: all five agree on height and lens.
@@ -710,16 +715,16 @@ batch carried one page already transcribed, as a control: all five agree on heig
 These forms log each strip's start and end on separate lines with the height dittoed between,
 so the literal lines are consolidated page by page. Consecutive lines at one height and lens
 cover the finals between them; lines at different heights, or with no height, are never
-merged. That was written before the generator ran, and it can only withhold coverage: on one
-control, whose form leaves the height blank on the end line, it covers 202-233 where the
-existing row covers 202-249.
+merged, and no run crosses a line whose height was not read. That was written before the
+generator ran, and it can only withhold coverage: on one control, whose form leaves the height
+blank on each end line, it covers 202, 219 and 233 where the existing row covers 202-249.
 
 | terrain tail outcome | roll-heights | frames |
 |---|---|---|
 | tabled at factor 1, `scale_wrong` | 62 | 1,375 |
 | spacing fits nominal scale (A2) | 176 | 2,380 |
-| spacing cannot fit the catalogued height within 2% (A2) | 35 | 647 |
-| no logbook page covers these frames | 10 | 65 |
+| spacing cannot fit the catalogued height within 2% (A2) | 32 | 472 |
+| no logbook page covers these frames | 13 | 240 |
 | logbook height or frame range not read | 5 | 90 |
 | logbook height is not a named multiple of the catalogue's | 3 | 99 |
 | spacing rejects the logbook's height | 6 | 64 |

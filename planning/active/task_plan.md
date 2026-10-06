@@ -167,7 +167,7 @@ blind, and the findings will say so:
   `:210-215` build terrain from IR only.
 - [x] Review G6: replace the `nu_row` mutation with one that targets the scale veto, or record it as not
   observable.
-- [ ] Run `devtools::test()` (FAIL/PASS grep) and `lintr`.
+- [x] Run `devtools::test()` (FAIL/PASS grep) and `lintr`.
 
 ## Phase 7: Docs and close-out
 
@@ -186,7 +186,7 @@ blind, and the findings will say so:
 
 ## Validation
 
-- [ ] Tests pass
+- [x] Tests pass
 - [ ] `/code-check` clean on each commit
 - [ ] PWF checkboxes match landed work
 - [ ] `/planning-archive` on completion

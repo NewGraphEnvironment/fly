@@ -386,7 +386,8 @@ coarse error **held to every frame read** (the sweep alone understated it: 112 m
   - **Amendment A2 changes the order, not the rule.** It excludes a roll-height before its
     pages are read only where #72's spacing condition cannot hold whatever a logbook says:
     nominal fits, or the overlap range at 0.98-1.02 of the height misses the window (a subset
-    median lies within its members' range). 211 of the 300 went that way. Its reasons claim
+    median lies within its members' range; a frame whose ground is within 2% of the aircraft
+    bounds nothing). 208 of the 300 went that way. Its reasons claim
     nothing about whether a page was read, since pages are transcribed whole.
   - **`r <= 0` is not this tail.** 374 frames sit under ground at or above the aircraft;
     `fly_footprint()` applies no factor-1 row there, so they are counted and left untailed

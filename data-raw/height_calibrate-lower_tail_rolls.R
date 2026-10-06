@@ -301,8 +301,10 @@ key4 <- function(roll, h, f, sc) paste(roll, num(h), num(f), num(sc))
 #       is a median over the frames whose logbook agrees. Overlap rises with height, so each
 #       frame's value lies in [p(0.98 h), p(1.02 h)], and a median of any subset lies within
 #       its members' range: if [min p(0.98 h), max p(1.02 h)] misses the window, or no frame
-#       has an air base, condition 3 fails whatever is read. A frame whose ground sits within
-#       2% of the aircraft has no lower bound at all.
+#       has an air base, condition 3 fails whatever is read. That holds only while every
+#       frame's ground is below 0.98 h: where one's is not, a logbook height under its ground
+#       gives an overlap above 1 and a subset median can be lifted into the window from below,
+#       so such a roll-height has no bound and goes to the logbook (code-check round 1).
 # So A2 excludes only roll-heights the unamended rule could never accept; their pages are
 # not fetched, and the reason says which half fired.
 p_at <- function(d, k) {
@@ -317,7 +319,8 @@ a2 <- do.call(rbind, lapply(terr_groups, function(d) {
   ok <- is.finite(d$base)
   lo <- if (any(ok)) min(p_at(d[ok, ], 0.98)) else NA_real_
   hi <- if (any(ok)) max(p_at(d[ok, ], 1.02)) else NA_real_
-  can <- any(ok) && hi >= p_window[1] && lo <= p_window[2]
+  unbounded <- any(ok & d$flying_height * 0.98 <= d$elev)
+  can <- any(ok) && (unbounded || (hi >= p_window[1] && lo <= p_window[2]))
   reason <- if (fits(median(d$p_nominal, na.rm = TRUE))) A2_NOMINAL else if (!can) A2_CANNOT else NA
   data.frame(key = key4(d$film_roll[1], d$flying_height[1], d$focal_length[1], d$scale_n[1]),
              film_roll = d$film_roll[1], n = nrow(d), a2_reason = as.character(reason))

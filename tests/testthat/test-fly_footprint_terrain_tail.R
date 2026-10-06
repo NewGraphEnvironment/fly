@@ -91,7 +91,10 @@ test_that("amendment A2 excludes exactly the roll-heights spacing already decide
   a2 <- vapply(split(terr, key(terr)), function(d) {
     p_nom <- stats::median(1 - d$base / (format_m * d$scale_n), na.rm = TRUE)
     ok <- is.finite(d$base)
-    can <- any(ok) && max(p_at(d[ok, ], 1.02)) >= win[1] && min(p_at(d[ok, ], 0.98)) <= win[2]
+    # Ground within 2% of the aircraft bounds nothing: the roll-height goes to the logbook.
+    unbounded <- any(ok & d$flying_height * 0.98 <= d$elev)
+    can <- any(ok) && (unbounded ||
+                         (max(p_at(d[ok, ], 1.02)) >= win[1] && min(p_at(d[ok, ], 0.98)) <= win[2]))
     if (fits(p_nom)) "nominal" else if (!can) "cannot" else "logbook"
   }, character(1))
 

@@ -220,7 +220,7 @@ r <= 0, which the random draw's definition (`r > 0`) also excluded.
 A2 over the 300 terrain roll-heights, the 298 BW/colour plus the 2 IR:
 
 - 176 fit nominal (2,380 frames);
-- 35 cannot fit the catalogued height within 2% (647);
+- 35 cannot fit the catalogued height within 2% (647; 32 and 472 after code-check round 1);
 - 89 go to the logbook (1,777 frames, 67 rolls). Pages were fetched for those rolls: 176 new pages, 0 failed.
 
 **Five roll-heights are already accepted** from pages fly#60/#72 transcribed blind for their own tails:
@@ -283,8 +283,8 @@ catalogued frame.
 |---|---|---|
 | tabled (factor 1, `scale_wrong`, logbook) | 62 (60 BW/colour, 2 IR) | 1,375 (1,344 BW/colour) |
 | excluded by A2: spacing fits nominal | 176 | 2,380 |
-| excluded by A2: cannot fit the catalogued height | 35 | 647 |
-| no logbook page covers these frames | 10 | 65 |
+| excluded by A2: cannot fit the catalogued height | 32 | 472 |
+| no logbook page covers these frames | 13 | 240 |
 | logbook height is not a named multiple | 3 | 99 |
 | logbook height or frame range not read | 5 | 90 |
 | spacing rejects the logbook's height | 6 | 64 |
@@ -331,3 +331,32 @@ reason ("nominal scale already sizes it"), which breaks the tail's "still applie
 
 The generator mutation re-run wrote its intermediate `.rds` verdicts through the symlink into
 `data-raw/.cache/`. Nothing shipped reads them, and the next real run overwrites them.
+
+## Code-check round 1 (`review-round1.md`)
+
+Four findings, all real, none moving a tabled row:
+
+1. **A2(b)'s bound fails where a frame's ground is within 2% of the aircraft.**
+   - Fixed by treating such a roll-height as unbounded. This matches A2's own pre-registered claim that it
+     excludes only what the rule could never accept, which the first implementation did not meet.
+   - The fix covers the generator, the census preview and the suite recompute.
+   - Three roll-heights move from "cannot fit" to the logbook: `bc77026` 2042 m (107 frames), and `bc77072`
+     at 1981 m (52) and 1829 m (16). The catalogue links no page for either roll, so they read "no logbook
+     page covers these frames".
+   - Corrected A2 counts: 176 / **32** (472 frames) / **92** to the logbook (1,952, 69 rolls). A2 now
+     excludes 208, not 211.
+2. **The prefilter's upper arm as implemented is `coarse < need_high + M`.** The pre-registration wrote
+   `need_high > -M`, which does not depend on the coarse elevation.
+   - Recorded here as an amendment. It was written after smoke run 1, where the pre-registered arm took
+     35k frames, and before the full census.
+   - It is sound by the same margin argument as the lower arm, and the full run read 1,511 frames through it.
+3. **Consolidation merged across lines with no height**, contrary to the pre-registered text.
+   - Fixed: every ranged line now takes part in the ordering, and a run cannot cross one with no height.
+   - One page changed (`bc7683_3`: one row becomes three). No verdict moved; `bc7683` 2438 m is excluded
+     either way.
+   - Batch 2's control now covers 202, 219 and 233, not 202-233.
+4. **Doc slips.** The note's pass count: two passes, not three. The census header's "~250 m": the run's
+   picture is 314 m. Both fixed.
+
+After the fixes the generator was re-run (`run_rolls.log`). The only table change is the three
+reclassified exclusions. No other row moved, and the tabled count is 62 / 1,375 as before.
