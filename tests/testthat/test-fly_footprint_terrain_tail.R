@@ -1,7 +1,7 @@
 # The BW/colour frames out of the height band only through terrain (fly#93). Everything here
 # is recomputed from what `data-raw/height_measure-terrain_tail.R` and
 # `data-raw/height_calibrate-lower_tail_rolls.R` shipped; nothing trusts a verdict column.
-# The rule and amendment A2 are in `inst/notes/terrain-correction.md`, "The terrain tail".
+# The rule and amendment A2 are in `inst/notes/terrain-correction.md`, "The terrain tail for BW and colour (fly#93)".
 
 extdata <- function(f) {
   utils::read.csv(system.file("extdata", f, package = "fly", mustWork = TRUE),
@@ -108,4 +108,57 @@ test_that("amendment A2 excludes exactly the roll-heights spacing already decide
   expect_identical(unname(got), unname(a2[key(et)]))
   expect_true(all(a2[key(tt)] == "logbook"))
   expect_true(all(grepl("nominal scale still applies", et$reason, fixed = TRUE)))
+})
+
+test_that("the note's terrain-tail tables are the shipped tables, row by row (fly#93)", {
+  np <- system.file("notes/terrain-correction.md", package = "fly")
+  skip_if(!nzchar(np), "notes not installed")
+  note <- readLines(np, warn = FALSE)
+  from <- grep("^## The terrain tail for BW and colour \\(fly#93\\)", note)
+  expect_length(from, 1)
+  to <- from + grep("^## ", note[(from + 1):length(note)])[1]
+  sec <- note[from:to]
+  rows <- function(first) {
+    i <- grep(first, sec, fixed = TRUE)[1]
+    j <- i + 2
+    while (j <= length(sec) && grepl("^\\|", sec[j])) j <- j + 1
+    cells <- strsplit(sub("^\\|\\s*", "", sub("\\s*\\|\\s*$", "", sec[(i + 2):(j - 1)])), "\\s*\\|\\s*")
+    data.frame(label = vapply(cells, `[`, "", 1),
+               n1 = as.numeric(gsub("[^0-9]", "", sub("\\(.*", "", vapply(cells, `[`, "", 2)))),
+               n2 = if (length(cells[[1]]) > 2) as.numeric(gsub("[^0-9]", "", vapply(cells, `[`, "", 3))) else NA)
+  }
+  num <- function(x) as.numeric(gsub("[^0-9.]", "", x))
+
+  # The census table against the population CSV.
+  pop <- extdata("flying_height_terrain_population.csv")
+  n <- stats::setNames(pop$n, pop$step)
+  cen <- rows("| step | frames |")
+  expect_identical(cen$n1, unname(c(1437147, n[["in_band_asl"]], n[["read_exactly"]],
+                                    n[["terrain_below"]], n[["terrain_nonpositive"]],
+                                    n[["terrain_above"]])))
+  expect_identical(cen$n1[1], unname(n[["usable_bw_colour"]]))
+
+  # The outcome table against the two roll tables.
+  tab <- fly_height_roll_table()
+  excl <- extdata("flying_height_rolls_excluded.csv")
+  tt <- tab[tab$tail == "terrain", ]
+  et <- excl[excl$tail == "terrain", ]
+  out <- rows("| terrain tail outcome | roll-heights | frames |")
+  expect_identical(out$n1[1], nrow(tt) + 0)
+  expect_identical(out$n2[1], sum(tt$frames_measured) + 0)
+  reason <- sub(";.*", "", et$reason)
+  # Each later row names its reason by the words it starts with.
+  stems <- c("spacing fits nominal scale", "spacing cannot fit the catalogued height",
+             "no logbook page covers", "logbook height or frame range not read",
+             "logbook height is not a named multiple", "spacing rejects the logbook's height",
+             "logbook names a different lens", "logbook writes the catalogue's scale",
+             "logbook covers under half")
+  expect_identical(nrow(out) - 1L, length(stems))
+  for (k in seq_along(stems)) {
+    hit <- startsWith(reason, stems[k])
+    expect_identical(out$n1[k + 1], sum(hit) + 0, info = stems[k])
+    expect_identical(out$n2[k + 1], sum(et$frames_measured[hit]) + 0, info = stems[k])
+  }
+  # Every excluded terrain reason is one of the rows above.
+  expect_true(all(vapply(reason, function(r) any(startsWith(r, stems)), logical(1))))
 })

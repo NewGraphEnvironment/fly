@@ -146,26 +146,26 @@ blind, and the findings will say so:
 
 ## Phase 6: Tests
 
-- [ ] `test-fly_footprint_height_rolls.R`:
+- [x] `test-fly_footprint_height_rolls.R`:
   - the `terrain` recompute takes the IR census plus `flying_height_terrain_frames.csv`;
   - `excl$tail` may now include `terrain`;
   - every A2-excluded row recomputes as failing spacing at the catalogued height, from the census;
   - every accepted terrain row sits below `band[1]` as catalogued.
-- [ ] New `test-fly_footprint_terrain_tail.R`:
+- [x] New `test-fly_footprint_terrain_tail.R`:
   - every census row is in band above sea level and out of band on `r`;
   - the population counts reconcile;
   - the 12 sweep frames are present, with matching `elev`.
-- [ ] `fly_footprint()` fixture test: a frame keyed to one new accepted BW/colour row, over `flat_dem()`, goes
+- [x] `fly_footprint()` fixture test: a frame keyed to one new accepted BW/colour row, over `flat_dem()`, goes
   to `corrected_roll_table`. A control frame differing only in scale stays nominal. If no row is accepted,
   pin that instead.
-- [ ] Prove the guards fire, in a scratch copy:
+- [x] Prove the guards fire, in a scratch copy:
   - drop A2's reason arm;
   - drop one census row;
   - mislabel the tail;
   - drop `terrain` from `nu_row`.
-- [ ] Review G5: `test-fly_footprint_height_rolls.R:320` pins 2 terrain rows; `:222` tails of `excl`;
+- [x] Review G5: `test-fly_footprint_height_rolls.R:320` pins 2 terrain rows; `:222` tails of `excl`;
   `:210-215` build terrain from IR only.
-- [ ] Review G6: replace the `nu_row` mutation with one that targets the scale veto, or record it as not
+- [x] Review G6: replace the `nu_row` mutation with one that targets the scale veto, or record it as not
   observable.
 - [ ] Run `devtools::test()` (FAIL/PASS grep) and `lintr`.
 

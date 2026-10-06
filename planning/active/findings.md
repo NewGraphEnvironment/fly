@@ -308,3 +308,26 @@ catalogued frame.
     reproduces by key.
   - The census covers only the stratum. A key also reaches frames on the same roll-height that are out of
     band with r <= 0 (A3), and the `r_reported > 0` gate keeps those off the table.
+
+## Guard checks (Phase 6)
+
+These ran in a scratch copy of the package, with `data-raw/.cache` symlinked. Tests were run per file with
+`NOT_CRAN=true`.
+
+| mutation | where | caught by |
+|---|---|---|
+| A2's "fits nominal" reason relabelled "no logbook page covers these frames" | excluded CSV | terrain_tail A2 test (1 failure) |
+| one census frame dropped | terrain frames CSV | terrain_tail reconciliation (1); height_rolls set reconciliation (3) |
+| `bc5689`'s two terrain rows relabelled `near_upper` | rolls CSV | height_rolls (8) |
+| `bc5598`'s row removed | rolls CSV | height_rolls, including the fixture test (9) |
+| `terrain` dropped from `nu_row` | generator, re-run | terrain_tail (1) |
+| one note figure changed (2,380 → 2,381) | notes | terrain_tail note-table test (1) |
+
+The baseline was 0 failures in both files.
+
+**Review G6.** The `nu_row` mutation moves no table row, because A2 already guarantees that every terrain
+row reaching the rule rejects nominal. It is observable anyway: `bc82044` 2,743 m gets the other defect's
+reason ("nominal scale already sizes it"), which breaks the tail's "still applies" contract.
+
+The generator mutation re-run wrote its intermediate `.rds` verdicts through the symlink into
+`data-raw/.cache/`. Nothing shipped reads them, and the next real run overwrites them.

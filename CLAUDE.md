@@ -95,8 +95,16 @@ per roll (fly#60) with adjacent-frame spacing and the hand transcription of the 
 logbook scans in `data-raw/flying_height_logbooks.csv`, which is an input and is never
 regenerated. Writes `inst/extdata/flying_height_rolls.csv` and
 `flying_height_rolls_excluded.csv`; `test-fly_footprint_height_rolls.R` holds both to the
-sweep. It also reads the infrared census `infrared_film_frames.csv` (fly#91), which the
-BW/colour sweep does not hold, so run `format_measure-infrared_film.R` first
+sweep. It also reads the infrared census `infrared_film_frames.csv` (fly#91) and the BW/colour
+terrain census `flying_height_terrain_frames.csv` (fly#93), neither of which the sweep holds, so
+run `format_measure-infrared_film.R` and `height_measure-terrain_tail.R` first
+- `data-raw/height_measure-terrain_tail.R` — fly#93: every BW/colour frame in band above sea
+level and below it over the ground. A coarse MRDEM picture (overviews averaged) with a margin of
+twice the worst coarse error, held to every frame read, picks the frames read exactly by the
+sweep's own instrument; three controls (sweep reproduced, sweep stratum found, a draw past the
+prefilter holds nothing out of band) stop it. Ships `inst/extdata/flying_height_terrain_frames.csv`
+and `_population.csv`, which `test-fly_footprint_terrain_tail.R` recomputes. Caches under
+`data-raw/.cache/terrain_tail/` keyed on MRDEM's ETag. `FLY_TERRAIN_SMOKE=1` writes nothing
 - `height_fixture()` and `flat_dem()` in `tests/testthat/setup.R` — eight frames over level
 ground, each reaching one height check by a stated route; rows 7 and 8 exist because two
 deliberate defects survived the first six
@@ -360,12 +368,33 @@ rather than a property of this code.
   - **56 out-of-band IR frames sit on three wrong-scale roll-heights**, tabled by fly#91.
     `bci9` is under `near_upper`. `bc5312` and `bci12` leave the band only through terrain,
     which no tail held, so they got a fourth tail, `terrain`, under #72's rule unchanged
-    and fixed before a blind logbook read. The same BW/colour population is unmeasured
-    (fly#93); do not fold it into `lower`, which is defined as ratio above sea level <= 0.5.
+    and fixed before a blind logbook read. fly#93 put the BW/colour frames of that kind in
+    the same tail; do not fold it into `lower`, which is defined as ratio above sea level <= 0.5.
 
   The #54, #58, #65 and #80 scripts are pinned to the BW/colour set they were measured over, so
   re-running them reproduces what shipped. Read `inst/notes/camera-formats.md`, "Infrared film
   is the 9-inch negative"
+
+- **BW/colour frames out of band only through terrain are a census, tabled under fly#91's
+`terrain` tail, and the rule's spacing test runs first** (fly#93) — 4,773 frames on 298
+roll-heights are in band above sea level and below it over the ground. The census reads MRDEM
+exactly under every frame a coarse picture cannot rule out, with a margin of twice the worst
+coarse error **held to every frame read** (the sweep alone understated it: 112 m, then 143 m).
+62 terrain roll-heights are tabled (60 BW/colour, 1,344 frames), 238 excluded.
+
+  **Three things are load-bearing.**
+  - **Amendment A2 changes the order, not the rule.** It excludes a roll-height before its
+    pages are read only where #72's spacing condition cannot hold whatever a logbook says:
+    nominal fits, or the overlap range at 0.98-1.02 of the height misses the window (a subset
+    median lies within its members' range). 211 of the 300 went that way. Its reasons claim
+    nothing about whether a page was read, since pages are transcribed whole.
+  - **`r <= 0` is not this tail.** 374 frames sit under ground at or above the aircraft;
+    `fly_footprint()` applies no factor-1 row there, so they are counted and left untailed
+    (fly#95, with the 176 "nominal fits" roll-heights, as a height possibly recorded above ground).
+  - **The forms log a strip's start and end on separate lines.** Literal transcription is
+    consolidated page by page (same height and lens merge; nothing else does), or coverage
+    fails on notation. Read `inst/notes/terrain-correction.md`, "The terrain tail for BW and
+    colour"
 
 - **Terrain error is a datum offset, not slope** (v0.5.0, #9) — `FLYING_HEIGHT` is metres **above sea level**,
 and reported scale is referenced to an elevation above the ground the photos cover, so it understates footprint
