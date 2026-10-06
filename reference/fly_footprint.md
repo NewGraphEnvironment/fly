@@ -283,16 +283,16 @@ two are compared, and `height_source` records the outcome:
   `inst/extdata/flying_height_rolls.csv`, which the province's flight
   logbooks, or failing them an adjacent frame on the same roll in an
   exact named relation, together with the spacing between adjacent
-  frames, settled (fly#60, fly#71, fly#72, fly#74): a height with one or
-  two digits dropped (a logbook "20.0", thousands of feet, catalogued as
-  2,000 ft), a height recorded ten times too large, a leading digit
-  added, or a correct height beside a wrong `scale` — on either side of
-  the band, including frames around twice their nominal scale whose
-  `scale` is recorded at half its denominator. Checked before the 10.76
-  slip above. Sized from the measured height; matched on `film_roll`,
-  `flying_height`, `focal_length` and `scale` together, so it needs a
-  `film_roll` column. As with the slip, `flying_height` is not
-  overwritten
+  frames, settled (fly#60, fly#71, fly#72, fly#74, fly#91): a height
+  with one or two digits dropped (a logbook "20.0", thousands of feet,
+  catalogued as 2,000 ft), a height recorded ten times too large, a
+  leading digit added, or a correct height beside a wrong `scale` — on
+  either side of the band, including frames around twice their nominal
+  scale whose `scale` is recorded at half its denominator. Checked
+  before the 10.76 slip above. Sized from the measured height; matched
+  on `film_roll`, `flying_height`, `focal_length` and `scale` together,
+  so it needs a `film_roll` column. As with the slip, `flying_height` is
+  not overwritten
 
 - `"implausible"`:
 
