@@ -161,3 +161,31 @@ the reported height, 0.805 / 0.807 at nominal). The diff must show both rows byt
 - **A2(a) roll-heights** (spacing fits nominal) are where nominal scale is right: the "fine as catalogued"
   case the issue raises, where the catalogued height, not the scale, is the field that disagrees. They are
   counted and reported, and not acted on here.
+
+### Amendments after the plan review and the smoke run (2026-10-06, before the full census)
+
+The plan review is `review-plan.md`. The smoke run read 1,074 candidate frames from a draw, not the census.
+
+- **A2 wording** (before any page was read). The two A2 reasons make no claim about whether a page was
+  read, because whole pages are transcribed and 12 rolls already carry rows:
+  - "spacing fits nominal scale, which no logbook height changes; nominal scale still applies";
+  - "spacing cannot fit the catalogued height within 2%, whatever the logbook reads; nominal scale still
+    applies".
+
+  The generator also sets `accept <- accept & !a2`. That is redundant by construction and kept as the guard.
+- **Self-consistent margin** (before the full census). `M` starts at 2x the sweep's worst coarse error and is
+  recomputed as 2x the worst over every frame read exactly. The prefilter widens until a pass leaves `M`
+  where it was. The sweep over-represents large footprints, and the coarse error grows on small ones over
+  steep ground.
+- **Control 3** (before the full census). A seeded draw of up to 1,000 frames the prefilter turned away, from
+  the 500 m just past its lower edge, is read exactly. Not one may be out of band.
+- **A3: `r <= 0`** (written AFTER the smoke run, which found 11 such frames in 1,074, on 7 rolls).
+  - The pre-registration stopped the script on them, as fly#91 did. These are frames under terrain at or
+    above the catalogued aircraft.
+  - `fly_footprint()` holds them in its own terrain-above-aircraft case and applies a factor-1 row only
+    where `r_reported > 0` (`R/fly_footprint.R`, the `tabled` condition). So the `terrain` tail cannot move
+    them whatever it decides.
+  - They are counted in the population CSV and assigned to no tail. A follow-up issue records them.
+  - Frames above the band still stop the script.
+- **S1.** The A2(a) "spacing fits nominal" roll-heights are consistent with a height recorded above ground
+  rather than above sea level. That is a hypothesis, not an outcome, and it is not tested here.

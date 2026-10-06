@@ -163,6 +163,10 @@ blind, and the findings will say so:
   - drop one census row;
   - mislabel the tail;
   - drop `terrain` from `nu_row`.
+- [ ] Review G5: `test-fly_footprint_height_rolls.R:320` pins 2 terrain rows; `:222` tails of `excl`;
+  `:210-215` build terrain from IR only.
+- [ ] Review G6: replace the `nu_row` mutation with one that targets the scale veto, or record it as not
+  observable.
 - [ ] Run `devtools::test()` (FAIL/PASS grep) and `lintr`.
 
 ## Phase 7: Docs and close-out
@@ -173,6 +177,9 @@ blind, and the findings will say so:
   - Architecture line for the new script and CSVs;
   - the #89 Key Decision's "same BW/colour population is unmeasured (fly#93)" becomes the outcome;
   - the generator's line says it reads the terrain census.
+- [ ] Review G7: `NEWS.md:14`, `inst/notes/terrain-correction.md:619`, `R/fly_footprint.R:267,285`.
+- [ ] File a follow-up issue for the `r <= 0` frames (A3), and for the A2(a) above-ground hypothesis if it
+  is worth one.
 - [ ] Check that `R CMD build` tarball size stays reasonable with the new CSV, about 450 KB.
 - [ ] `/code-check` (3 rounds + enumeration), `/planning-archive`, `/gh-pr-push`. A Plan-agent review of
   `task_plan.md` runs concurrently after the baseline commit.
