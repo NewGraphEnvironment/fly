@@ -148,14 +148,14 @@ What exploration established:
 
 - [x] File the follow-up issue for the BW/colour terrain-driven stratum, with the count and
   the method. Link it from the note.
-- [ ] `/code-check` before each commit, then `/planning-archive` and `/gh-pr-push`.
+- [x] `/code-check` (3 rounds + enumeration), `/planning-archive`, then `/gh-pr-push`.
 
 ## Validation
 
-- [ ] Tests pass
-- [ ] `/code-check` clean on each commit
-- [ ] PWF checkboxes match landed work
-- [ ] `/planning-archive` on completion
+- [x] Tests pass
+- [x] `/code-check` clean on each commit
+- [x] PWF checkboxes match landed work
+- [x] `/planning-archive` on completion
 
 ## Verification
 
