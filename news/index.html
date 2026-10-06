@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fly</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.21.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.22.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,26 @@
 
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="development version" id="fly-development-version">fly (development version)<a class="anchor" aria-label="anchor" href="#fly-development-version"></a></h2>
+<div class="section level3">
+<h3 id="id_0220-development-version">0.22.0 (2026-10-06)<a class="anchor" aria-label="anchor" href="#id_0220-development-version"></a></h3>
+<ul><li>
+<strong>Three infrared roll-heights with a wrong <code>scale</code> are now sized from the height flown</strong> (<a href="https://github.com/NewGraphEnvironment/fly/issues/91" class="external-link">#91</a>).
+<ul><li>
+<strong>What changed.</strong> v0.21.0 brought infrared film into the <a href="https://github.com/NewGraphEnvironment/fly/issues/54" class="external-link">#54</a> height check, and 56 IR frames fell outside the band. With a <code>dem</code>, they were drawn at nominal scale:
+<ul><li>about twice the width the spacing supports on <code>bc5312</code> and <code>bci12</code>;</li>
+<li>about half of it on <code>bci9</code>.</li>
+</ul>
+All three roll-heights are now in <code>flying_height_rolls.csv</code> at factor 1 (<code>scale_wrong</code>). <code>fly_footprint(dem = )</code> therefore sizes the 56 frames from the logbook height and reports <code>height_source = "corrected_roll_table"</code>. Without a <code>dem</code> nothing changes; every film frame is nominal there.</li>
+<li>
+<strong>How it was established.</strong> The rule was committed before the logbook pages were read, and the pages were then transcribed blind. They give 11.0, 12.08 and 19.5 thousand feet, the catalogued heights. Spacing at those heights is 0.594, 0.620 and 0.620, inside the 0.557-0.780 window, and at nominal scale it is 0.805, 0.807 and 0.228.</li>
+<li>
+<strong>A new <code>tail</code>, <code>terrain</code>.</strong> <code>bci9</code> is settled alongside fly#72’s <code>near_upper</code> sample. <code>bc5312</code> and <code>bci12</code> are in band above sea level and leave it only through the ground beneath them, which no existing tail held, so they carry <code>tail = "terrain"</code> under the same rule.</li>
+<li>
+<strong>One amendment, written before the read.</strong> The logbook scale pattern accepted only <code>1:N</code>, and these pages write <code>1/15,840</code>. It now accepts both, and no BW/colour row changes. Every BW/colour row of both roll tables is byte-identical to v0.21.0.</li>
+<li>
+<strong>Not done.</strong> The same terrain-only population exists among BW/colour frames: 12 of 2,500 random draws, roughly 7,000 frames. No rule reaches it yet (<a href="https://github.com/NewGraphEnvironment/fly/issues/93" class="external-link">#93</a>).</li>
+</ul></li>
+</ul></div>
 <div class="section level3">
 <h3 id="id_0210-development-version">0.21.0 (2026-10-02)<a class="anchor" aria-label="anchor" href="#id_0210-development-version"></a></h3>
 <ul><li>
