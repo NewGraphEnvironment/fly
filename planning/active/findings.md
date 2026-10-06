@@ -138,3 +138,39 @@ Flagged by the reader and checked:
 
 Coverage of the catalogue's frame numbers: `bc5312` 1-62 against catalogue 1-62, `bci12`
 1-81 against 1-81, `bci9` 1-128 against 1-118.
+
+## Result (Phase 3)
+
+The run log is `planning/active/run_rolls.log`. All three roll-heights are tabled at
+factor 1 (`scale_wrong`) on the logbook's witness. Every condition was met:
+- coverage 17/17, 14/14 and 25/25, with all of them naming factor 1;
+- no focal conflict;
+- no scale read on the disputed frames;
+- spacing inside 0.557-0.780 at the logbook height (0.594, 0.620, 0.620) and outside it at
+  nominal (0.805, 0.807, 0.228).
+
+The CSV diff is three added rows. Every BW/colour row of `flying_height_rolls.csv` and
+`_excluded.csv` is byte-identical, which also shows amendment A1 moves no BW/colour verdict.
+Catalogue reach went from 4,665 to 4,721 (+56) and measured from 1,558 to 1,614 (+56), so
+the three keys reach exactly their 56 frames.
+
+A dry run before the transcription existed sent all three to `_excluded.csv` with "no
+logbook page covers these frames; nominal scale still applies". That is the refusal path
+working.
+
+## Guard checks (Phase 4)
+
+Mutations were run in a scratch copy of the repo, with `cmp` before and after to confirm the
+real tree was untouched:
+
+| mutation | caught by |
+|---|---|
+| drop the `bci12` row | set recompute (`:267`, `:270`), pin block (`:312-320`) and the `fly_footprint()` fixture (`:538`) |
+| `terrain` relabelled `lower` | tail contract (`:221`), recompute (`:267-286`) |
+| `bci9` relabelled `terrain` | recompute and pins |
+
+One mutation was not run as a test: dropping `terrain` from `nu_row` in the generator. On
+today's data it changes no outcome, because both terrain rows reject nominal anyway, so no
+test on the shipped CSVs can see it. The fact it guards is pinned at the data level instead:
+`test-fly_footprint_infrared.R` recomputes, per out-of-band roll-height, that spacing fits
+the reported height and rejects nominal.
