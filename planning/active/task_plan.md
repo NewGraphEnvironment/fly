@@ -79,22 +79,22 @@ The issue asks whether "recorded above ground" can be tested, with any rule fixe
 - [x] ~~`FLY_AGL_SMOKE=1`~~ no smoke flag (deterministic; byte-identity checked instead); producer line for every figure the note will quote
 
 ### Phase 4: Blind logbook read (only if Phase 3 leaves S-`supports` roll-heights without rows) — NOT NEEDED: the one `supports` roll-height (`bc5602`) was fully transcribed
-- [ ] Fetch pages; stop on any `FLIGHT_LOG_URL` page uncached or untranscribed (#93's guard)
-- [ ] Blind transcribers with a control page each, appended to `data-raw/flying_height_logbooks.csv`
-- [ ] Re-run Phase 3
+- [x] ~~Fetch pages; stop on any `FLIGHT_LOG_URL` page uncached or untranscribed (#93's guard)~~ — not needed: `bc5602` already transcribed
+- [x] ~~Blind transcribers with a control page each, appended to `data-raw/flying_height_logbooks.csv`~~ — not needed: `bc5602` already transcribed
+- [x] ~~Re-run Phase 3~~ — not needed: `bc5602` already transcribed
 
 ### Phase 5: Verdict into the package (only if any roll-height tables; shape approved at the gate)
-- [ ] Generator `height_calibrate-lower_tail_rolls.R` settles the tabled rows as tail `above_ground`,
+- [x] ~~Generator `height_calibrate-lower_tail_rolls.R` settles the tabled rows as tail `above_ground`,~~ — not needed: nothing tabled
       `cause = "height_above_ground"`, `height_m` = the catalogued height; excluded ones ledgered with reason
-- [ ] `fly_footprint()` sizes those frames from `height_m` as height above ground (no terrain subtracted),
+- [x] ~~`fly_footprint()` sizes those frames from `height_m` as height above ground (no terrain subtracted),~~ — not needed: nothing tabled
       reaching `r <= 0` frames too; `height_source = "corrected_roll_table"`
-- [ ] `height_fixture()` gains a row reaching the route; restore-the-bug check that the test goes red
+- [x] ~~`height_fixture()` gains a row reaching the route; restore-the-bug check that the test goes red~~ — not needed: nothing tabled
 - [x] If nothing tables: no code change, recorded as such (as fly#65/#80) — nothing tabled
 
 ### Phase 6: Tests and documentation
 - [x] `tests/testthat/test-fly_footprint_above_ground.R` recomputes every verdict and every note table from the shipped CSVs
 - [x] `inst/notes/terrain-correction.md` section; NEWS; CLAUDE.md Architecture + Key Decision
-- [ ] Edit issue #95's body to the outcome
+- [x] Edit issue #95's body to the outcome
 
 ## Validation
 
