@@ -423,3 +423,34 @@ over the old set, which the new basis does not fully cover.
    overlaps 0.428 / 0.430 / 0.502 (`bc77070` / `bc77087` / `bc77072` 1981), still outside the window, so
    "rejected nominal only because" and "the step, not the scale" overclaim; "says nothing about the
    scale" is what holds. Reworded in the note (three places) and CLAUDE.md (two).
+
+## Code-check round 3 (`review-round3.md`, `claims_enumerated.md`) — an enumeration: 126 claims, 31 FAIL, 16 findings
+
+**Mechanism** (the reviewer's, extending round 2's): a claim's set is taken from the label or framing
+next to it, not from the producer that computes the property, and each claim lives in up to seven copies
+(note intro, body, "What it leaves", the fly#95 pointer, NEWS, CLAUDE.md, fly#99 and its draft) that get
+fixed one at a time; plus a counterfactual asserted rather than run.
+
+**The substantive one.** Round 2 wrote that at 7,800 ft `bc77087`'s page "would read `read_other`". Run
+through the generator's relation (the reviewer re-ran the generator in scratch with only that row at
+7,800; I re-derived the arithmetic): the median over its 57 frames of 2,377 m less MRDEM is 1,114 m,
+within 4% of 1,158, so all 57 are `ground_plus`, W2 is `ground`, and A2(5)'s stop would fire. That is
+the result fly#95 tested for and found nowhere — on the reading the blind reader leaned to. 2,377 / 1,158
+is 2.05, near the x2 slip. **The shipped transcription keeps fly#60's 3.8, so the rule does not stop; the
+question of which digit is right goes to the user.** The note, NEWS, CLAUDE.md, fly#95's "none puts the
+ground under it" and fly#99 now say so, and a test recomputes the relation at 7,800 ft.
+
+**The rest, fixed by rewriting every copy at once and cutting the number of copies:** the step-is-wrong
+claim scoped to five of nine (two were flown at 85%, two unmeasured); "ordinary flights" scoped to four
+(`bc77026` 0.81, above the window); the 107 qualified by `bc77087`'s 38; "five roll-heights not where the
+photos were taken" restated as 107 frames by the logbook; fly#99's heading label; "up to x1.25" (a 95th
+percentile; 2 of 34 control keys exceed it, x1.34 and x1.41); "lines not rotated" limited to the pairs
+tested (4 differ, 48 untested); "appended row" provenance (the 140-219 row predates fly#97); the
+photo-leg restatement qualified; `bcc325` added to the "likewise" list; the post-run `read_other` split
+recorded in the note; "interpolated evenly" as fly#82's 64-77%; "coincide" -> "cannot be told apart";
+the floor stated as measured; the test name and NEWS/CLAUDE.md no longer claim every figure is pinned,
+and the listed ones were added (157, 0.223, 2 of 34, the floor counts, 9 rolls, the 7.8 figures, 38 of
+107, the catalogue-figure predicate on the 107). "Ships" -> "committed" for the strips file.
+
+Copy sweep after the fix: each flagged phrase grepped across note, NEWS, CLAUDE.md and the fly#99 draft;
+every remaining hit is scoped to its producer's set. Test: 191 pass.

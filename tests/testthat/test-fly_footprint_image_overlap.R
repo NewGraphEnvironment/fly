@@ -32,7 +32,7 @@ io_tau <- function(p) {
   k <- io_keys(p[p$set == "negative", ])
   k <- k[k$pairs_used >= 3, ]
   d <- D_of(k$p_img, k$p_nominal)
-  list(n = nrow(k), median = stats::median(d), tau = unname(stats::quantile(abs(d), 0.95)))
+  list(n = nrow(k), median = stats::median(d), tau = unname(stats::quantile(abs(d), 0.95)), d = d)
 }
 
 test_that("every pair's overlap and both readings come from its shift and its step", {
@@ -162,7 +162,7 @@ test_that("every key's verdicts follow from its pairs, tau and the generator's l
   }
 })
 
-test_that("the note's table and every figure in its prose are the shipped measurement's", {
+test_that("the note's table and the figures listed here are the shipped measurement's", {
   note <- system.file("notes", "terrain-correction.md", package = "fly", mustWork = TRUE)
   txt <- readLines(note)
   i <- grep("^## What the frames under the terrain covered", txt)
@@ -227,19 +227,30 @@ test_that("the note's table and every figure in its prose are the shipped measur
   expect_identical(paste(st5$key, st5$frame), paste(p5$key, p5$frame))
   sm <- p5$status == "matched" & !p5$line_break
   claims <- c(
-    sprintf("overlap %s to %s,", sprintf("%.2f", min(so$p_img)), sprintf("%.2f", max(so$p_img))),
+    sprintf("Four have photos overlapping %s to %s, an ordinary flight. `bc77026` overlaps %s",
+            sprintf("%.2f", min(so$p_img)), sprintf("%.2f", sort(so$p_img)[4]),
+            sprintf("%.2f", max(so$p_img))),
+    sprintf("frames at `r <= 0`, where adjacent-frame spacing rejects nominal"),
+    sprintf("left nine roll-heights, with %d frames at `r <= 0`", sum(sk$frames_nonpositive)),
+    sprintf("its pre-set ceiling of log 1.25 (%s)", f3(log(1.25))),
+    sprintf("on %d of the %d (x%.2f and x%.2f)", sum(abs(tt$d) > tt$tau), tt$n,
+            exp(sort(abs(tt$d)[abs(tt$d) > tt$tau]))[1], exp(sort(abs(tt$d)[abs(tt$d) > tt$tau]))[2]),
+    sprintf("match %d of 10 at 0.25 and %d of 10 at 0.20", sum(syn$matched[abs(syn$p_true - 0.25) < 0.005]),
+            sum(syn$matched[abs(syn$p_true - 0.2) < 0.001])),
+    sprintf("crew-written overlap, %d rolls", sum(w$gated)),
     sprintf("implies %s to %s at nominal", sprintf("%.2f", min(so$p_nominal)),
             sprintf("%.2f", max(so$p_nominal))),
     sprintf("%.1f to %.1f times the air base", min(so$k), max(so$k)),
-    sprintf("%d%% to %d%% of their pairs match", round(100 * min(so$pairs_matched / so$pairs)),
+    sprintf("%d%% to %d%% of pairs match", round(100 * min(so$pairs_matched / so$pairs)),
             round(100 * max(so$pairs_matched / so$pairs))),
-    sprintf("on 112 frames"),
-    sprintf("%d of the %d matched pairs whose strip writes a legible heading (%d matched; a strip reaches %d)",
-            sum(so$dir_agree), sum(so$dir_agree + so$dir_reverse + so$dir_differ),
-            sum(sm), sum(sm & !is.na(st5$place))),
+    sprintf("at or above it on %d frames.", sum(sk$frames_nonpositive[mis])),
+    sprintf("on %d of %d. %d differ", sum(so$dir_agree), sum(so$dir_agree + so$dir_reverse + so$dir_differ),
+            sum(so$dir_differ + so$dir_reverse)),
+    sprintf("Of the five keys' %d matched pairs, %d have no legible heading or no strip", sum(sm),
+            sum(sm) - sum(so$dir_agree + so$dir_reverse + so$dir_differ)),
     sprintf("x%.2f to x%.2f the air base (`exp(-D_agl)`)", min(exp(-so$D_agl)), max(exp(-so$D_agl))),
-    sprintf("by at least x%.2f to x%.2f under any height", min(exp(-so$D_agl)), max(exp(-so$D_agl))),
-    sprintf("passes by %.3f.** Its `D_agl` is %s against tau %s",
+    sprintf("it is at least x%.2f to x%.2f longer", min(exp(-so$D_agl)), max(exp(-so$D_agl))),
+    sprintf("passes by %.3f: its `D_agl` is %s against tau %s",
             -so$D_agl[so$film_roll == "bc77070"] - tt$tau, f3(so$D_agl[so$film_roll == "bc77070"]),
             f3(tt$tau)),
     sprintf("The images read %s and %s, and the catalogue step gives %s and %s", f3(ind$p_img[1]),
@@ -293,6 +304,47 @@ test_that("the location verdict's logbook reaches 107 of its 112 frames, and the
                    c("bc77026 221", "bc77026 222", "bc77026 237", "bc77026 247", "bc77072 225"))
   note <- system.file("notes", "terrain-correction.md", package = "fly", mustWork = TRUE)
   prose <- gsub("\\s+", " ", paste(readLines(note), collapse = " "))
-  expect_true(grepl("107 of the 112 frames at `r <= 0` are not over the", prose, fixed = TRUE))
-  expect_true(grepl("(`bc77026` 221, 222, 237 and 247", prose, fixed = TRUE))
+  # Every reached frame's row writes the catalogue's figure (within 2%) under an M.S.L. header.
+  cat_msl <- vapply(which(reached), function(i) {
+    r <- lb[lb$film_roll == np$film_roll[i] & !is.na(lb$frame_from) & !is.na(lb$height_ft_interpreted) &
+              np$frame_number[i] >= lb$frame_from & np$frame_number[i] <= lb$frame_to, ]
+    all(abs(r$height_ft_interpreted * 0.3048 / np$flying_height[i] - 1) <= 0.02) &&
+      all(grepl("M\\.?S\\.?L", r$height_header, ignore.case = TRUE))
+  }, logical(1))
+  expect_true(all(cat_msl))
+  expect_identical(sum(np$film_roll[reached] == "bc77087"), 38L)
+  note <- system.file("notes", "terrain-correction.md", package = "fly", mustWork = TRUE)
+  prose <- gsub("\\s+", " ", paste(readLines(note), collapse = " "))
+  for (s in c("puts 107 of the 112 frames at `r <= 0`", "A shipped logbook row reaches 107 of them",
+              "`bc77026` 221, 222, 237 and 247 lie past the shipped row's 219",
+              "`bc77072` 225 is on no page", "`bc77087` carries 38 of the 107 frames")) {
+    expect_true(grepl(s, prose, fixed = TRUE), info = s)
+  }
+})
+
+test_that("read as 7,800 ft, bc77087's page would put the ground under the catalogued height", {
+  # fly#95's relation `ground_plus`: the median over the key's frames of (page height - MRDEM) within
+  # 10% of the catalogued height. Recomputed from the census elevations at 7,800 ft.
+  cen <- rbind(extdata("flying_height_terrain_frames.csv"), extdata("flying_height_terrain_nonpositive.csv"))
+  e <- cen$elev[cen$film_roll == "bc77087" & cen$flying_height == 1158]
+  expect_length(e, 57)
+  h <- 7800 * 0.3048
+  gp <- stats::median(h - e)
+  expect_lte(abs(gp / 1158 - 1), 0.10)
+  expect_false(any(h - e <= 0))
+  note <- system.file("notes", "terrain-correction.md", package = "fly", mustWork = TRUE)
+  prose <- gsub("\\s+", " ", paste(readLines(note), collapse = " "))
+  side <- function(g) 9 * 0.0254 * (h - g) / 0.153
+  p <- extdata("flying_height_image_overlap_pairs.csv")
+  k <- p[p$set == "key" & p$key == "bc77087 1158 153 5000" & p$status == "matched" & !p$line_break, ]
+  bound <- function(g) (stats::median(k$step) / side(g)) / (1 - stats::median(k$p_img))
+  q <- stats::quantile(e, c(.1, .9), names = FALSE)
+  for (s in c(sprintf("over its %d frames, the median of %s m less MRDEM is %s m, within %d%% of 1,158 m",
+                      length(e), format(round(h), big.mark = ","), format(round(gp), big.mark = ","),
+                      ceiling(100 * abs(gp / 1158 - 1))),
+              sprintf("%s / 1,158 is %.2f", format(round(h), big.mark = ","), h / 1158),
+              sprintf("to x%.2f to x%.2f over MRDEM's 10th to 90th percentile", bound(q[1]), bound(q[2])),
+              sprintf("(x%.2f over sea-level ground)", bound(0)))) {
+    expect_true(grepl(tolower(s), tolower(prose), fixed = TRUE), info = s)
+  }
 })
