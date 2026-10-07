@@ -685,6 +685,11 @@ condition** — interior frames 3.8 cells across never diverge; what triggers it
 *overlap with the DEM* covering no cell centre, so it is a frame of any size at the edge of
 coverage. The template keeps `snap = "near"` because fly#9 measured
 `dem_coverage` against it
+- **A blind reader must be a Plan-type subagent** (fly#101) — a general-purpose subagent carries this
+CLAUDE.md, which names prior reads of disputed logbook digits; a canary asked only from context answered yes
+to them, a Plan-type one no. Plan agents cannot write, so take their CSV from the transcript by script, not
+by retyping, and audit the transcript for reads outside the page directory. Withhold any page that names the
+same project as the one being read: a place-to-height cue on another roll reads the answer off it
 - **An empty POINT centroid aborts the whole batch** (fly#47, open) — it is a POINT, so it passes the geometry
 guard by design, and then fails in `st_polygon()` with `!anyNA(x) is not TRUE`. Left open deliberately: refusing
 20 frames over one unlocatable centroid would contradict the per-frame reporting #30 established

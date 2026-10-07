@@ -1,8 +1,8 @@
 # fly#101: score the third blind read against the rule fixed in findings.md (Amendment A1), before the
 # read exists.
 # Usage (from the repo root):
-#   Rscript planning/active/transcription/score.R <reader dir>             # gate and verdict
-#   Rscript planning/active/transcription/score.R <rows.csv> --gate-only   # gate alone, any reader's rows
+#   Rscript planning/archive/2026-10-issue-101-bc77087-digit-third-read/transcription/score.R <reader dir>             # gate and verdict
+#   Rscript planning/archive/2026-10-issue-101-bc77087-digit-third-read/transcription/score.R <rows.csv> --gate-only   # gate alone, any reader's rows
 # The reader dir holds rows.csv, glyphs.csv and verdict.csv, written verbatim from the reader's replies.
 # Any error, missing file or missing column is reported as `unsettled (scoring error: ...)`, never as a
 # crash: an absent measurement must not read as a verdict.
