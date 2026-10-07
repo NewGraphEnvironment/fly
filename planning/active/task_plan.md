@@ -65,36 +65,36 @@ those frames.
   names against the catalogue's lines say which.
 
 ## Phase 1: Pre-register the rule (findings.md, committed before any image of the nine is measured)
-- [ ] Record what is already known (bullets above, incl. the implied-ground table and the logbook overlap
+- [x] Record what is already known (bullets above, incl. the implied-ground table and the logbook overlap
       remark) as not blind
-- [ ] Instrument W1, image overlap. For each key pair (n, n+1 both on the key):
+- [x] Instrument W1, image overlap. For each key pair (n, n+1 both on the key):
       `p_img = 1 - |global shift| / thumbnail side`.
       - **Pair status:** `matched` (fly#82's own gate: ≥ 20 confirming patches), `no_match`, `no_thumbnail`.
       - **`line_break` pairs:** the centroid step is over 3× the key's median step. They are image-tested
         but kept out of the medians. If one matches, the frames are adjacent despite the jump.
-- [ ] Controls, with gates that stop the script before the nine are measured (as fly#82 stopped).
+- [x] Controls, with gates that stop the script before the nine are measured (as fly#82 stopped).
       - **Negative control:** a seeded draw of in-band 1970–1985 film roll-heights (f 153/305) whose
         spacing at nominal fits the window. The median `p_img - p_nominal` must sit within a stated bound.
         The control's own spread sets the tolerance τ.
       - **Positive control:** `bc85054` 162/163 must come out as disagreeing.
-- [ ] Per-key W1 verdict, evaluated in this order:
+- [x] Per-key W1 verdict, evaluated in this order:
       1. `too_few_pairs`: under 3 matched pairs. This leaves `bc5715` and `bcc325` (2 `r <= 0` frames)
          unsettled by construction, and the findings say so.
       2. `not_adjacent`: under half the pairs match.
       3. `spacing_consistent_nominal`: `|p_img - p_nominal| <= τ`.
       4. `spacing_consistent_agl`: `|p_img - p_agl| <= τ` and not nominal.
       5. `spacing_disagrees`: neither, with `k = (1 - p_nominal)/(1 - p_img)` reported.
-- [ ] Witness W2, the logbook, per frame:
+- [x] Witness W2, the logbook, per frame:
       - page height vs the catalogue, and the header datum
       - strip direction vs the catalogue line bearing (`fly_bearing()`), tolerance fixed here
       - place or Op name, verbatim
       - any recorded overlap remark vs `p_img`
       - implied ground `G_R = H_page - AGL_R` for each surviving size reading R. A reading whose `G_R` is
         below 0 m is physically excluded.
-- [ ] The combined outcome per key, from a fixed table of W1 × W2 outcomes: `nominal_centroids_misplaced`,
+- [x] The combined outcome per key, from a fixed table of W1 × W2 outcomes: `nominal_centroids_misplaced`,
       `nominal_flown_off_window`, `agl_supported`, `not_adjacent` or `unsettled`. Coverage follows #72:
       the logbook reads at least half the frames, with at least 90% agreeing.
-- [ ] Evaluation order: all logbook pages are transcribed (Phase 3) before any image of the nine is
+- [x] Evaluation order: all logbook pages are transcribed (Phase 3) before any image of the nine is
       measured (Phase 4)
 
 ## Phase 2: The image instrument and its controls — `data-raw/height_measure-image_overlap.R`
