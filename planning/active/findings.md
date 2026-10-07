@@ -207,8 +207,9 @@ Every finding was checked against the result rather than the plan.
 - **B2, B3, G4, G5, G6, O1, S2, AC3-AC4: moot.** Nothing tables, so no row is encoded, no key collides, no
   terrain row moves and `fly_footprint()` is unchanged. B2 is recorded for whoever reopens this: a logbook MSL
   height through the existing `tab_factor != 1` branch, not a new above-ground route.
-- **G1: moot here** (0 `ground_plus` on 576 read frames), recorded: on `r <= 0` frames H + ground is ~2H, which
-  #60 names as a candidate factor, so `ground_plus` alone would be ambiguous with x2.
+- **G1: moot here** (0 `ground_plus` on 576 read frames), recorded: on `r <= 0` frames H + ground is 2.00-2.58 H
+  (median 2.16; 51 of 374 within 2% of 2), so near 2 `ground_plus` alone would be ambiguous with x2, which #60
+  names as a candidate factor (corrected in code-check round 3 from "~2H").
 - **G2, accepted.** The result section already says `catalogue` on `r <= 0` frames is not a clean witness against.
 - **G3, checked.** S uses every census frame of the key (both census files), so A2(b) and logbook-read keys
   bring their `r > 0` frames too. Adding the `r <= 0` frames flips no shipped A2(a) verdict: nominal still fits

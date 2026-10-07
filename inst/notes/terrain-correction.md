@@ -787,11 +787,14 @@ terrain, and the two are exactly `ratio_asl` apart.
 - **Spacing** is read first. The height read as above ground `supports` where its median overlap
   fits the generator's window and nominal's does not, is `undecided` where both fit, and
   `refutes` where it does not fit.
-- **The logbook** is read only where spacing supports, as A2 did for fly#93. It has to put the
-  ground under the catalogued height: a page height `h` whose median `h - elev` over the frames
-  is within 10% of the catalogued height, or a TRUE HEIGHT header that names the ground.
-- A roll-height is tabled only where both hold, on at least half its frames with 90% agreeing,
-  with no lens conflict and no frame of the key in band as catalogued.
+- **The logbook** decides only where spacing supports, so pages are fetched, and must be
+  transcribed, only for those rolls, as A2 did for fly#93. Rows already transcribed for #60 to
+  #93 are joined to every frame and reported, but gate nothing. A page has to put the ground
+  under the catalogued height: a page height `h` whose median `h - elev` over the frames is
+  within 10% of the catalogued height, or a TRUE HEIGHT header that names the ground.
+- A roll-height is tabled only where both hold, the logbook reading at least half its frames
+  with 90% agreeing, with no lens conflict and no frame of the key outside the two census files
+  (in band as catalogued, or with no terrain under it).
 
 ### What it found
 
@@ -806,9 +809,11 @@ fits the window read as above ground (0.631) and not at nominal (0.510). Its pag
 4,000 ft on all 24 frames, which is 1,219 m, the catalogue's own figure, under an M.S.L.
 header. MRDEM puts the ground under 23 of those frames at 1,234 to 1,591 m.
 
-**Where a page covers these frames, it writes the catalogue's height on 558 of 576, and no page
-puts the ground under it.** The headers say M.S.L. or name no datum; none names the ground. Over
-the 32 roll-heights with transcribed rows (576 frames read):
+**Where a transcribed page covers these frames, it writes the catalogue's height on 558 of the
+576 frames it reads, and none puts the ground under it.** Pages are transcribed for 26 of the
+population's 154 rolls; the other rolls' pages were never fetched, because only `supports` goes
+to the logbook, so this says nothing about them. The transcribed headers say M.S.L. or name no
+datum; none names the ground. Over the 32 roll-heights with a frame the logbook reads:
 
 | logbook relation | frames |
 |---|---|
@@ -820,7 +825,8 @@ the 32 roll-heights with transcribed rows (576 frames read):
 That cuts both ways. On `bc5602`, `bc77026`, `bc77072` and `bc77087` the page's "M.S.L."
 figure is below the ground under some of the frames it covers. So there either the column is
 not above sea level as written, or the frames are not where the catalogue puts them. The rule
-asked for a page that says "ground", none does, and the rule was not amended after the data.
+asked for a page that says "ground", no transcribed page does, and the rule was not amended
+after the data.
 
 ### Why that is "cannot settle it", not "false"
 
@@ -856,9 +862,10 @@ question, and is fly#97.
 A logbook page whose TRUE HEIGHT header names the ground, or whose height sits that far above
 the catalogue's. If one is found, ship it the way #60 ships every height: the logbook's figure
 as above sea level, through the existing `factor != 1` branch, which already reaches
-`r <= 0` frames. Not the catalogued height read as above ground through a new route. On `r <= 0`
-frames, "the height plus the ground" is about twice the height, which #60 also names as a slip,
-so such a page alone is ambiguous with x2.
+`r <= 0` frames. Not the catalogued height read as above ground through a new route. On the 374
+`r <= 0` frames, "the height plus the ground" is at least twice the height (2.00 to 2.58, median
+2.16), and 51 of them are within 2% of x2, which #60 also names as a slip. There such a page
+alone is ambiguous with x2.
 
 ## What a partially covered footprint costs (fly#58)
 

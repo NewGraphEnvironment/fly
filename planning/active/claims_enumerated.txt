@@ -1,0 +1,82 @@
+[1] note: Not with these instruments (fly#95) **Verified:** 2026-10-06 · **Issues:** fly#95 (from fly#93) · **Produced by:** `data-raw/height_measure-terrain_tail.R` (`inst/extdata/flying_height_terrain_nonpositive.csv`) and `data-raw/height_calibrate-lower_tail_rolls.R`, Stages 3c and 6 (`inst/extdata/flying_height_above_ground.csv`) fly#93 left two groups whose catalogued height looks like a height **abov
+[2] note: One is the 374 frames under terrain at or above the aircraft (`r <= 0`), which `fly_footprint()` draws at nominal with a warning.
+[3] note: The other is the 176 roll-heights where A2 found that spacing fits nominal scale.
+[4] note: They share roll-heights: `bcc285` 1707 m carries 106 frames of the first and 39 of the second.
+[5] note: So the unit is the roll-height: 188 roll-heights, judged on every frame either census file holds on them, 2,956.
+[6] note: That is the two groups (2,754 frames) plus 202 above the ground on eight keys an `r <= 0` frame reaches and A2 did not find nominal fits.
+[7] note: **Nothing changed in the package.** No roll-height met the rule, so `fly_footprint()` and the roll tables are as they were. ## The rule, fixed before any per-roll-height number Read as a height above ground, the catalogued height gives a frame an along-track side of `FORMAT_M x flying_height / f`; nominal scale gives `FORMAT_M x scale`.
+[8] note: - **The logbook** decides only where spacing supports, so pages are fetched, and must be transcribed, only for those rolls, as A2 did for fly#93.
+[9] note: Rows already transcribed for #60 to 93 are joined to every frame and reported, but gate nothing.
+[10] note: A page has to put the ground under the catalogued height: a page height `h` whose median `h - elev` over the frames is within 10% of the catalogued height, or a TRUE HEIGHT header that names the ground.
+[11] note: - A roll-height is tabled only where both hold, the logbook reading at least half its frames with 90% agreeing, with no lens conflict and no frame of the key outside the two census files (in band as catalogued, or with no terrain under it). ## What it found | spacing | roll-heights | frames | of them `r <= 0` | |---|---|---|---| | supports | 1 | 24 | 23 | | undecided | 126 | 1,562 | 174 | | refute
+[12] note: Its page writes 4,000 ft on all 24 frames, which is 1,219 m, the catalogue's own figure, under an M.S.L. header.
+[13] note: MRDEM puts the ground under 23 of those frames at 1,234 to 1,591 m.
+[14] note: **Where a transcribed page covers these frames, it writes the catalogue's height on 558 of the 576 frames it reads, and none puts the ground under it.** Pages are transcribed for 26 of the population's 154 rolls; the other rolls' pages were never fetched, because only `supports` goes to the logbook, so this says nothing about them.
+[15] note: The transcribed headers say M.S.L. or name no datum; none names the ground.
+[16] note: Over the 32 roll-heights with a frame the logbook reads: | logbook relation | frames | |---|---| | the catalogue's height | 550 | | ground near sea level, where the two readings coincide | 8 | | neither | 18 | | the ground under the catalogued height, or a header naming it | 0 | That cuts both ways.
+[17] note: On `bc5602`, `bc77026`, `bc77072` and `bc77087` the page's "M.S.L." figure is below the ground under some of the frames it covers.
+[18] note: The rule asked for a page that says "ground", no transcribed page does, and the rule was not amended after the data. ## Why that is "cannot settle it", not "false" A plan review, which arrived after the run, pointed out what the rule implied: on a key, `p_agl = 1 - (1 - p_nominal) / ratio_asl`, so spacing adds nothing beyond nominal's overlap and the ratio.
+[19] note: And every frame here is in band above sea level, so the two readings are under 1.6x apart, where #60 found spacing stops separating readings. "Nothing tables" was close to certain before anything ran.
+[20] note: - **Undecided hides real width.** The two readings differ by `|ratio_asl - 1|`.
+[21] note: Over the 126 undecided roll-heights that is a median 0.120, 0.352 at the 90th percentile and at most 0.494, and 494 of their 1,562 frames are more than 20% apart.
+[22] note: - **The refutations are marginal.** On the 52 refuted roll-heights where nominal fits, the above-ground median sits a median 0.028 outside the window, and 23 of them by under 0.02. ## Where the frames under the aircraft end up | `r <= 0` frames on roll-heights where | frames | |---|---| | both readings fit (undecided) | 174 | | nominal fits and the above-ground reading does not | 20 | | spacing su
+[23] note: A centroid placed on higher ground than the photo covers would give `r <= 0` and is invisible to spacing.
+[24] note: That is out of this question, and is fly#97. ## What would change the answer A logbook page whose TRUE HEIGHT header names the ground, or whose height sits that far above the catalogue's.
+[25] note: If one is found, ship it the way #60 ships every height: the logbook's figure as above sea level, through the existing `factor != 1` branch, which already reaches `r <= 0` frames.
+[26] note: On the 374 `r <= 0` frames, "the height plus the ground" is at least twice the height (2.00 to 2.58, median 2.16), and 51 of them are within 2% of x2, which #60 also names as a slip.
+[27] note: There such a page alone is ambiguous with x2.
+[28] news: - **Whether a frame's catalogued height is a height above ground was tested, and these instruments cannot settle it** ([#95](https://github.com/NewGraphEnvironment/fly/issues/95)).
+[29] news: No code change, and every roll table is byte-identical.
+[30] news: - **The question.** fly#93 left 374 frames under ground at or above the catalogued aircraft and 176 roll-heights where spacing fits nominal scale, both consistent with a height recorded above ground.
+[31] news: Together they are 188 roll-heights, judged on the 2,956 frames the two census files hold on them.
+[32] news: - **What was measured.** A rule was fixed before any per-roll-height number: spacing first, then the logbook.
+[33] news: Spacing supports reading the height as above ground on 1 roll-height, cannot tell it from nominal on 126 and rejects it on 61.
+[34] news: The one it supports, `bc5602` 1219 m, has a logbook writing the catalogue's own 4,000 ft under an M.S.L. header, so nothing tables.
+[35] news: Across the 576 logbook-read frames, the page writes the catalogue's height on 558, and no page puts the ground under it.
+[36] news: Every frame here is in band above sea level, so the two readings are under 1.6 times apart, where spacing stops separating them.
+[37] news: The undecided readings differ by a median 12% in width and up to 49%.
+[38] news: Where nominal fits, the refutations sit a median 0.028 outside the window.
+[39] news: - **New data.** `flying_height_terrain_nonpositive.csv` ships the 374 frames under the aircraft, from the census that found them.
+[40] news: - **Not done.** On nine roll-heights (157 of those 374 frames) spacing rejects nominal scale as well, so their fallback is not supported either ([#97](https://github.com/NewGraphEnvironment/fly/issues/97)).
+[41] claude_kd: - **Whether a catalogued height is above ground cannot be settled by spacing in band, and nothing changed** (fly#95, no code change) — 188 roll-heights: the keys of fly#93's 374 frames at `r <= 0` and the 176 where A2 found nominal fits, judged on every census frame on them (2,956).
+[42] claude_kd: Spacing supports reading `flying_height` as above ground on 1, cannot separate it from nominal on 126 and rejects it on 61.
+[43] claude_kd: `bc5602`, the one it supports, has a logbook writing the catalogue's own 4,000 ft under M.S.L.
+[44] claude_kd: On the 576 logbook-read frames, 558 carry the catalogue's figure and no page puts the ground under it.
+[45] claude_kd: Generator Stages 3c and 6 write `inst/extdata/flying_height_above_ground.csv`; `test-fly_footprint_above_ground.R` recomputes it.
+[46] claude_kd: **Two things are load-bearing.** - **Read the null as "cannot settle", not "false".** On a key, `p_agl = 1 - (1 - p_nominal) / ratio_asl`, so spacing adds nothing beyond nominal's overlap and the ratio.
+[47] claude_kd: In band above sea level the ratio is under 1.6, and #60 found spacing stops separating readings there.
+[48] claude_kd: Undecided readings differ by up to 49% in width; where nominal fits, the refutations sit a median 0.028 outside the window.
+[49] claude_kd: - **If a page ever does put the ground under the height,** ship its figure as above sea level through the existing `factor != 1` branch, which already reaches `r <= 0` frames.
+[50] claude_kd: On `r <= 0` frames that figure is 2.0-2.6 times the height, so near 2 (51 of 374 frames within 2%) such a page is ambiguous with x2.
+[51] claude_kd: Nine roll-heights (157 `r <= 0` frames) fit neither reading: fly#97.
+[52] claude_arch: data-raw/height_measure-terrain_tail.R` — fly#93: every BW/colour frame in band above sea level and below it over the ground.
+[53] claude_arch: A coarse MRDEM picture (overviews averaged) with a margin of twice the worst coarse error, held to every frame read, picks the frames read exactly by the sweep's own instrument; three controls (sweep reproduced, sweep stratum found, a draw past the prefilter holds nothing out of band) stop it.
+[54] claude_arch: Ships `inst/extdata/flying_height_terrain_frames.csv`, `_population.csv` and `_nonpositive.csv` (the 374 frames at `r <= 0`, fly#95), which `test-fly_footprint_terrain_tail.R` recomputes.
+[55] claude_arch: `FLY_TERRAIN_SMOKE=1` writes nothing
+[56] code_comments: # fly#95 asks of two groups fly#93 left whether the catalogued height is a height ABOVE GROUND recorded as above sea level: the frames under terrain at or above the aircraft, which the census ships separately, and the roll-heights A2 found nominal scale fits.
+[57] code_comments: Spacing is read first (Stage 3c), the logbooks after (Stage 6), by a rule fixed before either was computed.
+[58] code_comments: It writes `inst/extdata/flying_height_above_ground.csv`, one row per roll-height, and stops rather than tabling one, since how a tabled row would be encoded is not yet decided. # --------------------------------------------------------------------------- Stage 3c — fly#95: is the catalogued height above ground?
+[59] code_comments: Spacing, before any page --------------------------------------------------------------------------- # The rule, fixed before any per-roll-height number existed (archived findings of fly#95, "Pre-registered rule").
+[60] code_comments: Read as a height above ground, the catalogued height gives each frame an along-track side of FORMAT_M x flying_height / f; nominal scale gives FORMAT_M x scale.
+[61] code_comments: Neither depends on terrain, so a roll-height mixing frames under the aircraft and frames under the ground is judged on one quantity, and the two sides are exactly `ratio_asl` apart. supports   the height read as above ground fits the window and nominal does not undecided  both fit: the two cannot be told apart, and differ by |ratio_asl - 1| refutes    the height read as above ground does not fit n
+[62] code_comments: --------------------------------------------------------------------------- Stage 6 — fly#95: the logbook, and the verdict on reading the height as above ground --------------------------------------------------------------------------- # Per frame, through `settle()`'s own join and states.
+[63] code_comments: A read frame's logbook height `h_lb` (feet x 0.3048) is catalogue      within 2% of the catalogued height: the crew's figure is the catalogue's ground_plus    the median over the roll-height's frames read at that height of (h_lb - elev) is within 10% of the catalogued height: the crew flew the catalogued height ABOVE the ground MRDEM puts under the frames ambiguous      both: ground near sea level
+[64] code_comments: `tapply()` returns a 1-d array, which `case_when()` refuses, so it is flattened here.
+[65] code_comments: (amendment A3), and shipped frame by frame for fly#95.
+[66] code_comments: The rule and the margin were fixed before the exact read: `planning/archive/*issue-93*/findings.md`, "Pre-registered rule". inst/extdata/flying_height_terrain_nonpositive.csv every in-band frame under terrain at or above the aircraft (r <= 0): the same columns, read by fly#95 counted in the population table and shipped frame by frame (fly#95), never assigned to a tail.
+[67] code_comments: The r <= 0 frames (A3), with the same air base, for fly#95's above-ground question.
+[68] code_comments: `bc77072` flies two of them.
+[69] test_comments: # Whether a BW/colour frame's catalogued height is a height ABOVE GROUND recorded as above sea level (fly#95).
+[70] test_comments: Everything is recomputed from what `data-raw/height_measure-terrain_tail.R` and `data-raw/height_calibrate-lower_tail_rolls.R` shipped; the spacing verdict is never trusted.
+[71] test_comments: Not with these instruments (fly#95)".
+[72] test_comments: The window, as the generator draws it: central 95% of in-band random frames' overlap at the reported height, with the air base #89 shipped for those frames.
+[73] test_comments: Every frame of the population: both census files, on the keys an `r <= 0` frame reaches or fly#93's A2 found nominal fits. 374 frames under the aircraft, on 15 rolls and 16 roll-heights (`bc77072` flies two).
+[74] test_comments: The population is every census frame on the keys, not just the two groups: 2,535 on the A2(a) keys, the 219 `r <= 0` frames elsewhere, and 202 above the ground on eight of the other twelve keys, which neither group holds.
+[75] test_comments: The shipped air base is rounded to 0.1 m, the generator's is not, so the third decimal of an overlap can differ by one.
+[76] test_comments: Adding the r <= 0 frames moves no A2(a) verdict: nominal still fits on all 176.
+[77] test_comments: The one roll-height spacing supports: its logbook writes the catalogue's own 4,000 ft (1,219 m) on every frame, under an M.S.L. header, so the ground is never under it.
+[78] test_comments: Of the frames a transcribed page reads, none has the ground put under the catalogued height. "the 32 roll-heights with a frame the logbook reads", and the 576 frames it reads.
+[79] test_comments: The transcription is a data-raw input, not installed, so this runs only from the source tree.
+[80] test_comments: Every roll with a read frame is a transcribed one.
+[81] test_comments: No transcribed header names the ground.
+TOTAL 81

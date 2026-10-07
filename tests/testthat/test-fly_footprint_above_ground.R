@@ -1,7 +1,8 @@
 # Whether a BW/colour frame's catalogued height is a height ABOVE GROUND recorded as above sea
 # level (fly#95). Everything is recomputed from what `data-raw/height_measure-terrain_tail.R` and
 # `data-raw/height_calibrate-lower_tail_rolls.R` shipped; the spacing verdict is never trusted.
-# The rule is in `inst/notes/terrain-correction.md`, "Is the catalogued height above ground? (fly#95)".
+# The rule is in `inst/notes/terrain-correction.md`, "Is the catalogued height above ground? Not with
+# these instruments (fly#95)".
 
 extdata <- function(f) {
   utils::read.csv(system.file("extdata", f, package = "fly", mustWork = TRUE),
@@ -140,7 +141,7 @@ test_that("nothing tables, and every reason is the first condition that fired", 
   expect_identical(s$frames_catalogue, s$frames)
   expect_identical(s$logbook_ft, "4000")
   expect_identical(s$reason, "logbook does not put the ground under the catalogued height")
-  # Wherever a page covers these frames, none puts the ground under the catalogued height.
+  # Of the frames a transcribed page reads, none has the ground put under the catalogued height.
   expect_identical(sum(ag$frames_ground_plus) + sum(ag$frames_ground_header), 0L)
 })
 
@@ -188,7 +189,7 @@ test_that("the note's above-ground tables are the shipped tables, row by row (fl
   expect_identical(as.numeric(vapply(lb, `[`, "", 2)),
                    c(sum(ag$frames_catalogue), sum(ag$frames_ambiguous), sum(ag$frames_other),
                      sum(ag$frames_ground_plus) + sum(ag$frames_ground_header)) + 0)
-  # "32 roll-heights with transcribed rows (576 frames read)".
+  # "the 32 roll-heights with a frame the logbook reads", and the 576 frames it reads.
   expect_identical(sum(ag$frames_logbook > 0), 32L)
   expect_identical(sum(ag$frames_logbook), 576L)
   # `ambiguous` frames carry the catalogue's figure too (ground near sea level).
@@ -221,10 +222,35 @@ test_that("the note's above-ground tables are the shipped tables, row by row (fl
   for (s in c("a median 0.120, 0.352 at the 90th percentile and at most 0.494",
               "494 of their 1,562 frames", "a median 0.028 outside the window",
               "23 of them by under 0.02", "On the 52 refuted roll-heights",
-              "the 32 roll-heights with transcribed rows (576 frames read)",
+              "Over the 32 roll-heights with a frame the logbook reads",
+              "Pages are transcribed for 26 of the population's 154 rolls",
+              "(2.00 to 2.58, median 2.16), and 51 of them are within 2% of x2",
               "188 roll-heights, judged on every frame either census file holds on them, 2,956",
               "the two groups (2,754 frames) plus 202 above the ground on eight keys",
-              "it writes the catalogue's height on 558 of 576")) {
+              "it writes the catalogue's height on 558 of the 576 frames it reads")) {
     expect_true(grepl(s, prose, fixed = TRUE), info = s)
   }
+})
+
+test_that("the note's logbook scope is the transcription's, and its x2 figures are the census's", {
+  # The transcription is a data-raw input, not installed, so this runs only from the source tree.
+  lb_path <- testthat::test_path("..", "..", "data-raw", "flying_height_logbooks.csv")
+  skip_if(!file.exists(lb_path), "logbook transcription not reachable from an installed package")
+  lb <- utils::read.csv(lb_path, stringsAsFactors = FALSE)
+  ag <- extdata("flying_height_above_ground.csv")
+  rolls <- unique(ag$film_roll)
+  expect_identical(length(rolls), 154L)
+  expect_identical(sum(rolls %in% lb$film_roll), 26L)
+  # Every roll with a read frame is a transcribed one.
+  expect_true(all(ag$film_roll[ag$frames_logbook > 0] %in% lb$film_roll))
+  # No transcribed header names the ground.
+  hdr <- lb$height_header
+  ground <- grepl("ground|A\\.?G\\.?L|terrain|clearance", hdr, ignore.case = TRUE) &
+    !grepl("M\\.?S\\.?L", hdr, ignore.case = TRUE)
+  expect_false(any(ground))
+
+  np <- extdata("flying_height_terrain_nonpositive.csv")
+  q <- 1 + np$elev / np$flying_height
+  expect_identical(sprintf("%.2f", c(min(q), max(q), stats::median(q))), c("2.00", "2.58", "2.16"))
+  expect_identical(sum(abs(q / 2 - 1) <= 0.02), 51L)
 })

@@ -26,3 +26,12 @@
   "2,956 frames" was every census frame on the 188 keys, described as the two groups' frames (2,754); the other
   202 are `r > 0` frames on 8 keys neither group holds. Fixed in NOTE/NEWS/CLAUDE.md/findings, composition
   pinned (2,535 / 219 / 202 on 8 keys)
+- Code-check round 3 (`review-round3.md`): named the mechanism — a count taken over one set, described as a
+  neighbouring set — and found it inside round 1's fix ("no page puts the ground under it": only transcribed
+  pages, 26 of 154 rolls, were read). Also: "32 roll-heights with transcribed rows" (32 is with a READ frame;
+  36 have rows), "the logbook is read only where spacing supports" (fetched only there; joined everywhere),
+  "about twice" (2.00-2.58, 51 of 374 within 2% of x2), and in code `n_unread` folding `conflict` with
+  `uninterpreted` (now fly#93's precedence; moves no row — the generator re-ran byte-identical). All fixed and
+  pinned, including the transcription scope (source-tree test). Since a defect was found inside a fix, the loop
+  ends only on an enumeration: `claims_enumerated.txt` lists all 81 numeric or universal sentences in the
+  shipped prose and comments, extracted mechanically

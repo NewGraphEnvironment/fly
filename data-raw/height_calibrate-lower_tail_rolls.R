@@ -1037,7 +1037,8 @@ agl_l <- do.call(rbind, lapply(split(agl_lt, agl_lt$key), function(d) {
              n_catalogue = sum(rel == "catalogue"), n_ground_plus = sum(rel == "ground_plus"),
              n_ambiguous = sum(rel == "ambiguous"), n_ground_header = sum(rel == "ground_header"),
              n_other = sum(rel == "other"),
-             n_unread = sum(d$log_state %in% c("conflict", "uninterpreted")),
+             n_conflict = sum(d$log_state == "conflict"),
+             n_uninterpreted = sum(d$log_state == "uninterpreted"),
              n_unspanned = sum(d$log_state == "unspanned"),
              n_focal_conflict = sum(is.finite(d$log_focal) & !d$focal_agrees),
              logbook_ft = paste(sort(unique(d$log_ft[!is.na(d$relation)])), collapse = "/"))
@@ -1046,6 +1047,8 @@ av <- merge(agl_s, agl_l, by = "key")
 stopifnot(nrow(av) == nrow(agl_s))
 av$n_outside <- as.integer(key_cat[av$key]) - av$n
 stopifnot(all(av$n_outside >= 0))
+# Frames the logbook READS, not frames a row covers: a frame under rows that disagree, or under
+# a row whose height was not interpreted, is covered and unread (fly#93's states, kept apart).
 av$covered <- av$n_logbook / av$n
 av$agreeing <- ifelse(av$n_logbook > 0, (av$n_ground_plus + av$n_ground_header) / av$n_logbook, 0)
 av$tabled <- av$spacing == "supports" & av$covered >= 0.5 & av$agreeing >= 0.9 &
@@ -1055,10 +1058,13 @@ av$reason <- dplyr::case_when(
   av$spacing == "refutes" ~ "spacing rejects the catalogued height read as above ground",
   av$spacing == "undecided" ~ "spacing fits both the catalogued height read as above ground and nominal scale",
   av$spacing == "no_base" ~ "no adjacent frames to measure spacing on",
-  av$n_logbook == 0 & av$n_unread > 0 ~ "logbook height or frame range not read",
+  # Under half read: the unread state that fired, by fly#93's precedence (Stage 5), never folded.
+  av$covered < 0.5 & av$n_conflict >= av$n_uninterpreted & av$n_conflict > 0 ~
+    "logbook rows covering these frames disagree",
+  av$covered < 0.5 & av$n_uninterpreted > 0 ~ "logbook height or frame range not read",
   av$n_logbook == 0 & av$n_unspanned > 0 ~ "transcribed logbook rows reach none of these frames",
   av$n_logbook == 0 ~ "no logbook page covers these frames",
-  av$covered < 0.5 ~ "logbook covers under half the frames",
+  av$covered < 0.5 ~ "logbook reads under half the frames",
   av$agreeing < 0.9 ~ "logbook does not put the ground under the catalogued height",
   av$n_focal_conflict > 0 ~ "logbook names a different lens",
   TRUE ~ "frames on this roll-height are in band as catalogued, or have no terrain under them"

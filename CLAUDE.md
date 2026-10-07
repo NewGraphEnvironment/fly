@@ -420,7 +420,8 @@ catalogue's figure and no page puts the ground under it. Generator Stages 3c and
     49% in width; where nominal fits, the refutations sit a median 0.028 outside the window.
   - **If a page ever does put the ground under the height,** ship its figure as above sea level through
     the existing `factor != 1` branch, which already reaches `r <= 0` frames. Do not add an "above
-    ground" route that reads the catalogue's height. On `r <= 0` frames such a page is ambiguous with x2.
+    ground" route that reads the catalogue's height. On `r <= 0` frames that figure is 2.0-2.6 times the
+    height, so near 2 (51 of 374 frames within 2%) such a page is ambiguous with x2.
   Nine roll-heights (157 `r <= 0` frames) fit neither reading: fly#97. Read `inst/notes/terrain-correction.md`,
   "Is the catalogued height above ground?"
 
