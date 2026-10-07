@@ -7,3 +7,5 @@
 - Created branch `101-settle-the-disputed-height-digit-on-bc77` off main
 - Scaffolded PWF baseline from issue #101 with approved phases
 - Next: start Phase 1
+- Phase 1: rule, brief, crop script and scorer written; scorer exercised on five synthetic outputs.
+  `bc77070_4` withheld from the reader (same place at a clear 3.8). Plan review spawned in background.

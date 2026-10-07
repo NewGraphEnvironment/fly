@@ -14,12 +14,13 @@ See `inst/notes/terrain-correction.md`, "What the frames under the terrain cover
 2. The third read is a blind subagent only.
 
 ## Phase 1: Fix the rule before any read (committed before the reader is spawned)
-- [ ] Write the pre-registered rule into `findings.md`. It records what is already known and not blind
+- [x] Write the pre-registered rule into `findings.md`. It records what is already known and not blind
       (both prior reads, the catalogue's 3,800 ft, `bc77070` read clear at 3,800 ft as context only, and
       the provincial-copy probe). It then fixes the instrument, gate, verdict and outcomes below.
-- [ ] **Instrument.** A fresh general-purpose subagent, told not to spawn and not to open anything but
+- [x] **Instrument.** A fresh general-purpose subagent, told not to spawn and not to open anything but
       the images in its directory. It gets:
-      - `bc77087_1`-`_5` and `bc77070_1`-`_4`.
+      - `bc77087_1`-`_5` and `bc77070_1`-`_3` (`bc77070_4` withheld before any read: it names the same
+        project and place at a clear 3.8; see findings.md).
       - Each page whole, plus four mechanical 2× Lanczos quadrant crops of each page, so no one line is
         singled out.
       - The fly#93/#97 brief (`rows.csv` only, no `strips.csv`), plus `leading_digit_confidence` and
@@ -30,10 +31,10 @@ See `inst/notes/terrain-correction.md`, "What the frames under the terrain cover
         number, frame numbers, headings). It cites each reference (file plus where on the page), says
         whether the hands match, and writes `glyphs.csv` plus a verdict.
       - No catalogue value, prior read, issue or note reaches it.
-- [ ] **Control gate.** The reader must reproduce every existing `clear` height row on the nine pages
+- [x] **Control gate.** The reader must reproduce every existing `clear` height row on the nine pages
       (`data-raw/flying_height_logbooks.csv` rows 657-665 and the `bc77070` rows) exactly, after fly#93's
       `consolidate.R`. Any miss voids the read: verdict `unsettled`.
-- [ ] **Verdict.** Settled only if the reader **commits** to the leading digit of the `bc77087_1`
+- [x] **Verdict.** Settled only if the reader **commits** to the leading digit of the `bc77087_1`
       line-1 height. A commit is `clear`, or a Stage B decision citing at least one same-hand reference
       glyph that it judges written by the same hand.
       - Commits to 3: settled at **3.8**.
@@ -43,7 +44,7 @@ See `inst/notes/terrain-correction.md`, "What the frames under the terrain cover
       - The rule counts no lean, whether fly#97's or the reader's own.
       - The limitation is recorded: all three readers are the same model family, so these are not three
         independent human reads.
-- [ ] **Outcomes, fixed now:**
+- [x] **Outcomes, fixed now:**
       - **3.8:** edit the note column of row 656 only, and `height_ft_interpreted` stays 3800. Both
         generators re-run and their outputs must be byte-identical. Prose moves from "contested" to
         "settled at 3.8 by a third blind read".
@@ -55,7 +56,7 @@ See `inst/notes/terrain-correction.md`, "What the frames under the terrain cover
         promised no package behaviour change.
       - **unsettled:** row 656's note records the third read. The value stays 3.8, as now. Prose says
         three reads. The draft request to the province is the remaining route.
-- [ ] Commit the rule (with the brief and the crop script) before spawning the reader.
+- [x] Commit the rule (with the brief and the crop script) before spawning the reader.
 
 ## Phase 2: The third read
 - [ ] Build the reader's directory under the gitignored cache: 9 pages plus 36 quadrant crops, made by a
