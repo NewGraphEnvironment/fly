@@ -1,5 +1,7 @@
 # fly (development version)
 
+## 0.23.2 (2026-10-07)
+
 - **On five of the nine roll-heights where spacing rejected both readings of the frames under the terrain, the photos show the catalogue's centroid step is longer than the air base, so the rejection says nothing about scale** ([#97](https://github.com/NewGraphEnvironment/fly/issues/97)). No code change, and every roll table is byte-identical.
   - **The instrument.** It measures the overlap the photos themselves show: the image shift between adjacent thumbnails, which reads no scale, height or centroid. Synthetic, unrelated-pair, crew-written-overlap and known-error controls ran before the nine were measured.
   - **What it found.**
