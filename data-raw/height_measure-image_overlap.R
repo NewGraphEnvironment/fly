@@ -340,9 +340,10 @@ key_summary <- function(m) {
 frames <- do.call(rbind, lapply(list.files(CENTROIDS, "\\.rds$", full.names = TRUE), readRDS))
 frames <- frames[!is.na(frames$film_roll) & is.finite(frames$frame_number), ]
 frames$scale_n <- suppressWarnings(as.numeric(sub("^1:", "", frames$scale)))
-key4 <- function(r, h, f, s) paste(r, format(h, scientific = FALSE, trim = TRUE),
-                                   format(f, scientific = FALSE, trim = TRUE),
-                                   format(s, scientific = FALSE, trim = TRUE))
+key4 <- function(r, h, f, s) {
+  paste(r, format(h, scientific = FALSE, trim = TRUE), format(f, scientific = FALSE, trim = TRUE),
+        format(s, scientific = FALSE, trim = TRUE))
+}
 frames$key <- key4(frames$film_roll, frames$flying_height, frames$focal_length, frames$scale_n)
 # A (roll, frame) carried twice has no single position; it pairs with nothing.
 rf <- paste(frames$film_roll, frames$frame_number)
@@ -562,7 +563,8 @@ for (i in seq_len(nrow(wrt_k))) {
       wrt_k$written[i], if (wrt_k$gated[i]) "" else " (reported only)", wrt_k$pairs_used[i],
       wrt_k$pairs[i], wrt_k$p_img[i], wrt_k$p_nominal[i])
 }
-pub("CONTROL written overlap: %d gated rolls with >= 3 matched pairs (need 6); median p_img - written %+.4f (within 0.08): %s",
+pub(paste0("CONTROL written overlap: %d gated rolls with >= 3 matched pairs (need 6); ",
+           "median p_img - written %+.4f (within 0.08): %s"),
     nrow(wrt_g), wrt_dev, if (wrt_ok) "PASS" else "FAIL")
 
 pos_d <- D_of(pos_m$p_img, pos_m$p_nominal)

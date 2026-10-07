@@ -16,3 +16,4 @@
   tables; fly#95's pinned logbook figures updated (test, note, CLAUDE.md).
 - Phase 4: nine keys measured (366 pairs); five keys step_overstated -> nominal_unrefuted / misplaced (112 r<=0 frames); bc7718, bc80117 flown at ~85% overlap, indistinguishable; byte-identical re-run.
 - Phase 6: tests (163 pass, mutations red), note section, NEWS, CLAUDE.md. Prose test caught 6 errors in first draft (k 2.1->1.9, headings 264/268->233/237 on the five, step 848->848-850, double rounding, two test defects). Follow-up issue: gh create failing GitHub-side (3 attempts).
+- Full suite: FAIL 0 | PASS 5653. Two lint fixes in the script; re-run from cache leaves all five CSVs unchanged. Code-check round 1 spawned over the branch.
