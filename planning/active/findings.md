@@ -196,3 +196,8 @@ the scoring total; none changes what an outcome ships.
 14. **NEWS (G8):** a new development entry. The released 0.23.2 entry is not edited.
 15. The province draft (`province_request_draft.md`) ships in the archive under every outcome. Only under
     `unsettled` is it named as the remaining route (S1).
+
+### Reader directory, built before spawning
+
+`<scratchpad>/pages_q`: 50 images from `make_reader_dir.sh` at e07d371 (crops 800 x 964). md5 per file in
+`transcription/pages_q.md5` (md5 of that listing: `37a451f51abb670c3a4d4bebeb129438`).

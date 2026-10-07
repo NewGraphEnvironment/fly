@@ -64,7 +64,7 @@ findings.md is the authority.
 
 ## Phase 2: The third read (as amended by findings.md, Amendment A1 — findings.md is the authority)
 - [x] Amend the rule from the plan review (A1) and commit it before the reader directory is built
-- [ ] Build `<scratchpad>/pages_q` from the committed `transcription/make_reader_dir.sh` (bc77087_1-_5, 50
+- [x] Build `<scratchpad>/pages_q` from the committed `transcription/make_reader_dir.sh` (bc77087_1-_5, 50
       images); record md5s in findings.md
 - [ ] Spawn the Plan-type reader unnamed with Stage A; write its `rows.csv` verbatim; hash it; send Stage B;
       write `glyphs.csv` and `verdict.csv` verbatim. Copy all three to `planning/active/transcription/reader/`
