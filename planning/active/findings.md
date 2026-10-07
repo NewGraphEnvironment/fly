@@ -365,3 +365,20 @@ the user and the package does not change (Phase 5).
   be `r <= 0` at all; its size verdict (`step_overstated`) holds either way (at 7,800 ft the catalogue
   step still implies 0.46 against the images' 0.62). `bc77070`, flown the same week over the same
   project at 3,800 ft, was read clear.
+
+## Tests (Phase 6)
+
+`tests/testthat/test-fly_footprint_image_overlap.R` recomputes every pair's p_img from its shift, both
+readings from the step, the line breaks, every control gate and tau, and every key's W1, W2, size,
+location and heading tally. tau from the shipped 4-dp values is 0.21978 against the script's 0.21990,
+so it is pinned at 3 dp ("0.220"). Mutations, in a scratch copy of the tree: a flipped size verdict ->
+red; one negative pair's p_img moved 0.10 -> red; W1 with `consistent_agl` tested before
+`consistent_nominal` -> unchanged, as the review asked: no distinguishable key is consistent with both.
+
+## Errors Encountered
+
+| Error | Resolution |
+|-------|------------|
+| Synthetic 0.20 overlap never matches | The reused gate's geometry (128 px windows, 50 px margin): Amendment A1, floor reported |
+| `gh issue create` GraphQL "Something went wrong" x2, REST "unexpected end of JSON input" | GitHub-side; nothing created; retried later |
+| tau pinned at 4 dp fails from the shipped CSV | The CSV rounds p to 4 dp; pinned at 3 dp |
