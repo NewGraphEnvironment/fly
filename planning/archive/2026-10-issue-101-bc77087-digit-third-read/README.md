@@ -1,5 +1,9 @@
 # fly#101: a third blind read of `bc77087`'s page-1 height digit
 
+**Final status: settled as 3 (3,800 ft) by a human read, not blind, after the three blind reads
+disagreed.** The blind read below came back unsettled. The maintainer then read the page as 3, which
+agrees with the shipped value, so nothing numeric moved. See `findings.md`, "Settled by a human read".
+
 ## Outcome
 
 `bc77087_1.jpg` line 1 writes the TRUE HEIGHT for 57 frames, and its first digit was disputed. fly#93's
@@ -12,9 +16,10 @@ leaning 3, and it never listed 7. Its glyph comparison decided neither.
 
 - **What shipped.** The transcription keeps 3.8. Only the row's note changed, to record the three reads.
   Both generators re-ran with all 44 other CSVs byte-identical.
-- **Prose.** The note, NEWS, `CLAUDE.md`, fly#99 and fly#101 say three blind reads have not settled it.
-- **What is left.** The next instrument is the province's original page. A request is drafted in
-  `province_request_draft.md` and has **not been sent**.
+- **Prose.** The note, NEWS, `CLAUDE.md` and fly#99 now say the digit is settled as 3 by a human read
+  after three blind reads disagreed.
+- **The province request** (`province_request_draft.md`) was drafted while the read stood unsettled. It
+  was never sent, and the human read superseded it.
 
 **What was learned.**
 - **A general-purpose subagent is not blind in this repo.** It carries the project `CLAUDE.md`, which
@@ -58,4 +63,4 @@ leaning 3, and it never listed 7. Its glyph comparison decided neither.
   the instrument, as committed before the read.
 - `review-plan.md`, `review-round[1-4].md`: the plan review and four code-check rounds.
 
-Closed by: PR for fly#101. The issue stays open for the province's original.
+Closed by: PR #102 (fly#101).

@@ -1,4 +1,7 @@
-# Draft — request to the province for a higher-resolution logbook scan (NOT SENT)
+# Draft — request to the province for a higher-resolution logbook scan (NOT SENT, SUPERSEDED)
+
+Superseded 2026-10-07: the digit was settled as 3 by a human read (see `findings.md`). Kept as a
+template for any later page that needs the province's original.
 
 Drafted for fly#101. Nothing here has been sent; sending it is the user's decision.
 Address: the BC Data Catalogue contact for the "Air Photo Centroids" dataset

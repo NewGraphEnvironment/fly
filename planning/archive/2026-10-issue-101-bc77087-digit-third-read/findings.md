@@ -433,3 +433,17 @@ focal only merges lines at a height that must still equal the shipped row's. Bot
 
 **The class ends with this enumeration, not with a quiet round:** every column the verdict reads has a
 row above, with its check.
+
+## Settled by a human read (2026-10-07, after the PR opened)
+
+After the PR opened, the package's maintainer was asked which digit was disputed. They read the page and
+said "That is a 3". That read is **not blind**: it came after the three blind reads and knowing the stakes.
+It sits outside the rule, which governed only the blind subagent read. It is recorded as what it is:
+- the shipped value was already 3.8, so no number moves;
+- only the status changes, from "unsettled" to "settled as 3 by a human read";
+- the transcription note says "not blind" (pinned by the test).
+
+It agrees with fly#93's committed 3, the catalogue's 1,158 m, and `bc77070` (same week, same project,
+3,800 ft, read clear).
+
+The province request is no longer needed and was never sent.

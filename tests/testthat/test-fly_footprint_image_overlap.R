@@ -395,7 +395,7 @@ test_that("read as 7,800 ft, bc77087's page would put the ground under the catal
   }
 })
 
-test_that("bc77087's page-1 digit stays at 3.8 because the third blind read did not settle it (fly#101)", {
+test_that("bc77087's page-1 digit is 3.8: three blind reads disagreed, a human read settled it (fly#101)", {
   # The transcription and the reader's own files are not installed, so this runs only from the source tree.
   lb_path <- testthat::test_path("..", "..", "data-raw", "flying_height_logbooks.csv")
   skip_if(!file.exists(lb_path), "logbook transcription not reachable from an installed package")
@@ -403,9 +403,11 @@ test_that("bc77087's page-1 digit stays at 3.8 because the third blind read did 
   r <- lb[lb$file == "bc77087__bc77087_1.jpg" & lb$frame_from %in% 1, ]
   expect_identical(nrow(r), 1L)
   expect_identical(r$height_ft_interpreted, 3800L)
-  expect_true(grepl("three blind reads", r$note, fixed = TRUE))
+  expect_true(grepl("Three blind reads of the first digit disagreed", r$note, fixed = TRUE))
   expect_true(grepl("fly#101 undecided between 3 and 5 leaning 3", r$note, fixed = TRUE))
-  # The reader's verdict, as it wrote it: undecided, so by fly#101's rule the value does not move.
+  # The settling read is a human one and not blind, and the row must say both.
+  expect_true(grepl("Settled as 3 by a human read of the page, not blind", r$note, fixed = TRUE))
+  # The third blind reader's verdict, as it wrote it: undecided, so the blind reads alone did not settle it.
   pl <- testthat::test_path("..", "..", "planning")
   # The archived copy first: a later read reusing this layout would put its own file at the active path.
   vf <- c(Sys.glob(file.path(pl, "archive", "*issue-101*", "transcription", "reader", "verdict.csv")),
@@ -420,9 +422,10 @@ test_that("bc77087's page-1 digit stays at 3.8 because the third blind read did 
   expect_identical(c(t1$leading_digit_confidence, t1$leading_digit_alternatives), c("uncertain", "3/5"))
   note <- system.file("notes", "terrain-correction.md", package = "fly", mustWork = TRUE)
   prose <- gsub("\\s+", " ", paste(readLines(note), collapse = " "))
-  for (s in c("It has had three blind reads, and they have not settled it",
+  for (s in c("Three blind reads did not settle it",
               "It would not choose between 3 and 5, and leaned 3. It did not list 7",
-              "so the transcription keeps 3.8")) {
+              "A human read settled it as 3", "That read was not blind",
+              "So the transcription keeps 3,800 ft")) {
     expect_true(grepl(s, prose, fixed = TRUE), info = s)
   }
 })
