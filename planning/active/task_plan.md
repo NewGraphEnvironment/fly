@@ -118,11 +118,11 @@ those frames.
       column changes in `flying_height_above_ground.csv` are listed in findings.
 
 ## Phase 4: The measurement on the nine keys
-- [ ] Stages 2–3: measure every key pair, apply W1 and W2, and print a producer line for every figure the
+- [x] Stages 2–3: measure every key pair, apply W1 and W2, and print a producer line for every figure the
       note will quote
-- [ ] Write `inst/extdata/flying_height_image_overlap_controls.csv`, `_pairs.csv` and `_keys.csv`, with one
+- [x] Write `inst/extdata/flying_height_image_overlap_controls.csv`, `_pairs.csv` and `_keys.csv`, with one
       row per key and its outcome and the reason that fired
-- [ ] Re-run from cache; the outputs must be byte-identical
+- [x] Re-run from cache; the outputs must be byte-identical
 
 ## Phase 5: Package consequence
 - [ ] Expected: no code change, recorded as such (as fly#65/#80/#95)

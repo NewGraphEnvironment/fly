@@ -14,3 +14,4 @@
 - Phase 3: 35 pages fetched; three blind transcribers; controls agree (bc77087_1 height contested: 3.8 vs 7.8);
   37 rows appended for five rolls; strips CSV (139); generator byte-identical before and after on the roll
   tables; fly#95's pinned logbook figures updated (test, note, CLAUDE.md).
+- Phase 4: nine keys measured (366 pairs); five keys step_overstated -> nominal_unrefuted / misplaced (112 r<=0 frames); bc7718, bc80117 flown at ~85% overlap, indistinguishable; byte-identical re-run.

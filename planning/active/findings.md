@@ -305,3 +305,57 @@ over the same cached pairs. The A2 gates are the ones in force:
   a key at the ordinary rate is not.
 - tau is set by the spread of the catalogue's spacing against the images on ordinary keys (95th
   percentile, 34 keys): the instrument cannot see a step error smaller than about x1.25.
+
+## The nine keys (Stages 2-3) — 2026-10-07
+
+366 pairs on the nine keys (census pairs, A2): 327 matched, 39 no_match. Page guard passed (35 of 35
+linked pages transcribed). Re-run from cache: all five CSVs byte-identical (30 s).
+
+| key | pairs (matched) | p_img | p_nominal | p_agl | D_nominal | D_agl | W1 | W2 | size | location | r <= 0 |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| `bc5715` 732 | 2 (1) | 0.527 | 0.196 | 0.194 | | | too_few_pairs | msl_catalogue | too_few_pairs | not_tested | 1 |
+| `bc77026` 2042 | 118 (114) | 0.807 | 0.419 | 0.479 | -1.103 | -0.993 | step_overstated | msl_catalogue | nominal_unrefuted | misplaced | 11 |
+| `bc77070` 1158 | 63 (53) | 0.622 | 0.283 | 0.526 | -0.641 | -0.226 | step_overstated | msl_catalogue | nominal_unrefuted | misplaced | 59 |
+| `bc77072` 1829 | 18 (16) | 0.640 | 0.226 | 0.352 | -0.767 | -0.588 | step_overstated | msl_catalogue | nominal_unrefuted | misplaced | 1 |
+| `bc77072` 1981 | 64 (53) | 0.615 | 0.114 | 0.316 | -0.834 | -0.576 | step_overstated | msl_catalogue | nominal_unrefuted | misplaced | 3 |
+| `bc77087` 1158 | 57 (49) | 0.623 | 0.209 | 0.478 | -0.741 | -0.327 | step_overstated | msl_catalogue | nominal_unrefuted | misplaced | 38 |
+| `bc7718` 1524 | 24 (23) | 0.858 | 0.857 | 0.857 | -0.010 | -0.011 | indistinguishable | msl_catalogue | unsettled | not_tested | 24 |
+| `bc80117` 1372 | 18 (17) | 0.840 | 0.843 | 0.860 | 0.024 | 0.138 | indistinguishable | msl_catalogue | unsettled | not_tested | 19 |
+| `bcc325` 396 | 2 (1) | 0.629 | 0.076 | 0.286 | | | too_few_pairs | not_read | too_few_pairs | not_tested | 1 |
+
+tau 0.2199. `r <= 0` frames: location misplaced 112, not_tested 45; size nominal_unrefuted 112,
+unsettled 43, too_few_pairs 2. No key reads W2 `ground` or size `agl_supported`, so nothing stops for
+the user and the package does not change (Phase 5).
+
+**What it says, key group by key group.**
+- **Seven below the window (leads 1 and 4).** On the five keys with enough pairs the photos overlap
+  0.62-0.81, an ordinary flight, where the catalogue's step says 0.11-0.42 at nominal. The step is
+  2.1 to 3.0 times the air base the images imply at nominal (`k`). The frames *are* adjacent (86-97% of
+  pairs match). Given the crew's height above sea level, no size reading can bring the step down to the
+  images', so it is the step that is wrong; spacing's rejection of nominal said nothing about scale.
+- **Two above the window (lead 2).** `bc7718` and `bc80117` were flown at ~85% overlap: the images read
+  0.858 and 0.840, the catalogue step gives 0.857 and 0.843. Spacing rejected them because the window
+  assumes ~60%, not because a reading is wrong. The two readings coincide there (gap 0.001 and 0.114
+  against 2 tau 0.44), so the rule cannot say which and leaves both `unsettled`.
+- **Location (lead 3).** On the five keys, the page writes the catalogue's figure under an M.S.L. header,
+  the images reject reading it as above ground, and MRDEM under the catalogue's centroids is at or above
+  that height on 112 frames: the centroids are not over the ground photographed. Headings agree with the
+  catalogue's line bearings on 264 of 268 matched pairs (4 differ, 0 reversed), so the lines are not
+  rotated or reversed; if the misplacement is a translation that keeps the step, the size statement
+  stands, and that is an assumption the images cannot test.
+
+**Corroboration outside the gates (reported, never gating):**
+- `bc77026`: images 0.807 against the page's "Forward overlap seems excessive (75.9%)".
+- `bc80117`: images 0.840 against "80% FOREWARD O.L.".
+- `bc77070` 271/272: images 0.316, against 0.61-0.64 on the pairs around it, where the page writes "Only
+  40% overlap between #271-#272". The catalogue step is 848 m on that pair and on its neighbours.
+- Places against the catalogue's positions: `bc7718` 46-69 is "TAHSIS" strip 4 (west Vancouver Island,
+  sea level; 5,000 ft = nominal height above ground, implied ground 0 m), and the catalogue places frame
+  30 of the same roll at 126.86 W but 46-69 at 121.66 W. `bc80117` is "YALE BLUFF" (Fraser Canyon,
+  ~121.4 W); the catalogue's frames are at 122.78-122.82 W. `bc77087`/`bc77070` "Swan Lake Grinrod"
+  (Vernon to Grindrod, 50.3-50.6 N) against catalogue positions 49.73-50.31 N.
+- **`bc77087`'s location verdict rests on a contested read.** The blind reader of page 1 would not
+  choose between 3.8 and 7.8 (leaning 7.8). At 7,800 ft the frames' r would be > 0 and the key would not
+  be `r <= 0` at all; its size verdict (`step_overstated`) holds either way (at 7,800 ft the catalogue
+  step still implies 0.46 against the images' 0.62). `bc77070`, flown the same week over the same
+  project at 3,800 ft, was read clear.

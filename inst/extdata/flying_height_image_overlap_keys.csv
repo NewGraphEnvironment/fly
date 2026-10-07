@@ -1,0 +1,10 @@
+film_roll,flying_height,focal_length,scale_n,frames,frames_nonpositive,pairs,pairs_break,pairs_matched,pairs_used,p_img,p_nominal,p_agl,D_nominal,D_agl,gap,k,w1,frames_logbook,frames_catalogue,frames_ground,w2_height,dir_agree,dir_reverse,dir_differ,size,location,places,overlap_written
+bc5715,732,153,4800,2,1,2,0,1,1,0.527,0.1964,0.1937,-0.5301,-0.5334,0.0033,1.6991,too_few_pairs,2,2,0,msl_catalogue,1,0,0,too_few_pairs,not_tested,HORSESHOE BAY OP 212/76,
+bc77026,2042,305,6000,118,11,118,2,114,114,0.8071,0.4186,0.479,-1.103,-0.9934,0.1096,3.0133,step_overstated,80,80,0,msl_catalogue,71,0,0,nominal_unrefuted,misplaced,Pemberton Area,[FOR]WARD OVERLAP SEEMS EXCESSIVE (75.9%) (Remarks)
+bc77070,1158,153,5000,64,59,63,1,53,53,0.6222,0.2832,0.5265,-0.6406,-0.226,0.4146,1.8976,step_overstated,64,64,0,msl_catalogue,53,0,0,nominal_unrefuted,misplaced,Swan Lake Grinrod,Only 40% overlap between #271-#272 (page Remarks)
+bc77072,1829,153,10000,17,1,18,0,16,16,0.6403,0.2259,0.3524,-0.7666,-0.5881,0.1785,2.1525,step_overstated,12,12,0,msl_catalogue,11,0,0,nominal_unrefuted,misplaced,SPENCES BRIDGE/SAVONA,
+bc77072,1981,153,10000,55,3,64,2,53,53,0.6153,0.1143,0.3159,-0.834,-0.5757,0.2583,2.3026,step_overstated,55,55,0,msl_catalogue,52,0,1,nominal_unrefuted,misplaced,SPENCES BRIDGE/SAVONA,
+bc77087,1158,153,5000,57,38,57,2,49,49,0.6232,0.2091,0.4775,-0.7415,-0.3269,0.4146,2.099,step_overstated,57,57,0,msl_catalogue,46,0,3,nominal_unrefuted,misplaced,SWAN LAKE GRINROD,
+bc7718,1524,305,5000,24,24,24,1,23,23,0.8582,0.8567,0.8566,-0.0104,-0.0111,7e-04,1.0105,indistinguishable,24,24,0,msl_catalogue,23,0,0,unsettled,not_tested,TAHSIS,
+bc80117,1372,153,8000,19,19,18,1,17,17,0.8397,0.8435,0.8604,0.0242,0.1383,0.1141,0.9761,indistinguishable,19,19,0,msl_catalogue,7,0,0,unsettled,not_tested,YALE BLUFF,80% FOREWARD O.L.
+bcc325,396,153,2000,2,1,2,0,1,1,0.6291,0.0758,0.2858,-0.9131,-0.6553,0.2578,2.4921,too_few_pairs,2,0,0,not_read,1,0,0,too_few_pairs,not_tested,? Creek (2 mi North of South Bay) Moresby Island (OP 297/82),
