@@ -749,7 +749,7 @@ START at 6.2 and END at 6.5), and now say so. The same wording moved on two rows
 tails, fly#60's `bc78104` at 1,295 m and fly#72's `bc79029`, with no verdict changing. The
 four that remain are on `bcb04001` and `bcc07085`, for which the catalogue links no page.
 
-No existing row of either table moved, the IR rows included. The terrain keys reach 4,233
+No tabled row of either table moved, the IR rows included, and no verdict of an earlier tail; the only earlier rows that changed are the two reworded exclusions above. The terrain keys reach 4,233
 catalogue frames against 1,375 measured; the rest are frames on the same roll-heights inside
 the band, which `fly_footprint()` never hands to the table.
 

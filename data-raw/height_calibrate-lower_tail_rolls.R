@@ -655,8 +655,11 @@ v$a2_reason[it] <- a2$a2_reason[match(key4(v$film_roll, v$flying_height, v$focal
                                            v$scale_n)[it], a2$key)]
 v$accept <- is.finite(v$factor) & v$covered >= 0.5 & v$agreeing >= 0.9 &
   !v$focal_conflict & v$spacing_ok & !v$confirms_54 & !v$scale_veto & is.na(v$a2_reason)
-# Where the logbook read under half the frames, the reason names the state most of the
-# unread frames are in — the predicate that actually fired, not the one next to it.
+# Where the logbook read under half the frames, the reason names an unread state that actually
+# fired, by precedence: conflict, then uninterpreted (each where any frame is in it), then — only
+# where no frame was read at all — unspanned, then none. So "not read" can be named on a
+# roll-height whose unread frames are mostly unspanned (bc78033 at 1,676 m: 4 uninterpreted, 26
+# unspanned); it is still true there, and no verdict depends on which is named.
 unread_state <- ifelse(v$n_conflict >= v$n_uninterpreted & v$n_conflict > 0, "conflict",
                        ifelse(v$n_uninterpreted > 0, "uninterpreted", "none"))
 v$reason <- dplyr::case_when(

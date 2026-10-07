@@ -171,14 +171,14 @@ blind, and the findings will say so:
 
 ## Phase 7: Docs and close-out
 
-- [ ] Add a fly#93 subsection to `inst/notes/terrain-correction.md`, with tables rebuilt from producer lines.
-- [ ] `R/fly_footprint.R` roxygen and comments where tails are listed. Run `devtools::document()`.
-- [ ] `CLAUDE.md`:
+- [x] Add a fly#93 subsection to `inst/notes/terrain-correction.md`, with tables rebuilt from producer lines.
+- [x] `R/fly_footprint.R` roxygen and comments where tails are listed. Run `devtools::document()`.
+- [x] `CLAUDE.md`:
   - Architecture line for the new script and CSVs;
   - the #89 Key Decision's "same BW/colour population is unmeasured (fly#93)" becomes the outcome;
   - the generator's line says it reads the terrain census.
-- [ ] Review G7: `NEWS.md:14`, `inst/notes/terrain-correction.md:619`, `R/fly_footprint.R:267,285`.
-- [ ] File a follow-up issue for the `r <= 0` frames (A3), and for the A2(a) above-ground hypothesis if it
+- [x] Review G7: `NEWS.md:14`, `inst/notes/terrain-correction.md:619`, `R/fly_footprint.R:267,285`.
+- [x] File a follow-up issue for the `r <= 0` frames (A3), and for the A2(a) above-ground hypothesis if it
   is worth one.
 - [ ] Check that `R CMD build` tarball size stays reasonable with the new CSV, about 450 KB.
 - [ ] `/code-check` (3 rounds + enumeration), `/planning-archive`, `/gh-pr-push`. A Plan-agent review of
@@ -187,7 +187,7 @@ blind, and the findings will say so:
 ## Validation
 
 - [x] Tests pass
-- [ ] `/code-check` clean on each commit
+- [x] `/code-check` clean on each commit
 - [ ] PWF checkboxes match landed work
 - [ ] `/planning-archive` on completion
 

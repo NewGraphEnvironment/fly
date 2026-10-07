@@ -301,7 +301,7 @@ catalogued frame.
   the logbook agreeing on a subset of the frames: 4/7, 15/28 and 97/106. Their `r_corrected` is the
   subset median. The suite recompute assumed full agreement; it now bounds a subset row by the range of its
   frames.
-- **No existing row moved.** Every row of both tables is unchanged; the diff is additions only (60 table
+- **No existing row moved** (true at this run; after code-check round 3, two older excluded rows changed reason wording, no verdict). Every row of both tables is unchanged; the diff is additions only (60 table
   rows, 238 exclusions). The two IR terrain rows are byte-identical, so A2 moved nothing that was there.
 - **Reach.**
   - The terrain keys reach 4,233 catalogue frames against 1,375 measured. The rest are frames in band on
@@ -417,3 +417,47 @@ every terrain "no logbook page" row is true. All four sit on `bcb04001` and `bcc
 catalogue links no URL.
 
 **Finding 2.** The stale Phase 5 table is corrected above.
+
+## Code-check round 4 (`review-round4.md`): the terminating enumeration
+
+**The set.** Every excluded row, in every tail, whose reason is "no logbook page covers these frames" or
+"transcribed logbook rows reach none of these frames": 504 rows on 16 rolls.
+
+**Checked against the producer.**
+- Pages: the catalogue's `FLIGHT_LOG_URL` per frame, 2,782 features, matching the centroid cache roll by
+  roll.
+- Coverage: the transcription's frame ranges.
+- Four page images read directly.
+
+**Result.**
+- **504 of 504 are true.**
+- The 494 "no page" rows on `origin/main` held exactly two false ones: `bc78104` 1295 m and `bc79029`. This
+  branch corrects both.
+- No false "no page" row remains in any tail.
+
+**Findings, both fixed (docs and a comment, no data):**
+1. NEWS and the note still said no existing row moved. Both now say: no tabled row and no verdict moved, and
+   two excluded rows of earlier tails were reworded.
+2. The state that names a reason when coverage is under half has a precedence: conflict, then uninterpreted,
+   then unspanned, then none. The comment is now explicit about it. The shipped reasons stay true
+   (`bc78033` 1,676 m names "not read" with 26 unspanned frames).
+
+## Code-check summary
+
+| round | findings | fixed | accepted | inside previous fix? |
+|---|---|---|---|---|
+| 1 | 4 | 4 | 0 | n/a |
+| 2 | 2 | 2 | 0 | **yes**: six pages R1's A2 fix sent to the logbook were unread, after a broken probe |
+| 3 | 3 | 3 | 0 | same class (absence encoded as "no page"), outside R2's guard |
+| 4 | 2 (docs, comment) | 2 | 0 | no |
+
+The loop ended on an enumeration: the 504 absence reasons, all tails, against `FLIGHT_LOG_URL`, all true.
+
+## Errors Encountered
+
+| Error | Resolution |
+|---|---|
+| `ls dir \| grep '^roll__'` found nothing for pages that existed | `ls` is aliased to `ls --color`, and the escape codes defeat an anchored grep. Use `find` or `list.files()` |
+| First smoke census stopped on `r <= 0` frames | Amendment A3: counted, untailed, fly#95 |
+| Pre-registered upper prefilter arm took 35k frames | Narrowed to the coarse-based arm, recorded as an amendment (round 1) |
+| Literal ST/END transcription left strip interiors uncovered | Page-by-page consolidation, strict (round 1) |
