@@ -2,6 +2,8 @@
 
 ## fly (development version)
 
+### 0.23.2 (2026-10-07)
+
 - **On five of the nine roll-heights where spacing rejected both
   readings of the frames under the terrain, the photos show the
   catalogue’s centroid step is longer than the air base, so the
