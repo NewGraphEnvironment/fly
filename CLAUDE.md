@@ -394,8 +394,14 @@ coarse error **held to every frame read** (the sweep alone understated it: 112 m
     (fly#95, with the 176 "nominal fits" roll-heights, as a height possibly recorded above ground).
   - **The forms log a strip's start and end on separate lines.** Literal transcription is
     consolidated page by page (same height and lens merge; nothing else does), or coverage
-    fails on notation. Read `inst/notes/terrain-correction.md`, "The terrain tail for BW and
-    colour"
+    fails on notation.
+  - **"No page" is only ever what the catalogue says.** `settle()` keeps five frame states;
+    `unspanned` (the roll has transcribed rows, none reaches the frame) ships as "transcribed
+    logbook rows reach none of these frames", never as "no logbook page". The generator stops if
+    any page `FLIGHT_LOG_URL` links for a terrain roll A2 sends to the logbook is uncached or
+    untranscribed. Both came from code-check rounds where a withheld or unread page shipped as an
+    absent one; an `ls --color | grep '^…'` probe was one of them — use `find`/`list.files()`.
+    Read `inst/notes/terrain-correction.md`, "The terrain tail for BW and colour"
 
 - **Terrain error is a datum offset, not slope** (v0.5.0, #9) — `FLYING_HEIGHT` is metres **above sea level**,
 and reported scale is referenced to an elevation above the ground the photos cover, so it understates footprint
