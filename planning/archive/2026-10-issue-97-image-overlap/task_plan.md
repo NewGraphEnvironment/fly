@@ -146,5 +146,5 @@ those frames.
 - [x] Tests pass (`devtools::test()`, with `NOT_CRAN=true` on any single-file re-run)
 - [x] `/code-check` rounds until a round finds nothing inside the previous round's fix
 - [x] PWF checkboxes match landed work
-- [ ] `/planning-archive` on completion
+- [x] `/planning-archive` on completion
 
