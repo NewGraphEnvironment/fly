@@ -201,3 +201,9 @@ the scoring total; none changes what an outcome ships.
 
 `<scratchpad>/pages_q`: 50 images from `make_reader_dir.sh` at e07d371 (crops 800 x 964). md5 per file in
 `transcription/pages_q.md5` (md5 of that listing: `37a451f51abb670c3a4d4bebeb129438`).
+
+### Stage A recorded (before Stage B was sent)
+
+`transcription/reader/rows.csv`, md5 `c6e6b65dc815721beacecc8ca3af30c2`, extracted from the reader's hand-back in its
+transcript and `cmp`-identical to the file written. Audit of Stage A: 51 tool calls, 50 Reads, all inside
+`pages_q`, 50 of 50 images read (the 51st is the hand-back): PASS.
