@@ -72,13 +72,13 @@ The issue asks whether "recorded above ground" can be tested, with any rule fixe
 - [x] Test: 374 rows on 15 rolls, equal to the population row, every `r <= 0`
 
 ### Phase 3: The measurement — `data-raw/height_measure-above_ground.R`
-- [ ] Reads both censuses, the logbooks CSV and the generator's window; pulls helpers with `fns_from()`
+- [x] Reads both censuses, the logbooks CSV and the generator's window; pulls helpers with `fns_from()`
       rather than copying
-- [ ] Writes `inst/extdata/flying_height_above_ground.csv` (one row per roll-height: frames per group,
+- [x] Writes `inst/extdata/flying_height_above_ground.csv` (one row per roll-height: frames per group,
       `ratio_asl`, both overlaps, S, L, outcome, reason)
-- [ ] `FLY_AGL_SMOKE=1` writes nothing; producer line for every figure the note will quote
+- [x] ~~`FLY_AGL_SMOKE=1`~~ no smoke flag (deterministic; byte-identity checked instead); producer line for every figure the note will quote
 
-### Phase 4: Blind logbook read (only if Phase 3 leaves S-`supports` roll-heights without rows)
+### Phase 4: Blind logbook read (only if Phase 3 leaves S-`supports` roll-heights without rows) — NOT NEEDED: the one `supports` roll-height (`bc5602`) was fully transcribed
 - [ ] Fetch pages; stop on any `FLIGHT_LOG_URL` page uncached or untranscribed (#93's guard)
 - [ ] Blind transcribers with a control page each, appended to `data-raw/flying_height_logbooks.csv`
 - [ ] Re-run Phase 3
@@ -89,7 +89,7 @@ The issue asks whether "recorded above ground" can be tested, with any rule fixe
 - [ ] `fly_footprint()` sizes those frames from `height_m` as height above ground (no terrain subtracted),
       reaching `r <= 0` frames too; `height_source = "corrected_roll_table"`
 - [ ] `height_fixture()` gains a row reaching the route; restore-the-bug check that the test goes red
-- [ ] If nothing tables: no code change, recorded as such (as fly#65/#80)
+- [x] If nothing tables: no code change, recorded as such (as fly#65/#80) — nothing tabled
 
 ### Phase 6: Tests and documentation
 - [ ] `tests/testthat/test-fly_footprint_above_ground.R` recomputes every verdict and every note table from the shipped CSVs

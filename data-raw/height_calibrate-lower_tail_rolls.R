@@ -27,6 +27,13 @@
 # spacing condition first: a roll-height for which it cannot hold whatever a logbook says is
 # excluded with that reason, and only the rest have their pages fetched and transcribed.
 #
+# fly#95 asks of two groups fly#93 left whether the catalogued height is a height ABOVE GROUND
+# recorded as above sea level: the frames under terrain at or above the aircraft, which the
+# census ships separately, and the roll-heights A2 found nominal scale fits. Spacing is read
+# first (Stage 3c), the logbooks after (Stage 6), by a rule fixed before either was computed.
+# It writes `inst/extdata/flying_height_above_ground.csv`, one row per roll-height, and stops
+# rather than tabling one, since how a tabled row would be encoded is not yet decided.
+#
 # Everything here is public. It reads what `height_calibrate-flying_height_slip.R` cached
 # (`data-raw/.cache/centroids/`, every frame's x/y/frame_number) and shipped
 # (`inst/extdata/flying_height_sweep.csv`, terrain under the sampled frames) — run that
@@ -333,6 +340,55 @@ message(sprintf(paste0("A2: of %d terrain roll-heights, %d fit nominal (%d frame
                 length(unique(a2$film_roll[is.na(a2$a2_reason)]))))
 
 # ---------------------------------------------------------------------------
+# Stage 3c — fly#95: is the catalogued height above ground? Spacing, before any page
+# ---------------------------------------------------------------------------
+#
+# The rule, fixed before any per-roll-height number existed (archived findings of fly#95,
+# "Pre-registered rule"). Read as a height above ground, the catalogued height gives each frame
+# an along-track side of FORMAT_M x flying_height / f; nominal scale gives FORMAT_M x scale.
+# Neither depends on terrain, so a roll-height mixing frames under the aircraft and frames
+# under the ground is judged on one quantity, and the two sides are exactly `ratio_asl` apart.
+#   supports   the height read as above ground fits the window and nominal does not
+#   undecided  both fit: the two cannot be told apart, and differ by |ratio_asl - 1|
+#   refutes    the height read as above ground does not fit
+#   no_base    no frame has an air base
+# Only `supports` can table, so only its rolls go to the logbook (as A2 does for fly#93).
+npf <- read.csv("inst/extdata/flying_height_terrain_nonpositive.csv")
+np_base <- base$base[match(npf$airp_id, base$airp_id)]
+stopifnot(identical(is.finite(np_base), is.finite(npf$base)),
+          all(abs(np_base - npf$base) <= 0.1, na.rm = TRUE))
+nps <- census_frames(npf, np_base)
+nps$set <- "nonpositive"
+stopifnot(all(in_band(nps$flying_height / nps$nominal_agl)), all(nps$flying_height <= nps$elev),
+          !any(nps$airp_id %in% terr$airp_id))
+pool <- rbind(terr, nps)
+pool_key <- key4(pool$film_roll, pool$flying_height, pool$focal_length, pool$scale_n)
+agl_keys <- union(key4(nps$film_roll, nps$flying_height, nps$focal_length, nps$scale_n),
+                  a2$key[a2$a2_reason %in% A2_NOMINAL])
+agl <- pool[pool_key %in% agl_keys, ]
+agl$p_agl <- 1 - agl$base / (FORMAT_M * agl$flying_height / agl$f_m)
+agl_s <- do.call(rbind, lapply(split(agl, list(agl$film_roll, agl$flying_height, agl$focal_length,
+                                               agl$scale_n), drop = TRUE), function(d) {
+  p_agl <- median(d$p_agl, na.rm = TRUE)
+  p_nom <- median(d$p_nominal, na.rm = TRUE)
+  data.frame(key = key4(d$film_roll[1], d$flying_height[1], d$focal_length[1], d$scale_n[1]),
+             film_roll = d$film_roll[1], photo_year = d$photo_year[1],
+             flying_height = d$flying_height[1], focal_length = d$focal_length[1],
+             scale_n = d$scale_n[1], n = nrow(d), n_nonpositive = sum(d$set == "nonpositive"),
+             ratio_asl = d$flying_height[1] / d$nominal_agl[1], n_base = sum(is.finite(d$base)),
+             p_agl = p_agl, p_nominal = p_nom,
+             spacing = if (!any(is.finite(d$base))) "no_base" else if (!fits(p_agl)) "refutes"
+                       else if (fits(p_nom)) "undecided" else "supports")
+}))
+stopifnot(setequal(agl_s$key, agl_keys), sum(agl_s$n) == nrow(agl))
+message(sprintf(paste0("\n== fly#95 above ground, spacing: %d roll-heights (%d frames, %d under the ",
+                       "aircraft); supports %d, undecided %d, refutes %d, no_base %d =="),
+                nrow(agl_s), nrow(agl), sum(agl_s$n_nonpositive), sum(agl_s$spacing == "supports"),
+                sum(agl_s$spacing == "undecided"), sum(agl_s$spacing == "refutes"),
+                sum(agl_s$spacing == "no_base")))
+agl_rolls <- unique(agl_s$film_roll[agl_s$spacing == "supports"])
+
+# ---------------------------------------------------------------------------
 # Stage 4 — the logbooks: what height and lens the crew wrote down
 # ---------------------------------------------------------------------------
 #
@@ -368,13 +424,14 @@ fetch_logbooks <- function(rolls) {
 }
 # Fetched for every roll with no page in the cache: the lower tail (fly#60), #54's slipped
 # frames (fly#71), the near_upper frames beyond the band (fly#72), the infrared census
-# outside it (fly#91) and the BW/colour terrain roll-heights A2 leaves to the logbook (fly#93).
+# outside it (fly#91), the BW/colour terrain roll-heights A2 leaves to the logbook (fly#93) and the
+# roll-heights spacing supports reading above ground (fly#95).
 # A roll the catalogue
 # links no page for is queried again on each run, which costs one request and changes
 # nothing. Delete the directory to refetch everything.
 want <- unique(c(rolls$film_roll, s$film_roll[s$set == "upper_tail"],
                  s$film_roll[s$set == "near_upper" & is.finite(s$r) & s$r > band[2]],
-                 irs$film_roll, a2$film_roll[is.na(a2$a2_reason)]))
+                 irs$film_roll, a2$film_roll[is.na(a2$a2_reason)], agl_rolls))
 cached <- if (dir.exists(LOG_DIR)) unique(sub("__.*", "", list.files(LOG_DIR))) else character()
 if (length(setdiff(want, cached))) fetch_logbooks(setdiff(want, cached))
 
@@ -387,7 +444,9 @@ logs <- read.csv("data-raw/flying_height_logbooks.csv", colClasses = "character"
 # The pages are the ones the CATALOGUE links, not the ones in the cache: a fetch that failed
 # leaves a page uncached without stopping, and a roll with any cached page is not fetched
 # again, so a cache listing would miss it (code-check round 3).
-terr_rolls <- unique(a2$film_roll[is.na(a2$a2_reason)])
+# fly#95's `supports` rolls are held to the same guard: only they can table, so only their
+# pages are read, and an unread one must not reach the rule as an absent one.
+terr_rolls <- unique(c(a2$film_roll[is.na(a2$a2_reason)], agl_rolls))
 linked <- bcdc_query_geodata(LAYER) |>
   filter(FILM_ROLL %in% !!terr_rolls) |>
   select(FILM_ROLL, FLIGHT_LOG_URL) |>
@@ -399,16 +458,16 @@ linked_pages <- paste0(linked$FILM_ROLL, "__", basename(linked$FLIGHT_LOG_URL))
 cached_pages <- if (dir.exists(LOG_DIR)) list.files(LOG_DIR) else character()
 uncached <- setdiff(linked_pages, cached_pages)
 if (length(uncached)) {
-  stop(length(uncached), " logbook pages the catalogue links for terrain rolls sent to the ",
+  stop(length(uncached), " logbook pages the catalogue links for terrain or above-ground rolls sent to the ",
        "logbook are not in ", LOG_DIR, ": ", paste(uncached, collapse = ", "))
 }
 unread <- union(linked_pages, cached_pages[sub("__.*", "", cached_pages) %in% terr_rolls])
 unread <- unread[!unread %in% logs$file]
 if (length(unread)) {
-  stop(length(unread), " logbook pages of terrain rolls sent to the logbook are not transcribed in ",
+  stop(length(unread), " logbook pages of terrain or above-ground rolls sent to the logbook are not transcribed in ",
        "data-raw/flying_height_logbooks.csv: ", paste(unread, collapse = ", "))
 }
-message(sprintf("terrain rolls sent to the logbook: %d; pages the catalogue links %d, all cached and transcribed",
+message(sprintf("terrain and above-ground rolls sent to the logbook: %d; pages the catalogue links %d, all cached and transcribed",
                 length(terr_rolls), length(linked_pages)))
 logs$frame_from <- as.integer(logs$frame_from)
 logs$frame_to <- as.integer(logs$frame_to)
@@ -919,3 +978,112 @@ stopifnot(!anyDuplicated(key4(v$film_roll, v$flying_height, v$focal_length, v$sc
 write.csv(rolls_out, "inst/extdata/flying_height_rolls.csv", row.names = FALSE, na = "")
 write.csv(excluded_out, "inst/extdata/flying_height_rolls_excluded.csv", row.names = FALSE,
           na = "")
+
+# ---------------------------------------------------------------------------
+# Stage 6 — fly#95: the logbook, and the verdict on reading the height as above ground
+# ---------------------------------------------------------------------------
+#
+# Per frame, through `settle()`'s own join and states. A read frame's logbook height `h_lb`
+# (feet x 0.3048) is
+#   catalogue      within 2% of the catalogued height: the crew's figure is the catalogue's
+#   ground_plus    the median over the roll-height's frames read at that height of
+#                  (h_lb - elev) is within 10% of the catalogued height: the crew flew
+#                  the catalogued height ABOVE the ground MRDEM puts under the frames
+#   ambiguous      both: ground near sea level, where the two readings coincide
+#   ground_header  `catalogue` under a TRUE HEIGHT header that names the ground, not M.S.L.
+#   other          none of these
+# A roll-height is tabled only where spacing `supports`, the logbook reads at least half its
+# frames with at least 90% of those `ground_plus` or `ground_header`, no legible logbook lens
+# contradicts the catalogue's, and no frame of the key falls outside the two censuses (in
+# band as catalogued, or with no terrain under it). The reason is the first that fires.
+agl_lt <- settle(agl, named = 1, tail = "above_ground")$frames
+ground_header <- function(h) {
+  grepl("ground|A\\.?G\\.?L|terrain|clearance", h, ignore.case = TRUE) &
+    !grepl("M\\.?S\\.?L", h, ignore.case = TRUE)
+}
+agl_lt$hdr_ground <- vapply(seq_len(nrow(agl_lt)), function(i) {
+  if (agl_lt$log_state[i] != "read") return(FALSE)
+  cover <- which(logs$film_roll == agl_lt$film_roll[i] & !is.na(logs$frame_from) &
+                   agl_lt$frame_number[i] >= logs$frame_from &
+                   agl_lt$frame_number[i] <= logs$frame_to & is.finite(logs$log_ft))
+  length(cover) > 0 && all(ground_header(logs$height_header[cover]))
+}, logical(1))
+agl_lt$key <- key4(agl_lt$film_roll, agl_lt$flying_height, agl_lt$focal_length, agl_lt$scale_n)
+rd <- agl_lt$log_state == "read"
+agl_lt$h_lb <- agl_lt$log_ft * FT
+agl_lt$rel_catalogue <- rd & abs(agl_lt$h_lb / agl_lt$flying_height - 1) <= 0.02
+gp <- tapply(agl_lt$h_lb[rd] - agl_lt$elev[rd], paste(agl_lt$key, agl_lt$log_ft)[rd], median)
+# `tapply()` returns a 1-d array, which `case_when()` refuses, so it is flattened here.
+agl_lt$rel_ground_plus <- rd &
+  abs(as.vector(gp[paste(agl_lt$key, agl_lt$log_ft)]) / agl_lt$flying_height - 1) <= 0.10
+agl_lt$relation <- dplyr::case_when(
+  !rd ~ NA_character_,
+  agl_lt$rel_catalogue & agl_lt$hdr_ground ~ "ground_header",
+  agl_lt$rel_catalogue & agl_lt$rel_ground_plus ~ "ambiguous",
+  agl_lt$rel_catalogue ~ "catalogue",
+  agl_lt$rel_ground_plus ~ "ground_plus",
+  TRUE ~ "other"
+)
+key_cat <- table(key4(frames$film_roll, frames$flying_height, frames$focal_length,
+                      suppressWarnings(as.numeric(sub("^1:", "", frames$scale)))))
+agl_l <- do.call(rbind, lapply(split(agl_lt, agl_lt$key), function(d) {
+  rel <- d$relation[!is.na(d$relation)]
+  data.frame(key = d$key[1], n_logbook = length(rel),
+             n_catalogue = sum(rel == "catalogue"), n_ground_plus = sum(rel == "ground_plus"),
+             n_ambiguous = sum(rel == "ambiguous"), n_ground_header = sum(rel == "ground_header"),
+             n_other = sum(rel == "other"),
+             n_unread = sum(d$log_state %in% c("conflict", "uninterpreted")),
+             n_unspanned = sum(d$log_state == "unspanned"),
+             n_focal_conflict = sum(is.finite(d$log_focal) & !d$focal_agrees),
+             logbook_ft = paste(sort(unique(d$log_ft[!is.na(d$relation)])), collapse = "/"))
+}))
+av <- merge(agl_s, agl_l, by = "key")
+stopifnot(nrow(av) == nrow(agl_s))
+av$n_outside <- as.integer(key_cat[av$key]) - av$n
+stopifnot(all(av$n_outside >= 0))
+av$covered <- av$n_logbook / av$n
+av$agreeing <- ifelse(av$n_logbook > 0, (av$n_ground_plus + av$n_ground_header) / av$n_logbook, 0)
+av$tabled <- av$spacing == "supports" & av$covered >= 0.5 & av$agreeing >= 0.9 &
+  av$n_focal_conflict == 0 & av$n_outside == 0
+av$reason <- dplyr::case_when(
+  av$tabled ~ NA_character_,
+  av$spacing == "refutes" ~ "spacing rejects the catalogued height read as above ground",
+  av$spacing == "undecided" ~ "spacing fits both the catalogued height read as above ground and nominal scale",
+  av$spacing == "no_base" ~ "no adjacent frames to measure spacing on",
+  av$n_logbook == 0 & av$n_unread > 0 ~ "logbook height or frame range not read",
+  av$n_logbook == 0 & av$n_unspanned > 0 ~ "transcribed logbook rows reach none of these frames",
+  av$n_logbook == 0 ~ "no logbook page covers these frames",
+  av$covered < 0.5 ~ "logbook covers under half the frames",
+  av$agreeing < 0.9 ~ "logbook does not put the ground under the catalogued height",
+  av$n_focal_conflict > 0 ~ "logbook names a different lens",
+  TRUE ~ "frames on this roll-height are in band as catalogued, or have no terrain under them"
+)
+av <- av[order(av$film_roll, av$flying_height, av$focal_length, av$scale_n), ]
+message(sprintf("\n== fly#95 above ground: %d roll-heights, %d tabled ==", nrow(av), sum(av$tabled)))
+print(table(av$spacing, av$reason, useNA = "ifany"))
+print(av[av$n_logbook > 0 | av$n_nonpositive > 0 | av$spacing == "supports",
+         c("film_roll", "flying_height", "focal_length", "scale_n", "n", "n_nonpositive", "ratio_asl",
+           "p_agl", "p_nominal", "spacing", "n_logbook", "n_catalogue", "n_ground_plus", "n_ambiguous",
+           "n_other", "logbook_ft")], row.names = FALSE)
+und <- av$spacing == "undecided"
+message(sprintf("undecided: %d roll-heights (%d frames); |ratio_asl - 1| at most %.3f, median %.3f",
+                sum(und), sum(av$n[und]), max(abs(av$ratio_asl[und] - 1)),
+                median(abs(av$ratio_asl[und] - 1))))
+# Pre-registered: how a tabled row is encoded is a schema decision that goes back to the user.
+if (any(av$tabled)) {
+  stop(sum(av$tabled), " roll-heights table as above ground; their encoding is not decided, so ",
+       "nothing is written")
+}
+agl_out <- data.frame(
+  film_roll = av$film_roll, flying_height = av$flying_height, focal_length = av$focal_length,
+  scale_n = av$scale_n, photo_year = av$photo_year, frames = av$n,
+  frames_nonpositive = av$n_nonpositive, frames_outside = av$n_outside,
+  ratio_asl = round(av$ratio_asl, 3), frames_base = av$n_base,
+  overlap_agl = round(av$p_agl, 3), overlap_nominal = round(av$p_nominal, 3), spacing = av$spacing,
+  frames_logbook = av$n_logbook, frames_catalogue = av$n_catalogue,
+  frames_ground_plus = av$n_ground_plus, frames_ambiguous = av$n_ambiguous,
+  frames_ground_header = av$n_ground_header, frames_other = av$n_other,
+  frames_focal_conflict = av$n_focal_conflict, logbook_ft = av$logbook_ft,
+  tabled = av$tabled, reason = av$reason
+)
+write.csv(agl_out, "inst/extdata/flying_height_above_ground.csv", row.names = FALSE, na = "")

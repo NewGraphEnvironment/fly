@@ -129,3 +129,63 @@ L is still reported, ungated, on every population roll-height that already has t
   which is reported as the bound on what is left unsaid.
 - **`refutes`**: spacing rejects reading the catalogued height as above ground; that roll-height's height
   is wrong some other way, and nominal stays where nominal fits.
+
+## Implementation notes (mechanism, not rule)
+
+- The measurement lives in `height_calibrate-lower_tail_rolls.R` as Stage 3c (spacing) and Stage 6 (logbook and
+  verdict), not in a separate script as the plan said. The generator already holds the window, the air base, the
+  logbook join (`settle()`) and the page guard; a separate script would have had to copy them or pull them with
+  `fns_from()`, and `logs`' scale parsing is not a function. The page guard now covers the `supports` rolls too.
+- No smoke flag: the generator is deterministic and its two existing outputs were checked byte-identical (md5)
+  before and after each run instead.
+- Condition 4 counts frames of the key **outside both censuses** (`frames_outside`): in band as catalogued, or with
+  no terrain under them. Counting the two together can only exclude more. It decides nothing here.
+- First run stopped in Stage 6: `tapply()` returns a 1-d array, which `case_when()` refuses. Flattened.
+
+## Result (Phase 3, `run_rolls.log`)
+
+Window 0.557-0.780 (the generator's). `flying_height_rolls.csv` and `_excluded.csv` byte-identical.
+
+**Population: 188 roll-heights, 2,956 frames** (374 at `r <= 0`): the 176 A2(a) roll-heights plus 12 more that
+only the `r <= 0` frames reach.
+
+| spacing | roll-heights | frames | of them `r <= 0` |
+|---|---|---|---|
+| supports | 1 | 24 | 23 |
+| undecided | 126 | 1,562 | 174 |
+| refutes | 61 | 1,370 | 177 |
+| no_base | 0 | 0 | 0 |
+
+**Nothing tables.** The one `supports` roll-height is `bc5602` 1219 m (153 mm, 1:6000; `ratio_asl` 1.328;
+overlap 0.631 read above ground, 0.510 at nominal). Its logbook reads all 24 frames at 4,000 ft — 1,219 m, the
+catalogue's figure — under an M.S.L. header, so it is `catalogue` on every frame and the row is excluded:
+"logbook does not put the ground under the catalogued height".
+
+**Logbook, ungated, over the 32 population roll-heights with transcribed rows (576 frames read):** 550 `catalogue`,
+0 `ground_plus`, 0 `ground_header`, 8 `ambiguous` (`bcc544` 1615, ground ~100 m), 18 `other` (`bc5697` 610 at
+5,000 ft; `bc82044` 2316, 9 frames at 9,600 ft). **Wherever a page covers these frames, the crew wrote the
+catalogue's height, under an M.S.L. header.** No page anywhere puts the ground under it.
+
+That cuts both ways and is recorded as such. On `bc5602`, `bc77026`, `bc77072` and `bc77087` the page's
+"M.S.L." figure is below MRDEM under some frames (`bc5602`: ground 1,234-1,591 m under 4,000 ft = 1,219 m). So
+there the crew's own column cannot be above sea level as written, or the frames are not where the catalogue puts
+them. The pre-registered witness needed the page to say "ground"; none does, and that is not amended after
+the data.
+
+**Undecided is not "fine".** Across the 126 undecided roll-heights, the two readings differ by `|ratio_asl - 1|`:
+median 0.120, 90th percentile 0.352, at most 0.494; 494 of their 1,562 frames are more than 20% apart. The window
+is wide enough to hold both. Nominal stays, as before.
+
+**Neither reading fits on 9 roll-heights (157 `r <= 0` frames, 2 to 118 frames each)**: `bc5715` 732, `bc77026`
+2042, `bc77070` 1158, `bc77072` 1829 and 1981, `bc77087` 1158, `bc7718` 1524, `bc80117` 1372, `bcc325` 396.
+Spacing rejects nominal as well as the height read as above ground, so the nominal fallback these frames get
+today is not supported by spacing either. Out of this issue's question; filed as a follow-up.
+
+**Group 1 by outcome:** of the 374 `r <= 0` frames, 174 sit on undecided roll-heights where nominal fits, 20 on
+refuted ones where nominal fits, 23 on `bc5602` (excluded by its logbook), and 157 on the 9 where neither fits.
+
+### Phase 4 and 5
+
+- Phase 4 does not run: the only `supports` roll-height's pages were already transcribed (the guard passed: 69
+  rolls, 202 linked pages, all cached and transcribed).
+- Phase 5: nothing tables, so no `fly_footprint()` change and no new tail. The encoding question never arises.
