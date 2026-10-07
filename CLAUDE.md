@@ -455,8 +455,8 @@ at ~85% overlap.
 
   **`bc77087`'s page 1 reads 3.8, settled by a human read (fly#101) after three blind reads disagreed**
   (fly#93 read 3.8; fly#97 declined, leaning 7.8; fly#101, under a rule fixed first, declined between 3
-  and 5, leaning 3). Read as 7.8, it would have been the first page to put the ground under a catalogued
-  height, the result fly#95 sought, 2.6% off x2. The human read was not blind, and the transcription note
+  and 5, leaning 3). Read as 7.8, it would have been the first page among fly#95's 689 read frames to put the ground
+  under a catalogued height, the result fly#95 sought, 2.6% off x2. The human read was not blind, and the transcription note
   says so. Do not reopen it with more subagent reads; each is another draw from the same instrument.
   Every figure is in
   `inst/notes/terrain-correction.md`, "What the frames under the terrain covered"; five code-check rounds

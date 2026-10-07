@@ -407,6 +407,17 @@ test_that("bc77087's page-1 digit is 3.8: three blind reads disagreed, a human r
   expect_true(grepl("fly#101 undecided between 3 and 5 leaning 3", r$note, fixed = TRUE))
   # The settling read is a human one and not blind, and the row must say both.
   expect_true(grepl("Settled as 3 by a human read of the page, not blind", r$note, fixed = TRUE))
+  # The first two blind reads, as their readers wrote them (fly#93 and fly#97's archived transcriptions).
+  arch <- testthat::test_path("..", "..", "planning", "archive")
+  prior <- function(dir) {
+    f <- file.path(arch, dir, "transcription", if (grepl("93", dir)) "batch4_rows.csv" else "batchC_rows.csv")
+    skip_if(!file.exists(f), paste("archived transcription not reachable:", dir))
+    x <- utils::read.csv(f, colClasses = "character")
+    x$height_as_written[x$file == "bc77087__bc77087_1.jpg" & x$frame_from == "1"]
+  }
+  expect_identical(prior("2026-10-issue-93-bw-colour-terrain-tail"), "3.8")
+  expect_identical(prior("2026-10-issue-97-image-overlap"), "?.8 (7.8 or 3.8)")
+  expect_true(grepl("fly#93 3, fly#97 undecided between 3 and 7 leaning 7", r$note, fixed = TRUE))
   # The third blind reader's verdict, as it wrote it: undecided, so the blind reads alone did not settle it.
   pl <- testthat::test_path("..", "..", "planning")
   # The archived copy first: a later read reusing this layout would put its own file at the active path.

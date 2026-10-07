@@ -1066,8 +1066,9 @@ reading would have been the one fly#95 was looking for.
 - **By the logbooks, 107 frames on four roll-heights are not over the ground photographed.** 38 of them
   rest on `bc77087`'s page, settled as 3.8 by a human read after three blind reads disagreed. The fifth `misplaced` roll-height, `bc77072` 1829, has its one
   such frame on no page. Whether to tell the caller is fly#99.
-- **No transcribed page puts the ground under a catalogued height.** `bc77087`'s page 1 was the one
-  candidate, and fly#101 settled its digit as 3.
+- **Over the 689 frames fly#95's test reads (38 roll-heights), no transcribed page puts the ground under
+  the catalogued height.** Among fly#97's nine keys, `bc77087`'s page 1 was the one page whose reading
+  could have, and fly#101 settled its digit as 3.
 - **An air base that reads no centroid would settle size outright.** The transcription records none.
 - **Do not use spacing's window as evidence about scale on an older roll without the photos.** On all
   seven keys here that the photos could measure, the step or the flown overlap was off what the window

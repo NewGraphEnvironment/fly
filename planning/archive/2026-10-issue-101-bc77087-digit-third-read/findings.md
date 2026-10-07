@@ -447,3 +447,15 @@ It agrees with fly#93's committed 3, the catalogue's 1,158 m, and `bc77070` (sam
 3,800 ft, read clear).
 
 The province request is no longer needed and was never sent.
+
+## Code-check round 5 (`review-round5.md`), on the settlement commit: three findings, fixed
+
+1. **"No transcribed page puts the ground under a catalogued height" was stated over the whole
+   transcription.** Its producer (`height_calibrate-lower_tail_rolls.R` Stage 6) covers fly#95's 689 read
+   frames on 38 roll-heights, and "the one candidate" is fly#97's finding over its nine keys. The claim is
+   now scoped that way in the note, NEWS, `CLAUDE.md` and fly#101's body. The reviewer's scratch probe over
+   fly#93's census found no counterexample, but nothing computes the claim at the wider scope.
+2. **PR #102's title and body still said unsettled and "Relates to".** Retitled, and the body now says
+   `Fixes #101`.
+3. **The test did not check the fly#93 and fly#97 reads its note quotes.** It now reads both archived
+   transcriptions (`3.8`; `?.8 (7.8 or 3.8)`) and pins the note's wording for them.
