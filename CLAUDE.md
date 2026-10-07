@@ -107,6 +107,15 @@ prefilter holds nothing out of band) stop it. Ships `inst/extdata/flying_height_
 `test-fly_footprint_terrain_tail.R` recomputes. A re-run from an intact cache takes under a minute and
 must leave the first two byte-identical. Caches under
 `data-raw/.cache/terrain_tail/` keyed on MRDEM's ETag. `FLY_TERRAIN_SMOKE=1` writes nothing
+- `data-raw/height_measure-image_overlap.R` — fly#97: the forward overlap adjacent thumbnails
+actually show, against what the catalogue's centroid step implies. Matching is fly#82's `patch_shifts()`
+gate, pulled with `fns_from()`; seeds come from a padded masked cross-correlation, because fly#82's
+`global_shift()` wraps shifts over ~575 px and gates on centroid spacing. Synthetic, unrelated-pair,
+crew-written-overlap and `bc85054` controls stop it before the nine keys are read. Ships
+`inst/extdata/flying_height_image_overlap_*.csv`, which `test-fly_footprint_image_overlap.R` recomputes
+together with the note's table and the figures it lists. Reads the blind per-strip transcription
+`data-raw/flying_height_logbook_strips.csv` (an input, never regenerated). `FLY_IMGOVL_SMOKE=1`
+writes nothing
 - `height_fixture()` and `flat_dem()` in `tests/testthat/setup.R` — eight frames over level
 ground, each reaching one height check by a stated route; rows 7 and 8 exist because two
 deliberate defects survived the first six
@@ -409,8 +418,9 @@ coarse error **held to every frame read** (the sweep alone understated it: 112 m
 changed** (fly#95, no code change) — 188 roll-heights: the keys of fly#93's 374 frames at `r <= 0`
 and the 176 where A2 found nominal fits, judged on every census frame on them (2,956). Spacing supports reading `flying_height` as above ground on
 1, cannot separate it from nominal on 126 and rejects it on 61. `bc5602`, the one it supports, has a logbook
-writing the catalogue's own 4,000 ft under M.S.L. On the 576 logbook-read frames, 558 carry the
-catalogue's figure and no page puts the ground under it. Generator Stages 3c and 6 write
+writing the catalogue's own 4,000 ft under M.S.L. On the 689 logbook-read frames (576 at fly#95; fly#97
+transcribed five more rolls), 669 carry the catalogue's figure and no page, as transcribed, puts the ground under it (fly#97: `bc77087`'s
+disputed digit read as 7.8 would). Generator Stages 3c and 6 write
 `inst/extdata/flying_height_above_ground.csv`; `test-fly_footprint_above_ground.R` recomputes its spacing
 columns and checks the logbook columns for consistency, since the per-frame logbook join is not shipped.
 
@@ -425,6 +435,31 @@ columns and checks the logbook columns for consistency, since the per-frame logb
     height, so near 2 (51 of 374 frames within 2%) such a page is ambiguous with x2.
   Nine roll-heights (157 `r <= 0` frames) fit neither reading: fly#97. Read `inst/notes/terrain-correction.md`,
   "Is the catalogued height above ground?"
+
+- **On five of the nine roll-heights where spacing rejected nominal on frames under the terrain, the
+photos say the catalogue's step is longer than the air base, so the rejection says nothing about
+scale** (fly#97, no code change). Measured with the overlap the thumbnails themselves show, which
+reads no catalogue field. By the logbooks, not the photos, the frames under the terrain on four of
+them that a logbook row reaches are not over the ground photographed. Two other roll-heights were flown
+at ~85% overlap.
+
+  **Three things are load-bearing.**
+  - **Do not read spacing's window as evidence about scale on an older roll without the photos.**
+    Consecutive catalogue steps there are often equal to within 0.5% (fly#82's probe).
+  - **A no-match does not mean "not adjacent".** The matcher's floor depends on the direction the frame
+    moves, and tau is about x1.25.
+  - **An outcome that restates an inequality is not a finding.** "Ground below sea level" was exactly
+    `p_img > p_agl`, and was withdrawn before the keys were read (Amendment A2). And on the keys marked
+    `misplaced`, all `step_overstated`, the image leg does not test the logbook's datum (code-check
+    round 1).
+
+  **`bc77087`'s page 1 reads 3.8 or 7.8** (fly#93's blind reader read 3.8; fly#97's declined to
+  choose, leaning 7.8). Read as 7.8, it would be the
+  first page to put the ground under a catalogued height, the result fly#95 sought, close to the x2 slip.
+  The transcription keeps 3.8, and the question is open. Every figure is in
+  `inst/notes/terrain-correction.md`, "What the frames under the terrain covered"; five code-check rounds
+  each found claims stated over a wider set than their producer computed, so read the figures there,
+  not here.
 
 - **Terrain error is a datum offset, not slope** (v0.5.0, #9) — `FLYING_HEIGHT` is metres **above sea level**,
 and reported scale is referenced to an elevation above the ground the photos cover, so it understates footprint

@@ -1,0 +1,12 @@
+Spherical geometry (s2) switched off
+cache: 1670471 frames on 7036 rolls
+spacing window (fly#95): 0.557 to 0.780
+negative control: 39 keys drawn, 192 pairs
+There were 50 or more warnings (use warnings() to see the first 50)
+CONTROL synthetic: 50 gated cases (p_true >= 0.35), matched 50, max |p_img - p_true| 0.0000: PASS
+  floor: p_true 0.200 matched 0 of 10
+  floor: p_true 0.250 matched 10 of 10
+  floor: p_true 0.300 matched 10 of 10
+CONTROL negative: 34 keys with >= 3 matched pairs; median d +0.0113; tau (95th |d|) 0.0803: PASS
+CONTROL positive: bc85054 162/163 matched, p_img 0.603, p_nominal 0.314, |d| 0.289 against tau 0.080: PASS
+stopping after the controls

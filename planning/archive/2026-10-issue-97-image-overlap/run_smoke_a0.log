@@ -1,0 +1,12 @@
+Spherical geometry (s2) switched off
+cache: 1670471 frames on 7036 rolls
+spacing window (fly#95): 0.557 to 0.780
+negative control: 3 keys drawn, 12 pairs
+ [1] "matched" "matched" "matched" "matched" "matched" "matched" "matched"
+ [8] "matched" "matched" "matched" "matched" "matched" "matched"
+There were 26 warnings (use warnings() to see them)
+CONTROL synthetic: 24 cases, matched 20, max |p_img - p_true| 0.0000: FAIL
+CONTROL negative: 2 keys with >= 3 matched pairs; median d -0.0196; tau (95th |d|) 0.0636: PASS
+CONTROL positive: bc85054 162/163 matched, p_img 0.603, p_nominal 0.314, |d| 0.289 against tau 0.064: PASS
+Error: a control failed; the instrument is not trusted and nothing is written
+Execution halted

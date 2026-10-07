@@ -1,0 +1,72 @@
+Spherical geometry (s2) switched off
+cache: 1670471 frames on 7036 rolls
+spacing window (fly#95): 0.557 to 0.780
+negative control: 40 keys drawn, 39 with pairs, 192 pairs
+CONTROL synthetic: 50 gated cases (p_true >= 0.35), matched 50, max |p_img - p_true| 0.0000: PASS
+  floor: p_true 0.200 matched 0 of 10
+  floor: p_true 0.250 matched 10 of 10
+  floor: p_true 0.300 matched 10 of 10
+CONTROL negative: 34 of 39 keys with >= 3 matched pairs; median d -0.0307; tau (95th |d|) 0.2199 (ceiling 0.2231), a step error of x1.246: PASS
+  negative pairs: matched 159, no_match 31, no_thumbnail 2
+CONTROL false match: 38 unrelated pairs, matched 0 (0.000; at most 0.05): PASS; no_match 36, no_thumbnail 2
+  written bc5561 0.80: 5 of 5 pairs matched, p_img 0.818, p_nominal 0.823
+  written bc5598 0.80: 5 of 5 pairs matched, p_img 0.817, p_nominal 0.804
+  written bc7454 0.80: 5 of 5 pairs matched, p_img 0.825, p_nominal 0.828
+  written bc77115 0.30 (reported only): 5 of 5 pairs matched, p_img 0.660, p_nominal 0.656
+  written bc78016 0.80: 5 of 5 pairs matched, p_img 0.806, p_nominal 0.825
+  written bc78065 0.80: 5 of 5 pairs matched, p_img 0.798, p_nominal 0.782
+  written bc78153 0.80: 5 of 5 pairs matched, p_img 0.849, p_nominal 0.842
+  written bc79027 0.80: 5 of 5 pairs matched, p_img 0.844, p_nominal 0.854
+  written bc86103 0.80: 5 of 5 pairs matched, p_img 0.825, p_nominal 0.849
+  written bcc162 0.65: 5 of 5 pairs matched, p_img 0.656, p_nominal 0.696
+CONTROL written overlap: 9 gated rolls with >= 3 matched pairs (need 6); median p_img - written +0.0178 (within 0.08): PASS
+CONTROL positive: bc85054 162/163 matched, p_img 0.603, p_nominal 0.314, |D| 0.548 against tau 0.220: PASS
+key pairs: 366 on 9 keys; matched 327, no_match 39
+tau 0.2199 (step error x1.246)
+                    key pairs pairs_break pairs_matched pairs_used     p_img
+    bc5715 732 153 4800     2           0             1          1 0.5270168
+  bc77026 2042 305 6000   118           2           114        114 0.8070569
+  bc77070 1158 153 5000    63           1            53         53 0.6222437
+ bc77072 1829 153 10000    18           0            16         16 0.6403456
+ bc77072 1981 153 10000    64           2            53         53 0.6153344
+  bc77087 1158 153 5000    57           2            49         49 0.6232058
+   bc7718 1524 305 5000    24           1            23         23 0.8581741
+  bc80117 1372 153 8000    18           1            17         17 0.8396548
+    bcc325 396 153 2000     2           0             1          1 0.6291404
+  p_nominal     p_agl   D_nominal       D_agl          gap                w1
+ 0.19636790 0.1937330 -0.53008171 -0.53335504 0.0032733253     too_few_pairs
+ 0.41860887 0.4789688 -1.10302826 -0.99341450 0.1096137529   step_overstated
+ 0.28318671 0.5264575 -0.64056613 -0.22599230 0.4145738243   step_overstated
+ 0.22586000 0.3524143 -0.76660912 -0.58810749 0.1785016340   step_overstated
+ 0.11428242 0.3159274 -0.83402372 -0.57568969 0.2583340323   step_overstated
+ 0.20909748 0.4775126 -0.74147547 -0.32690164 0.4145738243   step_overstated
+ 0.85669140 0.8565974 -0.01039986 -0.01105582 0.0006559528 indistinguishable
+ 0.84348150 0.8603654  0.02415502  0.13830037 0.1141453452 indistinguishable
+ 0.07579885 0.2858446 -0.91310606 -0.65527695 0.2578291093     too_few_pairs
+     w2_height dir_agree dir_reverse dir_differ              size   location
+ msl_catalogue         1           0          0     too_few_pairs not_tested
+ msl_catalogue        71           0          0 nominal_unrefuted  misplaced
+ msl_catalogue        53           0          0 nominal_unrefuted  misplaced
+ msl_catalogue        11           0          0 nominal_unrefuted  misplaced
+ msl_catalogue        52           0          1 nominal_unrefuted  misplaced
+ msl_catalogue        46           0          3 nominal_unrefuted  misplaced
+ msl_catalogue        23           0          0         unsettled not_tested
+ msl_catalogue         7           0          0         unsettled not_tested
+      not_read         1           0          0     too_few_pairs not_tested
+ frames_nonpositive
+                  1
+                 11
+                 59
+                  1
+                  3
+                 38
+                 24
+                 19
+                  1
+r <= 0 frames by location: misplaced 112, not_tested 45
+r <= 0 frames by size: nominal_unrefuted 112, too_few_pairs 2, unsettled 43
+wrote inst/extdata/flying_height_image_overlap_synthetic.csv (80 rows)
+wrote inst/extdata/flying_height_image_overlap_written.csv (10 rows)
+wrote inst/extdata/flying_height_image_overlap_pairs.csv (647 rows)
+wrote inst/extdata/flying_height_image_overlap_strips.csv (366 rows)
+wrote inst/extdata/flying_height_image_overlap_keys.csv (9 rows)

@@ -809,21 +809,26 @@ fits the window read as above ground (0.631) and not at nominal (0.510). Its pag
 4,000 ft on all 24 frames, which is 1,219 m, the catalogue's own figure, under an M.S.L.
 header. MRDEM puts the ground under 23 of those frames at 1,234 to 1,591 m.
 
-**Where a transcribed page covers these frames, it writes the catalogue's height on 558 of the
-576 frames it reads, and none puts the ground under it.** Pages are transcribed for 26 of the
-population's 154 rolls. The other 128 were not transcribed, because only `supports` goes to the
+**Where a transcribed page covers these frames, it writes the catalogue's height on 669 of the
+689 frames it reads, and none puts the ground under it**, on the transcription as it stands (fly#97
+found one page whose disputed digit, read the other way, would; see "What the frames under the terrain
+covered"). Pages are transcribed for 31 of the
+population's 154 rolls (26 when fly#95 ran; fly#97 transcribed the five rolls of its nine keys that had
+none, and every figure in this paragraph and the table below includes them). The other 123 were not transcribed, because only `supports` goes to the
 logbook (one of them, `bcc07085`, has no page in the catalogue), so this says nothing about them. The transcribed headers say M.S.L. or name no
-datum; none names the ground. Over the 32 roll-heights with a frame the logbook reads:
+datum; none names the ground. Over the 38 roll-heights with a frame the logbook reads:
 
 | logbook relation | frames |
 |---|---|
-| the catalogue's height | 550 |
+| the catalogue's height | 661 |
 | ground near sea level, where the two readings coincide | 8 |
-| neither | 18 |
+| neither | 20 |
 | the ground under the catalogued height, or a header naming it | 0 |
 
 That cuts both ways. On `bc5602`, `bc77026`, `bc77072` and `bc77087` the page's "M.S.L."
-figure is below the ground under some of the frames it covers. So there either the column is
+figure is below the ground under some of the frames it covers, and on `bc5715`, `bc77070`, `bc7718`,
+`bc80117` and `bcc325`, transcribed by fly#97, likewise (on `bcc325` the page's figure is not the
+catalogue's). So there either the column is
 not above sea level as written, or the frames are not where the catalogue puts them. The rule
 asked for a page that puts the ground under the height, by its figure or by its header; no
 transcribed page does, and the rule was not amended after the data.
@@ -854,8 +859,11 @@ before anything ran.
 The last row is nine roll-heights: `bc5715` 732, `bc77026` 2042, `bc77070` 1158, `bc77072` 1829 and
 1981, `bc77087` 1158, `bc7718` 1524, `bc80117` 1372 and `bcc325` 396. Spacing rejects nominal there
 as well, so the fallback these frames get is not supported either. A centroid placed on higher
-ground than the photo covers would give `r <= 0` and is invisible to spacing. That is out of this
-question, and is fly#97.
+ground than the photo covers would give `r <= 0` and is invisible to spacing. fly#97 measured
+seven of those nine with the photos themselves, in the next section (two have one usable pair each).
+On five, the photos show the catalogue's centroid step is longer than the air base, so spacing's
+rejection of nominal there says nothing about the scale. On two, the flight was flown at ~85% overlap,
+above what the window assumes.
 
 ### What would change the answer
 
@@ -866,6 +874,193 @@ as above sea level, through the existing `factor != 1` branch, which already rea
 `r <= 0` frames, "the height plus the ground" is at least twice the height (2.00 to 2.58, median
 2.16), and 51 of them are within 2% of x2, which #60 also names as a slip. There such a page
 alone is ambiguous with x2.
+
+## What the frames under the terrain covered: the photos' own overlap (fly#97)
+
+**Verified:** 2026-10-07 · **Issues:** fly#97 (from fly#95), fly#99 · **Produced by:**
+`data-raw/height_measure-image_overlap.R` (`inst/extdata/flying_height_image_overlap_*.csv`), with the
+blind logbook read in `data-raw/flying_height_logbooks.csv` and `data-raw/flying_height_logbook_strips.csv`
+
+fly#95 left nine roll-heights, with 157 frames at `r <= 0`, where adjacent-frame spacing rejects nominal
+scale and also rejects the catalogued height read as above ground. Spacing compares the catalogue's
+centroid step with the ~60% forward overlap a flight is designed to. It cannot say whether the step or
+the scale is what is wrong. On older rolls the step is often the weak half: in fly#82's probe of rolls
+from 1965, 1975 and 1985, 64-77% of consecutive steps were equal within 0.5%, as if spaced evenly
+along a digitised line.
+
+**Nothing changed in the package.**
+- On five of the nine, the photos show the catalogue's step is longer than the air base. Under any height
+  the logbook's figure allows, it is at least x1.25 to x2.70 longer (x2.61 at the top over the pairs a
+  shipped logbook row covers), so spacing's rejection of nominal on those five says nothing about the
+  scale.
+- On those five, the logbook's figure against MRDEM puts 107 of the 112 frames at `r <= 0` somewhere
+  other than over the ground photographed.
+- `bc77087` carries 38 of the 107 frames, and its part of the bound, on a page height a blind re-read
+  could not settle. Read the other way, its page puts the ground under the catalogued height, which is
+  the result fly#95 was looking for (below).
+- Two roll-heights were flown at ~85% overlap, where the two readings cannot be told apart. Two have one
+  matched pair each, too few to judge.
+
+### The instrument: the overlap the photos show
+
+Two thumbnails adjacent by number share ground. The image shift between them is `1 - overlap` of the
+frame side, whatever the scale, height or centroids say, so no catalogue field enters it.
+
+- **Matching is fly#82's.** `patch_shifts()` and its acceptance gate (at least 20 confirming 128 px
+  patches, the shift their median) are pulled from its script, not copied.
+- **The seed search is not fly#82's.** `global_shift()` wraps any shift beyond ~575 px (overlap under
+  ~0.54) and gates its candidates on a prediction from centroid spacing, which is the quantity under
+  test. Seeds here come from a zero-padded, masked normalised cross-correlation.
+- **The floor depends on which way the second frame moves.** Windows sit 114 px inside both frames on a
+  64 px grid, so where the first window fits depends on the shift's sign. The synthetic shifts all
+  move one way: they match 10 of 10 at 0.25 and 0 of 10 at 0.20, where no window fits. 531 of the 537
+  matched real pairs move the other way, for which the grid admits overlaps down to about 0.18.
+- **Comparisons are in step-error units.** Images and a reading R are compared as
+  `D_R = log((1 - p_img) / (1 - p_R))`, the log of how far the catalogue step is from the air base the
+  images imply under R.
+
+The rule was fixed before any thumbnail was matched, and amended twice before any of the nine keys was
+measured:
+- **A1, after a smoke run on control thumbnails:** the floor above.
+- **A2, from a plan review that arrived while the control draw ran, and committed before its output was
+  read:** the tolerance in log units with a ceiling, an `indistinguishable` outcome, a false-match control
+  and a crew-written-overlap control. It also withdrew an outcome that was the inequality
+  `p_img > p_agl` restated.
+
+One change came after the run. Code-check round 1 split the logbook's residual class into `read_other`
+(read, but under 90% either way) and `not_read`. It moved one shipped label (`bcc325`) and no verdict.
+
+### The controls
+
+| control | result |
+|---|---|
+| synthetic known shifts, overlap 0.35 to 0.90 | 50 of 50 matched, error under 1e-4 |
+| synthetic floor | 0.20: 0 of 10 matched; 0.25: 10 of 10 |
+| unrelated pairs (frames of two different rolls) | 0 of 36 compared matched (38 drawn, 2 with no thumbnail) |
+| crew-written overlap, 9 rolls | median 0.018 above what the page writes |
+| `bc85054` 162/163, spacing x1.7 off (fly#82) | flagged, \|D\| 0.548 |
+| ordinary 1970-85 keys where spacing fits, 34 | median D -0.031; tau, the 95th percentile of \|D\|, 0.220 |
+
+tau passed its pre-set ceiling of log 1.25 (0.223) narrowly. So the instrument cannot see a step error
+smaller than about x1.25. Even on ordinary keys, the step and the images' air base differ by more than
+that on 2 of the 34 (x1.34 and x1.41). Of 192 ordinary pairs, 31 of the 190 compared did not match, and
+2 had no thumbnail.
+
+### What it found
+
+| roll-height | pairs (matched) | photo overlap | step's overlap at nominal | verdict | `r <= 0` |
+|---|---|---|---|---|---|
+| `bc77026` 2042 | 118 (114) | 0.807 | 0.419 | step overstated | 11 |
+| `bc77070` 1158 | 63 (53) | 0.622 | 0.283 | step overstated | 59 |
+| `bc77072` 1829 | 18 (16) | 0.640 | 0.226 | step overstated | 1 |
+| `bc77072` 1981 | 64 (53) | 0.615 | 0.114 | step overstated | 3 |
+| `bc77087` 1158 | 57 (49) | 0.623 | 0.209 | step overstated | 38 |
+| `bc7718` 1524 | 24 (23) | 0.858 | 0.857 | indistinguishable | 24 |
+| `bc80117` 1372 | 18 (17) | 0.840 | 0.843 | indistinguishable | 19 |
+| `bc5715` 732 | 2 (1) | | | too few pairs | 1 |
+| `bcc325` 396 | 2 (1) | | | too few pairs | 1 |
+
+**The five below the window: the step is longer than the air base.**
+- **How they were flown.** Four have photos overlapping 0.62 to 0.64, an ordinary flight. `bc77026`
+  overlaps 0.81, above the window; its own page remarks "Forward overlap seems excessive (75.9%)".
+- **Adjacency.** On each, 83% to 97% of pairs match, so the frames are adjacent.
+- **The step.** It implies 0.11 to 0.42 at nominal. At nominal scale it would be 1.9 to 3.0 times the
+  air base the images imply.
+- **The bound.** On each key, the pages write the catalogue's figure under an M.S.L. header for at least
+  90% of the frames they read (`bc77070`'s pages were read blind for fly#97). So the true height above
+  ground is at most that figure, and the true side at most what reading it as above ground gives. No
+  size reading brings the step down to the images' air base: even at that largest side the step is
+  x1.25 to x2.70 the air base (`exp(-D_agl)`). `bc77026`'s x2.70 includes pairs past frame 219, which
+  the shipped row does not reach; over covered pairs the range is x1.25 to x2.61. Spacing's rejection of
+  nominal said nothing about the scale, and nominal stands as the default, unrefuted rather than confirmed.
+- **Two keys qualify that.**
+  - `bc77070`, the largest (59 `r <= 0` frames), passes by 0.006: its `D_agl` is -0.226 against tau
+    0.220, x1.25, at the instrument's resolution.
+  - `bc77087`'s x1.39 holds only on its page's contested 3.8 (below).
+
+**And by the logbook, the frames at `r <= 0` there are not over the ground photographed.**
+- **This rests on the logbook, not the photos.** The page says the height is above sea level, yet MRDEM
+  under the catalogue's centroids is at or above it on 112 frames. A shipped logbook row reaches 107 of
+  them, every one writing the catalogue's figure under an M.S.L. header.
+- **The other 5 have no shipped logbook row.** They are `misplaced` only because the verdict is made per
+  key:
+  - `bc77026` 221, 222, 237 and 247 lie past the shipped row's 219. It was transcribed before fly#97,
+    with the END final left blank, and the page does run to 258 in the blind re-read, which A2 kept out
+    of the transcription.
+  - `bc77072` 225 is on no page.
+- **What this settles.** It is fly#95's either-or (the column is not above sea level as written, or the
+  frames are not where the catalogue puts them), settled by taking the page at its word.
+- **The photos cannot reject the other horn.** `step_overstated` says the step is wrong under both
+  readings, so `D_agl` is computed with a step already shown wrong and does not test the datum.
+  - What the photos add is the step bound above: the catalogue's spacing along each line is not the
+    photos', by at least x1.25. That is at the instrument's resolution on `bc77070`, and holds on
+    `bc77087` only on its 3.8 read.
+  - Amendment A2 glossed the verdict as "the images reject reading the column as above ground". For
+    `step_overstated` that gloss was wrong, and code-check round 1 found it. The verdict and its rule
+    are unchanged.
+- **Headings.** On the pairs whose strip writes a legible heading, the page's heading agrees with the
+  catalogue's line bearing on 233 of 237, and none reads as the reverse. 4 differ by more than 35
+  degrees: `bc77087` 1/2, 2/3 and 3/4, and `bc77072` 1981 frame 111. Of the five keys' 285 matched pairs,
+  48 have no legible heading or no strip. So where tested, no line is reversed, and all but those 4
+  pairs run the way the page says.
+- **Not measured.** How far the frames are displaced, and whether a displacement keeps the step, which
+  the size statement assumes.
+
+**The two above the window were flown at ~85% overlap.**
+- The images read 0.858 and 0.840, and the catalogue step gives 0.857 and 0.843.
+- Spacing rejected them because its window assumes ~60%.
+- The two readings are 0.001 and 0.114 apart in D, against 2 tau = 0.44, so the rule leaves them
+  unsettled.
+
+**Corroboration the rule does not use:**
+- `bc77026`'s page remarks "Forward overlap seems excessive (75.9%)"; the images read 0.807.
+- `bc80117`'s page writes "80% FOREWARD O.L."; the images read 0.840.
+- `bc77070`'s page writes "Only 40% overlap between #271-#272". The images read 0.316 on that pair and
+  0.61 to 0.64 on its neighbours. The catalogue step is 848 to 850 m on all of them.
+- **Places.** The pages name places; coordinates are from the BC Geographical Names service.
+  - `bc7718`: one page row, 31-69 at 5,000 ft, writes "Tahsis - Zeballos", with strip 4 (46-69) written
+    "TAHSIS".
+    - The census frames, 46-69, are 359 km from Tahsis.
+    - The catalogue puts 31-45 of the same row 15 to 16 km from Tahsis (from the centroid cache; not
+      shipped).
+    - 5,000 ft is exactly nominal height above ground for 1:5000 on 305 mm, so the page's height puts the
+      ground at sea level, as at Tahsis.
+  - `bc80117` "YALE BLUFF" is 97 km from its frames.
+  - The five `step overstated` keys are 6 to 36 km from their places. A project area spans tens of km,
+    so that does not discriminate.
+
+**`bc77087` rests on a contested read, and the other reading is the one fly#95 was looking for.**
+- **The read.** It has had two blind reads. fly#93's reader read 3.8, and the catalogue's 1,158 m is
+  3,800 ft. fly#97's reader would not choose between 3.8 and 7.8, and leaned 7.8.
+- **At 7,800 ft (2,377 m), the aircraft would be above the ground MRDEM puts under all 57 frames.** The
+  package, which reads the catalogued height, would still find its 38 at `r <= 0`.
+- **The page would put the ground under the catalogued height.** Over its 57 frames, the median of
+  2,377 m less MRDEM is 1,114 m, within 4% of 1,158 m. So the generator's relation is `ground_plus`, W2 is
+  `ground`, and the rule's stop for a decision on the package's shape would fire. That is the outcome
+  fly#95's "What would change the answer" names.
+- **It still would not settle the datum alone.** 2,377 / 1,158 is 2.05, near the x2 slip fly#95 warns
+  of.
+- **And the step bound would move** to x1.15 to x1.59 over MRDEM's 10th to 90th percentile under its
+  frames (against x1.39 on the 3.8 read), and to x0.68 over sea-level ground. It falls under tau at the
+  low end.
+- **Only the W1 label is the same either way,** because it is computed at the catalogue's height.
+- `bc77070`, flown the same week on the same project at 3,800 ft, was read clear.
+- Which reading is right is a question for the transcription, not the rule, and is left open.
+
+### What it leaves
+
+- `fly_footprint()` draws these frames at nominal scale. On the seven roll-heights the photos could
+  measure, that is no longer contradicted (on `bc77087`, only on its 3.8 read). It draws them at the
+  catalogue's centroids.
+- **By the logbooks, 107 frames on four roll-heights are not over the ground photographed.** 38 of them
+  rest on `bc77087`'s contested read. The fifth `misplaced` roll-height, `bc77072` 1829, has its one
+  such frame on no page. Whether to tell the caller is fly#99.
+- **`bc77087`'s page 1 digit decides whether a page puts the ground under a catalogued height.** A third
+  read, or the original, would settle it.
+- **An air base that reads no centroid would settle size outright.** The transcription records none.
+- **Do not use spacing's window as evidence about scale on an older roll without the photos.** On all
+  seven keys here that the photos could measure, the step or the flown overlap was off what the window
+  assumes, so its rejection said nothing about the scale.
 
 ## What a partially covered footprint costs (fly#58)
 
