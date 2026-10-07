@@ -251,3 +251,17 @@ hand-back in its transcript and written by script, not retyped. `rows.csv` is un
   fourth draw from the same instrument, and the re-spawn policy forbids one.
 
 **Remaining route:** the original, or a larger scan, from the province (`province_request_draft.md`, unsent).
+
+## Shipping the unsettled outcome (Phase 3)
+
+- File line 656: only `note` changed (three reads recorded). `height_ft_interpreted` stays 3800.
+- Both generators re-run in place from frozen copies after the edit (18:24-18:26 UTC): both exit 0.
+  The md5 of every other CSV under `inst/extdata` and `data-raw` (44 files) is identical before and
+  after. Neither generator reads `note`, so this is the guard the rule asked for, not a discovery.
+- Prose: the note's "`bc77087` rests on a contested read" block (now three reads, with the fly#101 rule
+  described), "What it leaves", the 38-of-107 bullet and the fly#95 logbook paragraph; `CLAUDE.md`'s
+  fly#97 paragraph and fly#95 parenthetical; a new NEWS development entry (0.23.2 untouched).
+- Test: `test-fly_footprint_image_overlap.R`, "bc77087's page-1 digit stays at 3.8 ...". It holds the
+  row, its note, the reader's `verdict.csv` and `rows.csv`, and the note's prose to one another.
+  Mutation: `verdict.csv` decision set to 3 turns it red (FAIL 1, PASS 217); restoring it turns it green.
+- fly#99's body is updated. fly#95's body only lists the key in a table and needs no change.

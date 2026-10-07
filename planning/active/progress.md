@@ -16,3 +16,4 @@
 - Phase 2: third read done. Stage A (audit PASS, 50/50 images) then Stage B by SendMessage. Verdict:
   **unsettled** (Stage B undecided, lean 3; Stage A alternatives 3/5 — 7 never a candidate). Gate PASS 203/211.
   Reader slip: 8 Stage B rows name the reference's page as `disputed_file`; cannot move the verdict.
+- Phase 3: unsettled outcome shipped (note-only edit; 44 CSVs byte-identical after re-run); prose, NEWS, CLAUDE.md, test; fly#99 body updated.

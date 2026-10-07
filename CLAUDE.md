@@ -420,7 +420,7 @@ and the 176 where A2 found nominal fits, judged on every census frame on them (2
 1, cannot separate it from nominal on 126 and rejects it on 61. `bc5602`, the one it supports, has a logbook
 writing the catalogue's own 4,000 ft under M.S.L. On the 689 logbook-read frames (576 at fly#95; fly#97
 transcribed five more rolls), 669 carry the catalogue's figure and no page, as transcribed, puts the ground under it (fly#97: `bc77087`'s
-disputed digit read as 7.8 would). Generator Stages 3c and 6 write
+disputed digit read as 7.8 would; fly#101's third read left it unsettled). Generator Stages 3c and 6 write
 `inst/extdata/flying_height_above_ground.csv`; `test-fly_footprint_above_ground.R` recomputes its spacing
 columns and checks the logbook columns for consistency, since the per-frame logbook join is not shipped.
 
@@ -453,10 +453,13 @@ at ~85% overlap.
     `misplaced`, all `step_overstated`, the image leg does not test the logbook's datum (code-check
     round 1).
 
-  **`bc77087`'s page 1 reads 3.8 or 7.8** (fly#93's blind reader read 3.8; fly#97's declined to
-  choose, leaning 7.8). Read as 7.8, it would be the
-  first page to put the ground under a catalogued height, the result fly#95 sought, close to the x2 slip.
-  The transcription keeps 3.8, and the question is open. Every figure is in
+  **`bc77087`'s page 1 reads 3.8 or 7.8, and three blind reads have not settled it** (fly#93 read 3.8;
+  fly#97 declined, leaning 7.8; fly#101, under a rule fixed first, declined between 3 and 5, leaning 3).
+  Read as 7.8, it would be the
+  first page to put the ground under a catalogued height, the result fly#95 sought, 2.6% off x2.
+  The transcription keeps 3.8, and the question is open. Do not run a fourth subagent read: it is a
+  fourth draw from the same instrument, and fly#101's rule forbids it. The next instrument is the
+  province's original page; a draft request is in fly#101's archive, unsent. Every figure is in
   `inst/notes/terrain-correction.md`, "What the frames under the terrain covered"; five code-check rounds
   each found claims stated over a wider set than their producer computed, so read the figures there,
   not here.

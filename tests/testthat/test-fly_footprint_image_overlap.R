@@ -394,3 +394,34 @@ test_that("read as 7,800 ft, bc77087's page would put the ground under the catal
     expect_true(grepl(tolower(s), tolower(prose), fixed = TRUE), info = s)
   }
 })
+
+test_that("bc77087's page-1 digit stays at 3.8 because the third blind read did not settle it (fly#101)", {
+  # The transcription and the reader's own files are not installed, so this runs only from the source tree.
+  lb_path <- testthat::test_path("..", "..", "data-raw", "flying_height_logbooks.csv")
+  skip_if(!file.exists(lb_path), "logbook transcription not reachable from an installed package")
+  lb <- utils::read.csv(lb_path, stringsAsFactors = FALSE)
+  r <- lb[lb$file == "bc77087__bc77087_1.jpg" & lb$frame_from %in% 1, ]
+  expect_identical(nrow(r), 1L)
+  expect_identical(r$height_ft_interpreted, 3800L)
+  expect_true(grepl("three blind reads", r$note, fixed = TRUE))
+  expect_true(grepl("fly#101 undecided between 3 and 5 leaning 3", r$note, fixed = TRUE))
+  # The reader's verdict, as it wrote it: undecided, so by fly#101's rule the value does not move.
+  pl <- testthat::test_path("..", "..", "planning")
+  vf <- c(file.path(pl, "active", "transcription", "reader", "verdict.csv"),
+          Sys.glob(file.path(pl, "archive", "*issue-101*", "transcription", "reader", "verdict.csv")))
+  vf <- vf[file.exists(vf)]
+  skip_if(!length(vf), "fly#101's reader files not reachable")
+  v <- utils::read.csv(vf[1], colClasses = "character")
+  expect_identical(nrow(v), 1L)
+  expect_identical(c(v$disputed_file, v$decision, v$lean), c("bc77087__bc77087_1.jpg", "undecided", "3"))
+  rows <- utils::read.csv(sub("verdict.csv$", "rows.csv", vf[1]), colClasses = "character")
+  t1 <- rows[rows$file == "bc77087__bc77087_1.jpg" & rows$leading_digit_confidence != "ditto", ]
+  expect_identical(c(t1$leading_digit_confidence, t1$leading_digit_alternatives), c("uncertain", "3/5"))
+  note <- system.file("notes", "terrain-correction.md", package = "fly", mustWork = TRUE)
+  prose <- gsub("\\s+", " ", paste(readLines(note), collapse = " "))
+  for (s in c("It has had three blind reads, and they have not settled it",
+              "It would not choose between 3 and 5, and leaned 3. It did not list 7",
+              "so the transcription keeps 3.8")) {
+    expect_true(grepl(s, prose, fixed = TRUE), info = s)
+  }
+})

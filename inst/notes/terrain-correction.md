@@ -811,8 +811,8 @@ header. MRDEM puts the ground under 23 of those frames at 1,234 to 1,591 m.
 
 **Where a transcribed page covers these frames, it writes the catalogue's height on 669 of the
 689 frames it reads, and none puts the ground under it**, on the transcription as it stands (fly#97
-found one page whose disputed digit, read the other way, would; see "What the frames under the terrain
-covered"). Pages are transcribed for 31 of the
+found one page whose disputed digit, read the other way, would, and fly#101's third read did not settle
+it; see "What the frames under the terrain covered"). Pages are transcribed for 31 of the
 population's 154 rolls (26 when fly#95 ran; fly#97 transcribed the five rolls of its nine keys that had
 none, and every figure in this paragraph and the table below includes them). The other 123 were not transcribed, because only `supports` goes to the
 logbook (one of them, `bcc07085`, has no page in the catalogue), so this says nothing about them. The transcribed headers say M.S.L. or name no
@@ -895,8 +895,8 @@ along a digitised line.
   scale.
 - On those five, the logbook's figure against MRDEM puts 107 of the 112 frames at `r <= 0` somewhere
   other than over the ground photographed.
-- `bc77087` carries 38 of the 107 frames, and its part of the bound, on a page height a blind re-read
-  could not settle. Read the other way, its page puts the ground under the catalogued height, which is
+- `bc77087` carries 38 of the 107 frames, and its part of the bound, on a page height three blind
+  reads have not settled. Read the other way, its page puts the ground under the catalogued height, which is
   the result fly#95 was looking for (below).
 - Two roll-heights were flown at ~85% overlap, where the two readings cannot be told apart. Two have one
   matched pair each, too few to judge.
@@ -1030,8 +1030,14 @@ that on 2 of the 34 (x1.34 and x1.41). Of 192 ordinary pairs, 31 of the 190 comp
     so that does not discriminate.
 
 **`bc77087` rests on a contested read, and the other reading is the one fly#95 was looking for.**
-- **The read.** It has had two blind reads. fly#93's reader read 3.8, and the catalogue's 1,158 m is
-  3,800 ft. fly#97's reader would not choose between 3.8 and 7.8, and leaned 7.8.
+- **The read.** It has had three blind reads, and they have not settled it. fly#93's reader read 3.8,
+  and the catalogue's 1,158 m is 3,800 ft. fly#97's reader would not choose between 3.8 and 7.8, and
+  leaned 7.8.
+- **The third read (fly#101) was run under a rule fixed before it.** Its reader was given only this
+  roll's five pages (the same-week roll that names the project was withheld) and a protocol for
+  comparing the glyph with the same hand's digits elsewhere on them. It would not choose between 3 and 5, and leaned 3. It
+  did not list 7. Under that rule no lean counts, so the transcription keeps 3.8, as first transcribed.
+  The one feature all three readers name is a flat top; they part on what is below it.
 - **At 7,800 ft (2,377 m), the aircraft would be above the ground MRDEM puts under all 57 frames.** The
   package, which reads the catalogued height, would still find its 38 at `r <= 0`.
 - **The page would put the ground under the catalogued height.** Over its 57 frames, the median of
@@ -1056,7 +1062,8 @@ that on 2 of the 34 (x1.34 and x1.41). Of 192 ordinary pairs, 31 of the 190 comp
   rest on `bc77087`'s contested read. The fifth `misplaced` roll-height, `bc77072` 1829, has its one
   such frame on no page. Whether to tell the caller is fly#99.
 - **`bc77087`'s page 1 digit decides whether a page puts the ground under a catalogued height.** A third
-  read, or the original, would settle it.
+  blind read did not settle it (fly#101). The page is published at 1000 x 1205 px, and no larger copy was
+  found beside it, so the next instrument is the original, or a larger scan, from the province.
 - **An air base that reads no centroid would settle size outright.** The transcription records none.
 - **Do not use spacing's window as evidence about scale on an older roll without the photos.** On all
   seven keys here that the photos could measure, the step or the flown overlap was off what the window

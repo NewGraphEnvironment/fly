@@ -1,5 +1,10 @@
 # fly (development version)
 
+- **A third blind read of `bc77087`'s disputed logbook digit did not settle it** ([#101](https://github.com/NewGraphEnvironment/fly/issues/101)). No code change, and every roll table is byte-identical.
+  - **The read.** The rule was fixed before the read. The reader saw only that roll's pages, and it was checked for compliance and against the roll's other heights.
+  - **What it found.** It could not choose between 3 and 5, leaning 3, and did not list 7. No lean counts, so the transcription keeps 3,800 ft and records the three reads.
+  - **What is left.** The page is published at 1000 x 1205 px. The original, or a larger scan, from the province is the next instrument. See `inst/notes/terrain-correction.md`, "What the frames under the terrain covered".
+
 ## 0.23.2 (2026-10-07)
 
 - **On five of the nine roll-heights where spacing rejected both readings of the frames under the terrain, the photos show the catalogue's centroid step is longer than the air base, so the rejection says nothing about scale** ([#97](https://github.com/NewGraphEnvironment/fly/issues/97)). No code change, and every roll table is byte-identical.

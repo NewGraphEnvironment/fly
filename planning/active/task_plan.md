@@ -72,11 +72,11 @@ findings.md is the authority.
       the rule, figures read off the files, in findings.md
 
 ## Phase 3: Ship the outcome the rule names
-- [ ] Edit `data-raw/flying_height_logbooks.csv` file line 656 (`bc77087_1`, `frame_from == 1`) per the outcome.
-- [ ] Re-run the two generators from a frozen copy and `cmp`/`diff` every `inst/extdata` output they
+- [x] Edit `data-raw/flying_height_logbooks.csv` file line 656 (`bc77087_1`, `frame_from == 1`) per the outcome.
+- [x] Re-run the two generators from a frozen copy and `cmp`/`diff` every `inst/extdata` output they
       write against `main`. Expect byte-identical on 3.8 and unsettled. On 7.8, expect changes confined
       to the `bc77087` rows. Otherwise stop.
-- [ ] Rewrite every copy of the claim at once:
+- [x] Rewrite every copy of the claim at once:
       - `inst/notes/terrain-correction.md`: about line 898 ("38 of the 107"), 979, 997, the "`bc77087`
         rests on a contested read" block (about 1032-1048), and "What it leaves" (about 1052-1060). Also
         fly#95's "as transcribed" in the logbook-relation table text (about 815-835).
@@ -84,11 +84,11 @@ findings.md is the authority.
       - Under 7.8, also every aggregate the review lists (`review-plan.md`, "Copies Phase 3 misses").
       - `CLAUDE.md`: the fly#97 paragraph ("`bc77087`'s page 1 reads 3.8 or 7.8") and fly#95's "as
         transcribed / `bc77087`'s disputed digit".
-- [ ] Update the tests that pin this prose: `tests/testthat/test-fly_footprint_image_overlap.R` (about
+- [x] Update the tests that pin this prose: `tests/testthat/test-fly_footprint_image_overlap.R` (about
       lines 340-400, including the 7,800 ft counterfactual test, which stays as a recomputation under
       3.8/unsettled or becomes the shipped case under 7.8) and `test-fly_footprint_above_ground.R` if its
       logbook columns move. Add a test that reads row 656 and pins its value and the three-reads note.
-- [ ] On 7.8: open the shape-decision issue (repo-internal). On every outcome: update the bodies of
+- [x] On 7.8: open the shape-decision issue (repo-internal). On every outcome: update the bodies of
       fly#99 and fly#95 where they cite the contested read. Put the province draft in the archive and
       in the final report, unsent.
 
