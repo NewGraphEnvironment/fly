@@ -18,3 +18,4 @@
 - Phase 6: tests (163 pass, mutations red), note section, NEWS, CLAUDE.md. Prose test caught 6 errors in first draft (k 2.1->1.9, headings 264/268->233/237 on the five, step 848->848-850, double rounding, two test defects). Follow-up issue: gh create failing GitHub-side (3 attempts).
 - Full suite: FAIL 0 | PASS 5653. Two lint fixes in the script; re-run from cache leaves all five CSVs unchanged. Code-check round 1 spawned over the branch.
 - Follow-up filed as fly#99 (4th attempt; GitHub returned 500s earlier). Body corrected after round 1 (it carried the refuted 'images reject the AGL reading' claim and 2.1x).
+- Full suite FAIL 0 | PASS 5698; script re-run from cache: all five CSVs unchanged. Issue #97 body edited to the outcome; fly#99 body current.

@@ -140,11 +140,11 @@ those frames.
 - [x] NEWS; CLAUDE.md Architecture entry for the script and the Key Decision
 - [x] Enumerate every numeric or universal sentence in the note and NEWS against its producer line (#95's
       loop-ender)
-- [ ] Edit issue #97's body to the outcome
+- [x] Edit issue #97's body to the outcome
 
 ## Validation
-- [ ] Tests pass (`devtools::test()`, with `NOT_CRAN=true` on any single-file re-run)
+- [x] Tests pass (`devtools::test()`, with `NOT_CRAN=true` on any single-file re-run)
 - [x] `/code-check` rounds until a round finds nothing inside the previous round's fix
-- [ ] PWF checkboxes match landed work
+- [x] PWF checkboxes match landed work
 - [ ] `/planning-archive` on completion
 
