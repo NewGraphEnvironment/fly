@@ -207,18 +207,36 @@ common <- function(a, b) {
   list(a = a[seq_len(nr), seq_len(nc)], b = b[seq_len(nr), seq_len(nc)])
 }
 
-# One real pair (n, n+1 of a roll), cached per pair. Transient fetch failures are not cached.
-measure_pair <- function(film_roll, frame) {
-  f <- file.path(PAIRS_DIR, sprintf("%s_%s.rds", film_roll, frame))
+# A pair is A = (film_roll, frame) against B = (roll_b, frame_b). For an adjacent pair B is frame + 1
+# of the same roll; for the false-match control it is another roll's frame. Cached per pair under
+# this id. Transient fetch failures are not cached, so a second run retries them.
+pair_id <- function(film_roll, frame, roll_b, frame_b) {
+  ifelse(film_roll == roll_b & frame_b == frame + 1, sprintf("%s_%s", film_roll, frame),
+         sprintf("x_%s_%s_%s_%s", film_roll, frame, roll_b, frame_b))
+}
+# A frame's thumbnail through `fetch_pair()`, which fetches a frame and the next: frame n is
+# dest[1] of pair n, or dest[2] of pair n - 1 when n is the last frame of a pair already drawn.
+thumb_of <- function(film_roll, frame, second = FALSE) {
+  fp <- fetch_pair(film_roll, if (second) frame - 1 else frame)
+  if (fp$status != "ok") return(fp)
+  list(status = "ok", path = fp$dest[if (second) 2 else 1])
+}
+measure_pair <- function(film_roll, frame, roll_b = film_roll, frame_b = frame + 1) {
+  f <- file.path(PAIRS_DIR, paste0(pair_id(film_roll, frame, roll_b, frame_b), ".rds"))
   if (file.exists(f)) return(readRDS(f))
-  fp <- tryCatch(fetch_pair(film_roll, frame), error = function(e) {
-    list(status = paste("transient:", conditionMessage(e)))
-  })
-  if (grepl("^transient", fp$status)) return(list(status = fp$status))
-  out <- if (fp$status != "ok") {
-    list(status = "no_thumbnail", why = fp$status)
+  get <- function(r, n, second) {
+    tryCatch(thumb_of(r, n, second), error = function(e) {
+      list(status = paste("transient:", conditionMessage(e)))
+    })
+  }
+  ta <- get(film_roll, frame, FALSE)
+  tb <- if (ta$status == "ok") get(roll_b, frame_b, TRUE) else ta
+  st <- c(ta$status, tb$status)
+  if (any(grepl("^transient", st))) return(list(status = st[grepl("^transient", st)][1]))
+  out <- if (any(st != "ok")) {
+    list(status = "no_thumbnail", why = st[st != "ok"][1])
   } else {
-    ab <- common(read_gray(fp$dest[1]), read_gray(fp$dest[2]))
+    ab <- common(read_gray(ta$path), read_gray(tb$path))
     s <- tryCatch(measure_shift(ab$a, ab$b), error = function(e) e)
     if (inherits(s, "error")) {
       list(status = "failed", why = conditionMessage(s))
@@ -234,9 +252,15 @@ measure_pair <- function(film_roll, frame) {
   out
 }
 
+with_b <- function(todo) {
+  if (is.null(todo$roll_b)) todo$roll_b <- todo$film_roll
+  if (is.null(todo$frame_b)) todo$frame_b <- todo$frame + 1
+  todo
+}
 run_pairs <- function(todo) {
+  todo <- with_b(todo)
   one <- function(i) {
-    m <- measure_pair(todo$film_roll[i], todo$frame[i])
+    m <- measure_pair(todo$film_roll[i], todo$frame[i], todo$roll_b[i], todo$frame_b[i])
     m$status
   }
   if (WORKERS > 1 && nrow(todo) > 1) {
@@ -245,8 +269,9 @@ run_pairs <- function(todo) {
     parallel::clusterExport(cl, c("read_gray", "hann2", "down", "pc_surface", "phase_corr",
                                   "patch_shifts", "roll_meta", "fetch_pair", "masked_ncc",
                                   "ncc_seeds", "measure_shift", "common", "measure_pair",
-                                  "save_atomic", "MARGIN", "PEAK", "THUMBS", "ROLLS",
-                                  "PAIRS_DIR", "REPO", "todo"), envir = environment())
+                                  "pair_id", "thumb_of", "save_atomic", "MARGIN", "PEAK",
+                                  "THUMBS", "ROLLS", "PAIRS_DIR", "REPO", "todo"),
+                            envir = environment())
     parallel::clusterEvalQ(cl, {
       setwd(REPO)
       NULL
@@ -259,8 +284,13 @@ run_pairs <- function(todo) {
 
 # Every pair in `todo` measured, or stop: a sample with holes is not reported on, and two or
 # more failures with one message are a defect in the code or the service, not a measurement.
+# A matched shift implying over 0.95 overlap is fixed pattern (data panel, fiducials), not
+# ground, and counts as no match everywhere (Amendment A2).
+FIXED_PATTERN <- 0.95
 read_pairs <- function(todo) {
-  f <- file.path(PAIRS_DIR, sprintf("%s_%s.rds", todo$film_roll, todo$frame))
+  todo <- with_b(todo)
+  f <- file.path(PAIRS_DIR, paste0(pair_id(todo$film_roll, todo$frame, todo$roll_b, todo$frame_b),
+                                   ".rds"))
   if (any(!file.exists(f))) {
     stop(sum(!file.exists(f)), " pairs not measured (transient failures are retried); run again")
   }
@@ -274,14 +304,33 @@ read_pairs <- function(todo) {
   num <- function(x, k) if (is.null(x[[k]])) NA_real_ else as.numeric(x[[k]])
   out <- todo
   out$status <- st
-  out$why <- why
   out$dr <- vapply(m, num, numeric(1), "dr")
   out$dc <- vapply(m, num, numeric(1), "dc")
   out$n_patches <- vapply(m, num, numeric(1), "n_patches")
   out$nr <- vapply(m, num, numeric(1), "nr")
   out$nc <- vapply(m, num, numeric(1), "nc")
-  out$p_img <- ifelse(out$status == "matched", p_of(out$dr, out$dc, out$nr, out$nc), NA_real_)
+  p <- ifelse(out$status == "matched", p_of(out$dr, out$dc, out$nr, out$nc), NA_real_)
+  out$status[out$status == "matched" & p > FIXED_PATTERN] <- "fixed_pattern"
+  out$p_img <- ifelse(out$status == "matched", p, NA_real_)
   out
+}
+
+# The log of the step error the images imply against a reading's overlap, the unit every W1
+# comparison is made in (Amendment A2): 0 where the images and the catalogue step agree.
+D_of <- function(p_img, p_reading) log((1 - p_img) / (1 - p_reading))
+
+# Per key: pairs, how many matched, and the medians over the matched non-break ones.
+key_summary <- function(m) {
+  do.call(rbind, lapply(split(m, m$key), function(d) {
+    use <- d$status == "matched" & !d$line_break
+    data.frame(key = d$key[1], film_roll = d$film_roll[1], flying_height = d$flying_height[1],
+               focal_length = d$focal_length[1], scale_n = d$scale_n[1],
+               pairs = nrow(d), pairs_break = sum(d$line_break),
+               pairs_matched = sum(d$status == "matched"), pairs_used = sum(use),
+               p_img = if (any(use)) stats::median(d$p_img[use]) else NA_real_,
+               p_nominal = if (any(use)) stats::median(d$p_nominal[use]) else NA_real_,
+               p_agl = if (any(use)) stats::median(d$p_agl[use]) else NA_real_)
+  }))
 }
 
 # ---------------------------------------------------------------------------
@@ -341,6 +390,7 @@ stopifnot(abs(p_window[1] - 0.557) < 5e-4, abs(p_window[2] - 0.780) < 5e-4)
 
 if (STOP_AFTER < 1) quit(save = "no")
 
+
 # ---------------------------------------------------------------------------
 # Stage 1 — controls
 # ---------------------------------------------------------------------------
@@ -359,16 +409,48 @@ ck <- ck[is.finite(k_nom) & k_nom >= p_window[1] & k_nom <= p_window[2]]
 ck <- setdiff(ck, frames$key[frames$film_roll %in% c(KEYS9$film_roll, POSITIVE[["film_roll"]])])
 set.seed(SEED)
 ck <- sort(ck)[sample.int(length(ck), min(if (SMOKE) 3L else 40L, length(ck)))]
+consecutive <- function(p, n = 5) {
+  start <- sample.int(nrow(p), 1)
+  p[((start - 1 + 0:(min(n, nrow(p)) - 1)) %% nrow(p)) + 1, ]
+}
 neg <- do.call(rbind, lapply(seq_along(ck), function(i) {
   p <- key_pairs(ck[i])
   if (is.null(p)) return(NULL)
   p <- p[!p$line_break, ]
   if (!nrow(p)) return(NULL)
-  start <- sample.int(nrow(p), 1)
-  p[((start - 1 + 0:(min(5, nrow(p)) - 1)) %% nrow(p)) + 1, ]
+  consecutive(p)
 }))
 neg$set <- "negative"
-pub("negative control: %d keys drawn, %d pairs", length(unique(neg$key)), nrow(neg))
+pub("negative control: %d keys drawn, %d with pairs, %d pairs", length(ck),
+    length(unique(neg$key)), nrow(neg))
+
+# Written-overlap control (Amendment A2): strips whose logbook row writes a forward overlap. Pairs
+# n, n+1 on one roll-height inside the range, up to 5 from a seeded start (drawn after the
+# negative control, so its draw is unchanged). `bc77115`'s 30% is under the floor: reported only.
+WRITTEN <- data.frame(
+  film_roll = c("bc5598", "bc78065", "bc79027", "bc78153", "bc7454", "bc5561", "bc78016",
+                "bc86103", "bcc162", "bc77115"),
+  from      = c(1, 62, 190, 145, 1, 1, 11, 154, 1, 67),
+  to        = c(25, 270, 204, 193, 123, 17, 31, 179, 110, 116),
+  written   = c(0.80, 0.80, 0.80, 0.80, 0.80, 0.80, 0.80, 0.80, 0.65, 0.30),
+  gated     = c(rep(TRUE, 9), FALSE)
+)
+wrt <- do.call(rbind, lapply(seq_len(nrow(WRITTEN)), function(i) {
+  w <- WRITTEN[i, ]
+  ks <- unique(frames$key[frames$film_roll == w$film_roll & frames$frame_number >= w$from &
+                            frames$frame_number <= w$to])
+  p <- do.call(rbind, lapply(sort(ks), key_pairs))
+  if (is.null(p)) return(NULL)
+  p <- p[p$frame >= w$from & p$frame_next <= w$to & !p$line_break, ]
+  if (!nrow(p)) return(NULL)
+  p <- p[order(p$frame), ]
+  p <- consecutive(p)
+  p$written <- w$written
+  p$gated <- w$gated
+  p
+}))
+wrt$set <- "written"
+if (SMOKE) wrt <- wrt[wrt$film_roll %in% unique(wrt$film_roll)[1:2], ]
 
 pos <- frames[frames$film_roll == POSITIVE[["film_roll"]], ]
 pos_key <- pos$key[pos$frame_number == as.numeric(POSITIVE[["frame"]])]
@@ -378,44 +460,50 @@ posp <- posp[posp$frame == as.numeric(POSITIVE[["frame"]]), ]
 stopifnot(nrow(posp) == 1)
 posp$set <- "positive"
 
+cols_pair <- c("film_roll", "frame")
+invisible(run_pairs(rbind(neg[, cols_pair], wrt[, cols_pair], posp[, cols_pair])))
+neg_m <- read_pairs(neg)
+wrt_m <- read_pairs(wrt)
+pos_m <- read_pairs(posp)
+
+# False-match control (Amendment A2): frame n of one negative-control key's first pair against
+# frame n + 1 of the next key's first pair — different rolls, no shared ground.
+first <- neg[!duplicated(neg$key), ]
+uno <- data.frame(film_roll = first$film_roll[-nrow(first)], frame = first$frame[-nrow(first)],
+                  roll_b = first$film_roll[-1], frame_b = first$frame_next[-1])
+uno <- uno[uno$film_roll != uno$roll_b, ]
+invisible(run_pairs(uno))
+uno_m <- read_pairs(uno)
+
 # Synthetic: a real thumbnail against a copy of itself shifted by a known vector, the uncovered
 # strip filled from another thumbnail, through JPEG 85. Five thumbnails (A frames of the first
-# negative-control pairs), six overlaps, both axes.
+# negative-control pairs), eight overlaps, both axes. Gated from 0.35 (Amendment A1).
 SYN_P <- c(0.20, 0.25, 0.30, 0.35, 0.50, 0.65, 0.80, 0.90)
-SYN_GATE <- 0.35   # Amendment A1: the reused gate needs ~0.25 overlap; lower cases state the floor
+SYN_GATE <- 0.35
 syn_file <- file.path(CACHE, paste0("synthetic_", ALG, ".rds"))
-invisible(run_pairs(rbind(neg[, c("film_roll", "frame")], posp[, c("film_roll", "frame")])))
-neg_m <- read_pairs(neg)
-pos_m <- read_pairs(posp)
 if (!file.exists(syn_file)) {
-  src <- unique(neg_m$film_roll[neg_m$status != "no_thumbnail"])
-  pick <- neg_m[neg_m$film_roll %in% src & neg_m$status != "no_thumbnail", ]
+  pick <- neg_m[neg_m$status != "no_thumbnail", ]
   pick <- pick[!duplicated(pick$film_roll), ][seq_len(if (SMOKE) 2L else 5L), ]
   stopifnot(!anyNA(pick$film_roll))
   thumbs <- lapply(seq_len(nrow(pick)), function(i) {
-    fp <- fetch_pair(pick$film_roll[i], pick$frame[i])
-    read_gray(fp$dest[1])
+    read_gray(thumb_of(pick$film_roll[i], pick$frame[i])$path)
   })
   cases <- expand.grid(i = seq_along(thumbs), p_true = SYN_P, axis = c("row", "col"),
                        stringsAsFactors = FALSE)
   syn <- do.call(rbind, lapply(seq_len(nrow(cases)), function(q) {
-    a <- thumbs[[cases$i[q]]]
-    fill <- thumbs[[(cases$i[q] %% length(thumbs)) + 1]]
-    ab <- common(a, fill)
+    ab <- common(thumbs[[cases$i[q]]], thumbs[[(cases$i[q] %% length(thumbs)) + 1]])
     a <- ab$a
-    fill <- ab$b
     nr <- nrow(a)
     nc <- ncol(a)
     L <- if (cases$axis[q] == "row") nr else nc
     d <- round((1 - cases$p_true[q]) * L)
-    b <- fill
+    b <- ab$b
     if (cases$axis[q] == "row") {
       b[seq_len(nr - d), ] <- a[(d + 1):nr, ]
     } else {
       b[, seq_len(nc - d)] <- a[, (d + 1):nc]
     }
-    b <- jpeg85(b)
-    s <- measure_shift(a, b)
+    s <- measure_shift(a, jpeg85(b))
     data.frame(thumb = pick$film_roll[cases$i[q]], frame = pick$frame[cases$i[q]],
                axis = cases$axis[q], p_true = 1 - d / L,
                dr_true = if (cases$axis[q] == "row") -d else 0,
@@ -427,6 +515,8 @@ if (!file.exists(syn_file)) {
   save_atomic(syn, syn_file)
 }
 syn <- readRDS(syn_file)
+
+# --- the gates --------------------------------------------------------------
 gated <- syn$p_true >= SYN_GATE
 syn_ok <- all(syn$matched[gated]) && all(abs(syn$p_img[gated] - syn$p_true[gated]) <= 0.02)
 pub("CONTROL synthetic: %d gated cases (p_true >= %.2f), matched %d, max |p_img - p_true| %.4f: %s",
@@ -437,30 +527,50 @@ for (p in sort(unique(syn$p_true[!gated]))) {
       sum(syn$p_true == p))
 }
 
-key_summary <- function(m) {
-  do.call(rbind, lapply(split(m, m$key), function(d) {
-    use <- d$status == "matched" & !d$line_break
-    data.frame(key = d$key[1], film_roll = d$film_roll[1], flying_height = d$flying_height[1],
-               focal_length = d$focal_length[1], scale_n = d$scale_n[1],
-               pairs = nrow(d), pairs_break = sum(d$line_break),
-               pairs_matched = sum(d$status == "matched"), pairs_used = sum(use),
-               p_img = if (any(use)) stats::median(d$p_img[use]) else NA_real_,
-               p_nominal = if (any(use)) stats::median(d$p_nominal[use]) else NA_real_,
-               p_agl = if (any(use)) stats::median(d$p_agl[use]) else NA_real_)
-  }))
-}
 neg_k <- key_summary(neg_m)
-neg_k$d <- neg_k$p_img - neg_k$p_nominal
+neg_k$d <- D_of(neg_k$p_img, neg_k$p_nominal)
 neg_ok_k <- neg_k[neg_k$pairs_used >= 3, ]
 tau <- unname(stats::quantile(abs(neg_ok_k$d), 0.95))
-neg_ok <- nrow(neg_ok_k) >= (if (SMOKE) 1L else 30L) && abs(stats::median(neg_ok_k$d)) <= 0.05
-pub("CONTROL negative: %d keys with >= 3 matched pairs; median d %+.4f; tau (95th |d|) %.4f: %s",
-    nrow(neg_ok_k), stats::median(neg_ok_k$d), tau, if (neg_ok) "PASS" else "FAIL")
-pos_ok <- pos_m$status == "matched" && abs(pos_m$p_img - pos_m$p_nominal) > tau
-pub("CONTROL positive: %s %d/%d %s, p_img %.3f, p_nominal %.3f, |d| %.3f against tau %.3f: %s",
+TAU_MAX <- log(1.25)
+neg_ok <- nrow(neg_ok_k) >= (if (SMOKE) 1L else 30L) && abs(stats::median(neg_ok_k$d)) <= 0.05 &&
+  tau <= TAU_MAX
+pub(paste0("CONTROL negative: %d of %d keys with >= 3 matched pairs; median d %+.4f; ",
+           "tau (95th |d|) %.4f (ceiling %.4f), a step error of x%.3f: %s"),
+    nrow(neg_ok_k), nrow(neg_k), stats::median(neg_ok_k$d), tau, TAU_MAX, exp(tau),
+    if (neg_ok) "PASS" else "FAIL")
+pub("  negative pairs: %s", paste(names(table(neg_m$status)), table(neg_m$status), sep = " ",
+                                  collapse = ", "))
+
+uno_rate <- mean(uno_m$status == "matched")
+uno_ok <- uno_rate <= 0.05
+pub("CONTROL false match: %d unrelated pairs, matched %d (%.3f; at most 0.05): %s; %s", nrow(uno_m),
+    sum(uno_m$status == "matched"), uno_rate, if (uno_ok) "PASS" else "FAIL",
+    paste(names(table(uno_m$status)), table(uno_m$status), sep = " ", collapse = ", "))
+
+wrt_k <- do.call(rbind, lapply(split(wrt_m, wrt_m$film_roll), function(d) {
+  use <- d$status == "matched"
+  data.frame(film_roll = d$film_roll[1], written = d$written[1], gated = d$gated[1],
+             pairs = nrow(d), pairs_used = sum(use),
+             p_img = if (any(use)) stats::median(d$p_img[use]) else NA_real_,
+             p_nominal = stats::median(d$p_nominal))
+}))
+wrt_g <- wrt_k[wrt_k$gated & wrt_k$pairs_used >= 3, ]
+wrt_dev <- stats::median(wrt_g$p_img - wrt_g$written)
+wrt_ok <- nrow(wrt_g) >= (if (SMOKE) 1L else 6L) && abs(wrt_dev) <= 0.08
+for (i in seq_len(nrow(wrt_k))) {
+  pub("  written %s %.2f%s: %d of %d pairs matched, p_img %.3f, p_nominal %.3f", wrt_k$film_roll[i],
+      wrt_k$written[i], if (wrt_k$gated[i]) "" else " (reported only)", wrt_k$pairs_used[i],
+      wrt_k$pairs[i], wrt_k$p_img[i], wrt_k$p_nominal[i])
+}
+pub("CONTROL written overlap: %d gated rolls with >= 3 matched pairs (need 6); median p_img - written %+.4f (within 0.08): %s",
+    nrow(wrt_g), wrt_dev, if (wrt_ok) "PASS" else "FAIL")
+
+pos_d <- D_of(pos_m$p_img, pos_m$p_nominal)
+pos_ok <- pos_m$status == "matched" && abs(pos_d) > tau
+pub("CONTROL positive: %s %d/%d %s, p_img %.3f, p_nominal %.3f, |D| %.3f against tau %.3f: %s",
     pos_m$film_roll, pos_m$frame, pos_m$frame_next, pos_m$status, pos_m$p_img, pos_m$p_nominal,
-    abs(pos_m$p_img - pos_m$p_nominal), tau, if (isTRUE(pos_ok)) "PASS" else "FAIL")
-if (!(syn_ok && neg_ok && isTRUE(pos_ok))) {
+    abs(pos_d), tau, if (isTRUE(pos_ok)) "PASS" else "FAIL")
+if (!(syn_ok && neg_ok && uno_ok && wrt_ok && isTRUE(pos_ok))) {
   stop("a control failed; the instrument is not trusted and nothing is written")
 }
 
@@ -473,12 +583,28 @@ if (STOP_AFTER < 2 || SMOKE) {
 # Stage 2 — the nine keys
 # ---------------------------------------------------------------------------
 
-# Read only after the logbooks: the rule's order puts the blind read first.
-stopifnot(file.exists(STRIPS))
+# The rule's order puts the blind logbook read first: every page the catalogue links for the
+# eight rolls must be in the height transcription or the strips transcription (Amendment A2).
+PAGES <- c(sprintf("bc5715__bc5715_%d.jpg", 1:5), sprintf("bc77026__bc77026_%d.jpg", 2:3),
+           sprintf("bc77070__bc77070_%d.jpg", 1:4), sprintf("bc77072__bc77072_%d.jpg", 1:4),
+           sprintf("bc77087__bc77087_%d.jpg", 1:5), sprintf("bc7718__bc7717_7718_%d.jpg", 4:6),
+           sprintf("bc80117__bc80117_%d.jpg", 1:7), sprintf("bcc325__bcc325_%d.jpg", 1:5))
+stopifnot(length(PAGES) == 35, file.exists(STRIPS))
+lbk <- read.csv("data-raw/flying_height_logbooks.csv", stringsAsFactors = FALSE)
+st <- read.csv(STRIPS, stringsAsFactors = FALSE)
+unread <- setdiff(PAGES, c(lbk$file, st$file))
+if (length(unread)) stop("linked pages not transcribed: ", paste(unread, collapse = ", "))
+
+# Pairs are the census frames' (Amendment A2): n, n+1 on the catalogue key with at least one of
+# the two in the census files fly#95 judged.
+census <- rbind(read.csv("inst/extdata/flying_height_terrain_frames.csv"),
+                read.csv("inst/extdata/flying_height_terrain_nonpositive.csv"))
+cen_rf <- paste(census$film_roll, census$frame_number)
 k9 <- key4(KEYS9$film_roll, KEYS9$flying_height, KEYS9$focal_length, KEYS9$scale_n)
 kp <- do.call(rbind, lapply(k9, key_pairs))
+kp <- kp[paste(kp$film_roll, kp$frame) %in% cen_rf | paste(kp$film_roll, kp$frame_next) %in% cen_rf, ]
 kp$set <- "key"
-invisible(run_pairs(kp[, c("film_roll", "frame")]))
+invisible(run_pairs(kp[, cols_pair]))
 kp_m <- read_pairs(kp)
 pub("key pairs: %d on %d keys; %s", nrow(kp_m), length(unique(kp_m$key)),
     paste(names(table(kp_m$status)), table(kp_m$status), sep = " ", collapse = ", "))
@@ -492,12 +618,17 @@ if (STOP_AFTER < 3) quit(save = "no")
 kk <- key_summary(kp_m)
 kk <- kk[match(k9, kk$key), ]
 stopifnot(!anyNA(kk$key))
+kk$D_nominal <- D_of(kk$p_img, kk$p_nominal)
+kk$D_agl <- D_of(kk$p_img, kk$p_agl)
+kk$gap <- abs(log((1 - kk$p_nominal) / (1 - kk$p_agl)))
 kk$k <- (1 - kk$p_nominal) / (1 - kk$p_img)
 kk$w1 <- dplyr::case_when(
   kk$pairs_used < 3 ~ "too_few_pairs",
   kk$pairs_matched < kk$pairs / 2 ~ "no_overlap",
-  abs(kk$p_img - kk$p_nominal) <= tau ~ "consistent_nominal",
-  abs(kk$p_img - kk$p_agl) <= tau ~ "consistent_agl",
+  kk$gap <= 2 * tau & (abs(kk$D_nominal) <= tau | abs(kk$D_agl) <= tau) ~ "indistinguishable",
+  abs(kk$D_nominal) <= tau ~ "consistent_nominal",
+  abs(kk$D_agl) <= tau ~ "consistent_agl",
+  kk$D_agl < -tau & kk$D_nominal < -tau ~ "step_overstated",
   TRUE ~ "disagrees"
 )
 
@@ -518,9 +649,8 @@ kk$w2_height <- dplyr::case_when(
   TRUE ~ "not_read"
 )
 
-# W2, strips: per frame on a matched non-break pair, the page's heading against the catalogue's
-# bearing of the frame's step. Reported, not gating.
-st <- read.csv(STRIPS, stringsAsFactors = FALSE)
+# W2, strips: per matched non-break pair, the page's heading against the catalogue's bearing of the
+# step (grid bearing in BC Albers). Reported, not gating.
 st <- st[is.finite(st$frame_from) & is.finite(st$frame_to), ]
 circ <- function(a, b) abs(((a - b + 180) %% 360) - 180)
 kp_m$heading <- NA_real_
@@ -551,56 +681,67 @@ kk$places <- vapply(kk$key, function(k) uq(kp_m$place[kp_m$key == k]), character
 kk$overlap_written <- vapply(kk$key, function(k) uq(kp_m$overlap_written[kp_m$key == k]),
                              character(1))
 
-# The two outcomes.
-kk$g_k <- kk$flying_height - kk$k * kk$scale_n * kk$focal_length / 1000
+# The two outcomes (Amendment A2).
 kk$size <- dplyr::case_when(
   kk$w1 %in% c("too_few_pairs", "no_overlap") ~ kk$w1,
-  kk$w1 == "consistent_nominal" ~ "nominal_confirmed",
+  kk$w1 == "consistent_nominal" ~ "nominal_consistent",
   kk$w1 == "consistent_agl" & kk$w2_height != "msl_catalogue" ~ "agl_supported",
-  kk$w1 == "disagrees" & kk$w2_height == "msl_catalogue" & is.finite(kk$g_k) & kk$g_k < 0 ~
-    "nominal_by_elimination",
+  kk$w1 == "step_overstated" & kk$w2_height == "msl_catalogue" ~ "nominal_unrefuted",
   TRUE ~ "unsettled"
 )
-has_verdict <- kk$w1 %in% c("consistent_nominal", "consistent_agl", "disagrees")
 kk$location <- dplyr::case_when(
-  kk$w2_height == "msl_catalogue" & kk$w1 != "consistent_agl" & has_verdict ~ "misplaced",
+  kk$w2_height == "msl_catalogue" &
+    kk$w1 %in% c("consistent_nominal", "step_overstated", "disagrees") ~ "misplaced",
   kk$w1 == "consistent_agl" | kk$w2_height == "ground" ~ "datum_question",
   TRUE ~ "not_tested"
 )
 
-pub("tau %.4f", tau)
+pub("tau %.4f (step error x%.3f)", tau, exp(tau))
 print(kk[, c("key", "pairs", "pairs_break", "pairs_matched", "pairs_used", "p_img", "p_nominal",
-             "p_agl", "k", "w1", "w2_height", "dir_agree", "dir_reverse", "dir_differ", "g_k",
-             "size", "location", "frames_nonpositive")], row.names = FALSE)
-pub("r <= 0 frames by location: %s", paste(tapply(kk$frames_nonpositive, kk$location, sum),
-                                           names(tapply(kk$frames_nonpositive, kk$location, sum)),
-                                           collapse = ", "))
-pub("r <= 0 frames by size: %s", paste(tapply(kk$frames_nonpositive, kk$size, sum),
-                                       names(tapply(kk$frames_nonpositive, kk$size, sum)),
-                                       collapse = ", "))
+             "p_agl", "D_nominal", "D_agl", "gap", "w1", "w2_height", "dir_agree", "dir_reverse",
+             "dir_differ", "size", "location", "frames_nonpositive")], row.names = FALSE)
+tally <- function(v) {
+  t <- tapply(kk$frames_nonpositive, v, sum)
+  paste(names(t), t, collapse = ", ")
+}
+pub("r <= 0 frames by location: %s", tally(kk$location))
+pub("r <= 0 frames by size: %s", tally(kk$size))
+if (any(kk$w2_height == "ground" | kk$size == "agl_supported")) {
+  pub("STOP FOR THE USER: a key reads ground or agl_supported; the package shape is theirs to decide")
+}
 
 # ---------------------------------------------------------------------------
 # Write
 # ---------------------------------------------------------------------------
 
 r4 <- function(x) round(x, 4)
-pairs_out <- rbind(neg_m, pos_m, kp_m[, names(neg_m)])
-pairs_out <- pairs_out[, c("set", "key", "film_roll", "frame", "frame_next", "step", "bearing",
-                           "line_break", "p_nominal", "p_agl", "status", "dr", "dc",
-                           "n_patches", "nr", "nc", "p_img")]
+cols_out <- c("set", "key", "film_roll", "frame", "roll_b", "frame_b", "frame_next", "step",
+              "bearing", "line_break", "p_nominal", "p_agl", "status", "dr", "dc", "n_patches",
+              "nr", "nc", "p_img")
+fill <- function(d) {
+  for (v in setdiff(cols_out, names(d))) d[[v]] <- NA
+  d[, cols_out]
+}
+uno_m$set <- "unrelated"
+uno_m$key <- NA
+pairs_out <- rbind(fill(neg_m), fill(wrt_m), fill(pos_m), fill(uno_m), fill(kp_m))
 for (v in c("step", "bearing", "p_nominal", "p_agl", "dr", "dc", "p_img")) {
   pairs_out[[v]] <- r4(pairs_out[[v]])
 }
-dir_out <- kp_m[, c("key", "film_roll", "frame", "heading", "dir", "place", "overlap_written")]
+strips_out <- kp_m[, c("key", "film_roll", "frame", "heading", "dir", "place", "overlap_written")]
 syn_out <- syn
 for (v in c("p_true", "dr", "dc", "p_img")) syn_out[[v]] <- r4(syn_out[[v]])
+wrt_out <- WRITTEN
 keys_out <- kk[, c("film_roll", "flying_height", "focal_length", "scale_n", "frames",
                    "frames_nonpositive", "pairs", "pairs_break", "pairs_matched", "pairs_used",
-                   "p_img", "p_nominal", "p_agl", "k", "w1", "frames_logbook", "frames_catalogue",
-                   "frames_ground", "w2_height", "dir_agree", "dir_reverse", "dir_differ", "g_k",
-                   "size", "location", "places", "overlap_written")]
-for (v in c("p_img", "p_nominal", "p_agl", "k", "g_k")) keys_out[[v]] <- r4(keys_out[[v]])
+                   "p_img", "p_nominal", "p_agl", "D_nominal", "D_agl", "gap", "k", "w1",
+                   "frames_logbook", "frames_catalogue", "frames_ground", "w2_height", "dir_agree",
+                   "dir_reverse", "dir_differ", "size", "location", "places", "overlap_written")]
+for (v in c("p_img", "p_nominal", "p_agl", "D_nominal", "D_agl", "gap", "k")) {
+  keys_out[[v]] <- r4(keys_out[[v]])
+}
 write_if_changed(syn_out, "inst/extdata/flying_height_image_overlap_synthetic.csv")
+write_if_changed(wrt_out, "inst/extdata/flying_height_image_overlap_written.csv")
 write_if_changed(pairs_out, "inst/extdata/flying_height_image_overlap_pairs.csv")
-write_if_changed(dir_out, "inst/extdata/flying_height_image_overlap_strips.csv")
+write_if_changed(strips_out, "inst/extdata/flying_height_image_overlap_strips.csv")
 write_if_changed(keys_out, "inst/extdata/flying_height_image_overlap_keys.csv")

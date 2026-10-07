@@ -98,13 +98,13 @@ those frames.
       measured (Phase 4)
 
 ## Phase 2: The image instrument and its controls — `data-raw/height_measure-image_overlap.R`
-- [ ] Stage 0: inputs. Read the two census CSVs, `flying_height_above_ground.csv`, the window and the
+- [x] Stage 0: inputs. Read the two census CSVs, `flying_height_above_ground.csv`, the window and the
       centroid cache. Thumbnails are shared with fly#82's cache; this script has its own measurement cache,
       keyed on an algorithm tag.
-- [ ] Stage 1: the controls. Seeded draw, measure, gates. On a gate failure, stop and write nothing.
-- [ ] `FLY_IMGOVL_SMOKE=1` runs a handful of control pairs into a separate cache and writes nothing.
+- [x] Stage 1: the controls. Seeded draw, measure, gates. On a gate failure, stop and write nothing.
+- [x] `FLY_IMGOVL_SMOKE=1` runs a handful of control pairs into a separate cache and writes nothing.
       `FLY_IMGOVL_STOP=n` stops after stage n.
-- [ ] PSOCK, not fork, for any parallel thumbnail work. Worker code avoids `mean()` on a SpatRaster.
+- [x] PSOCK, not fork, for any parallel thumbnail work. Worker code avoids `mean()` on a SpatRaster.
 
 ## Phase 3: Logbooks, read blind before any image of the nine
 - [x] Fetch the pages of the 5 untranscribed rolls into `data-raw/.cache/logbooks/`. Stop if any linked

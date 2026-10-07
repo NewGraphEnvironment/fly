@@ -281,3 +281,27 @@ the six keys on the five rolls (no `spacing`, `tabled` or `reason` moved). fly#9
 figures moved and were updated in its test, note and CLAUDE.md: roll-heights read 32 -> 38, frames read
 576 -> 689, catalogue's figure 558 -> 669 (550 -> 661 + 8 ambiguous), neither 18 -> 20, rolls
 transcribed 26 -> 31. NEWS.md's v0.23.x entry is release history and is not edited.
+
+## Controls (Stage 1), real draw — 2026-10-07
+
+A1 script (`run_controls_a1.log`, read only after A2 was committed) and A2 script (`run_controls_a2.log`)
+over the same cached pairs. The A2 gates are the ones in force:
+
+| control | result | gate |
+|---|---|---|
+| synthetic, p_true >= 0.35 | 50 of 50 matched, max error < 1e-4 | all matched within 0.02: PASS |
+| synthetic floor | 0.20: 0 of 10; 0.25: 10 of 10; 0.30: 10 of 10 | reported |
+| negative | 40 keys drawn, 39 with pairs, 192 pairs (159 matched, 31 no_match, 2 no thumbnail); 34 keys with >= 3 matched; median d -0.031; **tau 0.2199** (x1.246) | >= 30 keys, \|median d\| <= 0.05, tau <= log 1.25 = 0.2231: PASS, **narrowly on the ceiling** |
+| false match | 38 unrelated pairs: 0 matched, 36 no_match, 2 no thumbnail | <= 5%: PASS |
+| written overlap | 9 of 9 gated rolls, 5 of 5 pairs each; median p_img - written +0.018 | >= 6 rolls, within 0.08: PASS |
+| positive | `bc85054` 162/163 p_img 0.603, p_nominal 0.314, \|D\| 0.548 | > tau: PASS |
+
+- Under A1's p-unit definition the same draw gave tau 0.080 and median d +0.011; reported, superseded.
+- The images agree with the crew-written overlaps on every roll (0.798-0.849 where 80% is written,
+  0.656 where 65% is), and on those rolls with the catalogue spacing too (p_nominal 0.782-0.854).
+- `bc77115`'s "30% overlap setting" reads 0.660 in the images and 0.656 by spacing: the note's
+  setting is not the flown overlap (or not a forward overlap). Reported only, as fixed.
+- On ordinary 1970-85 pairs 31 of 192 (16%) do not match. A key under half matched is `no_overlap`;
+  a key at the ordinary rate is not.
+- tau is set by the spread of the catalogue's spacing against the images on ordinary keys (95th
+  percentile, 34 keys): the instrument cannot see a step error smaller than about x1.25.
