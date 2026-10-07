@@ -45,8 +45,8 @@ What was learned:
   - "1.9-3.0x" being `k` at nominal (round 1);
   - a 7.8 counterfactual reasoned to "read_other" when the generator says `ground` (round 3);
   - place distances first written from memory;
-  - two broken probes, both mine: empty strings read as present, and `bc7718`'s distance taken over the
-    census set only.
+  - a broken probe of mine that read empty strings as present;
+  - `bc7718`'s distance stated over the census set only (round 4).
 - **Byte-identity:**
   - every re-run of the script from cache: all five CSVs unchanged;
   - the generator, before and after the appended logbook rows: the roll tables unchanged;
