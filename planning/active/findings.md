@@ -226,7 +226,9 @@ hand-back in its transcript and written by script, not retyped. `rows.csv` is un
 - **Stage B:** 26 references: 13 for 3, 13 for 5. The red-ink final column (r13, r26) is judged
   `different` hand.
   - Same-hand `yes`: 3 has 2 (r5, r11: the 3s in the emulsion number "433", flat-topped); 5 has 0.
-  - **The scorer counts 3=1, 5=0, because of a protocol slip by the reader, not a scorer defect.** On
+  - **The scorer counts 3=1, 5=0, because of a protocol slip by the reader.** (Round 4 showed the
+    scorer's silent drop of mis-keyed rows *was* a defect: a mis-keyed competing reference could let a
+    decision settle. The final scorer refuses mis-keyed rows; see round 4.) On
     r9-r12 and r22-r25 the reader wrote the reference's own page (`bc77087_2`) into `disputed_file`, so the
     scorer's filter on the target's file drops those eight. 18 of 26 rows name the target.
   - The slip cannot move the verdict: the decision was `undecided`, and a decision is the precondition
@@ -338,8 +340,8 @@ In `audit.py`, an undecodable transcript line was skipped. It now fails the audi
 **The fix removes the normalisation instead of patching each instance.** Every cell the verdict acts on must
 match its exact grammar from the brief (case and surrounding space aside), or nothing is scored.
 
-**Enumeration (terminal).** These are the cells `score()` reads to decide anything, beyond the gate, with
-the grammar each must match:
+**Enumeration, from recall (round 4 found it incomplete; superseded by the measured one in round 4).**
+These were listed as the cells `score()` reads to decide anything, beyond the gate:
 
 | file | cell | grammar, else scoring error |
 |---|---|---|
@@ -375,3 +377,59 @@ Re-run after the fix:
 - `CLAUDE.md`'s "fly#101's rule forbids it" is dropped: A1.9 governs only this read.
 - "The province serves no larger copy" is now "no larger copy was found beside the published one".
 - The draft says "in three separate readings", not "by three readers", which read as three people.
+
+## Code-check round 4 (`review-round4.md`): the round-3 enumeration was recalled, and wrong
+
+Round 4 found four more ways to settle on input the rule calls no commitment, plus an audit gap. Each was
+reproduced from the real reader's files (`<scratchpad>/r4/`), and each is now refused:
+- **A blank or `ditto` confidence on line 1** dropped it from target selection (cases 24, 25; reviewer's
+  `A_blank`, `A_ditto`).
+- **A `file` cell naming a crop** dropped line 1 from the page (case 26, `B_file`).
+- **Stage B keys naming no disputed row** were dropped silently. If those references backed a competing
+  digit, the decision won on the filtered set (case 27, `C_misKey`; control case 28 with correct keys -> no
+  commitment). **The real reader made exactly this slip on 8 of 26 rows.**
+- **`ref_ids` had all whitespace removed** before its check, so `r1 4` became `r14` (case 29, `D_space`).
+- **audit.py counted an errored Read as read** (`t_err.jsonl`, the target page's Read marked as an error ->
+  now FAIL, "NOT READ: bc77087__bc77087_1.jpg").
+
+**The fix validates routing before subsetting.** Every `file` must be one of the five pages. Confidence must
+be set exactly where `height_digits` is. Line 1 is the lowest-final *height-bearing* row and must be labelled
+a figure. Every Stage B key must name an uncertain or illegible row, and those keys must be unique (case 30,
+found while classifying; see below). `ref_ids` is trimmed, then held to `r<n>( ; r<n>)*`.
+
+**The real reader now scores `unsettled (scoring error: a glyphs.csv row is keyed to no uncertain or
+illegible row)`**, which is its 8 slipped rows. With those keys corrected (case 23) it scores `unsettled
+(Stage B undecided)`, as before. Both routes are unsettled, and A1.9 makes a scoring error caused by the
+reader's output final. Nothing shipped moves.
+
+**Enumeration, measured.** A scan of `score()` for every `<frame>$<column>` reference (17 columns) gave the
+following:
+
+| column | where read | check before any decision uses it |
+|---|---|---|
+| rows `file` | page subsetting, keys | one of the five page names |
+| rows `leading_digit_confidence` | target selection, keys | label set; non-blank iff `height_digits` non-blank; line 1 a figure label |
+| rows `height_digits` | which rows bear a height; lead and remainder | non-blank iff confidence; target `^[0-9?]+\.[0-9?]+$` |
+| rows `frame_from` | line-1 order | `^[0-9]+$` on every height-bearing page-1 row; unique minimum |
+| rows `frames_final` | Stage B key | disputed keys unique (case 30) |
+| rows `leading_digit_alternatives` | clear-with-alternatives; decision among alternatives | blank or `^[0-9](/[0-9])*$` |
+| rows `height_as_written` | printed only | none |
+| glyphs `ref_id` | citation, support | `^r[0-9]+$`, unique |
+| glyphs `disputed_file`, `disputed_frames` | key | names an uncertain/illegible row |
+| glyphs `candidate` | support | `^[0-9]$` |
+| glyphs `same_hand` | support | same / different / unsure |
+| glyphs `resembles_disputed` | support | starts yes / no / partly |
+| verdict `disputed_file`, `disputed_frames` | key | names an uncertain/illegible row; exactly one for the target |
+| verdict `decision` | decision | `^([0-9]\|undecided)$` |
+| verdict `ref_ids` | citation | trimmed, `^(r[0-9]+( *; *r[0-9]+)*)?$` |
+| verdict `lean` | printed only | none |
+
+The gate (`gate()`) reads the shipped transcription and the control pages' `file`, `frame_from`,
+`frame_to`, `focal_mm` and `height_ft_interpreted`. A malformed cell there uncovers frames, and a filled
+focal only merges lines at a height that must still equal the shipped row's. Both fail toward a failed gate.
+
+**Over all 38 cases (29 synthetic, 8 of the reviewer's, the real reader), exactly five settle:** 01, 03, 04,
+06 and 13, the five built as genuine commitments.
+
+**The class ends with this enumeration, not with a quiet round:** every column the verdict reads has a
+row above, with its check.

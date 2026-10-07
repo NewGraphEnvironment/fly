@@ -77,20 +77,28 @@ score <- function(dir) {
   # (code-check round 3). Normalising a malformed cell into a form the next test accepts is how rounds 1-3
   # each found a path to "settled" the rule calls no commitment; here a malformed cell stops instead.
   must <- function(ok, msg) if (!isTRUE(all(ok))) stop(msg, call. = FALSE)
-  pg <- rd[rd$file == target_file, ]
-  conf <- low(pg$leading_digit_confidence)
-  must(conf %in% c("clear", "uncertain", "illegible", "ditto", ""),
-       paste("unknown leading_digit_confidence on", target_file))
-  p1 <- pg[conf %in% c("clear", "uncertain", "illegible"), ]
-  must(nrow(p1) > 0, paste("no figure-bearing height on", target_file))
-  # The target is line 1, identified by its first final: every figure-bearing row needs one, and the lowest
-  # must be held by one row only.
-  must(grepl("^[0-9]+$", p1$frame_from), paste("a figure-bearing row on", target_file, "has no integer first final"))
-  ff <- as.integer(p1$frame_from)
-  must(sum(ff == min(ff)) == 1, paste("two figure-bearing rows share the lowest first final on", target_file))
+  pages <- sprintf("bc77087__bc77087_%d.jpg", 1:5)
+  # Routing cells first: a row whose `file` names no page, or whose confidence does not agree with whether
+  # it carries a height, would otherwise drop out of a subset silently (round 4).
+  must(rd$file %in% pages, "a rows.csv file is not one of the five page names")
+  conf_all <- low(rd$leading_digit_confidence)
+  must(conf_all %in% c("clear", "uncertain", "illegible", "ditto", ""), "unknown leading_digit_confidence")
+  must(nzchar(rd$height_digits) == nzchar(conf_all),
+       "leading_digit_confidence is blank on a row with a height, or set on a row without one")
+  pg <- rd[rd$file == target_file & nzchar(rd$height_digits), ]
+  must(nrow(pg) > 0, paste("no height on", target_file))
+  # The target is line 1: the height-bearing row with the lowest first final. Every height-bearing row on
+  # the page needs an integer first final, the lowest must be held by one row, and that row must carry the
+  # figure (a line 1 labelled ditto has nothing above it to repeat).
+  must(grepl("^[0-9]+$", pg$frame_from), paste("a height-bearing row on", target_file, "has no integer first final"))
+  ff <- as.integer(pg$frame_from)
+  must(sum(ff == min(ff)) == 1, paste("two height-bearing rows share the lowest first final on", target_file))
+  t <- pg[which.min(ff), ]
+  must(low(t$leading_digit_confidence) %in% c("clear", "uncertain", "illegible"),
+       paste("line 1 of", target_file, "is not labelled as a figure"))
+  p1 <- pg[low(pg$leading_digit_confidence) %in% c("clear", "uncertain", "illegible"), ]
   cat(sprintf("figure-bearing rows on %s: %d (%s)\n", target_file, nrow(p1),
               paste(p1$frames_final, p1$height_digits, sep = ": ", collapse = "; ")))
-  t <- p1[which.min(ff), ]
   tconf <- low(t$leading_digit_confidence)
   must(grepl("^([0-9](/[0-9])*)?$", t$leading_digit_alternatives),
        "the target's leading_digit_alternatives is not blank or digits separated by /")
@@ -116,12 +124,20 @@ score <- function(dir) {
     must(grepl("^[0-9]$", g$candidate), "a glyphs.csv candidate is not one digit")
     must(low(g$same_hand) %in% c("same", "different", "unsure"), "a glyphs.csv same_hand is not same/different/unsure")
     must(grepl("^(yes|no|partly)\\b", low(g$resembles_disputed)), "a glyphs.csv resembles_disputed does not start yes/no/partly")
+    # Every Stage B row must be keyed to a row Stage A marked uncertain or illegible; a key naming no such
+    # row would drop that reference or verdict from every count below (round 4).
+    disputed <- paste(rd$file, rd$frames_final)[conf_all %in% c("uncertain", "illegible")]
+    must(!anyDuplicated(disputed), "two uncertain or illegible rows share a file and frames_final key")
+    must(paste(g$disputed_file, g$disputed_frames) %in% disputed,
+         "a glyphs.csv row is keyed to no uncertain or illegible row")
+    must(paste(v$disputed_file, v$disputed_frames) %in% disputed,
+         "a verdict.csv row is keyed to no uncertain or illegible row")
     v <- v[v$disputed_file == target_file & v$disputed_frames == t$frames_final, ]
     must(nrow(v) == 1, paste(nrow(v), "verdict rows for the target"))
     dec <- low(v$decision)
     must(grepl("^([0-9]|undecided)$", dec), "verdict.csv decision is not a digit or undecided")
-    must(grepl("^(r[0-9]+(;r[0-9]+)*)?$", gsub("\\s", "", v$ref_ids)), "verdict.csv ref_ids is not r<n> separated by ;")
-    refs <- strsplit(gsub("\\s", "", v$ref_ids), ";", fixed = TRUE)[[1]]
+    must(grepl("^(r[0-9]+( *; *r[0-9]+)*)?$", v$ref_ids), "verdict.csv ref_ids is not r<n> separated by ;")
+    refs <- trimws(strsplit(v$ref_ids, ";", fixed = TRUE)[[1]])
     g <- g[g$disputed_file == target_file & g$disputed_frames == t$frames_final, ]
     # Same-hand references that resemble the glyph, for digit d; restricted to the ids in `only` when given
     # (A1.6: the decision needs at least one such reference among those it cites, and more of them overall
