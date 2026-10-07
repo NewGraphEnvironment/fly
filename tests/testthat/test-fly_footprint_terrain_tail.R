@@ -48,6 +48,26 @@ test_that("the census reconciles with its population table and its controls", {
   expect_true(abs(n[["margin_m"]] - 2 * n[["coarse_error_max_m"]]) <= 0.1)
 })
 
+test_that("the frames under terrain at or above the aircraft ship whole (amendment A3, fly#95)", {
+  np <- extdata("flying_height_terrain_nonpositive.csv")
+  cf <- extdata("flying_height_terrain_frames.csv")
+  pop <- extdata("flying_height_terrain_population.csv")
+  n <- stats::setNames(pop$n, pop$step)
+  expect_identical(nrow(np), as.integer(n[["terrain_nonpositive"]]))
+  expect_identical(nrow(np), 374L)
+  expect_identical(length(unique(np$film_roll)), 15L)
+  # `bc77072` flies two of them.
+  expect_identical(nrow(unique(np[, c("film_roll", "flying_height", "focal_length", "scale_n")])), 16L)
+  expect_identical(names(np), names(cf))
+  expect_false(anyDuplicated(np$airp_id) > 0)
+  expect_length(intersect(np$airp_id, cf$airp_id), 0)
+  expect_true(all(np$media %in% c("Film - BW", "Film - Colour")))
+  nominal <- np$scale_n * np$focal_length / 1000
+  expect_true(all(in_band(np$flying_height / nominal)))
+  expect_true(all(np$flying_height - np$elev <= 0))
+  expect_true(all(is.na(np$base[np$dup_key])))
+})
+
 test_that("the census holds every sweep frame of its stratum, at the sweep's elevation", {
   cf <- extdata("flying_height_terrain_frames.csv")
   sw <- extdata("flying_height_sweep.csv")

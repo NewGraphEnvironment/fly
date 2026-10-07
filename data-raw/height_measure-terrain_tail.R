@@ -20,8 +20,8 @@
 # sweep's shipped `elev`, every sweep frame in the stratum is found, and a draw from just past
 # the prefilter's edge holds no frame out of band. A frame above the band through terrain
 # stops the script; one under terrain at or above the aircraft is counted and left untailed
-# (amendment A3). The rule and the margin were fixed before the exact read:
-# `planning/archive/*issue-93*/findings.md`, "Pre-registered rule".
+# (amendment A3), and shipped frame by frame for fly#95. The rule and the margin were fixed
+# before the exact read: `planning/archive/*issue-93*/findings.md`, "Pre-registered rule".
 #
 # Everything is public: the centroid cache `height_calibrate-flying_height_slip.R` builds (run
 # it first) and NRCan's MRDEM-30, unauthenticated.
@@ -30,6 +30,9 @@
 #   inst/extdata/flying_height_terrain_frames.csv      every frame out of band only through
 #                                                      terrain: base, elevation
 #   inst/extdata/flying_height_terrain_population.csv  the count at each step, and M
+#   inst/extdata/flying_height_terrain_nonpositive.csv every in-band frame under terrain at or
+#                                                      above the aircraft (r <= 0): the same
+#                                                      columns, read by fly#95
 #
 # Env: FLY_TERRAIN_SMOKE=1 reads a 1,000-frame draw of the candidates into a separate cache
 # and writes nothing.
@@ -49,7 +52,8 @@ SWEEP     <- "inst/extdata/flying_height_sweep.csv"
 MRDEM     <- "/vsicurl/https://canelevation-dem.s3.ca-central-1.amazonaws.com/mrdem-30/mrdem-30-dtm.tif"
 FORMAT_M  <- 9 * 0.0254
 OUT <- c(frames     = "inst/extdata/flying_height_terrain_frames.csv",
-         population = "inst/extdata/flying_height_terrain_population.csv")
+         population = "inst/extdata/flying_height_terrain_population.csv",
+         nonpositive = "inst/extdata/flying_height_terrain_nonpositive.csv")
 
 dir.create(WORK, recursive = TRUE, showWarnings = FALSE)
 pub <- function(fmt, ...) message(sprintf(fmt, ...))
@@ -326,7 +330,7 @@ above <- out & read$r > band[2]
 # Terrain at or above the aircraft (amendment A3, written after the smoke run found 11 in
 # 1,074). `fly_footprint()` keeps these in its own terrain-above-aircraft case and applies a
 # factor-1 row only where `r_reported > 0`, so the `terrain` tail cannot move them. They are
-# counted and shipped in the population table, never assigned to a tail.
+# counted in the population table and shipped frame by frame (fly#95), never assigned to a tail.
 nonpos <- out & read$r <= 0
 pub("Stage 4: %d read; %d with no terrain under them; out of band %d (below %d, above %d, r <= 0 %d on %d rolls)",
     nrow(read), sum(!is.finite(read$elev)), sum(out), sum(below), sum(above), sum(nonpos),
@@ -360,6 +364,10 @@ if (!SMOKE && !all(rnd_terr %in% terr$airp_id)) {
 
 terr$base <- f1$base[match(terr$airp_id, f1$airp_id)]
 terr$dup_key <- terr$airp_id %in% dup_ids
+# The r <= 0 frames (A3), with the same air base, for fly#95's above-ground question.
+npos <- read[nonpos, ]
+npos$base <- f1$base[match(npos$airp_id, f1$airp_id)]
+npos$dup_key <- npos$airp_id %in% dup_ids
 rh <- unique(terr[, c("film_roll", "flying_height", "focal_length", "scale_n")])
 pub("  census: %d frames on %d roll-heights, %d rolls; %d share a (roll, frame) key",
     nrow(terr), nrow(rh), length(unique(terr$film_roll)), sum(terr$dup_key))
@@ -408,6 +416,11 @@ frames_out <- terr[order(terr$film_roll, terr$frame_number, terr$airp_id),
                    c("airp_id", "film_roll", "frame_number", "media", "photo_year", "scale_n",
                      "focal_length", "flying_height", "elev", "base", "dup_key")]
 frames_out$base <- num(frames_out$base, 1)
+npos_out <- npos[order(npos$film_roll, npos$frame_number, npos$airp_id), names(frames_out)]
+npos_out$base <- num(npos_out$base, 1)
+stopifnot(nrow(npos_out) == sum(nonpos),
+          all((npos_out$flying_height - npos_out$elev) <= 0),
+          all(in_band(npos_out$flying_height / (npos_out$scale_n * npos_out$focal_length / 1000))))
 r_out <- (frames_out$flying_height - frames_out$elev) /
   (frames_out$scale_n * frames_out$focal_length / 1000)
 stopifnot(all(r_out < band[1] & r_out > 0))
@@ -424,4 +437,6 @@ population <- rbind(population,
 write_csv <- function(d, path) utils::write.csv(d, path, row.names = FALSE, na = "")
 write_csv(frames_out, OUT[["frames"]])
 write_csv(population, OUT[["population"]])
-pub("Stage 5: wrote %s (%d rows) and %s", OUT[["frames"]], nrow(frames_out), OUT[["population"]])
+write_csv(npos_out, OUT[["nonpositive"]])
+pub("Stage 5: wrote %s (%d rows), %s (%d rows on %d rolls) and %s", OUT[["frames"]], nrow(frames_out),
+    OUT[["nonpositive"]], nrow(npos_out), length(unique(npos_out$film_roll)), OUT[["population"]])
