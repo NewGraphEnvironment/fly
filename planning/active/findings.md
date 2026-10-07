@@ -117,3 +117,82 @@ disagreement.
 
 In every outcome the 7,800 ft counterfactual test stays (it recomputes a relation, not a read), and the
 bodies of fly#95 and fly#99 are revised where they cite the contested read.
+
+## Amendment A1 (2026-10-07) — from the plan review (`review-plan.md`), before anything was read
+
+Nothing has been read: no reader has been spawned, and the reader directory built at `ae14556` was deleted
+unread. The reviewer did not open any logbook image. Every change below makes the instrument stricter or
+the scoring total; none changes what an outcome ships.
+
+1. **The reader is a Plan-type subagent (B1).** The project `CLAUDE.md` names both prior reads and fly#97's
+   lean. A canary, asked only from context with no tools, answered: general-purpose — "bc77..." yes,
+   "Swan Lake" no, "3.8/7.8 digit" **yes**; Plan — no, no, no. So a general-purpose reader would be primed.
+   A Plan agent has Read but cannot write, so it returns its CSVs as fenced text, and the orchestrator writes
+   them verbatim to the reader directory. It stays a blind subagent, as decided at the gate.
+2. **All of `bc77070` is withheld (B2).** Its row for `bc77070_3` (file line 894) records "'Swan Lake -
+   Grinrod' struck ... Op 94 struck" over a 7.5: the same project, Op and date as `bc77087_1`, cueing 7, as
+   `_4` cued 3. The set is `bc77087_1`-`_5`, and the gate drops to 211 frames on `bc77087_2`-`_5`. **No leading 3
+   is left in a height column of the set** (heights there: 7.5, 6.5, 6.3, 5.6, 6.0, 5.5, 8.0, 7.5, 8.7), so
+   same-hand 3s can come only from dates, frame numbers and the like. Recorded, not remedied: the only
+   remedy would put a cue back in.
+3. **Crops are a 3 x 3 grid** of 40% x 40% windows at 0/30/60%, 2x Lanczos, about 800 x 964 px (0.77 MP), so
+   the enlargement is not undone by downsampling (A3; the first script's 2x2 crops were 1200 x 1446 and
+   its "10% overlap" was 20%). 10 images per page, 50 in all.
+4. **Two turns (G6).** Stage A (`transcription/transcriber_brief.md`) is sent alone and does not mention a
+   glyph comparison. Its `rows.csv` is written and hashed. Then `transcription/brief_stage_b.md` is sent to the
+   same agent (SendMessage). Both texts are fixed by this commit. The brief's example is `5/6`, not `1/7` (G7).
+5. **The figure is read from a dedicated column (G3).** `height_digits` writes every uncertain digit as `?`.
+   The remainder test is on `height_digits` after its first character, and it must be `.8`.
+6. **Stage B output is machine-read (G4).** `verdict.csv` (decision, lean, ref_ids) and `glyphs.csv` (ref_id).
+   A Stage B decision commits only if:
+   - every cited ref_id exists for this target row (file **and** frames);
+   - at least one cited same-hand reference resembles the glyph (`yes`); and
+   - the decided digit has **more** same-hand `yes` references than every other candidate.
+
+   `clear` with alternatives listed is no commitment. No digit is copied by hand.
+7. **Scoring is total (G2).** `score.R` coerces finals to integers and heights to numbers (commas allowed)
+   and is case-insensitive. On a control page it fills a blank `focal_mm` on a line from the page's single
+   written focal, so ST/END lines merge as fly#93's did. Any error, missing file or missing column is
+   `unsettled (scoring error)`. Exercised on 13 synthetic outputs (scratch only):
+   - clear 3 -> `settled 3.8`; clear 7 -> `settled 7.8`;
+   - one control row moved -> gate FAIL, `unsettled`;
+   - heights written with commas -> PASS; a finals cell "96?" -> covers 203/211 (0.962), PASS;
+   - clear with alternatives, a tie with a competing digit, a cited ref missing, `undecided` with a lean,
+     no `verdict.csv`, a remainder of `.6` -> each `unsettled` with its reason;
+   - a missing column -> `unsettled (scoring error)`;
+   - an uncertain digit, decided 7 with 2-to-0 support -> `settled 7.8`.
+8. **Compliance audit (G5), run before scoring.** `transcription/audit.py` parses the reader's transcript and
+   passes only if every tool call is a Read of a file inside the reader directory and every one of its 50
+   images was read. Exercised:
+   - the plan review's transcript: 45 calls, all flagged;
+   - a decoy Plan reader that read two generated images: PASS;
+   - the same with a third, unread image added: FAIL, naming it.
+
+   The directory has a neutral name outside the repo (`<scratchpad>/pages_q`). Its md5s are recorded here
+   before spawning.
+9. **Re-spawn policy.** A read the audit fails may be re-run **once**, with a fresh reader. A failed gate,
+   a scoring error caused by the reader's output, and any verdict are final.
+10. **Generators run in place (G9),** from frozen copies in the scratchpad, with md5s of all 45 CSVs under
+    `inst/extdata` and `data-raw` taken before and after.
+    - **Baseline (O1), on the unedited tree:** both exit 0, and all 45 come back byte-identical. The
+      calibrate script's live catalogue query changed nothing.
+11. **The 7.8 outcome's diff, pre-registered cell by cell (Acceptance).** Anything else changing is a stop:
+    - `flying_height_above_ground.csv` `bc77087 1158` row: `frames_catalogue` 57->0, `frames_ground_plus`
+      0->57, `logbook_ft` 3800->7800; `tabled`/`reason` unchanged.
+    - `flying_height_image_overlap_keys.csv` `bc77087 1158` row: `frames_catalogue` 57->0, `frames_ground`
+      0->57, `w2_height` -> `ground`, `size` -> `unsettled`, `location` -> `datum_question`. The overlap
+      script's "STOP FOR THE USER" line is then expected, and is answered by decision 1 at the gate.
+    - `flying_height_rolls.csv`, `_excluded.csv` and every other CSV: byte-identical.
+    - 2,377 / (2 x 1,158) = 1.026: 2.6% off x2, outside the generator's 2% tolerance for a named factor
+      (A4). The shape issue states that number rather than "ambiguous".
+12. **The gate measured on the prior readers (O3, A1):**
+    - fly#93's `batch4_rows.csv` and fly#97's `batchC_rows.csv` each cover 211/211 frames, 0 mismatches.
+    - So the gate is reachable. It tests compliance and gross misreading, not whether a reader can tell
+      a 3 from a 7.
+    - It absorbs the 90-vs-96 disagreement on file line 660 (frames 96-103 match either way).
+13. **Kept as approved, flagged for the user (A2).** Fixed at the plan gate: "commits to 7 -> settled 7.8"
+    holds even though fly#93's read was itself a commitment to 3. A 7 now would be one commitment each way,
+    plus fly#97's lean; a 3 would be two commitments to none. The outcome ships no package behaviour.
+14. **NEWS (G8):** a new development entry. The released 0.23.2 entry is not edited.
+15. The province draft (`province_request_draft.md`) ships in the archive under every outcome. Only under
+    `unsettled` is it named as the remaining route (S1).

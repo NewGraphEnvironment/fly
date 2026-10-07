@@ -14,6 +14,10 @@ See `inst/notes/terrain-correction.md`, "What the frames under the terrain cover
 2. The third read is a blind subagent only.
 
 ## Phase 1: Fix the rule before any read (committed before the reader is spawned)
+
+As approved; where it differs from findings.md's Amendment A1 (reader type, page set, gate, crops, scoring),
+findings.md is the authority.
+
 - [x] Write the pre-registered rule into `findings.md`. It records what is already known and not blind
       (both prior reads, the catalogue's 3,800 ft, `bc77070` read clear at 3,800 ft as context only, and
       the provincial-copy probe). It then fixes the instrument, gate, verdict and outcomes below.
@@ -58,16 +62,17 @@ See `inst/notes/terrain-correction.md`, "What the frames under the terrain cover
         three reads. The draft request to the province is the remaining route.
 - [x] Commit the rule (with the brief and the crop script) before spawning the reader.
 
-## Phase 2: The third read
-- [ ] Build the reader's directory under the gitignored cache: 9 pages plus 36 quadrant crops, made by a
-      scratch script with `magick`/`sips`. The script is committed to the archive's `transcription/`.
-- [ ] Spawn the reader unnamed; it writes `rows.csv`, `glyphs.csv` and a verdict file. Copy the raw
-      outputs to `planning/active/transcription/`.
-- [ ] Consolidate with fly#93's `consolidate.R` and run the control gate. Write the verdict per the rule,
-      with figures read off the files, into `findings.md`.
+## Phase 2: The third read (as amended by findings.md, Amendment A1 — findings.md is the authority)
+- [x] Amend the rule from the plan review (A1) and commit it before the reader directory is built
+- [ ] Build `<scratchpad>/pages_q` from the committed `transcription/make_reader_dir.sh` (bc77087_1-_5, 50
+      images); record md5s in findings.md
+- [ ] Spawn the Plan-type reader unnamed with Stage A; write its `rows.csv` verbatim; hash it; send Stage B;
+      write `glyphs.csv` and `verdict.csv` verbatim. Copy all three to `planning/active/transcription/reader/`
+- [ ] Run `transcription/audit.py` on the transcript, then `transcription/score.R`; record the verdict per
+      the rule, figures read off the files, in findings.md
 
 ## Phase 3: Ship the outcome the rule names
-- [ ] Edit `data-raw/flying_height_logbooks.csv` row 656 per the outcome.
+- [ ] Edit `data-raw/flying_height_logbooks.csv` file line 656 (`bc77087_1`, `frame_from == 1`) per the outcome.
 - [ ] Re-run the two generators from a frozen copy and `cmp`/`diff` every `inst/extdata` output they
       write against `main`. Expect byte-identical on 3.8 and unsettled. On 7.8, expect changes confined
       to the `bc77087` rows. Otherwise stop.
@@ -75,7 +80,8 @@ See `inst/notes/terrain-correction.md`, "What the frames under the terrain cover
       - `inst/notes/terrain-correction.md`: about line 898 ("38 of the 107"), 979, 997, the "`bc77087`
         rests on a contested read" block (about 1032-1048), and "What it leaves" (about 1052-1060). Also
         fly#95's "as transcribed" in the logbook-relation table text (about 815-835).
-      - `NEWS.md`: the dev entry, replacing "An open question".
+      - `NEWS.md`: a new development entry; the released 0.23.2 entry is not edited.
+      - Under 7.8, also every aggregate the review lists (`review-plan.md`, "Copies Phase 3 misses").
       - `CLAUDE.md`: the fly#97 paragraph ("`bc77087`'s page 1 reads 3.8 or 7.8") and fly#95's "as
         transcribed / `bc77087`'s disputed digit".
 - [ ] Update the tests that pin this prose: `tests/testthat/test-fly_footprint_image_overlap.R` (about

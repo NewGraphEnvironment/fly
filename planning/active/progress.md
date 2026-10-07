@@ -9,3 +9,7 @@
 - Next: start Phase 1
 - Phase 1: rule, brief, crop script and scorer written; scorer exercised on five synthetic outputs.
   `bc77070_4` withheld from the reader (same place at a clear 3.8). Plan review spawned in background.
+- Plan review returned (2 blockers, 9 gaps): `review-plan.md`. Canary: general-purpose subagents carry
+  CLAUDE.md (which names both prior reads), Plan-type do not -> reader is Plan-type. All of bc77070 withheld.
+  Baseline generator re-run on the unedited tree: 45/45 CSVs byte-identical. Scorer rewritten (13 synthetic
+  cases), compliance audit written and exercised both ways. Amendment A1 recorded.
