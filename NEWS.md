@@ -1,15 +1,15 @@
 # fly (development version)
 
 - **On five of the nine roll-heights where spacing rejected both readings of the frames under the terrain, the photos show the catalogue's centroid step is longer than the air base, so the rejection says nothing about scale** ([#97](https://github.com/NewGraphEnvironment/fly/issues/97)). No code change, and every roll table is byte-identical.
-  - **The instrument.** It measures the overlap the photos themselves show: the image shift between adjacent thumbnails, which reads no scale, height or centroid. Matching uses fly#82's patch matcher, seeded by a search that neither wraps nor reads centroid spacing. Before the nine were measured it passed synthetic known shifts, matched none of 36 unrelated pairs, read the crews' written overlaps on 9 rolls with a median error of +0.018, and flagged `bc85054`. It cannot see a step error under about x1.25.
+  - **The instrument.** It measures the overlap the photos themselves show: the image shift between adjacent thumbnails, which reads no scale, height or centroid. Synthetic, unrelated-pair, crew-written-overlap and known-error controls ran before the nine were measured.
   - **What it found.**
-    - On five roll-heights, even at the largest side the logbook's height above sea level allows, the step is 1.25 to 2.7 times the air base. On `bc77070` that margin is at the instrument's resolution, and on `bc77087` it rests on a page height a blind re-read could not settle (3,800 or 7,800 ft). Nominal scale stands as the default, unrefuted rather than confirmed.
-    - By their logbooks against MRDEM, 107 frames on those five are not over the ground photographed. 38 of the 107 are `bc77087`'s.
-    - `bc7718` and `bc80117` were flown at ~85% overlap, where the two readings cannot be told apart.
-  - **An open question for the transcription.** Read as 7,800 ft, `bc77087`'s page would put the ground under the catalogued height on all 57 of its frames: the first page to do so, though at 2.05 times the height it is close to the x2 slip. See `inst/notes/terrain-correction.md`.
+    - On five roll-heights, nominal scale stands as the default, unrefuted rather than confirmed.
+    - By their logbooks against MRDEM, the frames there that sit under the terrain are not over the ground photographed. `bc7718` and `bc80117` were flown at ~85% overlap, where the two readings cannot be told apart.
+    - The figures and their qualifications are in `inst/notes/terrain-correction.md`, "What the frames under the terrain covered".
+  - **An open question.** One page's disputed digit (`bc77087`, 3,800 or 7,800 ft) decides whether a logbook page puts the ground under a catalogued height, the result fly#95 was looking for.
   - **New data.**
     - `flying_height_image_overlap_*.csv` ship every pair, control and verdict. The suite recomputes the verdicts, the note's table, and the figures it lists.
-    - Five more rolls' logbooks were transcribed blind. That moves fly#95's logbook counts (576 to 689 frames read) but none of its verdicts.
+    - Five more rolls' logbooks were transcribed blind. That moves fly#95's logbook counts but none of its verdicts.
     - A per-strip transcription of headings and places is committed as `data-raw/flying_height_logbook_strips.csv`.
   - **Not done.** Whether `fly_footprint()` should tell the caller about a known misplaced centroid ([#99](https://github.com/NewGraphEnvironment/fly/issues/99)).
 

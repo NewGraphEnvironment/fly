@@ -436,30 +436,26 @@ columns and checks the logbook columns for consistency, since the per-frame logb
   "Is the catalogued height above ground?"
 
 - **On five of the nine roll-heights where spacing rejected nominal on frames under the terrain, the
-photos say the catalogue's step is wrong, so the rejection says nothing about scale** (fly#97, no code
-change). Measured with the overlap the thumbnails themselves show, which reads no catalogue field.
-  - **The five.** Even at the largest side the logbooks' M.S.L. heights allow, the step is x1.25-x2.70
-    the air base. `bc77070` passes by 0.006, and `bc77087` only on its contested 3.8 read.
-  - **Location.** By the logbooks against MRDEM, not by the photos, 107 of the 112 `r <= 0` frames on
-    them (those a logbook row reaches, 38 of them `bc77087`'s) are not over the ground photographed.
-  - **The other two.** `bc7718` and `bc80117` were flown at ~85% overlap, where the two readings cannot
-    be told apart.
+photos say the catalogue's step is longer than the air base, so the rejection says nothing about
+scale** (fly#97, no code change). Measured with the overlap the thumbnails themselves show, which
+reads no catalogue field. By the logbooks, not the photos, the frames there that sit under the terrain
+are not over the ground photographed. Two other roll-heights were flown at ~85% overlap.
 
   **Three things are load-bearing.**
-  - **Do not read spacing's window as evidence about scale on a 1970s roll** without the photos. Steps
-    there are often evenly spaced along a digitised line (fly#82). On all seven keys here where the
-    photos could be measured, the step or the flown overlap was off what the window assumes.
-  - **The matcher has a floor between 0.20 and 0.25 overlap.** tau is ~x1.25, set by how far the step
-    strays on ordinary keys. A no-match does not mean "not adjacent".
+  - **Do not read spacing's window as evidence about scale on an older roll without the photos.**
+    Catalogue steps there are often evenly spaced along a digitised line (fly#82).
+  - **A no-match does not mean "not adjacent".** The matcher's floor depends on the direction the frame
+    moves, and tau is about x1.25.
   - **An outcome that restates an inequality is not a finding.** "Ground below sea level" was exactly
-    `p_img > p_agl`, and was withdrawn before the keys were read (Amendment A2). What it does show,
-    given an M.S.L. height, is that the step overstates the air base. Its image leg does not test the
-    datum (code-check round 1).
+    `p_img > p_agl`, and was withdrawn before the keys were read (Amendment A2). Its image leg does not
+    test the logbook's datum either (code-check round 1).
 
-  **`bc77087`'s page 1 reads 3.8 or 7.8, and the difference is the answer fly#95 sought.** Read as 7.8,
-  it puts the ground under the catalogued height on all 57 of its frames, though at 2.05 times the
-  height it sits close to the x2 slip. The transcription keeps 3.8, and the question is open. Read
-  `inst/notes/terrain-correction.md`, "What the frames under the terrain covered".
+  **`bc77087`'s page 1 reads 3.8 or 7.8 (two blind reads, one each way).** Read as 7.8, it would be the
+  first page to put the ground under a catalogued height, the result fly#95 sought, close to the x2 slip.
+  The transcription keeps 3.8, and the question is open. Every figure is in
+  `inst/notes/terrain-correction.md`, "What the frames under the terrain covered"; four code-check rounds
+  each found claims stated over a wider set than their producer computed, so read the figures there,
+  not here.
 
 - **Terrain error is a datum offset, not slope** (v0.5.0, #9) — `FLYING_HEIGHT` is metres **above sea level**,
 and reported scale is referenced to an elevation above the ground the photos cover, so it understates footprint

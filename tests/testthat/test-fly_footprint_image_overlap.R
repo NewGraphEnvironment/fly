@@ -226,11 +226,12 @@ test_that("the note's table and the figures listed here are the shipped measurem
   st5 <- st_all[st_all$key %in% ks5, ]
   expect_identical(paste(st5$key, st5$frame), paste(p5$key, p5$frame))
   sm <- p5$status == "matched" & !p5$line_break
+  mp <- p[p$status == "matched", ]
+  rdom <- ifelse(abs(mp$dr) >= abs(mp$dc), mp$dr, mp$dc)
   claims <- c(
     sprintf("Four have photos overlapping %s to %s, an ordinary flight. `bc77026` overlaps %s",
             sprintf("%.2f", min(so$p_img)), sprintf("%.2f", sort(so$p_img)[4]),
             sprintf("%.2f", max(so$p_img))),
-    sprintf("frames at `r <= 0`, where adjacent-frame spacing rejects nominal"),
     sprintf("left nine roll-heights, with %d frames at `r <= 0`", sum(sk$frames_nonpositive)),
     sprintf("its pre-set ceiling of log 1.25 (%s)", f3(log(1.25))),
     sprintf("on %d of the %d (x%.2f and x%.2f)", sum(abs(tt$d) > tt$tau), tt$n,
@@ -244,8 +245,8 @@ test_that("the note's table and the figures listed here are the shipped measurem
     sprintf("%d%% to %d%% of pairs match", round(100 * min(so$pairs_matched / so$pairs)),
             round(100 * max(so$pairs_matched / so$pairs))),
     sprintf("at or above it on %d frames.", sum(sk$frames_nonpositive[mis])),
-    sprintf("on %d of %d. %d differ", sum(so$dir_agree), sum(so$dir_agree + so$dir_reverse + so$dir_differ),
-            sum(so$dir_differ + so$dir_reverse)),
+    sprintf("on %d of %d, and none reads as the reverse. %d differ by more than 35", sum(so$dir_agree),
+            sum(so$dir_agree + so$dir_reverse + so$dir_differ), sum(so$dir_differ)),
     sprintf("Of the five keys' %d matched pairs, %d have no legible heading or no strip", sum(sm),
             sum(sm) - sum(so$dir_agree + so$dir_reverse + so$dir_differ)),
     sprintf("x%.2f to x%.2f the air base (`exp(-D_agl)`)", min(exp(-so$D_agl)), max(exp(-so$D_agl))),
@@ -275,13 +276,31 @@ test_that("the note's table and the figures listed here are the shipped measurem
             sprintf("%.2f", min(n70$p_calc[n70$frame < 271])), sprintf("%.2f", max(n70$p_calc[n70$frame < 271]))),
     sprintf("The catalogue step is %d to %d m on all of them", round(min(n70$step)),
             round(max(n70$step))),
-    sprintf("\"TAHSIS\", %d km", round(sk$km_to_place[sk$film_roll == "bc7718"])),
+    sprintf("The census frames, 46-69, are %d km from Tahsis", round(sk$km_to_place[sk$film_roll == "bc7718"])),
+    sprintf("%d of the %d matched real pairs move the other way", sum(rdom > 0), length(rdom)),
     sprintf("\"YALE BLUFF\" is %d km", round(sk$km_to_place[sk$film_roll == "bc80117"])),
     sprintf("are %d to %d km from their places", round(min(sk$km_to_place[mis])),
             round(max(sk$km_to_place[mis])))
   )
   for (s in claims) expect_true(grepl(s, prose, fixed = TRUE), info = s)
   expect_identical(sum(sk$frames_nonpositive[mis]), 112L)
+  # What the sentences assert, beyond their numbers.
+  win <- c(0.557, 0.780)  # fly#95's window, which the script holds its recomputation to
+  ag <- extdata("flying_height_above_ground.csv")
+  ag9 <- ag[match(paste(sk$film_roll, sk$flying_height, sk$focal_length, sk$scale_n),
+                  paste(ag$film_roll, ag$flying_height, ag$focal_length, ag$scale_n)), ]
+  expect_true(all(ag9$spacing == "refutes"))
+  out <- function(x) x < win[1] | x > win[2]
+  expect_true(all(out(ag9$overlap_nominal) & out(ag9$overlap_agl)))
+  expect_lt(max(abs(syn$p_img - syn$p_true)[syn$p_true >= 0.35]), 1e-4)
+  four <- so[order(so$p_img), ][1:4, ]
+  expect_true(all(four$p_img >= win[1] & four$p_img <= win[2]))
+  expect_identical(so$film_roll[which.max(so$p_img)], "bc77026")
+  expect_gt(max(so$p_img), win[2])
+  expect_identical(sum(so$dir_reverse), 0L)
+  # Synthetic shifts all have one sign; the real matched pairs nearly all the other.
+  syn_dom <- ifelse(syn$axis == "row", syn$dr_true, syn$dc_true)
+  expect_true(all(syn_dom < 0))
 })
 
 test_that("the location verdict's logbook reaches 107 of its 112 frames, and the note names the other 5", {
@@ -313,9 +332,19 @@ test_that("the location verdict's logbook reaches 107 of its 112 frames, and the
   }, logical(1))
   expect_true(all(cat_msl))
   expect_identical(sum(np$film_roll[reached] == "bc77087"), 38L)
+  # The step bound over the pairs a shipped row covers (both frames).
+  pp <- extdata("flying_height_image_overlap_pairs.csv")
+  kp <- pp[pp$set == "key" & pp$status == "matched" & !pp$line_break &
+             pp$key %in% paste(mis$film_roll, mis$flying_height, mis$focal_length, mis$scale_n), ]
+  covf <- function(r, f) any(lb$film_roll == r & !is.na(lb$frame_from) & !is.na(lb$height_ft_interpreted) &
+                               f >= lb$frame_from & f <= lb$frame_to)
+  kp <- kp[mapply(function(r, a, b) covf(r, a) && covf(r, b), kp$film_roll, kp$frame, kp$frame_next), ]
+  bnd <- vapply(split(kp, kp$key), function(d) (1 - stats::median(d$p_agl)) / (1 - stats::median(d$p_img)),
+                numeric(1))
   note <- system.file("notes", "terrain-correction.md", package = "fly", mustWork = TRUE)
   prose <- gsub("\\s+", " ", paste(readLines(note), collapse = " "))
-  for (s in c("puts 107 of the 112 frames at `r <= 0`", "A shipped logbook row reaches 107 of them",
+  for (s in c(sprintf("over covered pairs the range is x%.2f to x%.2f", min(bnd), max(bnd)),
+              "puts 107 of the 112 frames at `r <= 0`", "A shipped logbook row reaches 107 of them",
               "`bc77026` 221, 222, 237 and 247 lie past the shipped row's 219",
               "`bc77072` 225 is on no page", "`bc77087` carries 38 of the 107 frames")) {
     expect_true(grepl(s, prose, fixed = TRUE), info = s)

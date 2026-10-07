@@ -4,8 +4,8 @@
 # height (`r <= 0`), where adjacent-frame spacing rejects both nominal scale and the catalogued
 # height read as above ground. Spacing asks whether a reading puts the catalogue's centroid step at
 # the ~60% forward overlap a flight is designed to; it cannot say whether the step or the reading
-# is the thing that is wrong, and on 1970s rolls the centroids are interpolated evenly along each
-# line (fly#82), so the step is the weak half.
+# is the thing that is wrong, and on older rolls the step is often the weak half: fly#82's probe found
+# 64-77% of consecutive steps equal within 0.5% on rolls of 1965, 1975 and 1985.
 #
 # This script measures the overlap the photos actually have. Two thumbnails adjacent by number
 # share ground, and the image shift between them is `(1 - overlap)` of the frame side, whatever

@@ -454,3 +454,23 @@ and the listed ones were added (157, 0.223, 2 of 34, the floor counts, 9 rolls, 
 
 Copy sweep after the fix: each flagged phrase grepped across note, NEWS, CLAUDE.md and the fly#99 draft;
 every remaining hit is scoped to its producer's set. Test: 191 pass.
+
+## Code-check round 4 (`review-round4.md`, `claims_enumerated_round4.md`) — re-enumeration: 146 claims, 16 FAIL
+
+Round 3's 16 fixes all landed in the note and the test; three older copies (fly#99, the fly#95 pointer,
+"not rotated") still carried a round-3 defect, and one round-3 fix wrote a new wrong sentence (the floor's
+"8- and 20-patch counts set the rest": the synthetic shifts all have one sign, 531 of 537 matched real
+pairs the other, and the step-64 grid row is what sets it). Two new defects: `bc7718`'s "359 km from its
+nearest catalogued frame" (the census set; 31-45 of the same row are catalogued 15-16 km from Tahsis),
+and the 3.8 read attributed to fly#60 (it was fly#93's blind transcription, 9ee2114 — so the digit has had
+two blind reads, one each way). Also: "would not be at `r <= 0`" for a variable the package computes from
+the catalogued height; x2.70 includes `bc77026` pairs no shipped row covers (x2.61 over covered pairs);
+"measured those nine"/"no longer contradict" over nine where two are unjudged; 38 unqualified in NEWS and
+CLAUDE.md; 64-77% from 1965/75/85 stated over "1970s rolls" (and the script header still said
+"interpolated evenly"); five test pins that could pass while their sentence was wrong.
+
+**Fix, structural this time:** the note corrected claim by claim; NEWS, CLAUDE.md and fly#99 cut to a
+handful of figure-free claims pointing at the note, so there is one copy of each figure; the five pins
+replaced by assertions of what the sentences claim (window membership, refutes on all nine, the
+synthetic error bound, the sign split, the covered-pair bound, reverse count 0). Script change is a
+comment. Test: 200 pass.
