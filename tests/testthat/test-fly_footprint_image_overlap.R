@@ -278,6 +278,9 @@ test_that("the note's table and the figures listed here are the shipped measurem
             round(max(n70$step))),
     sprintf("The census frames, 46-69, are %d km from Tahsis", round(sk$km_to_place[sk$film_roll == "bc7718"])),
     sprintf("%d of the %d matched real pairs move the other way", sum(rdom > 0), length(rdom)),
+    # A window sits 114 px (MARGIN 50 + 64) inside a 1,250 px side, so a positive shift fits up to
+    # 1,250 - 2 x 114 px.
+    sprintf("admits overlaps down to about %.2f", 1 - (1250 - 2 * 114) / 1250),
     sprintf("\"YALE BLUFF\" is %d km", round(sk$km_to_place[sk$film_roll == "bc80117"])),
     sprintf("are %d to %d km from their places", round(min(sk$km_to_place[mis])),
             round(max(sk$km_to_place[mis])))
@@ -298,6 +301,14 @@ test_that("the note's table and the figures listed here are the shipped measurem
   expect_identical(so$film_roll[which.max(so$p_img)], "bc77026")
   expect_gt(max(so$p_img), win[2])
   expect_identical(sum(so$dir_reverse), 0L)
+  dif <- st5[!is.na(st5$dir) & st5$dir == "differ", ]
+  expect_identical(paste(dif$film_roll, dif$frame), c("bc77072 111", "bc77087 1", "bc77087 2", "bc77087 3"))
+  expect_true(grepl("`bc77087` 1/2, 2/3 and 3/4, and `bc77072` 1981 frame 111", prose, fixed = TRUE))
+  # bc7718's census frames are 46-69.
+  cen <- rbind(extdata("flying_height_terrain_frames.csv"), extdata("flying_height_terrain_nonpositive.csv"))
+  expect_identical(range(cen$frame_number[cen$film_roll == "bc7718" & cen$flying_height == 1524]), c(46L, 69L))
+  # The written-overlap rolls counted are those with >= 3 matched pairs.
+  expect_identical(sum(table(wr$film_roll[wr$status == "matched"])[w$film_roll[w$gated]] >= 3), 9L)
   # Synthetic shifts all have one sign; the real matched pairs nearly all the other.
   syn_dom <- ifelse(syn$axis == "row", syn$dr_true, syn$dc_true)
   expect_true(all(syn_dom < 0))
@@ -332,6 +343,12 @@ test_that("the location verdict's logbook reaches 107 of its 112 frames, and the
   }, logical(1))
   expect_true(all(cat_msl))
   expect_identical(sum(np$film_roll[reached] == "bc77087"), 38L)
+  # On four roll-heights, and with MRDEM at or above the page's height on every one of the 107.
+  expect_identical(sort(unique(paste(np$film_roll, np$flying_height)[reached])),
+                   c("bc77026 2042", "bc77070 1158", "bc77072 1981", "bc77087 1158"))
+  expect_true(all(np$elev[reached] >= np$flying_height[reached]))
+  expect_true(grepl("107 frames on four roll-heights are not over the ground photographed", prose,
+                    fixed = TRUE))
   # The step bound over the pairs a shipped row covers (both frames).
   pp <- extdata("flying_height_image_overlap_pairs.csv")
   kp <- pp[pp$set == "key" & pp$status == "matched" & !pp$line_break &
@@ -373,7 +390,7 @@ test_that("read as 7,800 ft, bc77087's page would put the ground under the catal
                       ceiling(100 * abs(gp / 1158 - 1))),
               sprintf("%s / 1,158 is %.2f", format(round(h), big.mark = ","), h / 1158),
               sprintf("to x%.2f to x%.2f over MRDEM's 10th to 90th percentile", bound(q[1]), bound(q[2])),
-              sprintf("(x%.2f over sea-level ground)", bound(0)))) {
+              sprintf("and to x%.2f over sea-level ground", bound(0)))) {
     expect_true(grepl(tolower(s), tolower(prose), fixed = TRUE), info = s)
   }
 })

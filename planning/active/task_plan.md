@@ -138,13 +138,13 @@ those frames.
 - [x] `inst/notes/terrain-correction.md`: a new fly#97 section, and the fly#95 section's "That is fly#97"
       pointer updated
 - [x] NEWS; CLAUDE.md Architecture entry for the script and the Key Decision
-- [ ] Enumerate every numeric or universal sentence in the note and NEWS against its producer line (#95's
+- [x] Enumerate every numeric or universal sentence in the note and NEWS against its producer line (#95's
       loop-ender)
 - [ ] Edit issue #97's body to the outcome
 
 ## Validation
 - [ ] Tests pass (`devtools::test()`, with `NOT_CRAN=true` on any single-file re-run)
-- [ ] `/code-check` rounds until a round finds nothing inside the previous round's fix
+- [x] `/code-check` rounds until a round finds nothing inside the previous round's fix
 - [ ] PWF checkboxes match landed work
 - [ ] `/planning-archive` on completion
 

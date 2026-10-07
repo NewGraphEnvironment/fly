@@ -4,7 +4,7 @@
   - **The instrument.** It measures the overlap the photos themselves show: the image shift between adjacent thumbnails, which reads no scale, height or centroid. Synthetic, unrelated-pair, crew-written-overlap and known-error controls ran before the nine were measured.
   - **What it found.**
     - On five roll-heights, nominal scale stands as the default, unrefuted rather than confirmed.
-    - By their logbooks against MRDEM, the frames there that sit under the terrain are not over the ground photographed. `bc7718` and `bc80117` were flown at ~85% overlap, where the two readings cannot be told apart.
+    - By their logbooks against MRDEM, the frames under the terrain on four of them that a logbook row reaches are not over the ground photographed. `bc7718` and `bc80117` were flown at ~85% overlap, where the two readings cannot be told apart.
     - The figures and their qualifications are in `inst/notes/terrain-correction.md`, "What the frames under the terrain covered".
   - **An open question.** One page's disputed digit (`bc77087`, 3,800 or 7,800 ft) decides whether a logbook page puts the ground under a catalogued height, the result fly#95 was looking for.
   - **New data.**

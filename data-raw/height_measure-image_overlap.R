@@ -13,8 +13,10 @@
 # spacing's designed-overlap premise with a measurement, and the logbook — read blind, before any
 # image of the nine keys was matched — says whether the crew's height was above sea level.
 #
-# The rule — every gate, tolerance and verdict — was fixed in fly#97's planning findings
-# ("Decision rule"), before any thumbnail was matched. Read it before changing anything here.
+# The rule — every gate, tolerance and verdict — is in fly#97's planning findings ("Decision rule").
+# It was fixed before any thumbnail was matched and amended twice (A1 after a smoke run on control
+# thumbnails, A2 from a plan review) before any of the nine keys was measured; one label (`read_other`)
+# was split after the run. Read it before changing anything here.
 #
 # Matching is fly#82's: `patch_shifts()` and its acceptance gate (>= 8 confirming 128 px patches
 # at step 64 for the seed, then >= 20 at step 32, shift = their median), pulled from
@@ -34,7 +36,7 @@
 #
 #   Stage 0  inputs: censuses, centroid cache, the spacing window
 #   Stage 1  controls: synthetic known shifts, a negative control that sets tau, bc85054 162/163
-#   Stage 2  the nine keys: every pair (n, n+1) on each key
+#   Stage 2  the nine keys: each pair (n, n+1) on a key with at least one frame in the census
 #   Stage 3  the verdicts; write `inst/extdata/flying_height_image_overlap_*.csv`
 #
 #   FLY_IMGOVL_SMOKE=1 runs two synthetic thumbnails and three control keys into a separate

@@ -474,3 +474,43 @@ handful of figure-free claims pointing at the note, so there is one copy of each
 replaced by assertions of what the sentences claim (window membership, refutes on all nine, the
 synthetic error bound, the sign split, the covered-pair bound, reverse count 0). Script change is a
 comment. Test: 200 pass.
+
+## Code-check round 5 (`review-round5.md`, `claims_enumerated_round5.md`) — 172 claims, 14 FAIL
+
+The round-4 structure held for figures: every figure left in the note recomputed, and NEWS, CLAUDE.md and
+fly#99 carry none. What remained was the same mechanism without numbers: figure-free claims naming too
+wide a set. The main one: **the logbook basis covers four roll-heights, not five** — `bc77072` 1829's only
+`r <= 0` frame (225) is on no page. Others: the positive-shift floor is 0.18, not 0.19 (1 - 1022/1250);
+the script header said the rule was fixed before any thumbnail was matched (A1 came after a smoke run)
+and that Stage 2 measures every pair (it measures census pairs); CLAUDE.md said "two blind reads, one
+each way" (the second declined to choose); "no longer contradicted" over seven holds on `bc77087` only on
+3.8; "the bound would fall" (at the median ground it rises, x1.44 against x1.39); "some pages log the
+intervalometer" had no producer (the "speed" column is shutter speed); "evenly spaced along a digitised
+line" states fly#82's "as if" as mechanism; CLAUDE.md's "Its image leg" pointed at the wrong outcome; the
+fly#95 CLAUDE.md decision dropped the "as transcribed" qualifier; fly#99 said "MRDEM" where the caller's
+DEM is used; and five pins that could pass while their sentence was wrong (roll-heights of the 107, the
+MRDEM >= height relation, 46-69, the differing pairs by name, the 9 rolls from the matches).
+
+**Fixed mostly by deletion or narrowing**, so the fix introduced little new text. Test: 208 pass.
+
+## Terminal enumeration (author, after round 5)
+
+Round 5's table holds 158 PASS claims whose text did not change. The 14 FAIL rows are fixed above. The
+new or changed sentences, each checked against its producer:
+
+| new/changed text | producer | check |
+|---|---|---|
+| floor "down to about 0.18" | 1 - (1250 - 2 x 114)/1250 = 0.182 | pinned |
+| bound "would move to x1.15 to x1.59 (against x1.39 on the 3.8 read), and to x0.68 over sea-level ground; under tau at the low end" | pairs + census elev at 2,377 m | pinned (x1.15, x1.59, x0.68; x1.39 pinned elsewhere); 1.15 < exp(tau) 1.246 |
+| "no longer contradicted (on `bc77087`, only on its 3.8 read)" | keys CSV size; round-5 analysis at 7.8 (size unsettled) | consistent |
+| "107 frames on four roll-heights ... 38 ... the fifth, `bc77072` 1829, has its one such frame on no page" | logbook join over nonpositive census | pinned (four keys, 107, 38, frame 225) |
+| "The transcription records none" (centroid-free air base) | column names of both transcriptions | no interval/speed field |
+| "older roll" | the nine keys are 1975-1982; fly#82's probe 1965/75/85 | scope narrowed, no figure |
+| script header: rule fixed before any thumbnail matched, A1 after a smoke run, A2 from a plan review, `read_other` after the run | findings.md | matches the record |
+| script header: Stage 2 census pairs | `kp` filter on `cen_rf` | matches the code |
+| CLAUDE.md: four of them / steps often equal within 0.5% / keys marked `misplaced`, all `step_overstated` / fly#93 read 3.8, fly#97 declined leaning 7.8 / five rounds each found wider-set claims / fly#95 "as transcribed" | keys CSV (5 misplaced x step_overstated); git 9ee2114; rounds 1-5 records | each checked |
+| NEWS: four of them | logbook join | pinned via the note |
+| fly#99: five marked, four with logbook evidence, bc77026's four and bc77072 1829's one without; "DEM ground" | keys CSV, logbook join, `R/fly_footprint.R` | checked |
+
+Nothing new sits above its producer. **The loop ends on this enumeration.** Spend: five review rounds
+(rounds 3-5 enumerations), plus the plan review and three blind transcribers: nine subagents.

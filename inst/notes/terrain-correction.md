@@ -914,7 +914,7 @@ frame side, whatever the scale, height or centroids say, so no catalogue field e
 - **The floor depends on which way the second frame moves.** Windows sit 114 px inside both frames on a
   64 px grid, so where the first window fits depends on the shift's sign. The synthetic shifts all
   move one way: they match 10 of 10 at 0.25 and 0 of 10 at 0.20, where no window fits. 531 of the 537
-  matched real pairs move the other way, for which the grid admits overlaps down to about 0.19.
+  matched real pairs move the other way, for which the grid admits overlaps down to about 0.18.
 - **Comparisons are in step-error units.** Images and a reading R are compared as
   `D_R = log((1 - p_img) / (1 - p_R))`, the log of how far the catalogue step is from the air base the
   images imply under R.
@@ -1040,8 +1040,9 @@ that on 2 of the 34 (x1.34 and x1.41). Of 192 ordinary pairs, 31 of the 190 comp
   fly#95's "What would change the answer" names.
 - **It still would not settle the datum alone.** 2,377 / 1,158 is 2.05, near the x2 slip fly#95 warns
   of.
-- **And the step bound would fall** to x1.15 to x1.59 over MRDEM's 10th to 90th percentile under its
-  frames (x0.68 over sea-level ground), under tau at the low end.
+- **And the step bound would move** to x1.15 to x1.59 over MRDEM's 10th to 90th percentile under its
+  frames (against x1.39 on the 3.8 read), and to x0.68 over sea-level ground. It falls under tau at the
+  low end.
 - **Only the W1 label is the same either way,** because it is computed at the catalogue's height.
 - `bc77070`, flown the same week on the same project at 3,800 ft, was read clear.
 - Which reading is right is a question for the transcription, not the rule, and is left open.
@@ -1049,13 +1050,15 @@ that on 2 of the 34 (x1.34 and x1.41). Of 192 ordinary pairs, 31 of the 190 comp
 ### What it leaves
 
 - `fly_footprint()` draws these frames at nominal scale. On the seven roll-heights the photos could
-  measure, that is no longer contradicted. It draws them at the catalogue's centroids. By the logbooks, 107 frames on five roll-heights are not over the
-  ground photographed (38 of them on `bc77087`'s contested read). Whether to tell the caller is fly#99.
+  measure, that is no longer contradicted (on `bc77087`, only on its 3.8 read). It draws them at the
+  catalogue's centroids.
+- **By the logbooks, 107 frames on four roll-heights are not over the ground photographed.** 38 of them
+  rest on `bc77087`'s contested read. The fifth `misplaced` roll-height, `bc77072` 1829, has its one
+  such frame on no page. Whether to tell the caller is fly#99.
 - **`bc77087`'s page 1 digit decides whether a page puts the ground under a catalogued height.** A third
   read, or the original, would settle it.
-- **An air base that reads no centroid would settle size outright.** Interval times ground speed is
-  one: some pages log the intervalometer and the speed. Not transcribed here.
-- **Do not use spacing's window as evidence about scale on a 1970s roll without the photos.** On all
+- **An air base that reads no centroid would settle size outright.** The transcription records none.
+- **Do not use spacing's window as evidence about scale on an older roll without the photos.** On all
   seven keys here that the photos could measure, the step or the flown overlap was off what the window
   assumes, so its rejection said nothing about the scale.
 
