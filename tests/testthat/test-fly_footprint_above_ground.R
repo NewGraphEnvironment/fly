@@ -44,6 +44,12 @@ agl_frames <- function() {
   pool[key(pool) %in% union(key(np), key(a2a)), ]
 }
 
+agl_a2a <- function() {
+  excl <- extdata("flying_height_rolls_excluded.csv")
+  excl[excl$tail == "terrain" &
+         startsWith(excl$reason, "spacing fits nominal scale, which no logbook"), ]
+}
+
 test_that("the window is the generator's", {
   expect_equal(round(agl_window(), 3), c(0.557, 0.780))
 })
@@ -62,6 +68,14 @@ test_that("the population is every key an r <= 0 frame reaches, and every A2(a) 
   expect_identical(length(unique(ag$film_roll[ag$frames_nonpositive > 0])), 15L)
   n <- table(key(fr))
   expect_identical(as.integer(n[key(ag)]), ag$frames)
+  # The population is every census frame on the keys, not just the two groups: 2,535 on the
+  # A2(a) keys, the 219 `r <= 0` frames elsewhere, and 202 above the ground on eight of the other
+  # twelve keys, which neither group holds.
+  a2a <- key(ag) %in% key(agl_a2a())
+  expect_identical(sum(ag$frames[a2a]), 2535L)
+  expect_identical(sum(ag$frames_nonpositive[!a2a]), 219L)
+  above <- ag$frames[!a2a] - ag$frames_nonpositive[!a2a]
+  expect_identical(c(sum(above), sum(above > 0)), c(202L, 8L))
   n_np <- table(factor(key(np), levels = key(ag)))
   expect_identical(as.integer(n_np[key(ag)]), ag$frames_nonpositive)
   expect_true(all(ag$frames_outside >= 0))
@@ -208,7 +222,8 @@ test_that("the note's above-ground tables are the shipped tables, row by row (fl
               "494 of their 1,562 frames", "a median 0.028 outside the window",
               "23 of them by under 0.02", "On the 52 refuted roll-heights",
               "the 32 roll-heights with transcribed rows (576 frames read)",
-              "188 roll-heights, 2,956 frames",
+              "188 roll-heights, judged on every frame either census file holds on them, 2,956",
+              "the two groups (2,754 frames) plus 202 above the ground on eight keys",
               "it writes the catalogue's height on 558 of 576")) {
     expect_true(grepl(s, prose, fixed = TRUE), info = s)
   }

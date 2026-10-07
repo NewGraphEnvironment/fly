@@ -22,3 +22,7 @@
   refutation median quoted without its "where nominal fits" scope (NEWS, CLAUDE.md; 0.032 over all 61), "550"
   that should be 558 (the 8 `ambiguous` carry the catalogue's figure), and the note's "wherever a page covers
   these frames" contradicted by its own table's 18 `other`. The corrected note sentence is now pinned
+- Code-check round 2 (`review-round2.md`): code clean; one more prose instance, same mechanism, not inside a fix.
+  "2,956 frames" was every census frame on the 188 keys, described as the two groups' frames (2,754); the other
+  202 are `r > 0` frames on 8 keys neither group holds. Fixed in NOTE/NEWS/CLAUDE.md/findings, composition
+  pinned (2,535 / 219 / 202 on 8 keys)

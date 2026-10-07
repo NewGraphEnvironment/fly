@@ -770,8 +770,10 @@ fly#93 left two groups whose catalogued height looks like a height **above groun
 above sea level. One is the 374 frames under terrain at or above the aircraft (`r <= 0`), which
 `fly_footprint()` draws at nominal with a warning. The other is the 176 roll-heights where A2
 found that spacing fits nominal scale. They share roll-heights: `bcc285` 1707 m carries 106
-frames of the first and 39 of the second. So the unit is the roll-height, with both groups'
-frames together: 188 roll-heights, 2,956 frames.
+frames of the first and 39 of the second. So the unit is the roll-height: 188 roll-heights,
+judged on every frame either census file holds on them, 2,956. That is the two groups (2,754
+frames) plus 202 above the ground on eight keys an `r <= 0` frame reaches and A2 did not find
+nominal fits.
 
 **Nothing changed in the package.** No roll-height met the rule, so `fly_footprint()` and the
 roll tables are as they were.

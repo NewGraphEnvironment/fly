@@ -147,7 +147,9 @@ L is still reported, ungated, on every population roll-height that already has t
 Window 0.557-0.780 (the generator's). `flying_height_rolls.csv` and `_excluded.csv` byte-identical.
 
 **Population: 188 roll-heights, 2,956 frames** (374 at `r <= 0`): the 176 A2(a) roll-heights plus 12 more that
-only the `r <= 0` frames reach.
+only the `r <= 0` frames reach. The frames are every census frame on those keys. The two groups are 2,754 of them: 2,535 on A2(a) keys
+(2,380 above the ground and 155 `r <= 0`) and the 219 `r <= 0` frames on the other 12 keys. The other 202 are
+`r > 0` frames on 8 of those 12 keys, which neither group holds (corrected in code-check round 2).
 
 | spacing | roll-heights | frames | of them `r <= 0` |
 |---|---|---|---|
