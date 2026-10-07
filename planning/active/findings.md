@@ -32,7 +32,7 @@ Related: fly#97, fly#95, fly#99.
   wrote "?.8 (7.8 or 3.8) ... reads most like 7.8 but could be 3.8; not interpreted".
 - The catalogue's 1,158 m is 3,800 ft. `bc77070_4`, the same project ("Swan Lake Grinrod") flown the same
   week, reads 3.8 clear. That is context, not evidence about this glyph (issue #101).
-- **The province serves no larger copy.** `FLIGHT_LOG_URL` is
+- **No larger copy was found beside the published one.** `FLIGHT_LOG_URL` is
   `https://openmaps.gov.bc.ca/thumbs/logbooks/1977/roll_pages/bc77087_1.jpg`, 1000 x 1205 px, 229,143 B,
   byte-for-byte the cached file. The directory answers 403 to listing; `.../1977/bc77087_1.jpg`,
   `.../logbooks/1977/roll_pages/bc77087_1.jpg` (no `thumbs`), a `.tif` sibling and a `roll_pages_hr/`
@@ -244,7 +244,8 @@ hand-back in its transcript and written by script, not retyped. `rows.csv` is un
   - fly#97 declined, leaning 7 ("?.8 (7.8 or 3.8)"; the issue records "a flat top and a single descending
     stroke").
   - fly#101 declined, leaning 3 (3 or 5; "a flat top and a curve below").
-- **The one feature all three name is the flat top.** They part on what is below it. The orchestrator
+- **The one feature all three name is the flat top.** fly#93's names nothing below it; fly#97's saw a
+  single descending stroke, fly#101's a curve. The orchestrator
   has not seen the glyph; this is read off their reports.
 - The rule maps a commitment to 5 to `unsettled`. Nothing was computed here for a 5.8 reading.
 - **Same-model limitation:** all three readers are one model family. A fourth subagent read would be a
@@ -311,5 +312,66 @@ of 3 or 7. `committed` is assigned in exactly two places.
   - at least one cited same-hand `yes` reference (case 14);
   - more same-hand `yes` references for the decision than for any other candidate (case 7).
 
-Every condition in A1 items 5-7 is in that list, and the list is all the code does. The real reader is still
+Every condition in A1 items 5-7 is in that list. (Round 3 showed "the list is all the code does" was wrong: target selection by label set and by CSV order on ties, and three conditions tested on normalised proxies, were missing. See round 3.) The real reader is still
 `unsettled (Stage B undecided)`, and cases 1-13 are unchanged.
+
+## Code-check round 3 (`review-round3.md`): the mechanism, five instances, and an enumeration over cells
+
+**Mechanism (the reviewer's):** the scorer tested A1's predicates on a *normalised* form of each cell:
+- alternatives with non-digits stripped;
+- finals sorted with NA last;
+- "figure-bearing" as membership in a label list;
+- support counted in rows, not references.
+
+Each normalisation maps a malformed or absent value onto one the next test accepts, so it failed toward
+"settled". This is fly#53's "an absent measurement never shares an encoding with a real one" again.
+
+Instances, each reproduced on a synthetic case and each now `unsettled (scoring error)`:
+- a line 1 labelled `unclear` (case 18);
+- a tie at the lowest first final (case 19);
+- alternatives `3/5 / not 7` (case 20);
+- a duplicated ref_id (case 21).
+
+In `audit.py`, an undecodable transcript line was skipped. It now fails the audit: case 22, a truncated
+`Bash` call appended to the real transcript -> FAIL.
+
+**The fix removes the normalisation instead of patching each instance.** Every cell the verdict acts on must
+match its exact grammar from the brief (case and surrounding space aside), or nothing is scored.
+
+**Enumeration (terminal).** These are the cells `score()` reads to decide anything, beyond the gate, with
+the grammar each must match:
+
+| file | cell | grammar, else scoring error |
+|---|---|---|
+| rows.csv, target page | `leading_digit_confidence` (every row) | clear / uncertain / illegible / ditto / blank |
+| | `frame_from` (every figure-bearing row) | `^[0-9]+$`, lowest held by one row |
+| | target `leading_digit_alternatives` | blank or `^[0-9](/[0-9])*$` |
+| | target `height_digits` | `^[0-9?]+\.[0-9?]+$` |
+| glyphs.csv (every row) | `ref_id` | `^r[0-9]+$`, unique |
+| | `candidate` | `^[0-9]$` |
+| | `same_hand` | same / different / unsure |
+| | `resembles_disputed` | starts yes / no / partly |
+| verdict.csv | rows for the target's file and frames | exactly 1 |
+| | `decision` | `^([0-9]\|undecided)$` |
+| | `ref_ids` | blank or `^r[0-9]+(;r[0-9]+)*$` |
+
+Cells not in this table are printed and never tested:
+- `height_as_written`, `frames_final` (used only as the key matched against verdict and glyphs, exactly),
+  `lean`, `reasoning`, `ref_file`, `ref_where`, `ref_text`.
+
+The gate's normalisations (integer finals, numeric heights with commas, a page's single focal filling a
+blank) can only add coverage at a height that must still equal the existing row's. A malformed cell there
+uncovers frames, which fails toward a failed gate, not toward "settled".
+
+Re-run after the fix:
+- all 21 synthetic cases map to the verdict the rule names;
+- the real reader is `unsettled (Stage B undecided)`, with its own cells passing every grammar;
+- the real transcript's audit is PASS.
+
+**Prose (round 3):**
+- "they part on what is below it" was stated over three readers, but fly#93's names nothing below the top.
+  Now: fly#97's saw "a single descending stroke" (its row: "flat top and single descending stroke with a
+  hooked foot, no middle cusp"), and fly#101's saw a curve.
+- `CLAUDE.md`'s "fly#101's rule forbids it" is dropped: A1.9 governs only this read.
+- "The province serves no larger copy" is now "no larger copy was found beside the published one".
+- The draft says "in three separate readings", not "by three readers", which read as three people.

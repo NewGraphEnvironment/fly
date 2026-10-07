@@ -458,7 +458,7 @@ at ~85% overlap.
   Read as 7.8, it would be the
   first page to put the ground under a catalogued height, the result fly#95 sought, 2.6% off x2.
   The transcription keeps 3.8, and the question is open. Do not run a fourth subagent read: it is a
-  fourth draw from the same instrument, and fly#101's rule forbids it. The next instrument is the
+  fourth draw from the same instrument. The next instrument is the
   province's original page; a draft request is in fly#101's archive, unsent. Every figure is in
   `inst/notes/terrain-correction.md`, "What the frames under the terrain covered"; five code-check rounds
   each found claims stated over a wider set than their producer computed, so read the figures there,

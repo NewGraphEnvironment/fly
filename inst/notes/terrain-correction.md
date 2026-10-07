@@ -1037,7 +1037,8 @@ that on 2 of the 34 (x1.34 and x1.41). Of 192 ordinary pairs, 31 of the 190 comp
   roll's five pages (the same-week roll that names the project was withheld) and a protocol for
   comparing the glyph with the same hand's digits elsewhere on them. It would not choose between 3 and 5, and leaned 3. It
   did not list 7. Under that rule no lean counts, so the transcription keeps 3.8, as first transcribed.
-  The one feature all three readers name is a flat top; they part on what is below it.
+  The one feature all three readers name is a flat top. fly#97's reader saw a single descending stroke
+  below it, and fly#101's a curve.
 - **At 7,800 ft (2,377 m), the aircraft would be above the ground MRDEM puts under all 57 frames.** The
   package, which reads the catalogued height, would still find its 38 at `r <= 0`.
 - **The page would put the ground under the catalogued height.** Over its 57 frames, the median of

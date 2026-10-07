@@ -73,29 +73,37 @@ score <- function(dir) {
        "rows.csv")
   gate_pass <- gate(rd)
 
-  # Target: the figure-bearing row on bc77087_1 with the lowest first final (its line 1).
-  conf <- low(rd$leading_digit_confidence)
-  p1 <- rd[rd$file == target_file & conf %in% c("clear", "uncertain", "illegible"), ]
-  if (!nrow(p1)) stop("no figure-bearing height on ", target_file)
-  # Line 1 is identified by its first final, so every figure-bearing row on the page must have one that
-  # parses; otherwise which row is line 1 is not known, and nothing is scored (round 2).
-  if (any(is.na(int(p1$frame_from)))) stop("a figure-bearing row on ", target_file, " has no integer first final")
-  p1 <- p1[order(int(p1$frame_from)), ]
+  # Every cell the verdict acts on must match its exact grammar from the brief, or nothing is scored
+  # (code-check round 3). Normalising a malformed cell into a form the next test accepts is how rounds 1-3
+  # each found a path to "settled" the rule calls no commitment; here a malformed cell stops instead.
+  must <- function(ok, msg) if (!isTRUE(all(ok))) stop(msg, call. = FALSE)
+  pg <- rd[rd$file == target_file, ]
+  conf <- low(pg$leading_digit_confidence)
+  must(conf %in% c("clear", "uncertain", "illegible", "ditto", ""),
+       paste("unknown leading_digit_confidence on", target_file))
+  p1 <- pg[conf %in% c("clear", "uncertain", "illegible"), ]
+  must(nrow(p1) > 0, paste("no figure-bearing height on", target_file))
+  # The target is line 1, identified by its first final: every figure-bearing row needs one, and the lowest
+  # must be held by one row only.
+  must(grepl("^[0-9]+$", p1$frame_from), paste("a figure-bearing row on", target_file, "has no integer first final"))
+  ff <- as.integer(p1$frame_from)
+  must(sum(ff == min(ff)) == 1, paste("two figure-bearing rows share the lowest first final on", target_file))
   cat(sprintf("figure-bearing rows on %s: %d (%s)\n", target_file, nrow(p1),
               paste(p1$frames_final, p1$height_digits, sep = ": ", collapse = "; ")))
-  t <- p1[1, ]
+  t <- p1[which.min(ff), ]
   tconf <- low(t$leading_digit_confidence)
-  alts <- strsplit(gsub("[^0-9/]", "", t$leading_digit_alternatives), "/")[[1]]
-  alts <- alts[nzchar(alts)]
+  must(grepl("^([0-9](/[0-9])*)?$", t$leading_digit_alternatives),
+       "the target's leading_digit_alternatives is not blank or digits separated by /")
+  alts <- strsplit(t$leading_digit_alternatives, "/", fixed = TRUE)[[1]]
+  must(grepl("^[0-9?]+\\.[0-9?]+$", t$height_digits), "the target's height_digits is not a figure")
   cat(sprintf("target: frames %s, written '%s', digits '%s', leading digit %s, alternatives '%s'\n",
               t$frames_final, t$height_as_written, t$height_digits, tconf, t$leading_digit_alternatives))
-  digits <- gsub("\\s", "", t$height_digits)
-  lead <- substr(digits, 1, 1)
-  rest <- substring(digits, 2)
+  lead <- substr(t$height_digits, 1, 1)
+  rest <- substring(t$height_digits, 2)
 
   committed <- NA_character_; basis <- ""
   if (tconf == "clear") {
-    if (nzchar(trimws(t$leading_digit_alternatives))) basis <- "marked clear but lists alternatives: no commitment"
+    if (length(alts)) basis <- "marked clear but lists alternatives: no commitment"
     else if (grepl("^[0-9]$", lead)) { committed <- lead; basis <- "read clear in Stage A" }
     else basis <- "marked clear but no digit written: no commitment"
   } else if (file.exists(file.path(dir, "verdict.csv"))) {
@@ -104,23 +112,29 @@ score <- function(dir) {
     g <- rd_csv(file.path(dir, "glyphs.csv"))
     need(g, c("ref_id", "disputed_file", "disputed_frames", "candidate", "same_hand", "resembles_disputed"),
          "glyphs.csv")
+    must(grepl("^r[0-9]+$", g$ref_id) & !duplicated(g$ref_id), "glyphs.csv ref_id is not unique r<n>")
+    must(grepl("^[0-9]$", g$candidate), "a glyphs.csv candidate is not one digit")
+    must(low(g$same_hand) %in% c("same", "different", "unsure"), "a glyphs.csv same_hand is not same/different/unsure")
+    must(grepl("^(yes|no|partly)\\b", low(g$resembles_disputed)), "a glyphs.csv resembles_disputed does not start yes/no/partly")
     v <- v[v$disputed_file == target_file & v$disputed_frames == t$frames_final, ]
-    if (nrow(v) != 1) stop(nrow(v), " verdict rows for the target")
+    must(nrow(v) == 1, paste(nrow(v), "verdict rows for the target"))
     dec <- low(v$decision)
+    must(grepl("^([0-9]|undecided)$", dec), "verdict.csv decision is not a digit or undecided")
+    must(grepl("^(r[0-9]+(;r[0-9]+)*)?$", gsub("\\s", "", v$ref_ids)), "verdict.csv ref_ids is not r<n> separated by ;")
+    refs <- strsplit(gsub("\\s", "", v$ref_ids), ";", fixed = TRUE)[[1]]
     g <- g[g$disputed_file == target_file & g$disputed_frames == t$frames_final, ]
     # Same-hand references that resemble the glyph, for digit d; restricted to the ids in `only` when given
     # (A1.6: the decision needs at least one such reference among those it cites, and more of them overall
-    # than any other candidate has).
-    sup <- function(d, only = NULL) sum(trimws(g$candidate) == d & low(g$same_hand) == "same" &
+    # than any other candidate has). ref_id is unique, so rows are references.
+    sup <- function(d, only = NULL) sum(g$candidate == d & low(g$same_hand) == "same" &
                                           grepl("^yes", low(g$resembles_disputed)) &
                                           (is.null(only) | g$ref_id %in% only))
-    cands <- unique(c(alts, trimws(g$candidate)))
+    cands <- unique(c(alts, g$candidate))
     tally <- vapply(cands, sup, integer(1))
-    refs <- trimws(strsplit(v$ref_ids, "[;, ]+")[[1]]); refs <- refs[nzchar(refs)]
     cat(sprintf("Stage B decision '%s' (lean '%s'); same-hand 'yes' references per candidate: %s; cited refs %s\n",
                 v$decision, v$lean, paste(names(tally), tally, sep = "=", collapse = " "),
                 paste(refs, collapse = ",")))
-    if (grepl("^[0-9]$", dec)) {
+    if (dec != "undecided") {
       others <- tally[names(tally) != dec]
       if (!dec %in% alts) basis <- "decided a digit Stage A did not list as an alternative: no commitment"
       else if (!length(refs) || !all(refs %in% g$ref_id)) basis <- "cited references missing from glyphs.csv: no commitment"

@@ -8,12 +8,16 @@ reader dir and every image in that dir was read. Prints counts only, never file 
 import json, os, sys
 
 path, rdir = sys.argv[1], os.path.realpath(sys.argv[2])
-calls = []
+calls, undecodable = [], 0
 with open(path) as fh:
     for line in fh:
+        if not line.strip():
+            continue
         try:
             rec = json.loads(line)
         except json.JSONDecodeError:
+            # A line that cannot be read could hold a tool call; it fails the audit (code-check round 3).
+            undecodable += 1
             continue
         msg = rec.get("message") or {}
         if msg.get("role") != "assistant" or not isinstance(msg.get("content"), list):
@@ -40,4 +44,6 @@ for b in bad:
 missing = sorted(images - read)
 if missing:
     print("NOT READ:", ", ".join(missing))
-print("AUDIT:", "PASS" if not bad and not missing else "FAIL")
+if undecodable:
+    print("UNDECODABLE TRANSCRIPT LINES:", undecodable)
+print("AUDIT:", "PASS" if not bad and not missing and not undecodable else "FAIL")
