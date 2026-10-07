@@ -51,7 +51,7 @@ The first version said 35 cannot fit; three moved to the logbook after round 1.
 - No tabled row or earlier verdict moved. Two earlier excluded rows were reworded from a false "no page".
 
 **Logbook read.**
-- 182 pages on 60 rolls: 1,442 literal lines, consolidated to 421 rows.
+- 182 pages on 60 rolls: 1,434 literal lines, consolidated to 421 rows.
 - Six control pages agree on height and lens. One covers a narrower range under strict consolidation.
 
 ## Evidence
