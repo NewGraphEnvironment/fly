@@ -2,6 +2,8 @@
 
 ## fly (development version)
 
+### 0.23.0 (2026-10-06)
+
 - **BW and colour frames out of the height band only through terrain are
   now settled per roll-height**
   ([\#93](https://github.com/NewGraphEnvironment/fly/issues/93)).
