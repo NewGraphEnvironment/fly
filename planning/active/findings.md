@@ -153,3 +153,23 @@ decision on shape before `fly_footprint()` is touched.
 
 1. This rule committed. 2. Logbook pages fetched and transcribed blind (catalogue values withheld,
 control page each); generator re-run. 3. Controls (synthetic, negative, positive). 4. The nine keys.
+
+### Amendment A1 (2026-10-07) — after the smoke run, before the real control draw or any key pair
+
+The smoke run (`FLY_IMGOVL_SMOKE=1`, 2 synthetic thumbnails, 3 control keys, nothing of the nine) matched
+every synthetic case at overlap 0.35-0.90 to within 1e-5, and none at 0.20. That is the reused gate's
+geometry, not a defect: `patch_shifts()` places 128 px windows at least `MARGIN + 64 = 114` px from every
+edge of *both* frames, so a pair must share roughly 230 px or more of a 1,250 px side before one window
+fits — overlap about 0.25 or more. The rule demanded a capability fly#82's gate cannot have. Amended:
+
+- **Synthetic gate:** every case with `p_true >= 0.35` matched, within 0.02. Cases at 0.20, 0.25 and
+  0.30 (0.25 and 0.30 added) are measured and reported to state the floor; they gate nothing.
+- **W1 verdict 2** is renamed `no_overlap` (was `not_adjacent`), same condition (under half of all the
+  key's pairs matched). It means the frames do not share the overlap the matcher needs: either they are
+  not adjacent along one line, *or* they were flown at under ~0.3 overlap. The two are not separated,
+  and the note says so. The size outcome carries the same name.
+- Nothing else changes: tau, the negative and positive controls, the order, and every other verdict.
+
+Smoke figures (2 control keys, not the real draw): median d -0.020, tau 0.064; `bc85054` 162/163
+p_img 0.603 against p_nominal 0.314. Reported here because they were seen; the real draw is
+independent of them (same seed, 40 keys).
