@@ -190,11 +190,12 @@ test_that("the note's above-ground tables are the shipped tables, row by row (fl
   expect_identical(as.numeric(vapply(lb, `[`, "", 2)),
                    c(sum(ag$frames_catalogue), sum(ag$frames_ambiguous), sum(ag$frames_other),
                      sum(ag$frames_ground_plus) + sum(ag$frames_ground_header)) + 0)
-  # "the 32 roll-heights with a frame the logbook reads", and the 576 frames it reads.
-  expect_identical(sum(ag$frames_logbook > 0), 32L)
-  expect_identical(sum(ag$frames_logbook), 576L)
+  # "the 38 roll-heights with a frame the logbook reads", and the 689 frames it reads (fly#97's
+  # transcription of five more rolls moved these from fly#95's 32 and 576; no verdict moved).
+  expect_identical(sum(ag$frames_logbook > 0), 38L)
+  expect_identical(sum(ag$frames_logbook), 689L)
   # `ambiguous` frames carry the catalogue's figure too (ground near sea level).
-  expect_identical(sum(ag$frames_catalogue) + sum(ag$frames_ambiguous), 558L)
+  expect_identical(sum(ag$frames_catalogue) + sum(ag$frames_ambiguous), 669L)
 
   win <- agl_window()
   fits <- function(p) is.finite(p) & p >= win[1] & p <= win[2]
@@ -223,12 +224,12 @@ test_that("the note's above-ground tables are the shipped tables, row by row (fl
   for (s in c("a median 0.120, 0.352 at the 90th percentile and at most 0.494",
               "494 of their 1,562 frames", "a median 0.028 outside the window",
               "23 of them by under 0.02", "On the 52 refuted roll-heights",
-              "Over the 32 roll-heights with a frame the logbook reads",
-              "Pages are transcribed for 26 of the population's 154 rolls",
+              "Over the 38 roll-heights with a frame the logbook reads",
+              "Pages are transcribed for 31 of the population's 154 rolls",
               "(2.00 to 2.58, median 2.16), and 51 of them are within 2% of x2",
               "188 roll-heights, judged on every frame either census file holds on them, 2,956",
               "the two groups (2,754 frames) plus 202 above the ground on eight keys",
-              "it writes the catalogue's height on 558 of the 576 frames it reads")) {
+              "it writes the catalogue's height on 669 of the 689 frames it reads")) {
     expect_true(grepl(s, prose, fixed = TRUE), info = s)
   }
 })
@@ -241,7 +242,7 @@ test_that("the note's logbook scope is the transcription's, and its x2 figures a
   ag <- extdata("flying_height_above_ground.csv")
   rolls <- unique(ag$film_roll)
   expect_identical(length(rolls), 154L)
-  expect_identical(sum(rolls %in% lb$film_roll), 26L)
+  expect_identical(sum(rolls %in% lb$film_roll), 31L)
   # Every roll with a read frame is a transcribed one.
   expect_true(all(ag$film_roll[ag$frames_logbook > 0] %in% lb$film_roll))
   # No transcribed header names the ground.

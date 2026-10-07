@@ -10,3 +10,7 @@
   One change from the plan, recorded there: fly#82's `global_shift()` wraps shifts over ~575 px and
   gates candidates on centroid spacing, so seeds come from a padded masked NCC; matching and the
   acceptance gate stay fly#82's (`patch_shifts()` via `fns_from()`). Added a synthetic known-shift control.
+- Plan review returned (review-plan.md) -> Amendment A2, committed before the control output was read.
+- Phase 3: 35 pages fetched; three blind transcribers; controls agree (bc77087_1 height contested: 3.8 vs 7.8);
+  37 rows appended for five rolls; strips CSV (139); generator byte-identical before and after on the roll
+  tables; fly#95's pinned logbook figures updated (test, note, CLAUDE.md).

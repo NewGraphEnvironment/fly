@@ -242,3 +242,42 @@ re-derivation where it is a claim.
 Not taken up, and why: interval x ground speed as a centroid-free air base (scope: a second
 transcription pass; recorded as a lead in the note); a seed-selection rule other than fly#82's (the
 false-match gate tests what it would protect against).
+
+## Blind logbook read (Phase 3), 2026-10-07
+
+Three general-purpose transcribers (told not to spawn), each given only page images and
+`transcriber_brief.md` (fly#93's brief plus a per-strip `strips.csv`: strip, finals, heading, place,
+overlap remark). No catalogue value reached them. Batch A: `bc80117` (7 pages), `bc5715` (5) + control
+`bc81027_4`. Batch B: `bc77070` (4), `bc7718` (3, shared `bc7717_7718` pages), `bcc325` (5) + control
+`bc78051_1`. Batch C: the 11 already-transcribed pages of `bc77026`, `bc77072`, `bc77087`, re-read for
+strips — every one a height control. Raw outputs: `transcription/batch*_{rows,strips}.csv`.
+
+**Controls, consolidated with fly#93's `consolidate.R`:** `bc81027_4` 138-164 6,500 ft 153 and
+`bc78051_1` 1-131 22,500 ft 305, both exact. Batch C agrees with every existing row except:
+- `bc77026_3`: blind 140-258 at 6,700 ft where the existing row stops at 219 (the earlier transcriber
+  left the END final 258/259 blank).
+- `bc77087_3`: 90-103 where the existing row reads 96-103 (its note already says the 96 "may be a 0
+  overwritten as 6").
+- **`bc77087_1` — the page that carries the `bc77087` 1158 key — the blind reader would not interpret
+  the height**: "?.8 (7.8 or 3.8) ... reads most like 7.8 but could be 3.8; not interpreted". The
+  existing row reads 3.8 with "first digit drawn with a flat top, read as 3 not 7". The catalogue's
+  1,158 m is 3,800 ft. Under A2 the control re-read is never appended, so W2 for `bc77087` stays on the
+  existing row (`msl_catalogue`). Recorded here because the location verdict for that key rests on it:
+  at 7,800 ft (2,377 m) the frames would sit at r ~ 1.45 over the catalogue's ground, in band.
+
+**New rows.** 37 consolidated rows on 24 pages appended (`control = FALSE`) for the five rolls. Every
+page writes TRUE HEIGHT (M'/M.S.L.). On the keys: `bc5715` 82-84 2,400 ft (= 732 m), `bc77070` 209-272
+3,800 ft (= 1,158), `bc7718` 31-69 5,000 ft (= 1,524), `bc80117` 32-50 4,500 ft (= 1,372), `bcc325`
+66-72 1,500 ft (457 m; the catalogue's 396 m is 1,300 ft, which the page writes for 61-65).
+139 strips (all eight rolls, controls excluded) to `data-raw/flying_height_logbook_strips.csv`.
+
+**`bc7718` 46-69 is strip 4, heading 180, place "TAHSIS"** — a west-coast Vancouver Island inlet at sea
+level. 5,000 ft is exactly nominal height above ground at 1:5000 on 305 mm, so the implied ground is
+0 m; MRDEM under the catalogue's frames reads 1,677-1,908 m.
+
+**Generator.** Re-run before the append: every shipped CSV byte-identical (79 s). After: `flying_height_rolls.csv`
+and `_excluded.csv` byte-identical; `flying_height_above_ground.csv` moved only in the logbook columns of
+the six keys on the five rolls (no `spacing`, `tabled` or `reason` moved). fly#95's pinned logbook
+figures moved and were updated in its test, note and CLAUDE.md: roll-heights read 32 -> 38, frames read
+576 -> 689, catalogue's figure 558 -> 669 (550 -> 661 + 8 ambiguous), neither 18 -> 20, rolls
+transcribed 26 -> 31. NEWS.md's v0.23.x entry is release history and is not edited.

@@ -107,13 +107,13 @@ those frames.
 - [ ] PSOCK, not fork, for any parallel thumbnail work. Worker code avoids `mean()` on a SpatRaster.
 
 ## Phase 3: Logbooks, read blind before any image of the nine
-- [ ] Fetch the pages of the 5 untranscribed rolls into `data-raw/.cache/logbooks/`. Stop if any linked
+- [x] Fetch the pages of the 5 untranscribed rolls into `data-raw/.cache/logbooks/`. Stop if any linked
       page is uncached (#93's guard).
-- [ ] Blind transcription by subagents, with the catalogue values withheld and a control page each:
+- [x] Blind transcription by subagents, with the catalogue values withheld and a control page each:
       - heights go to `data-raw/flying_height_logbooks.csv` in its existing schema
       - per-strip direction, place/Op name and overlap remarks for all 8 rolls go to a new input
         `data-raw/flying_height_logbook_strips.csv`, never regenerated
-- [ ] Re-run `height_calibrate-lower_tail_rolls.R`. `flying_height_rolls.csv` and `_excluded.csv` must come
+- [x] Re-run `height_calibrate-lower_tail_rolls.R`. `flying_height_rolls.csv` and `_excluded.csv` must come
       out byte-identical. If a tabled row moves, stop and report before going further. Expected logbook
       column changes in `flying_height_above_ground.csv` are listed in findings.
 

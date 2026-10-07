@@ -809,21 +809,23 @@ fits the window read as above ground (0.631) and not at nominal (0.510). Its pag
 4,000 ft on all 24 frames, which is 1,219 m, the catalogue's own figure, under an M.S.L.
 header. MRDEM puts the ground under 23 of those frames at 1,234 to 1,591 m.
 
-**Where a transcribed page covers these frames, it writes the catalogue's height on 558 of the
-576 frames it reads, and none puts the ground under it.** Pages are transcribed for 26 of the
-population's 154 rolls. The other 128 were not transcribed, because only `supports` goes to the
+**Where a transcribed page covers these frames, it writes the catalogue's height on 669 of the
+689 frames it reads, and none puts the ground under it.** Pages are transcribed for 31 of the
+population's 154 rolls (26 when fly#95 ran; fly#97 transcribed the five rolls of its nine keys that had
+none, and every figure in this paragraph and the table below includes them). The other 123 were not transcribed, because only `supports` goes to the
 logbook (one of them, `bcc07085`, has no page in the catalogue), so this says nothing about them. The transcribed headers say M.S.L. or name no
-datum; none names the ground. Over the 32 roll-heights with a frame the logbook reads:
+datum; none names the ground. Over the 38 roll-heights with a frame the logbook reads:
 
 | logbook relation | frames |
 |---|---|
-| the catalogue's height | 550 |
+| the catalogue's height | 661 |
 | ground near sea level, where the two readings coincide | 8 |
-| neither | 18 |
+| neither | 20 |
 | the ground under the catalogued height, or a header naming it | 0 |
 
 That cuts both ways. On `bc5602`, `bc77026`, `bc77072` and `bc77087` the page's "M.S.L."
-figure is below the ground under some of the frames it covers. So there either the column is
+figure is below the ground under some of the frames it covers, and on `bc5715`, `bc77070`, `bc7718`
+and `bc80117`, transcribed by fly#97, likewise. So there either the column is
 not above sea level as written, or the frames are not where the catalogue puts them. The rule
 asked for a page that puts the ground under the height, by its figure or by its header; no
 transcribed page does, and the rule was not amended after the data.

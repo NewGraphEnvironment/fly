@@ -409,8 +409,8 @@ coarse error **held to every frame read** (the sweep alone understated it: 112 m
 changed** (fly#95, no code change) — 188 roll-heights: the keys of fly#93's 374 frames at `r <= 0`
 and the 176 where A2 found nominal fits, judged on every census frame on them (2,956). Spacing supports reading `flying_height` as above ground on
 1, cannot separate it from nominal on 126 and rejects it on 61. `bc5602`, the one it supports, has a logbook
-writing the catalogue's own 4,000 ft under M.S.L. On the 576 logbook-read frames, 558 carry the
-catalogue's figure and no page puts the ground under it. Generator Stages 3c and 6 write
+writing the catalogue's own 4,000 ft under M.S.L. On the 689 logbook-read frames (576 at fly#95; fly#97
+transcribed five more rolls), 669 carry the catalogue's figure and no page puts the ground under it. Generator Stages 3c and 6 write
 `inst/extdata/flying_height_above_ground.csv`; `test-fly_footprint_above_ground.R` recomputes its spacing
 columns and checks the logbook columns for consistency, since the per-frame logbook join is not shipped.
 
