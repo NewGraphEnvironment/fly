@@ -37,7 +37,20 @@
 
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="development version" id="fly-development-version">fly (development version)<a class="anchor" aria-label="anchor" href="#fly-development-version"></a></h2>
-<div class="section level3">
+<ul><li>
+<strong>Whether a frame’s catalogued height is a height above ground was tested, and these instruments cannot settle it</strong> (<a href="https://github.com/NewGraphEnvironment/fly/issues/95" class="external-link">#95</a>). No code change, and every roll table is byte-identical.
+<ul><li>
+<strong>The question.</strong> fly#93 left 374 frames under ground at or above the catalogued aircraft and 176 roll-heights where spacing fits nominal scale, both consistent with a height recorded above ground. Together they are 188 roll-heights, judged on the 2,956 frames the two census files hold on them.</li>
+<li>
+<strong>What was measured.</strong> A rule was fixed before any per-roll-height number: spacing first, then the logbook. Spacing supports reading the height as above ground on 1 roll-height, cannot tell it from nominal on 126 and rejects it on 61. The one it supports, <code>bc5602</code> 1219 m, has a logbook writing the catalogue’s own 4,000 ft under an M.S.L. header, so nothing tables. Across the 576 logbook-read frames, the page writes the catalogue’s height on 558, and no page puts the ground under it.</li>
+<li>
+<strong>Why “cannot settle”, not “false”.</strong> On a key, the overlap read as above ground is a fixed function of nominal’s overlap and <code>flying_height / (scale x focal)</code>. Every frame here is in band above sea level, so the two readings are under 1.6 times apart, where spacing stops separating them. The undecided readings differ by a median 12% in width and up to 49%. Where nominal fits, the refutations sit a median 0.028 outside the window. Nominal scale stays where it was.</li>
+<li>
+<strong>New data.</strong> <code>flying_height_terrain_nonpositive.csv</code> ships the 374 frames under the aircraft, from the census that found them. <code>flying_height_above_ground.csv</code> has one row per roll-height. The suite recomputes the spacing verdict and the note’s tables from them.</li>
+<li>
+<strong>Not done.</strong> On nine roll-heights (157 of those 374 frames) spacing rejects nominal scale as well, so their fallback is not supported either (<a href="https://github.com/NewGraphEnvironment/fly/issues/97" class="external-link">#97</a>).</li>
+</ul></li>
+</ul><div class="section level3">
 <h3 id="id_0230-development-version">0.23.0 (2026-10-06)<a class="anchor" aria-label="anchor" href="#id_0230-development-version"></a></h3>
 <ul><li>
 <strong>BW and colour frames out of the height band only through terrain are now settled per roll-height</strong> (<a href="https://github.com/NewGraphEnvironment/fly/issues/93" class="external-link">#93</a>).
