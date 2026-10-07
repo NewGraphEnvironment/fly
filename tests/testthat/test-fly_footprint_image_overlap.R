@@ -407,8 +407,9 @@ test_that("bc77087's page-1 digit stays at 3.8 because the third blind read did 
   expect_true(grepl("fly#101 undecided between 3 and 5 leaning 3", r$note, fixed = TRUE))
   # The reader's verdict, as it wrote it: undecided, so by fly#101's rule the value does not move.
   pl <- testthat::test_path("..", "..", "planning")
-  vf <- c(file.path(pl, "active", "transcription", "reader", "verdict.csv"),
-          Sys.glob(file.path(pl, "archive", "*issue-101*", "transcription", "reader", "verdict.csv")))
+  # The archived copy first: a later read reusing this layout would put its own file at the active path.
+  vf <- c(Sys.glob(file.path(pl, "archive", "*issue-101*", "transcription", "reader", "verdict.csv")),
+          file.path(pl, "active", "transcription", "reader", "verdict.csv"))
   vf <- vf[file.exists(vf)]
   skip_if(!length(vf), "fly#101's reader files not reachable")
   v <- utils::read.csv(vf[1], colClasses = "character")

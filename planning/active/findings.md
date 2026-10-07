@@ -265,3 +265,17 @@ hand-back in its transcript and written by script, not retyped. `rows.csv` is un
   row, its note, the reader's `verdict.csv` and `rows.csv`, and the note's prose to one another.
   Mutation: `verdict.csv` decision set to 3 turns it red (FAIL 1, PASS 217); restoring it turns it green.
 - fly#99's body is updated. fly#95's body only lists the key in a table and needs no change.
+
+## Code-check round 1 (`review-round1.md`): three findings, all fixed, none affecting the verdict
+
+1. **`score.R` did not implement A1.6 as written.** A1.6 requires at least one *cited* same-hand `yes`
+   reference, and the scorer counted every one, cited or not. On a scratch copy with decision 3 citing only
+   `r1` (`partly`), it returned `settled 3.8`: a guard failing toward a settled verdict. Fixed after the read:
+   the "at least one" test is now over the cited ids. That is an implementation fix to match the committed
+   text, not a rule change, and it cannot move this read, which is `undecided`.
+   - Synthetic case 14 (cites only a `partly`) -> `unsettled (no cited same-hand reference ...)`.
+   - Cases 1-13 are unchanged, and the real reader is still `unsettled (Stage B undecided)`.
+2. **The test read the active `verdict.csv` before the archived one.** A later read reusing the layout
+   would be checked in fly#101's place. It now prefers `*issue-101*` in the archive.
+3. **The province draft still said "a 3 or a 7".** Now: read as a 3, as either a 3 or a 7, and as either a
+   3 or a 5, by three readers.

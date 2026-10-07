@@ -105,8 +105,12 @@ score <- function(dir) {
     if (nrow(v) != 1) stop(nrow(v), " verdict rows for the target")
     dec <- low(v$decision)
     g <- g[g$disputed_file == target_file & g$disputed_frames == t$frames_final, ]
-    sup <- function(d) sum(trimws(g$candidate) == d & low(g$same_hand) == "same" &
-                             grepl("^yes", low(g$resembles_disputed)))
+    # Same-hand references that resemble the glyph, for digit d; restricted to the ids in `only` when given
+    # (A1.6: the decision needs at least one such reference among those it cites, and more of them overall
+    # than any other candidate has).
+    sup <- function(d, only = NULL) sum(trimws(g$candidate) == d & low(g$same_hand) == "same" &
+                                          grepl("^yes", low(g$resembles_disputed)) &
+                                          (is.null(only) | g$ref_id %in% only))
     cands <- unique(c(alts, trimws(g$candidate)))
     tally <- vapply(cands, sup, integer(1))
     refs <- trimws(strsplit(v$ref_ids, "[;, ]+")[[1]]); refs <- refs[nzchar(refs)]
@@ -116,7 +120,7 @@ score <- function(dir) {
     if (grepl("^[0-9]$", dec)) {
       others <- tally[names(tally) != dec]
       if (!length(refs) || !all(refs %in% g$ref_id)) basis <- "cited references missing from glyphs.csv: no commitment"
-      else if (sup(dec) < 1) basis <- "no same-hand reference supports the decision: no commitment"
+      else if (sup(dec, refs) < 1) basis <- "no cited same-hand reference supports the decision: no commitment"
       else if (length(others) && sup(dec) <= max(others)) basis <- "a competing digit has as much support: no commitment"
       else { committed <- dec; basis <- sprintf("Stage B, %d same-hand reference(s)", sup(dec)) }
     } else basis <- "Stage B undecided"
