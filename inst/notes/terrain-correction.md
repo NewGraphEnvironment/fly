@@ -524,7 +524,7 @@ The result:
 | excluded: logbook lens and spacing disagree | 1 | 2 |
 | excluded: logbook height not the catalogue's | 3 | 8 |
 | excluded: logbook height not read | 1 | 5 |
-| excluded: no logbook page | 1 | 4 |
+| excluded: transcribed logbook rows reach none of its frames | 1 | 4 |
 
 - The 24 are 20 roll-heights at 153 mm (107 frames, sixteen of them 1972–76 `bc54xx`–`bc57xx`,
   plus `bc5138`, `bc78110`, `bc79039`, `bc79141`) and 4 at 305 mm (13 frames: `bc7692`,
@@ -725,7 +725,8 @@ blank on each end line, it covers 202, 219 and 233 where the existing row covers
 | tabled at factor 1, `scale_wrong` | 62 | 1,375 |
 | spacing fits nominal scale (A2) | 176 | 2,380 |
 | spacing cannot fit the catalogued height within 2% (A2) | 32 | 472 |
-| no logbook page covers these frames | 10 | 65 |
+| transcribed logbook rows reach none of these frames | 6 | 55 |
+| no logbook page covers these frames | 4 | 10 |
 | logbook height or frame range not read | 5 | 90 |
 | logbook height is not a named multiple of the catalogue's | 3 | 99 |
 | spacing rejects the logbook's height | 9 | 239 |
@@ -739,6 +740,14 @@ rows the logbook height puts the overlap at 0.562 to 0.773, inside the window, a
 the width the spacing supports, and are now drawn from the height flown. Three are tabled with
 the logbook agreeing on part of the roll-height (`bc5225`, `bc5595` at 2,651 m, `bc78104`);
 their `r_corrected` is the median over the agreeing frames.
+
+**"No page" and "not reached" are two reasons.** The generator once reported a frame no
+transcribed row reaches as "no logbook page covers these frames", whether or not the roll has
+a page. Six terrain roll-heights sit on rolls with transcribed pages that end before their
+frames, or whose lines the consolidation declined to span (`bc5321`, whose strip is logged
+START at 6.2 and END at 6.5), and now say so. The same wording moved on two rows of older
+tails, fly#60's `bc78104` at 1,295 m and fly#72's `bc79029`, with no verdict changing. The
+four that remain are on `bcb04001` and `bcc07085`, for which the catalogue links no page.
 
 No existing row of either table moved, the IR rows included. The terrain keys reach 4,233
 catalogue frames against 1,375 measured; the rest are frames on the same roll-heights inside

@@ -384,13 +384,32 @@ logs <- read.csv("data-raw/flying_height_logbooks.csv", colClasses = "character"
 # read by hand, so a page fetched and never transcribed would otherwise reach `settle()` as "no
 # logbook page covers these frames": an absent reading reported as an absent page (code-check
 # round 2, where six pages on two rolls a fix had just sent to the logbook were exactly that).
+# The pages are the ones the CATALOGUE links, not the ones in the cache: a fetch that failed
+# leaves a page uncached without stopping, and a roll with any cached page is not fetched
+# again, so a cache listing would miss it (code-check round 3).
 terr_rolls <- unique(a2$film_roll[is.na(a2$a2_reason)])
+linked <- bcdc_query_geodata(LAYER) |>
+  filter(FILM_ROLL %in% !!terr_rolls) |>
+  select(FILM_ROLL, FLIGHT_LOG_URL) |>
+  collect() |>
+  sf::st_drop_geometry() |>
+  distinct(FILM_ROLL, FLIGHT_LOG_URL) |>
+  filter(!is.na(FLIGHT_LOG_URL))
+linked_pages <- paste0(linked$FILM_ROLL, "__", basename(linked$FLIGHT_LOG_URL))
 cached_pages <- if (dir.exists(LOG_DIR)) list.files(LOG_DIR) else character()
-unread <- cached_pages[sub("__.*", "", cached_pages) %in% terr_rolls & !cached_pages %in% logs$file]
+uncached <- setdiff(linked_pages, cached_pages)
+if (length(uncached)) {
+  stop(length(uncached), " logbook pages the catalogue links for terrain rolls sent to the ",
+       "logbook are not in ", LOG_DIR, ": ", paste(uncached, collapse = ", "))
+}
+unread <- union(linked_pages, cached_pages[sub("__.*", "", cached_pages) %in% terr_rolls])
+unread <- unread[!unread %in% logs$file]
 if (length(unread)) {
   stop(length(unread), " logbook pages of terrain rolls sent to the logbook are not transcribed in ",
        "data-raw/flying_height_logbooks.csv: ", paste(unread, collapse = ", "))
 }
+message(sprintf("terrain rolls sent to the logbook: %d; pages the catalogue links %d, all cached and transcribed",
+                length(terr_rolls), length(linked_pages)))
 logs$frame_from <- as.integer(logs$frame_from)
 logs$frame_to <- as.integer(logs$frame_to)
 logs$log_ft <- as.numeric(logs$height_ft_interpreted)
@@ -464,7 +483,10 @@ settle <- function(set, named, tail) {
   #   conflict       covering rows with heights that disagree; left unread, not guessed
   #   uninterpreted  covered only by rows whose height was not read, or on a roll with a
   #                  row whose frame range could not be parsed ("169-20?")
-  #   none           no row on any page reaches this frame
+  #   unspanned      the roll has transcribed rows, and none reaches this frame: a page that
+  #                  ends before it, or lines the consolidation declined to span (fly#93,
+  #                  code-check round 3, where this was reported as "no logbook page")
+  #   none           no transcribed row on any page of the roll
   lt$log_state <- "none"
   unparsed_roll <- unique(logs$film_roll[is.na(logs$frame_from) & nzchar(logs$frames_final)])
   for (i in seq_len(nrow(lt))) {
@@ -486,6 +508,7 @@ settle <- function(set, named, tail) {
       lt$log_state[i] <- "uninterpreted"
     }
   }
+  lt$log_state[lt$log_state == "none" & lt$film_roll %in% logs$film_roll] <- "unspanned"
   stopifnot(identical(lt$log_state == "read", is.finite(lt$log_ft)))
   # The factor the logbook implies, accepted only where it is one of the named slips to
   # within 2%. The catalogue stores whole metres, so a round figure of feet comes back a
@@ -521,6 +544,7 @@ settle <- function(set, named, tail) {
       n_logbook = sum(is.finite(d$log_ft)), n_named = sum(read),
       n_conflict = sum(d$log_state == "conflict"),
       n_uninterpreted = sum(d$log_state == "uninterpreted"),
+      n_unspanned = sum(d$log_state == "unspanned"),
       factor = named[fi], n_agree = sum(agree),
       log_ft = if (any(agree)) median(d$log_ft[agree]) else NA_real_,
       height_m = round(h_true, 1),
@@ -641,6 +665,9 @@ v$reason <- dplyr::case_when(
   v$confirms_54 & v$covered >= 0.5 & v$agreeing >= 0.9 ~ "logbook confirms #54's 10.764",
   v$covered < 0.5 & unread_state == "conflict" ~ "logbook rows covering these frames disagree",
   v$covered < 0.5 & unread_state == "uninterpreted" ~ "logbook height or frame range not read",
+  # A roll-height on a roll with transcribed rows that reach none of its frames is not one
+  # with no page: the two states are kept apart (fly#93, code-check round 3).
+  v$n_logbook == 0 & v$n_unspanned > 0 ~ "transcribed logbook rows reach none of these frames",
   v$n_logbook == 0 ~ "no logbook page covers these frames",
   v$covered < 0.5 ~ "logbook covers under half the frames",
   !is.finite(v$factor) | v$agreeing < 0.9 ~ "logbook height is not a named multiple of the catalogue's",

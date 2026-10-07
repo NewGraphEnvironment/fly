@@ -152,7 +152,8 @@ test_that("the note's terrain-tail tables are the shipped tables, row by row (fl
   reason <- sub(";.*", "", et$reason)
   # Each later row names its reason by the words it starts with.
   stems <- c("spacing fits nominal scale", "spacing cannot fit the catalogued height",
-             "no logbook page covers", "logbook height or frame range not read",
+             "transcribed logbook rows reach none", "no logbook page covers",
+             "logbook height or frame range not read",
              "logbook height is not a named multiple", "spacing rejects the logbook's height",
              "logbook names a different lens", "logbook writes the catalogue's scale",
              "logbook covers under half")

@@ -284,10 +284,11 @@ catalogued frame.
 | tabled (factor 1, `scale_wrong`, logbook) | 62 (60 BW/colour, 2 IR) | 1,375 (1,344 BW/colour) |
 | excluded by A2: spacing fits nominal | 176 | 2,380 |
 | excluded by A2: cannot fit the catalogued height | 32 | 472 |
-| no logbook page covers these frames | 13 | 240 |
+| no logbook page covers these frames | 4 | 10 |
+| transcribed logbook rows reach none of these frames (round 3) | 6 | 55 |
 | logbook height is not a named multiple | 3 | 99 |
 | logbook height or frame range not read | 5 | 90 |
-| spacing rejects the logbook's height | 6 | 64 |
+| spacing rejects the logbook's height | 9 | 239 |
 | logbook names a different lens (spacing fits the reported height) | 1 | 54 |
 | logbook writes the catalogue's scale | 1 | 20 |
 | logbook covers under half the frames | 1 | 10 |
@@ -387,3 +388,32 @@ reclassified exclusions. No other row moved, and the tabled count is 62 / 1,375 
 - **Finding 2.** Four figures in this file predated the round-1 fixes. They are now annotated in place.
 
 Totals now: 182 pages on 60 rolls read in six batches, six controls agreeing on height and lens.
+
+## Code-check round 3 (`review-round3.md`): mechanism and enumeration
+
+**Mechanism.** `settle()` encoded "no consolidated row reaches this frame" as `none`, which shipped as "no
+logbook page covers these frames". So every step that withholds coverage shipped as a claim that no page
+exists:
+- an untranscribed page (round 2);
+- a transcribed page the strict consolidation declined to span (this round: `bc5321`, `bcb98001` 950/951);
+- a page that ends before the frames (`bc5546`, `bc7209`, `bc77103`).
+
+**Fix.**
+- **A fifth frame state, `unspanned`.** The roll has transcribed rows and none reaches the frame. Its reason
+  is "transcribed logbook rows reach none of these frames". `none` now means no transcribed row on any page
+  of the roll.
+- **Eight rows change, reason text only, no verdict:** six terrain rows, plus two in older tails, fly#60's
+  `bc78104` 1295 m and fly#72's `bc79029`. Both are corrections of a false "no page", and both note tables
+  were updated.
+- **Terrain outcome:** "no logbook page" 4 / 10; "rows reach none" 6 / 55.
+
+**Guard widened (finding 3).** The unread-page guard lists the pages the CATALOGUE links (`FLIGHT_LOG_URL`)
+for the logbook-bound terrain rolls, not the cache, and stops on any that is uncached or untranscribed. The
+re-run: 69 rolls, 202 linked pages, all cached and transcribed.
+
+**Enumeration (the reviewer's, against the producer).** The reviewer queried `FLIGHT_LOG_URL` for all 218
+terrain rolls (46,046 features) and checked every reason on all 300 terrain roll-heights. After this fix,
+every terrain "no logbook page" row is true. All four sit on `bcb04001` and `bcc07085`, for which the
+catalogue links no URL.
+
+**Finding 2.** The stale Phase 5 table is corrected above.
