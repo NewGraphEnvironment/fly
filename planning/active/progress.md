@@ -7,3 +7,5 @@
 - Scaffolded PWF baseline from issue #95 with approved phases
 - Next: start Phase 1 (pre-registration)
 - Phase 1: pre-registered rule written to findings.md before any per-roll-height number (spawned a Plan review in parallel)
+- Phase 2: census re-run from the ETag-keyed cache (24 s, key 8212c794): 374 r <= 0 frames on 15 rolls shipped as
+  `flying_height_terrain_nonpositive.csv`; the two existing CSVs byte-identical (md5 before/after). Log `run_census.log`

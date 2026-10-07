@@ -66,10 +66,10 @@ The issue asks whether "recorded above ground" can be tested, with any rule fixe
 - [x] Evaluation order (as #93's A2): S first; pages transcribed only for roll-heights where S `supports`
 
 ### Phase 2: Ship the `r <= 0` frames from the census that found them
-- [ ] `height_measure-terrain_tail.R` writes `inst/extdata/flying_height_terrain_nonpositive.csv`
+- [x] `height_measure-terrain_tail.R` writes `inst/extdata/flying_height_terrain_nonpositive.csv`
       (same columns, `base` from the same f1 rule)
-- [ ] Re-run from the ETag-keyed cache; the two existing CSVs must come out byte-identical
-- [ ] Test: 374 rows on 15 rolls, equal to the population row, every `r <= 0`
+- [x] Re-run from the ETag-keyed cache; the two existing CSVs must come out byte-identical
+- [x] Test: 374 rows on 15 rolls, equal to the population row, every `r <= 0`
 
 ### Phase 3: The measurement — `data-raw/height_measure-above_ground.R`
 - [ ] Reads both censuses, the logbooks CSV and the generator's window; pulls helpers with `fns_from()`
