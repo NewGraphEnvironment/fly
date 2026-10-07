@@ -2,6 +2,8 @@
 
 ## fly (development version)
 
+### 0.23.1 (2026-10-06)
+
 - **Whether a frame’s catalogued height is a height above ground was
   tested, and these instruments cannot settle it**
   ([\#95](https://github.com/NewGraphEnvironment/fly/issues/95)). No
