@@ -13,3 +13,6 @@
   188 roll-heights: supports 1, undecided 126, refutes 61; **nothing tables** (bc5602's logbook writes the
   catalogue's 4,000 ft under M.S.L.). Rolls tables byte-identical. Log `run_rolls.log`
 - Phase 4 skipped (bc5602 already transcribed); Phase 5: no code change
+- Phase 6: `test-fly_footprint_above_ground.R` (recomputes S from the census files, pins the note's three tables
+  and prose figures; a flipped verdict goes red in a copy), note section, NEWS, CLAUDE.md. Filed fly#97 for the
+  nine roll-heights where neither reading fits, before citing it

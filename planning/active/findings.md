@@ -179,7 +179,7 @@ is wide enough to hold both. Nominal stays, as before.
 **Neither reading fits on 9 roll-heights (157 `r <= 0` frames, 2 to 118 frames each)**: `bc5715` 732, `bc77026`
 2042, `bc77070` 1158, `bc77072` 1829 and 1981, `bc77087` 1158, `bc7718` 1524, `bc80117` 1372, `bcc325` 396.
 Spacing rejects nominal as well as the height read as above ground, so the nominal fallback these frames get
-today is not supported by spacing either. Out of this issue's question; filed as a follow-up.
+today is not supported by spacing either. Out of this issue's question; filed as fly#97.
 
 **Group 1 by outcome:** of the 374 `r <= 0` frames, 174 sit on undecided roll-heights where nominal fits, 20 on
 refuted ones where nominal fits, 23 on `bc5602` (excluded by its logbook), and 157 on the 9 where neither fits.

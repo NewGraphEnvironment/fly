@@ -56,6 +56,8 @@ test_that("the frames under terrain at or above the aircraft ship whole (amendme
   expect_identical(nrow(np), as.integer(n[["terrain_nonpositive"]]))
   expect_identical(nrow(np), 374L)
   expect_identical(length(unique(np$film_roll)), 15L)
+  # `bc77072` flies two of them.
+  expect_identical(nrow(unique(np[, c("film_roll", "flying_height", "focal_length", "scale_n")])), 16L)
   expect_identical(names(np), names(cf))
   expect_false(anyDuplicated(np$airp_id) > 0)
   expect_length(intersect(np$airp_id, cf$airp_id), 0)

@@ -92,8 +92,8 @@ The issue asks whether "recorded above ground" can be tested, with any rule fixe
 - [x] If nothing tables: no code change, recorded as such (as fly#65/#80) — nothing tabled
 
 ### Phase 6: Tests and documentation
-- [ ] `tests/testthat/test-fly_footprint_above_ground.R` recomputes every verdict and every note table from the shipped CSVs
-- [ ] `inst/notes/terrain-correction.md` section; NEWS; CLAUDE.md Architecture + Key Decision
+- [x] `tests/testthat/test-fly_footprint_above_ground.R` recomputes every verdict and every note table from the shipped CSVs
+- [x] `inst/notes/terrain-correction.md` section; NEWS; CLAUDE.md Architecture + Key Decision
 - [ ] Edit issue #95's body to the outcome
 
 ## Validation

@@ -667,7 +667,8 @@ at `r <= 0`, which the draw's own definition (`r > 0`) also left out.
 `fly_footprint()` keeps a frame under terrain at or above the aircraft in its own case and
 applies a factor-1 row only where `r_reported > 0`, so no `terrain` row can move them. They
 are counted and left untailed. On every one of their rolls the catalogued height over
-nominal is in band, which a height recorded above the ground would produce (fly#95).
+nominal is in band, which a height recorded above the ground would produce. fly#95 tests
+that, below.
 
 ### The rule, and the order it is evaluated in
 
@@ -703,8 +704,8 @@ was read, because a roll's pages are transcribed whole.
 
 (Over all 300 terrain roll-heights, the two IR ones included; both go to the logbook.) The
 176 where nominal fits are where nominal scale is already right and the height field is the
-one that disagrees. A height recorded above ground would do exactly that; fly#95 holds it as
-a hypothesis.
+one that disagrees. A height recorded above ground would do exactly that; fly#95 tested it
+(the next section), and these instruments cannot settle it.
 
 ### What the logbooks said
 
@@ -757,6 +758,104 @@ the band, which `fly_footprint()` never hands to the table.
 `fly_footprint()` reads a footprint rotated onto its bearing, and a caller's own DEM, so a
 frame near the band's edge can classify differently there. The key is the roll-height, so a
 tabled row reaches such a frame anyway; an untabled roll-height leaves it on nominal scale.
+
+## Is the catalogued height above ground? Not with these instruments (fly#95)
+
+**Verified:** 2026-10-06 · **Issues:** fly#95 (from fly#93) · **Produced by:**
+`data-raw/height_measure-terrain_tail.R` (`inst/extdata/flying_height_terrain_nonpositive.csv`)
+and `data-raw/height_calibrate-lower_tail_rolls.R`, Stages 3c and 6
+(`inst/extdata/flying_height_above_ground.csv`)
+
+fly#93 left two groups whose catalogued height looks like a height **above ground** recorded as
+above sea level. One is the 374 frames under terrain at or above the aircraft (`r <= 0`), which
+`fly_footprint()` draws at nominal with a warning. The other is the 176 roll-heights where A2
+found that spacing fits nominal scale. They share roll-heights: `bcc285` 1707 m carries 106
+frames of the first and 39 of the second. So the unit is the roll-height, with both groups'
+frames together: 188 roll-heights, 2,956 frames.
+
+**Nothing changed in the package.** No roll-height met the rule, so `fly_footprint()` and the
+roll tables are as they were.
+
+### The rule, fixed before any per-roll-height number
+
+Read as a height above ground, the catalogued height gives a frame an along-track side of
+`FORMAT_M x flying_height / f`; nominal scale gives `FORMAT_M x scale`. Neither depends on the
+terrain, and the two are exactly `ratio_asl` apart.
+
+- **Spacing** is read first. The height read as above ground `supports` where its median overlap
+  fits the generator's window and nominal's does not, is `undecided` where both fit, and
+  `refutes` where it does not fit.
+- **The logbook** is read only where spacing supports, as A2 did for fly#93. It has to put the
+  ground under the catalogued height: a page height `h` whose median `h - elev` over the frames
+  is within 10% of the catalogued height, or a TRUE HEIGHT header that names the ground.
+- A roll-height is tabled only where both hold, on at least half its frames with 90% agreeing,
+  with no lens conflict and no frame of the key in band as catalogued.
+
+### What it found
+
+| spacing | roll-heights | frames | of them `r <= 0` |
+|---|---|---|---|
+| supports | 1 | 24 | 23 |
+| undecided | 126 | 1,562 | 174 |
+| refutes | 61 | 1,370 | 177 |
+
+**The one that spacing supports, its logbook does not.** `bc5602` 1219 m (153 mm, 1:6000)
+fits the window read as above ground (0.631) and not at nominal (0.510). Its page writes
+4,000 ft on all 24 frames, which is 1,219 m, the catalogue's own figure, under an M.S.L.
+header. MRDEM puts the ground under 23 of those frames at 1,234 to 1,591 m.
+
+**Wherever a page covers these frames, the crew wrote the catalogue's height under an M.S.L.
+header.** That holds over the 32 roll-heights with transcribed rows (576 frames read):
+
+| logbook relation | frames |
+|---|---|
+| the catalogue's height | 550 |
+| ground near sea level, where the two readings coincide | 8 |
+| neither | 18 |
+| the ground under the catalogued height, or a header naming it | 0 |
+
+That cuts both ways. On `bc5602`, `bc77026`, `bc77072` and `bc77087` the page's "M.S.L."
+figure is below the ground under some of the frames it covers. So there either the column is
+not above sea level as written, or the frames are not where the catalogue puts them. The rule
+asked for a page that says "ground", none does, and the rule was not amended after the data.
+
+### Why that is "cannot settle it", not "false"
+
+A plan review, which arrived after the run, pointed out what the rule implied: on a key,
+`p_agl = 1 - (1 - p_nominal) / ratio_asl`, so spacing adds nothing beyond nominal's overlap and
+the ratio. And every frame here is in band above sea level, so the two readings are under 1.6x
+apart, where #60 found spacing stops separating readings. "Nothing tables" was close to certain
+before anything ran.
+
+- **Undecided hides real width.** The two readings differ by `|ratio_asl - 1|`. Over the 126
+  undecided roll-heights that is a median 0.120, 0.352 at the 90th percentile and at most 0.494,
+  and 494 of their 1,562 frames are more than 20% apart. The window holds both. Nominal stays.
+- **The refutations are marginal.** On the 52 refuted roll-heights where nominal fits, the
+  above-ground median sits a median 0.028 outside the window, and 23 of them by under 0.02.
+
+### Where the frames under the aircraft end up
+
+| `r <= 0` frames on roll-heights where | frames |
+|---|---|
+| both readings fit (undecided) | 174 |
+| nominal fits and the above-ground reading does not | 20 |
+| spacing supports, the logbook does not (`bc5602`) | 23 |
+| **neither reading fits** | 157 |
+
+The last row is nine roll-heights: `bc5715` 732, `bc77026` 2042, `bc77070` 1158, `bc77072` 1829 and
+1981, `bc77087` 1158, `bc7718` 1524, `bc80117` 1372 and `bcc325` 396. Spacing rejects nominal there
+as well, so the fallback these frames get is not supported either. A centroid placed on higher
+ground than the photo covers would give `r <= 0` and is invisible to spacing. That is out of this
+question, and is fly#97.
+
+### What would change the answer
+
+A logbook page whose TRUE HEIGHT header names the ground, or whose height sits that far above
+the catalogue's. If one is found, ship it the way #60 ships every height: the logbook's figure
+as above sea level, through the existing `factor != 1` branch, which already reaches
+`r <= 0` frames. Not the catalogued height read as above ground through a new route. On `r <= 0`
+frames, "the height plus the ground" is about twice the height, which #60 also names as a slip,
+so such a page alone is ambiguous with x2.
 
 ## What a partially covered footprint costs (fly#58)
 

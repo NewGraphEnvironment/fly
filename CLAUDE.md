@@ -102,8 +102,10 @@ run `format_measure-infrared_film.R` and `height_measure-terrain_tail.R` first
 level and below it over the ground. A coarse MRDEM picture (overviews averaged) with a margin of
 twice the worst coarse error, held to every frame read, picks the frames read exactly by the
 sweep's own instrument; three controls (sweep reproduced, sweep stratum found, a draw past the
-prefilter holds nothing out of band) stop it. Ships `inst/extdata/flying_height_terrain_frames.csv`
-and `_population.csv`, which `test-fly_footprint_terrain_tail.R` recomputes. Caches under
+prefilter holds nothing out of band) stop it. Ships `inst/extdata/flying_height_terrain_frames.csv`,
+`_population.csv` and `_nonpositive.csv` (the 374 frames at `r <= 0`, fly#95), which
+`test-fly_footprint_terrain_tail.R` recomputes. A re-run from an intact cache takes under a minute and
+must leave the first two byte-identical. Caches under
 `data-raw/.cache/terrain_tail/` keyed on MRDEM's ETag. `FLY_TERRAIN_SMOKE=1` writes nothing
 - `height_fixture()` and `flat_dem()` in `tests/testthat/setup.R` — eight frames over level
 ground, each reaching one height check by a stated route; rows 7 and 8 exist because two
@@ -402,6 +404,25 @@ coarse error **held to every frame read** (the sweep alone understated it: 112 m
     untranscribed. Both came from code-check rounds where a withheld or unread page shipped as an
     absent one; an `ls --color | grep '^…'` probe was one of them — use `find`/`list.files()`.
     Read `inst/notes/terrain-correction.md`, "The terrain tail for BW and colour"
+
+- **Whether a catalogued height is above ground cannot be settled by spacing in band, and nothing
+changed** (fly#95, no code change) — 188 roll-heights (2,956 frames): fly#93's 374 frames at `r <= 0`
+plus the 176 where A2 found nominal fits. Spacing supports reading `flying_height` as above ground on
+1, cannot separate it from nominal on 126 and rejects it on 61. `bc5602`, the one it supports, has a logbook
+writing the catalogue's own 4,000 ft under M.S.L. On the 576 logbook-read frames, 550 carry the
+catalogue's figure and no page puts the ground under it. Generator Stages 3c and 6 write
+`inst/extdata/flying_height_above_ground.csv`; `test-fly_footprint_above_ground.R` recomputes it.
+
+  **Two things are load-bearing.**
+  - **Read the null as "cannot settle", not "false".** On a key, `p_agl = 1 - (1 - p_nominal) / ratio_asl`,
+    so spacing adds nothing beyond nominal's overlap and the ratio. In band above sea level the ratio is
+    under 1.6, and #60 found spacing stops separating readings there. Undecided readings differ by up to
+    49% in width; the refutations sit a median 0.028 outside the window.
+  - **If a page ever does put the ground under the height,** ship its figure as above sea level through
+    the existing `factor != 1` branch, which already reaches `r <= 0` frames. Do not add an "above
+    ground" route that reads the catalogue's height. On `r <= 0` frames such a page is ambiguous with x2.
+  Nine roll-heights (157 `r <= 0` frames) fit neither reading: fly#97. Read `inst/notes/terrain-correction.md`,
+  "Is the catalogued height above ground?"
 
 - **Terrain error is a datum offset, not slope** (v0.5.0, #9) — `FLYING_HEIGHT` is metres **above sea level**,
 and reported scale is referenced to an elevation above the ground the photos cover, so it understates footprint
