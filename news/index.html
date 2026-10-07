@@ -37,7 +37,16 @@
 
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="development version" id="fly-development-version">fly (development version)<a class="anchor" aria-label="anchor" href="#fly-development-version"></a></h2>
-<div class="section level3">
+<ul><li>
+<strong>BW and colour frames out of the height band only through terrain are now settled per roll-height</strong> (<a href="https://github.com/NewGraphEnvironment/fly/issues/93" class="external-link">#93</a>).
+<ul><li>
+<strong>What changed.</strong> 60 BW/colour roll-heights (1,344 frames) join fly#91’s <code>terrain</code> tail in <code>flying_height_rolls.csv</code> at factor 1 (<code>scale_wrong</code>). Their catalogued height is in band above sea level and the ground takes them out of it. With a <code>dem</code>, they were drawn at nominal scale, about twice the width the spacing supports, and are now sized from the logbook height (<code>height_source = "corrected_roll_table"</code>). Without a <code>dem</code> nothing changes. No tabled row and no verdict of an earlier tail moved. Two excluded rows of earlier tails (fly#60’s <code>bc78104</code> at 1,295 m and fly#72’s <code>bc79029</code>) said “no logbook page covers these frames” on rolls whose transcribed pages simply end before those frames, and now say so.</li>
+<li>
+<strong>How it was established.</strong> <code>data-raw/height_measure-terrain_tail.R</code> censuses the stratum: 4,773 frames on 298 roll-heights, against an estimate of about 7,000 from 12 random draws. <a href="https://github.com/NewGraphEnvironment/fly/issues/72" class="external-link">#72</a>’s rule runs unchanged. A pre-registered amendment evaluates its spacing condition first, and excludes the 208 roll-heights where that condition cannot hold whatever a logbook says. 182 pages on 60 rolls were transcribed blind, and six control pages agree on height and lens. The census ships as <code>flying_height_terrain_frames.csv</code> and <code>_population.csv</code>, and the suite recomputes the census, the amendment and the note’s tables from them.</li>
+<li>
+<strong>Not done.</strong> 374 frames sit under ground at or above the catalogued aircraft, and 176 roll-heights fit nominal scale, which is consistent with a height recorded above ground (<a href="https://github.com/NewGraphEnvironment/fly/issues/95" class="external-link">#95</a>).</li>
+</ul></li>
+</ul><div class="section level3">
 <h3 id="id_0220-development-version">0.22.0 (2026-10-06)<a class="anchor" aria-label="anchor" href="#id_0220-development-version"></a></h3>
 <ul><li>
 <strong>Three infrared roll-heights with a wrong <code>scale</code> are now sized from the height flown</strong> (<a href="https://github.com/NewGraphEnvironment/fly/issues/91" class="external-link">#91</a>).
