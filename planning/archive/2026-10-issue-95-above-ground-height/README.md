@@ -14,10 +14,11 @@ What was learned is that the instrument cannot settle the question. On a key, th
 where #60 found spacing stops separating them. A plan review pointed this out after the run. So the result is
 reported as "cannot settle", not "false". Nine roll-heights where spacing rejects nominal as well went to fly#97.
 
-Four code-check rounds found one mechanism, five times over. In each case a count computed over one set was
-described as a neighbouring set: a scope dropped, a superset, or the fetch set instead of the join set. Two of the
-five were inside an earlier round's fix. An enumeration of every numeric or universal sentence (96 of them) ended
-the loop.
+Four code-check rounds found 15 defects (3, 1, 6 and 5). All but one were prose of a single mechanism: a count
+computed over one set, described as a neighbouring set (a scope dropped, a superset, or the fetch set instead of
+the join set). The exception was a folded logbook state in code, which moved no row. In rounds 3 and 4 a defect sat
+inside the previous round's fix. An enumeration of every numeric or universal sentence (96 of them) ended the
+loop.
 
 ## Measurement
 
