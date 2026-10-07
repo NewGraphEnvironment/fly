@@ -173,3 +173,72 @@ fits — overlap about 0.25 or more. The rule demanded a capability fly#82's gat
 Smoke figures (2 control keys, not the real draw): median d -0.020, tau 0.064; `bc85054` 162/163
 p_img 0.603 against p_nominal 0.314. Reported here because they were seen; the real draw is
 independent of them (same seed, 40 keys).
+
+### Amendment A2 (2026-10-07) — from the plan review (`review-plan.md`), before the real control output was read
+
+The real control draw was started (frozen copy of the A1 script) before this review arrived. Its pair
+measurements are cached and reused; its log was **not read** before this amendment was committed, and
+none of the nine keys has been matched. Each change below traces to a review finding, verified by
+re-derivation where it is a claim.
+
+1. **tau in log units, with a ceiling (B2).** Per control key, `d = log((1 - p_img) / (1 - p_nominal))`
+   (the log of the step error the images imply). tau = 95th percentile of |d|. **Gate: tau <= log(1.25)**,
+   else stop. `exp(tau)` is reported as the smallest step error the instrument can see. Every W1
+   comparison below is in the same unit: `D_R = log((1 - p_img) / (1 - p_R))`.
+2. **`indistinguishable` (B2).** Before the consistency tests, a key whose two readings differ by
+   `|log ratio_asl| = |log((1 - p_nominal)/(1 - p_agl))| <= 2 tau` and whose images are consistent with
+   either (`|D_nominal| <= tau` or `|D_agl| <= tau`) is `indistinguishable`. W1 order is now:
+   `too_few_pairs`, `no_overlap`, `indistinguishable`, `consistent_nominal` (`|D_nominal| <= tau`),
+   `consistent_agl` (`|D_agl| <= tau`), `step_overstated` (`D_agl < -tau` and `D_nominal < -tau`: the
+   images overlap more than either reading allows at the catalogue step), else `disagrees`.
+3. **`nominal_by_elimination` is withdrawn (B1).** It was the inequality `p_img > p_agl` restated
+   (`G_k < 0 <=> k > ratio_asl <=> p_img > p_agl`; re-derived). What that inequality does show, given a
+   height above sea level: the true height above ground is at most H, so the true side is at most
+   `format x H / f`, so at the true air base the overlap is at most `p_agl`. Images overlapping more
+   mean the catalogue step **overstates the air base**. It does not select nominal. The size outcome
+   is renamed accordingly:
+   - `step_overstated` (W1) with W2 `msl_catalogue` -> size `nominal_unrefuted`: the spacing that
+     rejected nominal used a step longer than the air base, so it says nothing about the scale; nominal
+     stands as the package default, neither confirmed nor refuted.
+   - `consistent_nominal` -> `nominal_consistent` (images and the catalogue step agree at nominal; this
+     rests on the step being the air base, which the location verdict may contradict — stated, untested).
+   - `consistent_agl` -> `agl_supported` where W2 is not `msl_catalogue`, else `unsettled`.
+   - `indistinguishable`, `disagrees`, and `step_overstated` without `msl_catalogue` -> `unsettled`.
+   - `too_few_pairs`, `no_overlap` -> themselves.
+4. **Location (B2).** `misplaced` needs W2 `msl_catalogue` and W1 in {`consistent_nominal`,
+   `step_overstated`, `disagrees`} — the images reject reading the column as above ground, by more than
+   tau, on a key where the readings are distinguishable. `datum_question`: W1 `consistent_agl` or W2
+   `ground`. Else `not_tested` (including `indistinguishable`).
+5. **W2 `ground` stops the work (B4).** fly#95 says a page naming the ground ships through the existing
+   `factor != 1` branch. That is a package change, so any key with W2 `ground` or size `agl_supported`
+   stops for the user's decision before `fly_footprint()` is touched.
+6. **False-match control (G2).** Gate: frame n of one negative-control pair against frame n+1 of the
+   next (different rolls), all of them: at most 5% `matched`. A matched shift with `p_img > 0.95`
+   (fixed pattern: data panel, fiducials) is status `fixed_pattern` and counts as no match everywhere.
+7. **Written-overlap control (G1).** Strips whose transcribed logbook row writes a forward overlap, one
+   row per roll, frame range and figure from `flying_height_logbooks.csv`: `bc5598` 1-25, `bc78065`
+   62-270, `bc79027` 190-204, `bc78153` 145-193, `bc7454` 1-123, `bc5561` 1-17, `bc78016` 11-31,
+   `bc86103` 154-179 (80%), `bcc162` 1-110 (65%), and `bc77115` 67-116 (30%, under the floor: reported
+   only). Up to 5 pairs (n, n+1 on one roll-height inside the range) from a seeded start. **Gate:** at
+   least 6 of the 9 gated rolls with >= 3 matched pairs, and the median over them of
+   `median p_img - written` within +/-0.08. (`bc79039` and `bc5138` change overlap inside a range at an
+   unmapped frame; not used.)
+8. **Pairs are the census frames' (G4).** A pair is n, n+1 on the catalogue key with **at least one
+   frame in the two census files** — the population fly#95 judged. `bc5715` and `bcc325` then have one
+   pair each and fall to `too_few_pairs`, as the rule already said.
+9. **Page guard (G5).** Stage 2 stops unless every one of the 35 linked pages of the eight rolls
+   appears in `flying_height_logbooks.csv` or the strips transcription.
+10. **Logbook rows and fly#95 (B4, O2).** Before appending, the generator is re-run on the unchanged
+    transcription and both roll tables must come out byte-identical (separating a catalogue change from
+    a transcription effect). Only the five new rolls' rows are appended (`control = FALSE`); the control
+    re-reads (batch C, `bc81027_4`, `bc78051_1`) are compared in scratch and never appended. After the
+    append, `flying_height_rolls.csv` and `_excluded.csv` must stay byte-identical (else stop). fly#95's
+    tests and note pin logbook counts that the five rolls change; those figures are updated, each
+    marked as moved by fly#97's transcription, and fly#95's verdicts (`spacing`, `tabled`) must not move.
+11. **Order deviation (O1), recorded:** the control draw ran before the generator re-run; the controls
+    touch none of the nine keys, the transcription was already complete, and nothing read from either
+    informs the other.
+
+Not taken up, and why: interval x ground speed as a centroid-free air base (scope: a second
+transcription pass; recorded as a lead in the note); a seed-selection rule other than fly#82's (the
+false-match gate tests what it would protect against).
