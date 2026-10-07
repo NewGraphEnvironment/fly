@@ -13,3 +13,6 @@
   CLAUDE.md (which names both prior reads), Plan-type do not -> reader is Plan-type. All of bc77070 withheld.
   Baseline generator re-run on the unedited tree: 45/45 CSVs byte-identical. Scorer rewritten (13 synthetic
   cases), compliance audit written and exercised both ways. Amendment A1 recorded.
+- Phase 2: third read done. Stage A (audit PASS, 50/50 images) then Stage B by SendMessage. Verdict:
+  **unsettled** (Stage B undecided, lean 3; Stage A alternatives 3/5 — 7 never a candidate). Gate PASS 203/211.
+  Reader slip: 8 Stage B rows name the reference's page as `disputed_file`; cannot move the verdict.

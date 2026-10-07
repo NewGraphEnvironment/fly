@@ -207,3 +207,47 @@ the scoring total; none changes what an outcome ships.
 `transcription/reader/rows.csv`, md5 `c6e6b65dc815721beacecc8ca3af30c2`, extracted from the reader's hand-back in its
 transcript and `cmp`-identical to the file written. Audit of Stage A: 51 tool calls, 50 Reads, all inside
 `pages_q`, 50 of 50 images read (the 51st is the hand-back): PASS.
+
+## The third read (2026-10-07): unsettled
+
+**Producer:** `Rscript planning/active/transcription/score.R planning/active/transcription/reader`, after
+`audit.py` on the reader's transcript. `glyphs.csv` and `verdict.csv` were extracted from the reader's second
+hand-back in its transcript and written by script, not retyped. `rows.csv` is unchanged since Stage A (md5
+`c6e6b65d...`).
+
+- **Audit (both stages):** 60 tool calls, 58 Reads, all inside `pages_q`; 50 of 50 images read; the other
+  two are the two hand-backs. PASS.
+- **Gate:** 211 control frames on 4 pages; the reader covers 203 (0.962), with 0 mismatches. PASS. The 8 it
+  does not cover are frames 96-103: it wrote that strip's first final as `9?`, which the scorer leaves
+  unranged, and noted that it "points to 90".
+- **Target:** `bc77087_1` frames 1-4, `height_as_written` "3.8", `height_digits` "?.8", leading digit
+  `uncertain`, alternatives `3/5`. Its note: "The height's first digit has a flat top and a curve below. It
+  reads most like 3, but it could be a 5 with no stem."
+- **Stage B:** 26 references: 13 for 3, 13 for 5. The red-ink final column (r13, r26) is judged
+  `different` hand.
+  - Same-hand `yes`: 3 has 2 (r5, r11: the 3s in the emulsion number "433", flat-topped); 5 has 0.
+  - **The scorer counts 3=1, 5=0, because of a protocol slip by the reader, not a scorer defect.** On
+    r9-r12 and r22-r25 the reader wrote the reference's own page (`bc77087_2`) into `disputed_file`, so the
+    scorer's filter on the target's file drops those eight. 18 of 26 rows name the target.
+  - The slip cannot move the verdict: the decision was `undecided`, and a decision is the precondition
+    for any tally to count.
+  - Decision `undecided`, lean 3: "at this resolution I cannot rule out a stemless 5 with a flat top
+    (r20, r21)".
+- **VERDICT: unsettled (Stage B undecided).** By the rule no lean counts, so file line 656 keeps 3.8.
+
+### What the rule does not count, recorded
+
+- **The third reader never listed 7.** Its alternatives were 3 and 5, and it leaned 3. That is not a vote
+  for 3.8, because the rule counts no lean, but it is the first read in which 7 was not a candidate at all.
+- **The three reads:**
+  - fly#93 committed to 3 ("first digit drawn with a flat top, read as 3 not 7").
+  - fly#97 declined, leaning 7 ("?.8 (7.8 or 3.8)"; the issue records "a flat top and a single descending
+    stroke").
+  - fly#101 declined, leaning 3 (3 or 5; "a flat top and a curve below").
+- **The one feature all three name is the flat top.** They part on what is below it. The orchestrator
+  has not seen the glyph; this is read off their reports.
+- The rule maps a commitment to 5 to `unsettled`. Nothing was computed here for a 5.8 reading.
+- **Same-model limitation:** all three readers are one model family. A fourth subagent read would be a
+  fourth draw from the same instrument, and the re-spawn policy forbids one.
+
+**Remaining route:** the original, or a larger scan, from the province (`province_request_draft.md`, unsent).
