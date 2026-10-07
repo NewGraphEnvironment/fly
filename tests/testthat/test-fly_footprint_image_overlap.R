@@ -219,6 +219,13 @@ test_that("the note's table and every figure in its prose are the shipped measur
               by = "film_roll")
   pos <- p[p$set == "positive", ]
   syn <- extdata("flying_height_image_overlap_synthetic.csv")
+  # Pairs of the five, and the strip each reaches (`place` is empty where no strip holds both frames).
+  ks5 <- paste(so$film_roll, so$flying_height, so$focal_length, so$scale_n)
+  st_all <- extdata("flying_height_image_overlap_strips.csv")
+  p5 <- p[p$set == "key" & p$key %in% ks5, ]
+  st5 <- st_all[st_all$key %in% ks5, ]
+  expect_identical(paste(st5$key, st5$frame), paste(p5$key, p5$frame))
+  sm <- p5$status == "matched" & !p5$line_break
   claims <- c(
     sprintf("overlap %s to %s,", sprintf("%.2f", min(so$p_img)), sprintf("%.2f", max(so$p_img))),
     sprintf("implies %s to %s at nominal", sprintf("%.2f", min(so$p_nominal)),
@@ -227,10 +234,9 @@ test_that("the note's table and every figure in its prose are the shipped measur
     sprintf("%d%% to %d%% of their pairs match", round(100 * min(so$pairs_matched / so$pairs)),
             round(100 * max(so$pairs_matched / so$pairs))),
     sprintf("on 112 frames"),
-    sprintf("%d of the %d matched pairs that a transcribed strip reaches (%d matched)", sum(so$dir_agree),
-            sum(so$dir_agree + so$dir_reverse + so$dir_differ),
-            sum(p$status == "matched" & !p$line_break & p$set == "key" &
-                  p$key %in% paste(so$film_roll, so$flying_height, so$focal_length, so$scale_n))),
+    sprintf("%d of the %d matched pairs whose strip writes a legible heading (%d matched; a strip reaches %d)",
+            sum(so$dir_agree), sum(so$dir_agree + so$dir_reverse + so$dir_differ),
+            sum(sm), sum(sm & !is.na(st5$place))),
     sprintf("x%.2f to x%.2f the air base (`exp(-D_agl)`)", min(exp(-so$D_agl)), max(exp(-so$D_agl))),
     sprintf("by at least x%.2f to x%.2f under any height", min(exp(-so$D_agl)), max(exp(-so$D_agl))),
     sprintf("passes by %.3f.** Its `D_agl` is %s against tau %s",
@@ -265,4 +271,28 @@ test_that("the note's table and every figure in its prose are the shipped measur
   )
   for (s in claims) expect_true(grepl(s, prose, fixed = TRUE), info = s)
   expect_identical(sum(sk$frames_nonpositive[mis]), 112L)
+})
+
+test_that("the location verdict's logbook reaches 107 of its 112 frames, and the note names the other 5", {
+  # The transcription is a data-raw input, not installed, so this runs only from the source tree.
+  lb_path <- testthat::test_path("..", "..", "data-raw", "flying_height_logbooks.csv")
+  skip_if(!file.exists(lb_path), "logbook transcription not reachable from an installed package")
+  lb <- utils::read.csv(lb_path, stringsAsFactors = FALSE)
+  sk <- extdata("flying_height_image_overlap_keys.csv")
+  mis <- sk[sk$location == "misplaced", ]
+  np <- extdata("flying_height_terrain_nonpositive.csv")
+  np <- np[paste(np$film_roll, np$flying_height, np$focal_length, np$scale_n) %in%
+             paste(mis$film_roll, mis$flying_height, mis$focal_length, mis$scale_n), ]
+  expect_identical(nrow(np), 112L)
+  reached <- vapply(seq_len(nrow(np)), function(i) {
+    any(lb$film_roll == np$film_roll[i] & !is.na(lb$frame_from) & !is.na(lb$height_ft_interpreted) &
+          np$frame_number[i] >= lb$frame_from & np$frame_number[i] <= lb$frame_to)
+  }, logical(1))
+  expect_identical(sum(reached), 107L)
+  expect_identical(paste(np$film_roll[!reached], np$frame_number[!reached]),
+                   c("bc77026 221", "bc77026 222", "bc77026 237", "bc77026 247", "bc77072 225"))
+  note <- system.file("notes", "terrain-correction.md", package = "fly", mustWork = TRUE)
+  prose <- gsub("\\s+", " ", paste(readLines(note), collapse = " "))
+  expect_true(grepl("107 of the 112 frames at `r <= 0` are not over the", prose, fixed = TRUE))
+  expect_true(grepl("(`bc77026` 221, 222, 237 and 247", prose, fixed = TRUE))
 })

@@ -857,8 +857,8 @@ The last row is nine roll-heights: `bc5715` 732, `bc77026` 2042, `bc77070` 1158,
 1981, `bc77087` 1158, `bc7718` 1524, `bc80117` 1372 and `bcc325` 396. Spacing rejects nominal there
 as well, so the fallback these frames get is not supported either. A centroid placed on higher
 ground than the photo covers would give `r <= 0` and is invisible to spacing. fly#97 measured
-those nine with the photos themselves, in the next section: where spacing rejected nominal, it was
-the catalogue's centroid step that was wrong, not the scale.
+those nine with the photos themselves, in the next section: where spacing rejected nominal, the
+catalogue's centroid step is wrong, so the rejection says nothing about the scale.
 
 ### What would change the answer
 
@@ -882,10 +882,11 @@ centroid step with the ~60% forward overlap a flight is designed to. It cannot s
 the scale is what is wrong. And on 1970s rolls the step is the weak half, because the centroids are
 interpolated evenly along each digitised line (fly#82).
 
-**Nothing changed in the package.** On five of the nine, the spacing rejected nominal only because the
-catalogue's step is longer than the air base, by at least x1.25 to x2.70 under any height the logbook's
-figure allows. On those five, the 112 frames at `r <= 0` are not over the ground photographed, by the
-logbook's figure against MRDEM. Two were flown at ~85% overlap, where the readings cannot be told apart. Two
+**Nothing changed in the package.** On five of the nine, the photos show the catalogue's step is longer
+than the air base, by at least x1.25 to x2.70 under any height the logbook's figure allows (`bc77087`
+only on its contested read), so spacing's rejection of nominal there says nothing about the scale. On
+those five, by the logbook's figure against MRDEM, 107 of the 112 frames at `r <= 0` are not over the
+ground photographed; the other 5 have no logbook row and carry the verdict only because it is per key. Two were flown at ~85% overlap, where the readings cannot be told apart. Two
 have one matched pair each, too few to judge.
 
 ### The instrument: the overlap the photos show
@@ -951,14 +952,17 @@ had no thumbnail.
     frames they read (`bc77070`'s pages were read blind for fly#97). So the true height above ground is
     at most that figure, and the true side is at most what reading it as above ground gives.
   - No size reading, then, brings the step down to the images' air base. Even at that largest side
-    the step is x1.25 to x2.70 the air base (`exp(-D_agl)`): the step is wrong. Spacing's rejection of
+    the step is x1.25 to x2.70 the air base (`exp(-D_agl)`): the step is wrong. (`bc77087`'s x1.39
+    rests on its page's contested 3.8; see below.) Spacing's rejection of
     nominal said nothing about the scale. Nominal stands as the default, unrefuted rather than
     confirmed.
   - **`bc77070`, the largest of the five (59 `r <= 0` frames), passes by 0.006.** Its `D_agl` is
     -0.226 against tau 0.220: x1.25, at the instrument's resolution.
 - **And the centroids are not over the ground photographed.** This rests on the logbook, not the
   photos. The page says the height is above sea level, yet MRDEM under the catalogue's centroids is at
-  or above it on 112 frames. That is fly#95's either-or (the column is not above sea level as written,
+  or above it on 112 frames, 107 of which a logbook row reaches. The other 5 (`bc77026` 221, 222, 237
+  and 247, past the appended row's 219 and reached only by the blind re-read, which A2 kept out; and
+  `bc77072` 225, which no page covers) are `misplaced` only because the verdict is made per key. That is fly#95's either-or (the column is not above sea level as written,
   or the frames are not where the catalogue puts them), settled by taking the page at its word.
   - The photos cannot reject the other horn. `step_overstated` says the step is wrong under both
     readings, so `D_agl` is computed with a step already shown wrong and does not test the datum. What
@@ -968,7 +972,8 @@ had no thumbnail.
     and its rule are unchanged.)
   - **`bc77087`'s 38 of these frames rest on a contested read** (below).
   - Strip headings on the pages agree with the catalogue's line bearings on 233 of the 237 matched
-    pairs that a transcribed strip reaches (285 matched), so the lines are not rotated or reversed.
+    pairs whose strip writes a legible heading (285 matched; a strip reaches 280), so the lines are not
+    rotated or reversed.
   - How far they are displaced is not measured. Whether a displacement keeps the step, which the size
     statement assumes, is not tested.
 - **The two above the window were flown at ~85% overlap.** The images read 0.858 and 0.840, and the
@@ -988,9 +993,12 @@ had no thumbnail.
   - `bc80117` "YALE BLUFF" is 97 km from its frames.
   - The five `misplaced` keys are 6 to 36 km from their places. A project area spans tens of km, so
     that does not discriminate.
-- **`bc77087`'s location rests on a contested read.** The blind reader of its page 1 would not choose
-  between 3.8 and 7.8, leaning 7.8; fly#60's reader read 3.8. At 7,800 ft its frames would not be at
-  `r <= 0`. The step verdict holds either way.
+- **`bc77087` rests on a contested read, and not only its location.** The blind reader of its page 1
+  would not choose between 3.8 and 7.8, leaning 7.8; fly#60's reader read 3.8. At 7,800 ft its 38
+  frames would not be at `r <= 0`, its page would read `read_other` and its size `unsettled`, and the
+  step bound would fall to x1.15-x1.59 over MRDEM's 10th-90th percentile under its frames (x0.68 over
+  sea-level ground), under tau at the low end. Only its W1 label, computed at the catalogue's height,
+  is the same either way.
 
 ### What it leaves
 
@@ -1000,7 +1008,8 @@ had no thumbnail.
 - **An air base that reads no centroid would settle size outright.** Interval times ground speed is
   one: some pages log the intervalometer and the speed. Not transcribed here.
 - **Do not use spacing's window as evidence about scale on a 1970s roll** without the photos. On all seven
-  keys here that the photos could measure, its rejection came from the step or the flown overlap.
+  keys here that the photos could measure, the step or the flown overlap was off what the window
+  assumes, so its rejection said nothing about the scale.
 
 ## What a partially covered footprint costs (fly#58)
 

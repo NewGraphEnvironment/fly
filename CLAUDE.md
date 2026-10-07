@@ -436,17 +436,19 @@ columns and checks the logbook columns for consistency, since the per-frame logb
   "Is the catalogued height above ground?"
 
 - **Where spacing rejected nominal on the frames under the terrain, the photos say the catalogue's
-step is wrong, not the scale** (fly#97, no code change). Measured with the overlap the thumbnails
+step is wrong, so the rejection says nothing about the scale** (fly#97, no code change). Measured with the overlap the thumbnails
 themselves show, which reads no catalogue field. On five of fly#95's nine roll-heights the photos overlap
 0.62-0.81 where the step says 0.11-0.42; even at the largest side the logbooks' M.S.L. heights allow,
-the step is x1.25-x2.70 the air base (`bc77070` passes by 0.006). By the logbooks against MRDEM, not by
-the photos, the 112 `r <= 0` frames there are not over the ground photographed. `bc7718` and
+the step is x1.25-x2.70 the air base (`bc77070` passes by 0.006; `bc77087` only on its contested 3.8).
+By the logbooks against MRDEM, not by the photos, 107 of the 112 `r <= 0` frames there (those a logbook
+row reaches) are not over the ground photographed. `bc7718` and
 `bc80117` were flown at ~85% overlap, where the two readings coincide.
 
   **Three things are load-bearing.**
   - **Do not read spacing's window as evidence about scale on a 1970s roll.** Centroids there are
     interpolated along digitised lines. On all seven keys here where the photos could be measured, the
-    window's rejection of nominal came from the step or the flown overlap.
+    step or the flown overlap was off what the window assumes, so its rejection said nothing about
+    scale.
   - **The matcher has a floor.** It needs roughly a quarter of the frame shared (0.25 matches and 0.20
     does not), and tau is ~x1.25, set by how far the step strays on ordinary keys. A no-match does not
     mean "not adjacent".

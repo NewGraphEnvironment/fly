@@ -404,3 +404,22 @@ red; one negative pair's p_img moved 0.10 -> red; W1 with `consistent_agl` teste
 4. **Denominators:** headings 233 of the 237 matched pairs a transcribed strip reaches (285 matched);
    ordinary pairs 31 of the 190 compared did not match (2 no thumbnail); unrelated 0 of 36 compared
    (38 drawn). Note, NEWS and the test pins corrected.
+
+## Code-check round 2 (`review-round2.md`) — four findings, all inside round-1 fixes
+
+Mechanism, as the reviewer named it: each round-1 fix moved a claim onto a new basis and kept stating it
+over the old set, which the new basis does not fully cover.
+1. **Heading denominator still mislabelled.** 237 is the matched pairs whose strip writes a *legible*
+   heading (`bc77026` 175-218 sit under "270 written over 090, both struck through"); a strip reaches 280
+   of the 285 (none reaches `bc77072` 224-228). (My own first probe said 285 reach: it read empty strings
+   as present — a broken probe, caught by re-reading with `na.strings = ""`.)
+2. **The logbook basis covers 107 of the 112 frames.** `bc77026` 221, 222, 237, 247 lie past the
+   appended row's 219 (only the unappended blind re-read reaches them); `bc77072` 225 has no page. They
+   are `misplaced` only because the verdict is per key. Now stated and pinned (source-tree test).
+3. **`bc77087`'s bound holds only on the 3.8 read.** At 7,800 ft: x0.68 over sea-level ground, x1.15 /
+   1.44 / 1.59 over MRDEM's 10th/50th/90th percentile under its frames; W2 would be `read_other`, size
+   `unsettled`. Only its W1 label is read-independent. Now in the note, NEWS and CLAUDE.md.
+4. **Causal wording a lower bound does not support.** Removing only the minimum step error leaves nominal
+   overlaps 0.428 / 0.430 / 0.502 (`bc77070` / `bc77087` / `bc77072` 1981), still outside the window, so
+   "rejected nominal only because" and "the step, not the scale" overclaim; "says nothing about the
+   scale" is what holds. Reworded in the note (three places) and CLAUDE.md (two).
