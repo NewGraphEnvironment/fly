@@ -77,7 +77,10 @@ score <- function(dir) {
   conf <- low(rd$leading_digit_confidence)
   p1 <- rd[rd$file == target_file & conf %in% c("clear", "uncertain", "illegible"), ]
   if (!nrow(p1)) stop("no figure-bearing height on ", target_file)
-  p1 <- p1[order(int(p1$frame_from), na.last = TRUE), ]
+  # Line 1 is identified by its first final, so every figure-bearing row on the page must have one that
+  # parses; otherwise which row is line 1 is not known, and nothing is scored (round 2).
+  if (any(is.na(int(p1$frame_from)))) stop("a figure-bearing row on ", target_file, " has no integer first final")
+  p1 <- p1[order(int(p1$frame_from)), ]
   cat(sprintf("figure-bearing rows on %s: %d (%s)\n", target_file, nrow(p1),
               paste(p1$frames_final, p1$height_digits, sep = ": ", collapse = "; ")))
   t <- p1[1, ]
@@ -92,7 +95,7 @@ score <- function(dir) {
 
   committed <- NA_character_; basis <- ""
   if (tconf == "clear") {
-    if (length(alts)) basis <- "marked clear but lists alternatives: no commitment"
+    if (nzchar(trimws(t$leading_digit_alternatives))) basis <- "marked clear but lists alternatives: no commitment"
     else if (grepl("^[0-9]$", lead)) { committed <- lead; basis <- "read clear in Stage A" }
     else basis <- "marked clear but no digit written: no commitment"
   } else if (file.exists(file.path(dir, "verdict.csv"))) {
@@ -119,7 +122,8 @@ score <- function(dir) {
                 paste(refs, collapse = ",")))
     if (grepl("^[0-9]$", dec)) {
       others <- tally[names(tally) != dec]
-      if (!length(refs) || !all(refs %in% g$ref_id)) basis <- "cited references missing from glyphs.csv: no commitment"
+      if (!dec %in% alts) basis <- "decided a digit Stage A did not list as an alternative: no commitment"
+      else if (!length(refs) || !all(refs %in% g$ref_id)) basis <- "cited references missing from glyphs.csv: no commitment"
       else if (sup(dec, refs) < 1) basis <- "no cited same-hand reference supports the decision: no commitment"
       else if (length(others) && sup(dec) <= max(others)) basis <- "a competing digit has as much support: no commitment"
       else { committed <- dec; basis <- sprintf("Stage B, %d same-hand reference(s)", sup(dec)) }

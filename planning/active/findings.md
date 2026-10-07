@@ -279,3 +279,37 @@ hand-back in its transcript and written by script, not retyped. `rows.csv` is un
    would be checked in fly#101's place. It now prefers `*issue-101*` in the archive.
 3. **The province draft still said "a 3 or a 7".** Now: read as a 3, as either a 3 or a 7, and as either a
    3 or a 5, by three readers.
+
+## Code-check round 2 (`review-round2.md`): two findings in the scorer, same class as round 1
+
+**Mechanism:** the scorer is a guard, and each defect was an input the committed rule calls "no commitment"
+that the code let through to "settled".
+
+1. A `clear` target whose alternatives cell held no digit (`seven`) committed, because alternatives were
+   reduced to digits before the test. Now any non-blank alternatives on a `clear` target is no commitment
+   (case 15).
+2. A line 1 whose first final did not parse sorted last, so a later row became the target. Now any
+   figure-bearing row on the page with an unparsable first final stops scoring: `unsettled (scoring
+   error)` (case 16).
+
+**Enumeration, to end the class rather than wait for a quiet round.** `score.R` reaches "settled" by
+exactly one expression, which needs a passed gate, `committed` set, a remainder of `.8`, and `committed`
+of 3 or 7. `committed` is assigned in exactly two places.
+
+- **(a) Stage A read clear.** It needs:
+  - confidence `clear`;
+  - a blank alternatives cell (case 5, case 15);
+  - a digit as the first character of `height_digits` (`?` fails);
+  - a target row identified by a parsed first final (case 16).
+- **(b) Stage B decision.** It needs:
+  - a confidence other than `clear`;
+  - exactly one `verdict.csv` row for the target's file and frames (otherwise a scoring error);
+  - a digit as the decision (case 9);
+  - **the decision among the Stage A alternatives (case 17, added now).** The brief confines Stage B to
+    those, and without this check a digit Stage A never offered could settle;
+  - every cited ref_id present among the target's references (case 8);
+  - at least one cited same-hand `yes` reference (case 14);
+  - more same-hand `yes` references for the decision than for any other candidate (case 7).
+
+Every condition in A1 items 5-7 is in that list, and the list is all the code does. The real reader is still
+`unsettled (Stage B undecided)`, and cases 1-13 are unchanged.
