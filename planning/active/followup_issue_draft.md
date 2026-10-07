@@ -14,11 +14,10 @@ Source: `inst/extdata/flying_height_image_overlap_keys.csv`, produced by `data-r
 
 On these keys:
 - the logbook writes the catalogue's height under an M.S.L. header;
-- the photos overlap like an ordinary flight, which rejects reading that height as above ground;
-- MRDEM under the catalogue's centroids is at or above that height on 112 frames;
-- the catalogue's centroid step is 2.1 to 3.0 times the air base the images imply.
+- MRDEM under the catalogue's centroids is at or above that height on 112 frames, so by the page those frames are not over the ground photographed;
+- the photos overlap like an ordinary flight, and even at the largest side the M.S.L. height allows, the catalogue's centroid step is 1.25 to 2.7 times the air base the images imply. So the catalogue's positions along each line are not the photos' either. On `bc77070` that margin is at the instrument's resolution.
 
-So the frames were photographed somewhere else, over lower ground. Strip headings agree with the catalogue's lines on 264 of 268 matched pairs, so the lines are not rotated or reversed; how far off they are is not measured.
+So, by the page, the frames were photographed somewhere else, over lower ground; the photos do not test the page's datum themselves (fly#97's note says why). On the five, strip headings agree with the catalogue's lines on 233 of the 237 matched pairs a transcribed strip reaches, so the lines are not rotated or reversed; how far off they are is not measured. `bc77087`'s page-1 height is contested by a blind re-read (3.8 or 7.8 thousand ft); at 7,800 ft its 38 frames would not sit under the terrain at all.
 
 There are two more roll-heights that fly#97's rule left `unsettled`, because the two size readings coincide on them. Their pages name places far from the catalogue's frames: `bc7718` 46-69 is "TAHSIS", 359 km away, and `bc80117` is "YALE BLUFF", 97 km away.
 

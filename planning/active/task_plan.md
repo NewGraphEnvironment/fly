@@ -128,7 +128,7 @@ those frames.
 - [x] Expected: no code change, recorded as such (as fly#65/#80/#95)
 - [x] ~~If any key comes out `agl_supported`~~ (none did; no W2 `ground`), or otherwise supports a size other than nominal, stop and bring
       the package shape to the user before changing `fly_footprint()`
-- [ ] If any key is `nominal_centroids_misplaced`, file the follow-up issue on flagging misplaced-centroid
+- [x] If any key is `nominal_centroids_misplaced`, file the follow-up issue (filed as fly#99, after three GitHub-side failures) on flagging misplaced-centroid
       frames, with numbers from the shipped CSV
 
 ## Phase 6: Tests and documentation
