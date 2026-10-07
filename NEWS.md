@@ -1,5 +1,7 @@
 # fly (development version)
 
+## 0.23.1 (2026-10-06)
+
 - **Whether a frame's catalogued height is a height above ground was tested, and these instruments cannot settle it** ([#95](https://github.com/NewGraphEnvironment/fly/issues/95)). No code change, and every roll table is byte-identical.
   - **The question.** fly#93 left 374 frames under ground at or above the catalogued aircraft and 176 roll-heights where spacing fits nominal scale, both consistent with a height recorded above ground. Together they are 188 roll-heights, judged on the 2,956 frames the two census files hold on them.
   - **What was measured.** A rule was fixed before any per-roll-height number: spacing first, then the logbook. Spacing supports reading the height as above ground on 1 roll-height, cannot tell it from nominal on 126 and rejects it on 61. The one it supports, `bc5602` 1219 m, has a logbook writing the catalogue's own 4,000 ft under an M.S.L. header, so nothing tables. Across the 576 logbook-read frames, the page writes the catalogue's height on 558, and no page puts the ground under it.
