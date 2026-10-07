@@ -883,8 +883,9 @@ the scale is what is wrong. And on 1970s rolls the step is the weak half, becaus
 interpolated evenly along each digitised line (fly#82).
 
 **Nothing changed in the package.** On five of the nine, the spacing rejected nominal only because the
-catalogue's step is about two to three times the air base. On those five, the centroids are not over the
-ground photographed. Two were flown at ~85% overlap, where the readings cannot be told apart. Two
+catalogue's step is longer than the air base, by at least x1.25 to x2.70 under any height the logbook's
+figure allows. On those five, the 112 frames at `r <= 0` are not over the ground photographed, by the
+logbook's figure against MRDEM. Two were flown at ~85% overlap, where the readings cannot be told apart. Two
 have one matched pair each, too few to judge.
 
 ### The instrument: the overlap the photos show
@@ -918,14 +919,15 @@ the nine keys was measured:
 |---|---|
 | synthetic known shifts, overlap 0.35 to 0.90 | 50 of 50 matched, error under 1e-4 |
 | synthetic floor | 0.20: 0 of 10 matched; 0.25: 10 of 10 |
-| unrelated pairs (frames of two different rolls) | 0 of 38 matched |
+| unrelated pairs (frames of two different rolls) | 0 of 36 compared matched (38 drawn, 2 with no thumbnail) |
 | crew-written overlap, 9 rolls | median 0.018 above what the page writes |
 | `bc85054` 162/163, spacing x1.7 off (fly#82) | flagged, \|D\| 0.548 |
 | ordinary 1970-85 keys where spacing fits, 34 | median D -0.031; tau, the 95th percentile of \|D\|, 0.220 |
 
 tau passed its pre-set ceiling of log 1.25 (0.223) narrowly. Even on ordinary keys, then, the
 catalogue's step differs from the images' air base by up to about x1.25, and the instrument cannot see
-a step error smaller than that. 31 of 192 ordinary pairs did not match.
+a step error smaller than that. Of 192 ordinary pairs, 31 of the 190 compared did not match, and 2
+had no thumbnail.
 
 ### What it found
 
@@ -943,18 +945,30 @@ a step error smaller than that. 31 of 192 ordinary pairs did not match.
 
 - **The five below the window were flown as ordinary flights.** Their photos overlap 0.62 to 0.81,
   and 83% to 97% of their pairs match, so the frames are adjacent. The catalogue's step implies 0.11
-  to 0.42 at nominal, so it is 1.9 to 3.0 times the air base the images imply.
+  to 0.42 at nominal: at nominal scale the step would be 1.9 to 3.0 times the air base the images
+  imply.
   - On each, the pages write the catalogue's figure under an M.S.L. header for at least 90% of the
     frames they read (`bc77070`'s pages were read blind for fly#97). So the true height above ground is
     at most that figure, and the true side is at most what reading it as above ground gives.
-  - No size reading, then, brings the step down to the images' air base: the step is wrong. Spacing's
-    rejection of nominal said nothing about the scale. Nominal stands as the default, unrefuted rather
-    than confirmed.
-- **And the centroids are not over the ground photographed.** On those five, the images reject
-  reading the height as above ground, and the page says it is above sea level. Yet MRDEM under the
-  catalogue's centroids is at or above it on 112 frames.
-  - Strip headings on the pages agree with the catalogue's line bearings on 233 of 237 matched pairs,
-    so the lines are not rotated or reversed.
+  - No size reading, then, brings the step down to the images' air base. Even at that largest side
+    the step is x1.25 to x2.70 the air base (`exp(-D_agl)`): the step is wrong. Spacing's rejection of
+    nominal said nothing about the scale. Nominal stands as the default, unrefuted rather than
+    confirmed.
+  - **`bc77070`, the largest of the five (59 `r <= 0` frames), passes by 0.006.** Its `D_agl` is
+    -0.226 against tau 0.220: x1.25, at the instrument's resolution.
+- **And the centroids are not over the ground photographed.** This rests on the logbook, not the
+  photos. The page says the height is above sea level, yet MRDEM under the catalogue's centroids is at
+  or above it on 112 frames. That is fly#95's either-or (the column is not above sea level as written,
+  or the frames are not where the catalogue puts them), settled by taking the page at its word.
+  - The photos cannot reject the other horn. `step_overstated` says the step is wrong under both
+    readings, so `D_agl` is computed with a step already shown wrong and does not test the datum. What
+    the photos add is that, under either reading, the catalogue's positions along each line are not
+    the photos'. (Amendment A2 glossed the verdict as "the images reject reading the column as above
+    ground"; for `step_overstated` that gloss was wrong, and code-check round 1 found it. The verdict
+    and its rule are unchanged.)
+  - **`bc77087`'s 38 of these frames rest on a contested read** (below).
+  - Strip headings on the pages agree with the catalogue's line bearings on 233 of the 237 matched
+    pairs that a transcribed strip reaches (285 matched), so the lines are not rotated or reversed.
   - How far they are displaced is not measured. Whether a displacement keeps the step, which the size
     statement assumes, is not tested.
 - **The two above the window were flown at ~85% overlap.** The images read 0.858 and 0.840, and the

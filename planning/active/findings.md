@@ -331,7 +331,7 @@ the user and the package does not change (Phase 5).
 - **Seven below the window (leads 1 and 4).** On the five keys with enough pairs the photos overlap
   0.62-0.81, an ordinary flight, where the catalogue's step says 0.11-0.42 at nominal. The step is
   1.9 to 3.0 times the air base the images imply at nominal (`k`; first written here as 2.1, from
-  memory of the log; corrected by the note's prose test). The frames *are* adjacent (86-97% of
+  memory of the log; corrected by the note's prose test). At nominal only: see code-check round 1. The frames *are* adjacent (86-97% of
   pairs match). Given the crew's height above sea level, no size reading can bring the step down to the
   images', so it is the step that is wrong; spacing's rejection of nominal said nothing about scale.
 - **Two above the window (lead 2).** `bc7718` and `bc80117` were flown at ~85% overlap: the images read
@@ -339,8 +339,9 @@ the user and the package does not change (Phase 5).
   assumes ~60%, not because a reading is wrong. The two readings coincide there (gap 0.001 and 0.114
   against 2 tau 0.44), so the rule cannot say which and leaves both `unsettled`.
 - **Location (lead 3).** On the five keys, the page writes the catalogue's figure under an M.S.L. header,
-  the images reject reading it as above ground, and MRDEM under the catalogue's centroids is at or above
-  that height on 112 frames: the centroids are not over the ground photographed. Headings agree with the
+  and MRDEM under the catalogue's centroids is at or above that height on 112 frames: by the page, those
+  frames are not over the ground photographed. (First written as "the images reject reading it as above
+  ground"; code-check round 1 showed that is not so for `step_overstated` — see below.) Headings agree with the
   catalogue's line bearings on 233 of 237 matched pairs on the five (264 of 268 over all nine; 4 differ,
   0 reversed), so the lines are not
   rotated or reversed; if the misplacement is a translation that keeps the step, the size statement
@@ -384,3 +385,22 @@ red; one negative pair's p_img moved 0.10 -> red; W1 with `consistent_agl` teste
 | Synthetic 0.20 overlap never matches | The reused gate's geometry (128 px windows, 50 px margin): Amendment A1, floor reported |
 | `gh issue create` GraphQL "Something went wrong" x2, REST "unexpected end of JSON input" | GitHub-side; nothing created; retried later |
 | tau pinned at 4 dp fails from the shipped CSV | The CSV rounds p to 4 dp; pinned at 3 dp |
+
+## Code-check round 1 (`review-round1.md`) — four findings, all real, all in what the documents claim
+
+1. **The image leg of `misplaced` is vacuous on `step_overstated` keys.** A2(4) glossed the location verdict
+   as "the images reject reading the column as above ground". But `step_overstated` says the step is wrong
+   under both readings, so `D_agl`, computed with that step, cannot test the datum. On the five keys the
+   location verdict is fly#95's either-or settled by trusting the page. The rule and verdict are unchanged
+   (fixed before the data); the note now states the basis as the logbook against MRDEM and says what the
+   photos do add (the catalogue's positions along each line are not the photos', under either reading).
+2. **"1.9 to 3.0 times the air base" is `k`, which assumes nominal**, and NEWS used it to conclude nominal
+   stands (circular). What holds under any side the M.S.L. height allows is `exp(-D_agl)`: x1.25 (`bc77070`),
+   x1.39 (`bc77087`), x1.78/x1.80 (`bc77072`), x2.70 (`bc77026`). **`bc77070` passes `step_overstated` by
+   0.006** (D_agl -0.2260 against tau 0.2199) — now stated in the note, NEWS and CLAUDE.md.
+3. **`bcc325` shipped `w2_height = not_read` although its page was read** (1,500 ft against the catalogue's
+   1,300). The residual class now splits: `read_other` (covered, under 90% either way) and `not_read`. Only
+   `bcc325`'s label moved; no verdict depends on the split. An encoding fix after the run, not a rule change.
+4. **Denominators:** headings 233 of the 237 matched pairs a transcribed strip reaches (285 matched);
+   ordinary pairs 31 of the 190 compared did not match (2 no thumbnail); unrelated 0 of 36 compared
+   (38 drawn). Note, NEWS and the test pins corrected.

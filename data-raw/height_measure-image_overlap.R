@@ -648,6 +648,8 @@ covered <- kk$frames_logbook >= kk$frames / 2
 kk$w2_height <- dplyr::case_when(
   covered & kk$frames_catalogue >= 0.9 * kk$frames_logbook ~ "msl_catalogue",
   covered & kk$frames_ground >= 0.9 * kk$frames_logbook ~ "ground",
+  # Read, but under 90% either way: the page disagrees, which is not the same as no page (round 1).
+  covered ~ "read_other",
   TRUE ~ "not_read"
 )
 

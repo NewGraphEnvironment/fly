@@ -7,4 +7,4 @@ bc77072,1981,153,10000,55,3,64,2,53,53,0.6153,0.1143,0.3159,-0.834,-0.5757,0.258
 bc77087,1158,153,5000,57,38,57,2,49,49,0.6232,0.2091,0.4775,-0.7415,-0.3269,0.4146,2.099,step_overstated,57,57,0,msl_catalogue,46,0,3,nominal_unrefuted,misplaced,SWAN LAKE GRINROD,9.6601,
 bc7718,1524,305,5000,24,24,24,1,23,23,0.8582,0.8567,0.8566,-0.0104,-0.0111,7e-04,1.0105,indistinguishable,24,24,0,msl_catalogue,23,0,0,unsettled,not_tested,TAHSIS,358.9828,
 bc80117,1372,153,8000,19,19,18,1,17,17,0.8397,0.8435,0.8604,0.0242,0.1383,0.1141,0.9761,indistinguishable,19,19,0,msl_catalogue,7,0,0,unsettled,not_tested,YALE BLUFF,97.4884,80% FOREWARD O.L.
-bcc325,396,153,2000,2,1,2,0,1,1,0.6291,0.0758,0.2858,-0.9131,-0.6553,0.2578,2.4921,too_few_pairs,2,0,0,not_read,1,0,0,too_few_pairs,not_tested,? Creek (2 mi North of South Bay) Moresby Island (OP 297/82),,
+bcc325,396,153,2000,2,1,2,0,1,1,0.6291,0.0758,0.2858,-0.9131,-0.6553,0.2578,2.4921,too_few_pairs,2,0,0,read_other,1,0,0,too_few_pairs,not_tested,? Creek (2 mi North of South Bay) Moresby Island (OP 297/82),,

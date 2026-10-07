@@ -131,6 +131,7 @@ test_that("every key's verdicts follow from its pairs, tau and the generator's l
   w2 <- dplyr::case_when(
     cov & ag$frames_catalogue >= 0.9 * ag$frames_logbook ~ "msl_catalogue",
     cov & ground >= 0.9 * ag$frames_logbook ~ "ground",
+    cov ~ "read_other",
     TRUE ~ "not_read"
   )
   expect_identical(w2, sk$w2_height)
@@ -177,10 +178,14 @@ test_that("the note's table and every figure in its prose are the shipped measur
   # four-decimal overlaps would round twice (0.84348 to 0.8435 to 0.844).
   kq <- p[p$set == "key", ]
   kq$p_nominal <- 1 - kq$step / (format_m * as.numeric(sub(".* ", "", kq$key)))
+  kk4 <- strsplit(kq$key, " ")
+  kq$p_agl <- 1 - kq$step / (format_m * as.numeric(vapply(kk4, `[`, "", 2)) /
+                               (as.numeric(vapply(kk4, `[`, "", 3)) / 1000))
   rk <- io_keys(kq)
   rk <- rk[match(paste(sk$film_roll, sk$flying_height, sk$focal_length, sk$scale_n), rk$key), ]
   sk$p_img <- rk$p_img
   sk$p_nominal <- rk$p_nominal
+  sk$D_agl <- D_of(rk$p_img, rk$p_agl)
   f3 <- function(x) sprintf("%.3f", x)
 
   # The table: one row per key, in the shipped order.
@@ -222,15 +227,27 @@ test_that("the note's table and every figure in its prose are the shipped measur
     sprintf("%d%% to %d%% of their pairs match", round(100 * min(so$pairs_matched / so$pairs)),
             round(100 * max(so$pairs_matched / so$pairs))),
     sprintf("on 112 frames"),
-    sprintf("%d of %d matched pairs", sum(so$dir_agree),
-            sum(so$dir_agree + so$dir_reverse + so$dir_differ)),
+    sprintf("%d of the %d matched pairs that a transcribed strip reaches (%d matched)", sum(so$dir_agree),
+            sum(so$dir_agree + so$dir_reverse + so$dir_differ),
+            sum(p$status == "matched" & !p$line_break & p$set == "key" &
+                  p$key %in% paste(so$film_roll, so$flying_height, so$focal_length, so$scale_n))),
+    sprintf("x%.2f to x%.2f the air base (`exp(-D_agl)`)", min(exp(-so$D_agl)), max(exp(-so$D_agl))),
+    sprintf("by at least x%.2f to x%.2f under any height", min(exp(-so$D_agl)), max(exp(-so$D_agl))),
+    sprintf("passes by %.3f.** Its `D_agl` is %s against tau %s",
+            -so$D_agl[so$film_roll == "bc77070"] - tt$tau, f3(so$D_agl[so$film_roll == "bc77070"]),
+            f3(tt$tau)),
     sprintf("The images read %s and %s, and the catalogue step gives %s and %s", f3(ind$p_img[1]),
             f3(ind$p_img[2]), f3(ind$p_nominal[1]), f3(ind$p_nominal[2])),
     sprintf("%s and %s apart in D, against 2 tau = %s", f3(ind$gap[1]), f3(ind$gap[2]),
             sprintf("%.2f", 2 * tt$tau)),
     sprintf("median D %s; tau, the 95th percentile of \\|D\\|, %s", f3(tt$median), f3(tt$tau)),
-    sprintf("%d of %d ordinary pairs did not match", sum(neg$status == "no_match"), nrow(neg)),
-    sprintf("| 0 of %d matched |", sum(p$set == "unrelated")),
+    sprintf("Of %d ordinary pairs, %d of the %d compared did not match, and %d had no thumbnail",
+            nrow(neg), sum(neg$status == "no_match"), sum(neg$status != "no_thumbnail"),
+            sum(neg$status == "no_thumbnail")),
+    sprintf("| %d of %d compared matched (%d drawn, %d with no thumbnail) |",
+            sum(p$set == "unrelated" & p$status == "matched"),
+            sum(p$set == "unrelated" & p$status != "no_thumbnail"), sum(p$set == "unrelated"),
+            sum(p$set == "unrelated" & p$status == "no_thumbnail")),
     sprintf("median %s above what the page writes", f3(stats::median(wk$p_calc[wk$gated] - wk$written[wk$gated]))),
     sprintf("flagged, \\|D\\| %s", f3(abs(D_of(pos$p_calc, pos$p_nominal)))),
     sprintf("| %d of %d matched, error under 1e-4 |", sum(syn$matched & syn$p_true >= 0.35),

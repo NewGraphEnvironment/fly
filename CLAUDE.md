@@ -438,8 +438,9 @@ columns and checks the logbook columns for consistency, since the per-frame logb
 - **Where spacing rejected nominal on the frames under the terrain, the photos say the catalogue's
 step is wrong, not the scale** (fly#97, no code change). Measured with the overlap the thumbnails
 themselves show, which reads no catalogue field. On five of fly#95's nine roll-heights the photos overlap
-0.62-0.81 where the step says 0.11-0.42, so the step is 1.9-3.0 times the air base. With the logbooks'
-M.S.L. heights, the centroids are not over the ground photographed (112 `r <= 0` frames). `bc7718` and
+0.62-0.81 where the step says 0.11-0.42; even at the largest side the logbooks' M.S.L. heights allow,
+the step is x1.25-x2.70 the air base (`bc77070` passes by 0.006). By the logbooks against MRDEM, not by
+the photos, the 112 `r <= 0` frames there are not over the ground photographed. `bc7718` and
 `bc80117` were flown at ~85% overlap, where the two readings coincide.
 
   **Three things are load-bearing.**
