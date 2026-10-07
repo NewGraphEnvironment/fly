@@ -409,7 +409,7 @@ coarse error **held to every frame read** (the sweep alone understated it: 112 m
 changed** (fly#95, no code change) — 188 roll-heights (2,956 frames): fly#93's 374 frames at `r <= 0`
 plus the 176 where A2 found nominal fits. Spacing supports reading `flying_height` as above ground on
 1, cannot separate it from nominal on 126 and rejects it on 61. `bc5602`, the one it supports, has a logbook
-writing the catalogue's own 4,000 ft under M.S.L. On the 576 logbook-read frames, 550 carry the
+writing the catalogue's own 4,000 ft under M.S.L. On the 576 logbook-read frames, 558 carry the
 catalogue's figure and no page puts the ground under it. Generator Stages 3c and 6 write
 `inst/extdata/flying_height_above_ground.csv`; `test-fly_footprint_above_ground.R` recomputes it.
 
@@ -417,7 +417,7 @@ catalogue's figure and no page puts the ground under it. Generator Stages 3c and
   - **Read the null as "cannot settle", not "false".** On a key, `p_agl = 1 - (1 - p_nominal) / ratio_asl`,
     so spacing adds nothing beyond nominal's overlap and the ratio. In band above sea level the ratio is
     under 1.6, and #60 found spacing stops separating readings there. Undecided readings differ by up to
-    49% in width; the refutations sit a median 0.028 outside the window.
+    49% in width; where nominal fits, the refutations sit a median 0.028 outside the window.
   - **If a page ever does put the ground under the height,** ship its figure as above sea level through
     the existing `factor != 1` branch, which already reaches `r <= 0` frames. Do not add an "above
     ground" route that reads the catalogue's height. On `r <= 0` frames such a page is ambiguous with x2.

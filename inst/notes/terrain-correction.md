@@ -804,8 +804,9 @@ fits the window read as above ground (0.631) and not at nominal (0.510). Its pag
 4,000 ft on all 24 frames, which is 1,219 m, the catalogue's own figure, under an M.S.L.
 header. MRDEM puts the ground under 23 of those frames at 1,234 to 1,591 m.
 
-**Wherever a page covers these frames, the crew wrote the catalogue's height under an M.S.L.
-header.** That holds over the 32 roll-heights with transcribed rows (576 frames read):
+**Where a page covers these frames, it writes the catalogue's height on 558 of 576, and no page
+puts the ground under it.** The headers say M.S.L. or name no datum; none names the ground. Over
+the 32 roll-heights with transcribed rows (576 frames read):
 
 | logbook relation | frames |
 |---|---|

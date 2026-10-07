@@ -16,3 +16,9 @@
 - Phase 6: `test-fly_footprint_above_ground.R` (recomputes S from the census files, pins the note's three tables
   and prose figures; a flipped verdict goes red in a copy), note section, NEWS, CLAUDE.md. Filed fly#97 for the
   nine roll-heights where neither reading fits, before citing it
+- Full suite: 5,476 pass, 0 fail (before round 1 fixes). Lint: helper `spacing_verdict()` replaces a nested `if`
+  chain; generator re-run, all three outputs byte-identical (md5)
+- Code-check round 1 (`review-round1.md`): code clean; three prose defects, all confirmed and fixed — the
+  refutation median quoted without its "where nominal fits" scope (NEWS, CLAUDE.md; 0.032 over all 61), "550"
+  that should be 558 (the 8 `ambiguous` carry the catalogue's figure), and the note's "wherever a page covers
+  these frames" contradicted by its own table's 18 `other`. The corrected note sentence is now pinned

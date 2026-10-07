@@ -177,6 +177,8 @@ test_that("the note's above-ground tables are the shipped tables, row by row (fl
   # "32 roll-heights with transcribed rows (576 frames read)".
   expect_identical(sum(ag$frames_logbook > 0), 32L)
   expect_identical(sum(ag$frames_logbook), 576L)
+  # `ambiguous` frames carry the catalogue's figure too (ground near sea level).
+  expect_identical(sum(ag$frames_catalogue) + sum(ag$frames_ambiguous), 558L)
 
   win <- agl_window()
   fits <- function(p) is.finite(p) & p >= win[1] & p <= win[2]
@@ -206,7 +208,8 @@ test_that("the note's above-ground tables are the shipped tables, row by row (fl
               "494 of their 1,562 frames", "a median 0.028 outside the window",
               "23 of them by under 0.02", "On the 52 refuted roll-heights",
               "the 32 roll-heights with transcribed rows (576 frames read)",
-              "188 roll-heights, 2,956 frames")) {
+              "188 roll-heights, 2,956 frames",
+              "it writes the catalogue's height on 558 of 576")) {
     expect_true(grepl(s, prose, fixed = TRUE), info = s)
   }
 })

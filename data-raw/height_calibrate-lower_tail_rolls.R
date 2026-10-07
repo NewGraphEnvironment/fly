@@ -367,6 +367,11 @@ agl_keys <- union(key4(nps$film_roll, nps$flying_height, nps$focal_length, nps$s
                   a2$key[a2$a2_reason %in% A2_NOMINAL])
 agl <- pool[pool_key %in% agl_keys, ]
 agl$p_agl <- 1 - agl$base / (FORMAT_M * agl$flying_height / agl$f_m)
+spacing_verdict <- function(any_base, p_agl, p_nom) {
+  if (!any_base) return("no_base")
+  if (!fits(p_agl)) return("refutes")
+  if (fits(p_nom)) "undecided" else "supports"
+}
 agl_s <- do.call(rbind, lapply(split(agl, list(agl$film_roll, agl$flying_height, agl$focal_length,
                                                agl$scale_n), drop = TRUE), function(d) {
   p_agl <- median(d$p_agl, na.rm = TRUE)
@@ -377,8 +382,7 @@ agl_s <- do.call(rbind, lapply(split(agl, list(agl$film_roll, agl$flying_height,
              scale_n = d$scale_n[1], n = nrow(d), n_nonpositive = sum(d$set == "nonpositive"),
              ratio_asl = d$flying_height[1] / d$nominal_agl[1], n_base = sum(is.finite(d$base)),
              p_agl = p_agl, p_nominal = p_nom,
-             spacing = if (!any(is.finite(d$base))) "no_base" else if (!fits(p_agl)) "refutes"
-                       else if (fits(p_nom)) "undecided" else "supports")
+             spacing = spacing_verdict(any(is.finite(d$base)), p_agl, p_nom))
 }))
 stopifnot(setequal(agl_s$key, agl_keys), sum(agl_s$n) == nrow(agl))
 message(sprintf(paste0("\n== fly#95 above ground, spacing: %d roll-heights (%d frames, %d under the ",
@@ -467,7 +471,8 @@ if (length(unread)) {
   stop(length(unread), " logbook pages of terrain or above-ground rolls sent to the logbook are not transcribed in ",
        "data-raw/flying_height_logbooks.csv: ", paste(unread, collapse = ", "))
 }
-message(sprintf("terrain and above-ground rolls sent to the logbook: %d; pages the catalogue links %d, all cached and transcribed",
+message(sprintf(paste0("terrain and above-ground rolls sent to the logbook: %d; pages the catalogue ",
+                       "links %d, all cached and transcribed"),
                 length(terr_rolls), length(linked_pages)))
 logs$frame_from <- as.integer(logs$frame_from)
 logs$frame_to <- as.integer(logs$frame_to)

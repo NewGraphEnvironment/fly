@@ -163,8 +163,9 @@ catalogue's figure — under an M.S.L. header, so it is `catalogue` on every fra
 
 **Logbook, ungated, over the 32 population roll-heights with transcribed rows (576 frames read):** 550 `catalogue`,
 0 `ground_plus`, 0 `ground_header`, 8 `ambiguous` (`bcc544` 1615, ground ~100 m), 18 `other` (`bc5697` 610 at
-5,000 ft; `bc82044` 2316, 9 frames at 9,600 ft). **Wherever a page covers these frames, the crew wrote the
-catalogue's height, under an M.S.L. header.** No page anywhere puts the ground under it.
+5,000 ft; `bc82044` 2316, 9 frames at 9,600 ft). **Where a page covers these frames, it writes the
+catalogue's height on 558 of 576 (550 plus the 8 `ambiguous`), and no page puts the ground under it.** (Corrected
+in code-check round 1: an earlier draft said "wherever", which the 18 `other` frames contradict.)
 
 That cuts both ways and is recorded as such. On `bc5602`, `bc77026`, `bc77072` and `bc77087` the page's
 "M.S.L." figure is below MRDEM under some frames (`bc5602`: ground 1,234-1,591 m under 4,000 ft = 1,219 m). So
