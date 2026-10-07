@@ -21,6 +21,12 @@
 # only through terrain, which no stratum above holds, so they are a fourth tail, `terrain`,
 # under the near_upper rule unchanged. Run that script first as well.
 #
+# fly#93 adds the BW/colour frames of that kind, from the census
+# `height_measure-terrain_tail.R` ships (run it first too), to the same `terrain` tail under
+# the same rule. Amendment A2, fixed before any of their pages was read, evaluates the rule's
+# spacing condition first: a roll-height for which it cannot hold whatever a logbook says is
+# excluded with that reason, and only the rest have their pages fetched and transcribed.
+#
 # Everything here is public. It reads what `height_calibrate-flying_height_slip.R` cached
 # (`data-raw/.cache/centroids/`, every frame's x/y/frame_number) and shipped
 # (`inst/extdata/flying_height_sweep.csv`, terrain under the sampled frames) — run that
@@ -222,23 +228,30 @@ irf <- irf[irf$height_class == "outside_band", ]
 ir_base <- base$base[match(irf$airp_id, base$airp_id)]
 stopifnot(identical(is.finite(ir_base), is.finite(irf$base)),
           all(abs(ir_base - irf$base) <= 0.1, na.rm = TRUE))
-irs <- data.frame(airp_id = irf$airp_id, photo_year = irf$photo_year, film_roll = irf$film_roll,
-                  scale_n = irf$scale_n, focal_length = irf$focal_length,
-                  flying_height = irf$flying_height, elev = irf$elev, set = NA_character_,
-                  base = ir_base)
-irs$f_m <- irs$focal_length / 1000
-irs$nominal_agl <- irs$scale_n * irs$f_m
-irs$r <- (irs$flying_height - irs$elev) / irs$nominal_agl
-ir_overlap <- function(side) 1 - irs$base / side
-irs$p_nominal  <- ir_overlap(FORMAT_M * irs$scale_n)
-irs$p_reported <- ir_overlap(FORMAT_M * (irs$flying_height - irs$elev) / irs$f_m)
-for (k in c(2, 10, K)) {
-  irs[[sprintf("p_x%s", format(round(k, 3)))]] <-
-    ir_overlap(FORMAT_M * (irs$flying_height * k - irs$elev) / irs$f_m)
+# A census frame with the widths every reading implies, by Stage 2's arithmetic, from the
+# census's own `elev` and this script's `base`. Shared by the IR census and fly#93's.
+widths <- function(d) {
+  d$f_m <- d$focal_length / 1000
+  d$nominal_agl <- d$scale_n * d$f_m
+  d$r <- (d$flying_height - d$elev) / d$nominal_agl
+  ov <- function(side) 1 - d$base / side
+  d$p_nominal  <- ov(FORMAT_M * d$scale_n)
+  d$p_reported <- ov(FORMAT_M * (d$flying_height - d$elev) / d$f_m)
+  for (k in c(2, 10, K)) {
+    d[[sprintf("p_x%s", format(round(k, 3)))]] <-
+      ov(FORMAT_M * (d$flying_height * k - d$elev) / d$f_m)
+  }
+  d$p_div <- ov(FORMAT_M * (d$flying_height / K - d$elev) / d$f_m)
+  stopifnot(setequal(names(d), names(s)))
+  d[, names(s)]
 }
-irs$p_div <- ir_overlap(FORMAT_M * (irs$flying_height / K - irs$elev) / irs$f_m)
-stopifnot(setequal(names(irs), names(s)))
-irs <- irs[, names(s)]
+census_frames <- function(cf, b) {
+  widths(data.frame(airp_id = cf$airp_id, photo_year = cf$photo_year, film_roll = cf$film_roll,
+                    scale_n = cf$scale_n, focal_length = cf$focal_length,
+                    flying_height = cf$flying_height, elev = cf$elev, set = NA_character_,
+                    base = b))
+}
+irs <- census_frames(irf, ir_base)
 ratio_asl <- irs$flying_height / irs$nominal_agl
 irs$set[ratio_asl > 2 & ratio_asl <= 3 & irs$r > band[2]] <- "near_upper"
 irs$set[in_band(ratio_asl) & !in_band(irs$r) & irs$r > 0] <- "terrain"
@@ -251,14 +264,73 @@ terr <- irs[irs$set == "terrain", ]
 message(sprintf("\n== infrared census outside the band: %d frames; near_upper %d (%s), terrain %d (%s) ==",
                 nrow(irs), nrow(ir_near), paste(unique(ir_near$film_roll), collapse = ", "),
                 nrow(terr), paste(unique(terr$film_roll), collapse = ", ")))
-# Reported, not a gate: the same terrain-only population among BW/colour frames, which this
-# script does not settle (it holds no census of it, only the random sample's share).
+
+# --- fly#93: the BW/colour frames out of band only through terrain -------------------
+# A census, `height_measure-terrain_tail.R`: every usable BW/colour frame in band above sea
+# level whose `r` under the sweep's own elevation measure is below the band (none is above it,
+# and frames under terrain at or above the aircraft are counted there and left untailed, since
+# `fly_footprint()` applies no factor-1 row to them). They join fly#91's IR terrain frames.
+bwf <- read.csv("inst/extdata/flying_height_terrain_frames.csv")
+bw_base <- base$base[match(bwf$airp_id, base$airp_id)]
+stopifnot(identical(is.finite(bw_base), is.finite(bwf$base)),
+          all(abs(bw_base - bwf$base) <= 0.1, na.rm = TRUE))
+bws <- census_frames(bwf, bw_base)
+bws$set <- "terrain"
+stopifnot(all(in_band(bws$flying_height / bws$nominal_agl)), all(bws$r > 0 & bws$r < band[1]),
+          !any(bws$airp_id %in% irs$airp_id))
+# The census must hold every sweep frame of its stratum: the random draw's share, which the
+# issue's estimate was made from, is a sample of it.
 rnd_all <- s[s$set == "random", ]
 rnd_terr <- in_band(rnd_all$flying_height / rnd_all$nominal_agl) & !in_band(rnd_all$r) &
   is.finite(rnd_all$r) & rnd_all$r > 0
-message(sprintf("BW/colour random frames out of band only through terrain: %d of %d (%d below, %d above)",
-                sum(rnd_terr), nrow(rnd_all), sum(rnd_terr & rnd_all$r < band[1]),
-                sum(rnd_terr & rnd_all$r > band[2])))
+stopifnot(all(rnd_all$airp_id[rnd_terr] %in% bws$airp_id))
+terr <- rbind(terr, bws)
+message(sprintf("BW/colour terrain census: %d frames on %d rolls; the random draw's %d of %d are all in it",
+                nrow(bws), length(unique(bws$film_roll)), sum(rnd_terr), nrow(rnd_all)))
+
+# Numbers formatted as `fly_footprint()` formats them, so the two keys cannot spell one
+# value two ways (100000L is "100000" to `paste()`, 100000 is "1e+05").
+num <- function(x) formatC(as.numeric(x), format = "f", digits = 3)
+key4 <- function(roll, h, f, sc) paste(roll, num(h), num(f), num(sc))
+
+# Amendment A2 (fly#93, fixed before any of these pages was read): the rule's spacing
+# condition, examined before the logbook, from quantities no logbook can change.
+#   (a) `p_nominal` is the median over every frame of the roll-height; if it fits the window,
+#       condition 3 fails whatever is read.
+#   (b) under factor 1 the shipped height is within 2% of the catalogue's, and `p_corrected`
+#       is a median over the frames whose logbook agrees. Overlap rises with height, so each
+#       frame's value lies in [p(0.98 h), p(1.02 h)], and a median of any subset lies within
+#       its members' range: if [min p(0.98 h), max p(1.02 h)] misses the window, or no frame
+#       has an air base, condition 3 fails whatever is read. That holds only while every
+#       frame's ground is below 0.98 h: where one's is not, a logbook height under its ground
+#       gives an overlap above 1 and a subset median can be lifted into the window from below,
+#       so such a roll-height has no bound and goes to the logbook (code-check round 1).
+# So A2 excludes only roll-heights the unamended rule could never accept; their pages are
+# not fetched, and the reason says which half fired.
+p_at <- function(d, k) {
+  side <- d$flying_height * k - d$elev
+  ifelse(side > 0, 1 - d$base / (FORMAT_M * side / d$f_m), -Inf)
+}
+A2_NOMINAL <- "spacing fits nominal scale, which no logbook height changes; nominal scale still applies"
+A2_CANNOT  <- "spacing cannot fit the catalogued height within 2%, whatever the logbook reads"
+terr_groups <- split(terr, list(terr$film_roll, terr$flying_height, terr$focal_length, terr$scale_n),
+                     drop = TRUE)
+a2 <- do.call(rbind, lapply(terr_groups, function(d) {
+  ok <- is.finite(d$base)
+  lo <- if (any(ok)) min(p_at(d[ok, ], 0.98)) else NA_real_
+  hi <- if (any(ok)) max(p_at(d[ok, ], 1.02)) else NA_real_
+  unbounded <- any(ok & d$flying_height * 0.98 <= d$elev)
+  can <- any(ok) && (unbounded || (hi >= p_window[1] && lo <= p_window[2]))
+  reason <- if (fits(median(d$p_nominal, na.rm = TRUE))) A2_NOMINAL else if (!can) A2_CANNOT else NA
+  data.frame(key = key4(d$film_roll[1], d$flying_height[1], d$focal_length[1], d$scale_n[1]),
+             film_roll = d$film_roll[1], n = nrow(d), a2_reason = as.character(reason))
+}))
+message(sprintf(paste0("A2: of %d terrain roll-heights, %d fit nominal (%d frames), %d cannot fit the ",
+                       "catalogued height (%d), %d go to the logbook (%d frames, %d rolls)"),
+                nrow(a2), sum(a2$a2_reason %in% A2_NOMINAL), sum(a2$n[a2$a2_reason %in% A2_NOMINAL]),
+                sum(a2$a2_reason %in% A2_CANNOT), sum(a2$n[a2$a2_reason %in% A2_CANNOT]),
+                sum(is.na(a2$a2_reason)), sum(a2$n[is.na(a2$a2_reason)]),
+                length(unique(a2$film_roll[is.na(a2$a2_reason)]))))
 
 # ---------------------------------------------------------------------------
 # Stage 4 — the logbooks: what height and lens the crew wrote down
@@ -295,17 +367,49 @@ fetch_logbooks <- function(rolls) {
   invisible(u)
 }
 # Fetched for every roll with no page in the cache: the lower tail (fly#60), #54's slipped
-# frames (fly#71), the near_upper frames beyond the band (fly#72) and the infrared census
-# outside it (fly#91). A roll the catalogue
+# frames (fly#71), the near_upper frames beyond the band (fly#72), the infrared census
+# outside it (fly#91) and the BW/colour terrain roll-heights A2 leaves to the logbook (fly#93).
+# A roll the catalogue
 # links no page for is queried again on each run, which costs one request and changes
 # nothing. Delete the directory to refetch everything.
 want <- unique(c(rolls$film_roll, s$film_roll[s$set == "upper_tail"],
                  s$film_roll[s$set == "near_upper" & is.finite(s$r) & s$r > band[2]],
-                 irs$film_roll))
+                 irs$film_roll, a2$film_roll[is.na(a2$a2_reason)]))
 cached <- if (dir.exists(LOG_DIR)) unique(sub("__.*", "", list.files(LOG_DIR))) else character()
 if (length(setdiff(want, cached))) fetch_logbooks(setdiff(want, cached))
 
 logs <- read.csv("data-raw/flying_height_logbooks.csv", colClasses = "character")
+# Every cached page of a terrain roll A2 leaves to the logbook must have been read (fly#93). The
+# set of those rolls moves whenever A2 or the census does, and the pages are fetched here but
+# read by hand, so a page fetched and never transcribed would otherwise reach `settle()` as "no
+# logbook page covers these frames": an absent reading reported as an absent page (code-check
+# round 2, where six pages on two rolls a fix had just sent to the logbook were exactly that).
+# The pages are the ones the CATALOGUE links, not the ones in the cache: a fetch that failed
+# leaves a page uncached without stopping, and a roll with any cached page is not fetched
+# again, so a cache listing would miss it (code-check round 3).
+terr_rolls <- unique(a2$film_roll[is.na(a2$a2_reason)])
+linked <- bcdc_query_geodata(LAYER) |>
+  filter(FILM_ROLL %in% !!terr_rolls) |>
+  select(FILM_ROLL, FLIGHT_LOG_URL) |>
+  collect() |>
+  sf::st_drop_geometry() |>
+  distinct(FILM_ROLL, FLIGHT_LOG_URL) |>
+  filter(!is.na(FLIGHT_LOG_URL))
+linked_pages <- paste0(linked$FILM_ROLL, "__", basename(linked$FLIGHT_LOG_URL))
+cached_pages <- if (dir.exists(LOG_DIR)) list.files(LOG_DIR) else character()
+uncached <- setdiff(linked_pages, cached_pages)
+if (length(uncached)) {
+  stop(length(uncached), " logbook pages the catalogue links for terrain rolls sent to the ",
+       "logbook are not in ", LOG_DIR, ": ", paste(uncached, collapse = ", "))
+}
+unread <- union(linked_pages, cached_pages[sub("__.*", "", cached_pages) %in% terr_rolls])
+unread <- unread[!unread %in% logs$file]
+if (length(unread)) {
+  stop(length(unread), " logbook pages of terrain rolls sent to the logbook are not transcribed in ",
+       "data-raw/flying_height_logbooks.csv: ", paste(unread, collapse = ", "))
+}
+message(sprintf("terrain rolls sent to the logbook: %d; pages the catalogue links %d, all cached and transcribed",
+                length(terr_rolls), length(linked_pages)))
 logs$frame_from <- as.integer(logs$frame_from)
 logs$frame_to <- as.integer(logs$frame_to)
 logs$log_ft <- as.numeric(logs$height_ft_interpreted)
@@ -379,7 +483,10 @@ settle <- function(set, named, tail) {
   #   conflict       covering rows with heights that disagree; left unread, not guessed
   #   uninterpreted  covered only by rows whose height was not read, or on a roll with a
   #                  row whose frame range could not be parsed ("169-20?")
-  #   none           no row on any page reaches this frame
+  #   unspanned      the roll has transcribed rows, and none reaches this frame: a page that
+  #                  ends before it, or lines the consolidation declined to span (fly#93,
+  #                  code-check round 3, where this was reported as "no logbook page")
+  #   none           no transcribed row on any page of the roll
   lt$log_state <- "none"
   unparsed_roll <- unique(logs$film_roll[is.na(logs$frame_from) & nzchar(logs$frames_final)])
   for (i in seq_len(nrow(lt))) {
@@ -401,6 +508,7 @@ settle <- function(set, named, tail) {
       lt$log_state[i] <- "uninterpreted"
     }
   }
+  lt$log_state[lt$log_state == "none" & lt$film_roll %in% logs$film_roll] <- "unspanned"
   stopifnot(identical(lt$log_state == "read", is.finite(lt$log_ft)))
   # The factor the logbook implies, accepted only where it is one of the named slips to
   # within 2%. The catalogue stores whole metres, so a round figure of feet comes back a
@@ -436,6 +544,7 @@ settle <- function(set, named, tail) {
       n_logbook = sum(is.finite(d$log_ft)), n_named = sum(read),
       n_conflict = sum(d$log_state == "conflict"),
       n_uninterpreted = sum(d$log_state == "uninterpreted"),
+      n_unspanned = sum(d$log_state == "unspanned"),
       factor = named[fi], n_agree = sum(agree),
       log_ft = if (any(agree)) median(d$log_ft[agree]) else NA_real_,
       height_m = round(h_true, 1),
@@ -538,17 +647,30 @@ is_f <- function(f) is.finite(v$factor) & abs(v$factor - f) < 1e-9
 # A slipped roll-height whose logbook names 1/10.764 is not tabled: #54's repair already
 # sizes it from the same height, and tabling it would relabel frames without moving them.
 v$confirms_54 <- v$tail == "upper" & is_f(1 / K)
+# A2 (fly#93): redundant with `spacing_ok` by construction, and held anyway, because the
+# pages of a roll are transcribed whole and an A2 roll-height can carry covering rows.
+v$a2_reason <- NA_character_
+it <- v$tail == "terrain"
+v$a2_reason[it] <- a2$a2_reason[match(key4(v$film_roll, v$flying_height, v$focal_length,
+                                           v$scale_n)[it], a2$key)]
 v$accept <- is.finite(v$factor) & v$covered >= 0.5 & v$agreeing >= 0.9 &
-  !v$focal_conflict & v$spacing_ok & !v$confirms_54 & !v$scale_veto
-# Where the logbook read under half the frames, the reason names the state most of the
-# unread frames are in — the predicate that actually fired, not the one next to it.
+  !v$focal_conflict & v$spacing_ok & !v$confirms_54 & !v$scale_veto & is.na(v$a2_reason)
+# Where the logbook read under half the frames, the reason names an unread state that actually
+# fired, by precedence: conflict, then uninterpreted (each where any frame is in it), then — only
+# where no frame was read at all — unspanned, then none. So "not read" can be named on a
+# roll-height whose unread frames are mostly unspanned (bc78033 at 1,676 m: 4 uninterpreted, 26
+# unspanned); it is still true there, and no verdict depends on which is named.
 unread_state <- ifelse(v$n_conflict >= v$n_uninterpreted & v$n_conflict > 0, "conflict",
                        ifelse(v$n_uninterpreted > 0, "uninterpreted", "none"))
 v$reason <- dplyr::case_when(
   v$accept ~ NA_character_,
+  !is.na(v$a2_reason) ~ v$a2_reason,
   v$confirms_54 & v$covered >= 0.5 & v$agreeing >= 0.9 ~ "logbook confirms #54's 10.764",
   v$covered < 0.5 & unread_state == "conflict" ~ "logbook rows covering these frames disagree",
   v$covered < 0.5 & unread_state == "uninterpreted" ~ "logbook height or frame range not read",
+  # A roll-height on a roll with transcribed rows that reach none of its frames is not one
+  # with no page: the two states are kept apart (fly#93, code-check round 3).
+  v$n_logbook == 0 & v$n_unspanned > 0 ~ "transcribed logbook rows reach none of these frames",
   v$n_logbook == 0 ~ "no logbook page covers these frames",
   v$covered < 0.5 ~ "logbook covers under half the frames",
   !is.finite(v$factor) | v$agreeing < 0.9 ~ "logbook height is not a named multiple of the catalogue's",
@@ -561,11 +683,6 @@ v$reason <- dplyr::case_when(
   v$n_base == 0 ~ "no adjacent frames to measure spacing on",
   TRUE ~ "spacing rejects the logbook's height"
 )
-# Numbers formatted as `fly_footprint()` formats them, so the two keys cannot spell one
-# value two ways (100000L is "100000" to `paste()`, 100000 is "1e+05").
-num <- function(x) formatC(as.numeric(x), format = "f", digits = 3)
-key4 <- function(roll, h, f, sc) paste(roll, num(h), num(f), num(sc))
-
 # ---------------------------------------------------------------------------
 # Stage 5b — a third witness: the same roll's adjacent frames (fly#74)
 # ---------------------------------------------------------------------------
@@ -780,8 +897,9 @@ print(tapply(excluded_out$frames_measured, list(excluded_out$tail, excluded_out$
 print(rolls_out, row.names = FALSE)
 
 # The key reaches only the roll-heights it was measured on: count what each row would touch
-# across the whole catalogue, on the same four fields `fly_footprint()` matches. A census tail
-# reaches exactly its measured frames; near_upper, measured on a sample, reaches more.
+# across the whole catalogue, on the same four fields `fly_footprint()` matches. near_upper,
+# measured on a sample, reaches more than it measured; so does terrain, whose roll-heights
+# also hold frames in band, which `fly_footprint()` never hands to the table.
 key_all <- key4(frames$film_roll, frames$flying_height, frames$focal_length,
                 suppressWarnings(as.numeric(sub("^1:", "", frames$scale))))
 reach <- vapply(seq_len(nrow(rolls_out)), function(i) {

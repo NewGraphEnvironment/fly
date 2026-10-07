@@ -264,10 +264,11 @@ fly_flying_height_max <- function() 16000
 # LARGE. That last case is fly#71: rolls flown before 2003 that #54 divides by 10.764. `tail` records
 # which side of the band the roll-height came from: `lower`, `upper` (#54's slipped frames), or
 # `near_upper` (fly#72) — the r ~ 2 mass, where a factor of 1 is the same `scale_wrong` cause
-# reached from above the band, and the only factor named there — or `terrain` (fly#91), infrared
-# frames in band above sea level and out of it only through the ground beneath them, under the
-# same rule and with the same single factor. `height_m` is the height used — the logbook's,
-# converted, since the catalogue's rounding survives multiplying by the factor.
+# reached from above the band, and the only factor named there — or `terrain` (fly#91 for
+# infrared, fly#93 for BW and colour), frames in band above sea level and out of it only through
+# the ground beneath them, under the same rule and with the same single factor. `height_m` is
+# the height used — the logbook's, converted, since the catalogue's rounding survives
+# multiplying by the factor.
 #
 # fly#74 added a third witness where no logbook settles a roll-height: a frame adjacent by
 # number on the same roll, lens and scale, itself in band, whose height the catalogue's stands
@@ -282,8 +283,9 @@ fly_flying_height_max <- function() 16000
 # it does not reach, and every near_upper or terrain one it leaves on nominal scale, is listed
 # with its reason in `flying_height_rolls_excluded.csv`: an unlisted roll is unmeasured, not
 # clean. The BW/colour near_upper rows come from a 600-frame sample of that stratum, not a
-# census; the infrared rows (fly#91) from a census of every IR frame outside the band. The
-# BW/colour frames out of band only through terrain are unmeasured.
+# census; the infrared rows (fly#91) from a census of every IR frame outside the band, and the
+# BW/colour terrain rows (fly#93) from a census of every BW/colour frame below the band only
+# through the ground.
 # Produced by `data-raw/height_calibrate-lower_tail_rolls.R`; see
 # `inst/notes/terrain-correction.md`.
 fly_height_roll_table <- function() {

@@ -524,7 +524,7 @@ The result:
 | excluded: logbook lens and spacing disagree | 1 | 2 |
 | excluded: logbook height not the catalogue's | 3 | 8 |
 | excluded: logbook height not read | 1 | 5 |
-| excluded: no logbook page | 1 | 4 |
+| excluded: transcribed logbook rows reach none of its frames | 1 | 4 |
 
 - The 24 are 20 roll-heights at 153 mm (107 frames, sixteen of them 1972–76 `bc54xx`–`bc57xx`,
   plus `bc5138`, `bc78110`, `bc79039`, `bc79141`) and 4 at 305 mm (13 frames: `bc7692`,
@@ -616,7 +616,147 @@ so condition 4 had nothing to read on them.
 
 **Bound.** This is a census of IR frames and nothing else. The same terrain-only population
 exists among BW/colour frames: 12 of the 2,500 random draws are out of band only through the
-ground, all below it. No rule here reads them, and they are unmeasured (fly#93).
+ground, all below it. fly#93 censuses and settles them, below.
+
+## The terrain tail for BW and colour (fly#93)
+
+**Verified:** 2026-10-06 · **Issues:** fly#93 (from fly#91), spawned fly#95 · **Produced by:**
+`data-raw/height_measure-terrain_tail.R` (the census, `inst/extdata/flying_height_terrain_*.csv`)
+and `data-raw/height_calibrate-lower_tail_rolls.R`, set `terrain`
+
+A BW/colour frame whose catalogued height is in band above sea level and out of it over the
+ground sits in no stratum the sweep holds, since the sweep's strata are cut on the ratio above
+sea level. With a DEM, #54 sent every such frame to nominal scale. fly#91 settled the IR ones;
+this settles the rest under the same tail and the same rule.
+
+### The census
+
+Finding them needs the terrain under every candidate, and 1,389,968 usable BW/colour frames
+are in band above sea level. A coarse picture of MRDEM (the COG's overviews averaged to
+314 m) gives each a box mean; a margin `M` of twice the worst coarse error decides which could
+be out of band, and only those are read exactly, by the sweep's own instrument (the mean of
+MRDEM-30 under the nominal 9-inch square, axis-aligned). `M` started from the sweep's worst
+error (111.8 m) and was then held to every frame read: the sweep over-represents large
+footprints, and the error grows on small ones over steep ground. The first pass's reads raised
+it to 285.4 m, and the second pass's reads left it there.
+
+| step | frames |
+|---|---|
+| usable BW/colour film | 1,437,147 |
+| in band above sea level | 1,389,968 |
+| read exactly | 18,747 |
+| **below the band over the ground, `r > 0`: the census** | **4,773** (298 roll-heights, 216 rolls) |
+| under terrain at or above the aircraft, `r <= 0` | 374 (15 rolls) |
+| above the band | 0 |
+
+Three controls, each able to stop the script:
+
+- **The instrument is the sweep's.** 136 sweep frames read again agree to 0.050 m, the
+  rounding of the shipped column.
+- **Completeness.** All 12 of the sweep's random frames in the stratum are in the census.
+  That is a join check more than a coverage check, since the margin was first fixed on the
+  sweep.
+- **The rejected region.** 1,000 frames from the 500 m just past the prefilter's edge, read
+  exactly: none is out of band. The smallest slack any census frame had is 217 m of the
+  285 m margin.
+
+The issue's estimate was about 7,000 frames from 12 draws. The census is 4,773, plus the 374
+at `r <= 0`, which the draw's own definition (`r > 0`) also left out.
+
+**`r <= 0` is not this tail** (amendment A3, written after a smoke run found them).
+`fly_footprint()` keeps a frame under terrain at or above the aircraft in its own case and
+applies a factor-1 row only where `r_reported > 0`, so no `terrain` row can move them. They
+are counted and left untailed. On every one of their rolls the catalogued height over
+nominal is in band, which a height recorded above the ground would produce (fly#95).
+
+### The rule, and the order it is evaluated in
+
+#72's `near_upper` rule, unchanged, as for the IR frames: factor 1 only, logbook coverage and
+agreement, no lens conflict, spacing that fits the logbook height **and** rejects nominal, and
+no logbook scale equal to the catalogue's. It was re-registered before the census was read.
+
+**Amendment A2** changes the order, not the rule. The spacing condition is examined before
+any page is read, from quantities no logbook can change:
+
+- `p_nominal` is a median over every frame of the roll-height. If it fits the window, the
+  rule fails whatever is read.
+- Under factor 1 the height used is within 2% of the catalogue's, and `p_corrected` is a
+  median over the frames whose logbook agrees. Each frame's value lies between its overlap at
+  0.98 and at 1.02 of the height, and a median of any subset lies within its members' range.
+  If that range misses the window, the rule fails whatever is read. That holds only while each
+  frame's ground is below 0.98 of the height: a logbook height under a frame's ground gives an
+  overlap above 1, which can lift a subset median into the window from below. A roll-height
+  with such a frame is bounded by nothing and goes to the logbook. The first version missed
+  this, and a code-check round found it on three roll-heights (`bc77026`, and `bc77072` at
+  two heights). Their six pages, read blind, write the catalogued heights, and spacing then
+  rejects them, so they are excluded for that reason rather than by A2.
+
+So A2 excludes only roll-heights the unamended rule could never accept, and only the rest had
+their pages read. Its two reasons say which half fired and claim nothing about whether a page
+was read, because a roll's pages are transcribed whole.
+
+| A2 outcome | roll-heights | frames |
+|---|---|---|
+| spacing fits nominal scale | 176 | 2,380 |
+| spacing cannot fit the catalogued height within 2% | 32 | 472 |
+| to the logbook | 92 | 1,952 |
+
+(Over all 300 terrain roll-heights, the two IR ones included; both go to the logbook.) The
+176 where nominal fits are where nominal scale is already right and the height field is the
+one that disagrees. A height recorded above ground would do exactly that; fly#95 holds it as
+a hypothesis.
+
+### What the logbooks said
+
+The 92 roll-heights A2 left to the logbook sit on 69 rolls. Pages were already transcribed for
+some, and five of those were already accepted from pages read blind for fly#60 and fly#72. The
+other 182 pages, on 60 rolls, were read blind by six transcribers given only the images. Each
+batch carried one page already transcribed, as a control: all six agree on height and lens.
+
+These forms log each strip's start and end on separate lines with the height dittoed between,
+so the literal lines are consolidated page by page. Consecutive lines at one height and lens
+cover the finals between them; lines at different heights, or with no height, are never
+merged, and no run crosses a line whose height was not read. That was written before the
+generator ran, and it can only withhold coverage: on one control, whose form leaves the height
+blank on each end line, it covers 202, 219 and 233 where the existing row covers 202-249.
+
+| terrain tail outcome | roll-heights | frames |
+|---|---|---|
+| tabled at factor 1, `scale_wrong` | 62 | 1,375 |
+| spacing fits nominal scale (A2) | 176 | 2,380 |
+| spacing cannot fit the catalogued height within 2% (A2) | 32 | 472 |
+| transcribed logbook rows reach none of these frames | 6 | 55 |
+| no logbook page covers these frames | 4 | 10 |
+| logbook height or frame range not read | 5 | 90 |
+| logbook height is not a named multiple of the catalogue's | 3 | 99 |
+| spacing rejects the logbook's height | 9 | 239 |
+| logbook names a different lens, and spacing fits the reported height | 1 | 54 |
+| logbook writes the catalogue's scale | 1 | 20 |
+| logbook covers under half the frames | 1 | 10 |
+
+(The 62 tabled include fly#91's two IR rows; 60 are BW/colour, 1,344 frames.) On the tabled
+rows the logbook height puts the overlap at 0.562 to 0.773, inside the window, and `r` at
+0.313 to 0.619 (median 0.536): with a DEM these frames were drawn at nominal scale, about twice
+the width the spacing supports, and are now drawn from the height flown. Three are tabled with
+the logbook agreeing on part of the roll-height (`bc5225`, `bc5595` at 2,651 m, `bc78104`);
+their `r_corrected` is the median over the agreeing frames.
+
+**"No page" and "not reached" are two reasons.** The generator once reported a frame no
+transcribed row reaches as "no logbook page covers these frames", whether or not the roll has
+a page. Six terrain roll-heights sit on rolls with transcribed pages that end before their
+frames, or whose lines the consolidation declined to span (`bc5321`, whose strip is logged
+START at 6.2 and END at 6.5), and now say so. The same wording moved on two rows of older
+tails, fly#60's `bc78104` at 1,295 m and fly#72's `bc79029`, with no verdict changing. The
+four that remain are on `bcb04001` and `bcc07085`, for which the catalogue links no page.
+
+No tabled row of either table moved, the IR rows included, and no verdict of an earlier tail; the only earlier rows that changed are the two reworded exclusions above. The terrain keys reach 4,233
+catalogue frames against 1,375 measured; the rest are frames on the same roll-heights inside
+the band, which `fly_footprint()` never hands to the table.
+
+**Bound.** The census is complete with respect to MRDEM and the sweep's axis-aligned square;
+`fly_footprint()` reads a footprint rotated onto its bearing, and a caller's own DEM, so a
+frame near the band's edge can classify differently there. The key is the roll-height, so a
+tabled row reaches such a frame anyway; an untabled roll-height leaves it on nominal scale.
 
 ## What a partially covered footprint costs (fly#58)
 

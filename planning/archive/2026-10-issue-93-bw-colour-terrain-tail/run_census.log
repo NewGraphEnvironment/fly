@@ -1,0 +1,31 @@
+Spherical geometry (s2) switched off
+Stage 0: MRDEM-30 DTM etag 1bf055857edce86b1311967c8d88395e-9997, cache key 8212c794
+Stage 1: 1437147 usable BW/colour film frames, 1389968 in band above sea level
+Stage 2: coarse DTM 6637 x 7000 at 314 m; against the sweep's exact elev over 7156 frames, |error| median 6.8 m, 99.9% 77.7 m, max 111.8 m
+Stage 3, pass 1: M = 223.6 m, 12480 frames to read (11964 by the lower edge, 781 by the upper, 23 with no coarse cell)
+  batch 1 of 5: 3000 frames in the cache
+  batch 2 of 5: 6000 frames in the cache
+  batch 3 of 5: 9000 frames in the cache
+  batch 4 of 5: 12000 frames in the cache
+  batch 5 of 5: 12480 frames in the cache
+  |coarse - exact| over 12457 frames read: median 8.6 m, 99.9% 92.9 m, max 142.7 m
+Stage 3, pass 2: M = 285.4 m, 18747 frames to read (17998 by the lower edge, 1511 by the upper, 23 with no coarse cell)
+  batch 1 of 3: 15480 frames in the cache
+  batch 2 of 3: 18480 frames in the cache
+  batch 3 of 3: 18747 frames in the cache
+  |coarse - exact| over 18724 frames read: median 7.7 m, 99.9% 90.5 m, max 142.7 m
+  batch 1 of 1: 18847 frames in the cache
+Control 1: 136 sweep frames read again; max |difference| 0.050 m (36 inside the prefilter)
+  batch 1 of 1: 19847 frames in the cache
+Control 3: 1000 frames from the 500 m past the prefilter, read exactly: 0 out of band
+Stage 4: 18747 read; 23 with no terrain under them; out of band 5147 (below 4773, above 0, r <= 0 374 on 15 rolls)
+  margin: smallest slack among census frames 217.4 m of M = 285.4 m (coarse NA on 0)
+  census frames the coarse mean put more than max |error| (142.7 m) inside the band: 0
+Control 2: sweep random frames out of band only through terrain 12; in the census 12
+  census: 4773 frames on 298 roll-heights, 216 rolls; 0 share a (roll, frame) key
+decade
+1960 1970 1980 1990 2000 
+ 625 2710 1318  109   11 
+  A2 preview (window 0.557-0.780): spacing fits nominal 176 roll-heights (2380 frames); cannot fit the catalogued height within 2% 35 (647); to transcribe 87 (1746 frames)
+Stage 5: wrote inst/extdata/flying_height_terrain_frames.csv (4773 rows) and inst/extdata/flying_height_terrain_population.csv
+exit=0

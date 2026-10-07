@@ -1,0 +1,15 @@
+"step","n"
+"usable_bw_colour",1437147
+"in_band_asl",1389968
+"read_exactly",18747
+"read_no_terrain",23
+"terrain_below",4773
+"terrain_above",0
+"terrain_nonpositive",374
+"sweep_random_terrain",12
+"roll_heights",298
+"rolls",216
+"rejected_region_read",1000
+"rejected_region_out_of_band",0
+"coarse_error_max_m",142.7
+"margin_m",285.4
