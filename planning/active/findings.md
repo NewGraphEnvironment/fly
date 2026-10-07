@@ -189,3 +189,34 @@ refuted ones where nominal fits, 23 on `bc5602` (excluded by its logbook), and 1
 - Phase 4 does not run: the only `supports` roll-height's pages were already transcribed (the guard passed: 69
   rolls, 202 linked pages, all cached and transcribed).
 - Phase 5: nothing tables, so no `fly_footprint()` change and no new tail. The encoding question never arises.
+
+## Plan review, answered (`review-plan.md`; it arrived after Phase 3 had run)
+
+Every finding was checked against the result rather than the plan.
+
+- **B1, accepted as a description of the design, and it changes how the result is reported.** The pre-registration
+  said S depends on `ratio_asl` and median `p_nominal` only, but did not say what follows: in this population
+  "nothing tables" was close to certain before anything was run. So the result is reported as **the instrument
+  cannot settle it**, not as "the hypothesis is false". Measured, the refutations are marginal: on the 52
+  `refutes` roll-heights where nominal fits, `P_agl` sits a median 0.028 outside the window (at most 0.187), and
+  23 of 52 by under 0.02. Reshaping the rule now (#71-style, logbook decides) would be an amendment after the
+  data, and the logbook did not supply a witness anyway (0 `ground_plus`), so it would change no outcome.
+- **B2, B3, G4, G5, G6, O1, S2, AC3-AC4: moot.** Nothing tables, so no row is encoded, no key collides, no
+  terrain row moves and `fly_footprint()` is unchanged. B2 is recorded for whoever reopens this: a logbook MSL
+  height through the existing `tab_factor != 1` branch, not a new above-ground route.
+- **G1: moot here** (0 `ground_plus` on 576 read frames), recorded: on `r <= 0` frames H + ground is ~2H, which
+  #60 names as a candidate factor, so `ground_plus` alone would be ambiguous with x2.
+- **G2, accepted.** The result section already says `catalogue` on `r <= 0` frames is not a clean witness against.
+- **G3, checked.** S uses every census frame of the key (both census files), so A2(b) and logbook-read keys
+  bring their `r > 0` frames too. Adding the `r <= 0` frames flips no shipped A2(a) verdict: nominal still fits
+  on all 176 (asserted in the test).
+- **G7, done**: the window is the generator's own `p_window` (0.557-0.780), not a copy.
+- **G8, checked**: S uses only `p_agl` and `p_nominal`, both terrain-free; `settle()` is used for its join and
+  states only, and its `p_corrected` is unused.
+- **O2, accepted.** `bc77026`, `bc77072` and `bc77087`'s logbook heights were visible in #93's run log, so L on
+  those keys was not blind. It changes nothing: their S is `refutes` before L is read.
+- **A3, recorded as an alternative** for the 9 roll-heights where neither reading fits: a centroid misplaced onto
+  higher ground produces `r <= 0` and is invisible to spacing.
+- **Phase 2.** The re-run used cache key 8212c794 and came out byte-identical, which is the guard that matters;
+  the population CSV gained no row. The 374 are in band above sea level only, as the census defines them.
+- **AC1, done**: the test pins 374 frames, 15 rolls, 16 roll-heights.
