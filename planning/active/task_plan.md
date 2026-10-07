@@ -125,19 +125,19 @@ those frames.
 - [x] Re-run from cache; the outputs must be byte-identical
 
 ## Phase 5: Package consequence
-- [ ] Expected: no code change, recorded as such (as fly#65/#80/#95)
-- [ ] If any key comes out `agl_supported`, or otherwise supports a size other than nominal, stop and bring
+- [x] Expected: no code change, recorded as such (as fly#65/#80/#95)
+- [x] ~~If any key comes out `agl_supported`~~ (none did; no W2 `ground`), or otherwise supports a size other than nominal, stop and bring
       the package shape to the user before changing `fly_footprint()`
 - [ ] If any key is `nominal_centroids_misplaced`, file the follow-up issue on flagging misplaced-centroid
       frames, with numbers from the shipped CSV
 
 ## Phase 6: Tests and documentation
-- [ ] `tests/testthat/test-fly_footprint_image_overlap.R` recomputes τ, every pair status, every key
+- [x] `tests/testthat/test-fly_footprint_image_overlap.R` recomputes τ, every pair status, every key
       verdict and every note table from the shipped CSVs
-- [ ] Restore-the-bug check: perturb one input and confirm the test goes red
-- [ ] `inst/notes/terrain-correction.md`: a new fly#97 section, and the fly#95 section's "That is fly#97"
+- [x] Restore-the-bug check: perturb one input and confirm the test goes red
+- [x] `inst/notes/terrain-correction.md`: a new fly#97 section, and the fly#95 section's "That is fly#97"
       pointer updated
-- [ ] NEWS; CLAUDE.md Architecture entry for the script and the Key Decision
+- [x] NEWS; CLAUDE.md Architecture entry for the script and the Key Decision
 - [ ] Enumerate every numeric or universal sentence in the note and NEWS against its producer line (#95's
       loop-ender)
 - [ ] Edit issue #97's body to the outcome

@@ -160,3 +160,92 @@ test_that("every key's verdicts follow from its pairs, tau and the generator's l
     expect_identical(unname(n), as.integer(sk[[paste0("dir_", v)]]), info = v)
   }
 })
+
+test_that("the note's table and every figure in its prose are the shipped measurement's", {
+  note <- system.file("notes", "terrain-correction.md", package = "fly", mustWork = TRUE)
+  txt <- readLines(note)
+  i <- grep("^## What the frames under the terrain covered", txt)
+  expect_length(i, 1)
+  j <- i + grep("^## ", txt[(i + 1):length(txt)])[1]
+  sec <- txt[i:(j - 1)]
+  prose <- gsub("\\s+", " ", paste(sec, collapse = " "))
+
+  p <- io_pairs()
+  tt <- io_tau(p)
+  sk <- extdata("flying_height_image_overlap_keys.csv")
+  # Medians recomputed from the pairs' steps, which carry four decimals of a metre: the shipped
+  # four-decimal overlaps would round twice (0.84348 to 0.8435 to 0.844).
+  kq <- p[p$set == "key", ]
+  kq$p_nominal <- 1 - kq$step / (format_m * as.numeric(sub(".* ", "", kq$key)))
+  rk <- io_keys(kq)
+  rk <- rk[match(paste(sk$film_roll, sk$flying_height, sk$focal_length, sk$scale_n), rk$key), ]
+  sk$p_img <- rk$p_img
+  sk$p_nominal <- rk$p_nominal
+  f3 <- function(x) sprintf("%.3f", x)
+
+  # The table: one row per key, in the shipped order.
+  h <- grep("| roll-height | pairs (matched) |", sec, fixed = TRUE)
+  expect_length(h, 1)
+  rows <- sec[(h + 2):(h + 1 + nrow(sk))]
+  cells <- strsplit(sub("^\\|\\s*", "", sub("\\s*\\|\\s*$", "", rows)), "\\s*\\|\\s*")
+  sk_o <- sk[order(sk$w1 == "too_few_pairs", sk$w1 == "indistinguishable"), ]
+  verdict <- c(step_overstated = "step overstated", indistinguishable = "indistinguishable",
+               too_few_pairs = "too few pairs")
+  for (r in seq_along(cells)) {
+    x <- cells[[r]]
+    k <- sk_o[r, ]
+    expect_identical(x[1], sprintf("`%s` %d", k$film_roll, k$flying_height))
+    expect_identical(x[2], sprintf("%d (%d)", k$pairs, k$pairs_matched))
+    if (k$pairs_used >= 3) {
+      expect_identical(x[3:4], f3(c(k$p_img, k$p_nominal)), info = k$film_roll)
+    }
+    expect_identical(x[5], unname(verdict[k$w1]), info = k$film_roll)
+    expect_identical(x[6], as.character(k$frames_nonpositive), info = k$film_roll)
+  }
+
+  so <- sk[sk$w1 == "step_overstated", ]
+  ind <- sk[sk$w1 == "indistinguishable", ]
+  mis <- sk$location == "misplaced"
+  n70 <- p[p$set == "key" & p$film_roll == "bc77070" & p$frame %in% 268:271, ]
+  neg <- p[p$set == "negative", ]
+  wr <- p[p$set == "written", ]
+  w <- extdata("flying_height_image_overlap_written.csv")
+  wk <- merge(aggregate(p_calc ~ film_roll, wr[wr$status == "matched", ], stats::median), w,
+              by = "film_roll")
+  pos <- p[p$set == "positive", ]
+  syn <- extdata("flying_height_image_overlap_synthetic.csv")
+  claims <- c(
+    sprintf("overlap %s to %s,", sprintf("%.2f", min(so$p_img)), sprintf("%.2f", max(so$p_img))),
+    sprintf("implies %s to %s at nominal", sprintf("%.2f", min(so$p_nominal)),
+            sprintf("%.2f", max(so$p_nominal))),
+    sprintf("%.1f to %.1f times the air base", min(so$k), max(so$k)),
+    sprintf("%d%% to %d%% of their pairs match", round(100 * min(so$pairs_matched / so$pairs)),
+            round(100 * max(so$pairs_matched / so$pairs))),
+    sprintf("on 112 frames"),
+    sprintf("%d of %d matched pairs", sum(so$dir_agree),
+            sum(so$dir_agree + so$dir_reverse + so$dir_differ)),
+    sprintf("The images read %s and %s, and the catalogue step gives %s and %s", f3(ind$p_img[1]),
+            f3(ind$p_img[2]), f3(ind$p_nominal[1]), f3(ind$p_nominal[2])),
+    sprintf("%s and %s apart in D, against 2 tau = %s", f3(ind$gap[1]), f3(ind$gap[2]),
+            sprintf("%.2f", 2 * tt$tau)),
+    sprintf("median D %s; tau, the 95th percentile of \\|D\\|, %s", f3(tt$median), f3(tt$tau)),
+    sprintf("%d of %d ordinary pairs did not match", sum(neg$status == "no_match"), nrow(neg)),
+    sprintf("| 0 of %d matched |", sum(p$set == "unrelated")),
+    sprintf("median %s above what the page writes", f3(stats::median(wk$p_calc[wk$gated] - wk$written[wk$gated]))),
+    sprintf("flagged, \\|D\\| %s", f3(abs(D_of(pos$p_calc, pos$p_nominal)))),
+    sprintf("| %d of %d matched, error under 1e-4 |", sum(syn$matched & syn$p_true >= 0.35),
+            sum(syn$p_true >= 0.35)),
+    sprintf("the images read %s.", f3(sk$p_img[sk$film_roll == "bc77026"])),
+    sprintf("the images read %s.", f3(sk$p_img[sk$film_roll == "bc80117"])),
+    sprintf("The images read %s on that pair and %s to %s on its neighbours", f3(n70$p_calc[n70$frame == 271]),
+            sprintf("%.2f", min(n70$p_calc[n70$frame < 271])), sprintf("%.2f", max(n70$p_calc[n70$frame < 271]))),
+    sprintf("The catalogue step is %d to %d m on all of them", round(min(n70$step)),
+            round(max(n70$step))),
+    sprintf("\"TAHSIS\", %d km", round(sk$km_to_place[sk$film_roll == "bc7718"])),
+    sprintf("\"YALE BLUFF\" is %d km", round(sk$km_to_place[sk$film_roll == "bc80117"])),
+    sprintf("are %d to %d km from their places", round(min(sk$km_to_place[mis])),
+            round(max(sk$km_to_place[mis])))
+  )
+  for (s in claims) expect_true(grepl(s, prose, fixed = TRUE), info = s)
+  expect_identical(sum(sk$frames_nonpositive[mis]), 112L)
+})

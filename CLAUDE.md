@@ -107,6 +107,15 @@ prefilter holds nothing out of band) stop it. Ships `inst/extdata/flying_height_
 `test-fly_footprint_terrain_tail.R` recomputes. A re-run from an intact cache takes under a minute and
 must leave the first two byte-identical. Caches under
 `data-raw/.cache/terrain_tail/` keyed on MRDEM's ETag. `FLY_TERRAIN_SMOKE=1` writes nothing
+- `data-raw/height_measure-image_overlap.R` — fly#97: the forward overlap adjacent thumbnails
+actually show, against what the catalogue's centroid step implies. Matching is fly#82's `patch_shifts()`
+gate, pulled with `fns_from()`; seeds come from a padded masked cross-correlation, because fly#82's
+`global_shift()` wraps shifts over ~575 px and gates on centroid spacing. Synthetic, unrelated-pair,
+crew-written-overlap and `bc85054` controls stop it before the nine keys are read. Ships
+`inst/extdata/flying_height_image_overlap_*.csv`, which `test-fly_footprint_image_overlap.R` recomputes
+together with the note's prose. Reads the blind per-strip transcription
+`data-raw/flying_height_logbook_strips.csv` (an input, never regenerated). `FLY_IMGOVL_SMOKE=1`
+writes nothing
 - `height_fixture()` and `flat_dem()` in `tests/testthat/setup.R` — eight frames over level
 ground, each reaching one height check by a stated route; rows 7 and 8 exist because two
 deliberate defects survived the first six
@@ -425,6 +434,26 @@ columns and checks the logbook columns for consistency, since the per-frame logb
     height, so near 2 (51 of 374 frames within 2%) such a page is ambiguous with x2.
   Nine roll-heights (157 `r <= 0` frames) fit neither reading: fly#97. Read `inst/notes/terrain-correction.md`,
   "Is the catalogued height above ground?"
+
+- **Where spacing rejected nominal on the frames under the terrain, the photos say the catalogue's
+step is wrong, not the scale** (fly#97, no code change). Measured with the overlap the thumbnails
+themselves show, which reads no catalogue field. On five of fly#95's nine roll-heights the photos overlap
+0.62-0.81 where the step says 0.11-0.42, so the step is 1.9-3.0 times the air base. With the logbooks'
+M.S.L. heights, the centroids are not over the ground photographed (112 `r <= 0` frames). `bc7718` and
+`bc80117` were flown at ~85% overlap, where the two readings coincide.
+
+  **Three things are load-bearing.**
+  - **Do not read spacing's window as evidence about scale on a 1970s roll.** Centroids there are
+    interpolated along digitised lines. On all seven keys here where the photos could be measured, the
+    window's rejection of nominal came from the step or the flown overlap.
+  - **The matcher has a floor.** It needs roughly a quarter of the frame shared (0.25 matches and 0.20
+    does not), and tau is ~x1.25, set by how far the step strays on ordinary keys. A no-match does not
+    mean "not adjacent".
+  - **An outcome that restates an inequality is not a finding.** "Ground below sea level" was exactly
+    `p_img > p_agl`, and was withdrawn before the keys were read (Amendment A2). What it does show,
+    given an M.S.L. height, is that the step overstates the air base.
+  `bc77087`'s page 1 height is contested (3.8 or 7.8) and recorded. Read `inst/notes/terrain-correction.md`,
+  "What the frames under the terrain covered"
 
 - **Terrain error is a datum offset, not slope** (v0.5.0, #9) — `FLYING_HEIGHT` is metres **above sea level**,
 and reported scale is referenced to an elevation above the ground the photos cover, so it understates footprint

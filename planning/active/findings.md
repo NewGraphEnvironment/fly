@@ -330,7 +330,8 @@ the user and the package does not change (Phase 5).
 **What it says, key group by key group.**
 - **Seven below the window (leads 1 and 4).** On the five keys with enough pairs the photos overlap
   0.62-0.81, an ordinary flight, where the catalogue's step says 0.11-0.42 at nominal. The step is
-  2.1 to 3.0 times the air base the images imply at nominal (`k`). The frames *are* adjacent (86-97% of
+  1.9 to 3.0 times the air base the images imply at nominal (`k`; first written here as 2.1, from
+  memory of the log; corrected by the note's prose test). The frames *are* adjacent (86-97% of
   pairs match). Given the crew's height above sea level, no size reading can bring the step down to the
   images', so it is the step that is wrong; spacing's rejection of nominal said nothing about scale.
 - **Two above the window (lead 2).** `bc7718` and `bc80117` were flown at ~85% overlap: the images read
@@ -340,7 +341,8 @@ the user and the package does not change (Phase 5).
 - **Location (lead 3).** On the five keys, the page writes the catalogue's figure under an M.S.L. header,
   the images reject reading it as above ground, and MRDEM under the catalogue's centroids is at or above
   that height on 112 frames: the centroids are not over the ground photographed. Headings agree with the
-  catalogue's line bearings on 264 of 268 matched pairs (4 differ, 0 reversed), so the lines are not
+  catalogue's line bearings on 233 of 237 matched pairs on the five (264 of 268 over all nine; 4 differ,
+  0 reversed), so the lines are not
   rotated or reversed; if the misplacement is a translation that keeps the step, the size statement
   stands, and that is an assumption the images cannot test.
 
@@ -348,7 +350,7 @@ the user and the package does not change (Phase 5).
 - `bc77026`: images 0.807 against the page's "Forward overlap seems excessive (75.9%)".
 - `bc80117`: images 0.840 against "80% FOREWARD O.L.".
 - `bc77070` 271/272: images 0.316, against 0.61-0.64 on the pairs around it, where the page writes "Only
-  40% overlap between #271-#272". The catalogue step is 848 m on that pair and on its neighbours.
+  40% overlap between #271-#272". The catalogue step is 848-850 m on that pair and on its neighbours.
 - Places against the catalogue's positions (`km_to_place`: nearest census frame centroid to the nearest
   place the page names, coordinates from the BC Geographical Names service, queried 2026-10-07; the
   first version of this bullet gave places from memory and overstated `bc77072`'s distance — the

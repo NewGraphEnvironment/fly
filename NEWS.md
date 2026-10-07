@@ -1,5 +1,11 @@
 # fly (development version)
 
+- **The frames under the terrain where spacing rejected nominal scale were flown as ordinary flights; it is the catalogue's centroids that are wrong** ([#97](https://github.com/NewGraphEnvironment/fly/issues/97)). No code change, and every roll table is byte-identical.
+  - **The instrument.** The overlap the photos themselves show: the image shift between adjacent thumbnails, which reads no scale, height or centroid. It uses fly#82's patch matcher, seeded by a search that neither wraps nor reads centroid spacing. Before the nine roll-heights were measured, it passed synthetic known shifts, matched no unrelated pair (0 of 38), read the crews' written overlaps on 9 rolls with a median error of +0.018, and flagged `bc85054`.
+  - **What it found.** On five of the nine roll-heights the photos overlap 0.62 to 0.81, an ordinary flight, where the catalogue's centroid step implies 0.11 to 0.42. The step is 1.9 to 3.0 times the air base, so spacing's rejection of nominal said nothing about scale, and nominal stands. Their logbooks write the catalogue's height above sea level, yet MRDEM under the catalogue's centroids is at or above it on 112 frames: the centroids are not over the ground photographed. `bc7718` and `bc80117` were flown at ~85% overlap, where the two readings cannot be told apart.
+  - **New data.** `flying_height_image_overlap_*.csv` ship every pair, control and verdict, and the suite recomputes them and the note's figures. Five more rolls' logbooks were transcribed blind, which moves fly#95's logbook counts (576 to 689 frames read) but none of its verdicts. A per-strip transcription of headings and places ships as `data-raw/flying_height_logbook_strips.csv`.
+  - **Not done.** Whether `fly_footprint()` should tell the caller about a known misplaced centroid is left to a follow-up issue.
+
 ## 0.23.1 (2026-10-06)
 
 - **Whether a frame's catalogued height is a height above ground was tested, and these instruments cannot settle it** ([#95](https://github.com/NewGraphEnvironment/fly/issues/95)). No code change, and every roll table is byte-identical.
