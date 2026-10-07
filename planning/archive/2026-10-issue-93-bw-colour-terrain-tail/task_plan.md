@@ -180,16 +180,16 @@ blind, and the findings will say so:
 - [x] Review G7: `NEWS.md:14`, `inst/notes/terrain-correction.md:619`, `R/fly_footprint.R:267,285`.
 - [x] File a follow-up issue for the `r <= 0` frames (A3), and for the A2(a) above-ground hypothesis if it
   is worth one.
-- [ ] Check that `R CMD build` tarball size stays reasonable with the new CSV, about 450 KB.
-- [ ] `/code-check` (3 rounds + enumeration), `/planning-archive`, `/gh-pr-push`. A Plan-agent review of
+- [x] Check that `R CMD build` tarball size stays reasonable with the new CSV, about 450 KB. (2.31 → 2.38 MB, +66 KB compressed)
+- [x] `/code-check` (3 rounds + enumeration), `/planning-archive`, `/gh-pr-push`. A Plan-agent review of
   `task_plan.md` runs concurrently after the baseline commit.
 
 ## Validation
 
 - [x] Tests pass
 - [x] `/code-check` clean on each commit
-- [ ] PWF checkboxes match landed work
-- [ ] `/planning-archive` on completion
+- [x] PWF checkboxes match landed work
+- [x] `/planning-archive` on completion
 
 ## Verification
 
