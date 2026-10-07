@@ -6,3 +6,4 @@
 - Created branch `95-bw-colour-frames-whose-catalogued-height` off main
 - Scaffolded PWF baseline from issue #95 with approved phases
 - Next: start Phase 1 (pre-registration)
+- Phase 1: pre-registered rule written to findings.md before any per-roll-height number (spawned a Plan review in parallel)

@@ -53,17 +53,17 @@ The issue asks whether "recorded above ground" can be tested, with any rule fixe
   `flying_height` under an MSL header is a witness against.
 
 ### Phase 1: Pre-register the rule (findings.md, committed before any per-roll-height number exists)
-- [ ] Record what is already known (the bullets above, incl. the pooled peek) as not blind
-- [ ] Population: every roll-height reaching a group-1 frame or an A2(a) roll-height; both groups' frames together
-- [ ] Spacing witness S: per roll-height median overlap at `flying_height` as above-ground and at nominal,
+- [x] Record what is already known (the bullets above, incl. the pooled peek) as not blind
+- [x] Population: every roll-height reaching a group-1 frame or an A2(a) roll-height; both groups' frames together
+- [x] Spacing witness S: per roll-height median overlap at `flying_height` as above-ground and at nominal,
       against the generator's window → `supports` (AGL fits, nominal rejected) / `refutes` (AGL rejected) /
       `undecided` (both fit) / `neither`
-- [ ] Logbook witness L, with tolerances fixed: `names_catalogue` (MSL header, within 2% of `flying_height`),
+- [x] Logbook witness L, with tolerances fixed: `names_catalogue` (MSL header, within 2% of `flying_height`),
       `names_ground_plus` (MSL height ≈ `flying_height` + ground under the frames, tolerance fixed here),
       `above_ground_header`, `other`; coverage counted per frame as in #72
-- [ ] The tabling rule, #72-shaped and strict: S `supports` AND L covers ≥ half the frames with ≥ 90% naming
+- [x] The tabling rule, #72-shaped and strict: S `supports` AND L covers ≥ half the frames with ≥ 90% naming
       `ground_plus` or an above-ground header; everything else excluded with the reason that fired
-- [ ] Evaluation order (as #93's A2): S first; pages transcribed only for roll-heights where S `supports`
+- [x] Evaluation order (as #93's A2): S first; pages transcribed only for roll-heights where S `supports`
 
 ### Phase 2: Ship the `r <= 0` frames from the census that found them
 - [ ] `height_measure-terrain_tail.R` writes `inst/extdata/flying_height_terrain_nonpositive.csv`
