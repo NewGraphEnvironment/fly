@@ -98,7 +98,7 @@ The issue asks whether "recorded above ground" can be tested, with any rule fixe
 
 ## Validation
 
-- [ ] Tests pass
-- [ ] `/code-check` clean on each commit
-- [ ] PWF checkboxes match landed work
+- [x] Tests pass
+- [x] `/code-check` — run as four rounds over the branch (not per commit), ended by enumeration
+- [x] PWF checkboxes match landed work
 - [ ] `/planning-archive` on completion

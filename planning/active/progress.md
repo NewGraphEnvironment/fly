@@ -35,3 +35,6 @@
   pinned, including the transcription scope (source-tree test). Since a defect was found inside a fix, the loop
   ends only on an enumeration: `claims_enumerated.txt` lists all 81 numeric or universal sentences in the
   shipped prose and comments, extracted mechanically
+- Code-check round 4 (`review-round4.md`): the terminating enumeration — 96 claims, every number recomputes; five
+  wording defects of the same mechanism, one inside round 3's fix; all fixed. Loop ended by enumeration.
+  Full suite 5,490 pass at 58eb850

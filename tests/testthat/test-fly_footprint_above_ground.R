@@ -1,6 +1,7 @@
 # Whether a BW/colour frame's catalogued height is a height ABOVE GROUND recorded as above sea
-# level (fly#95). Everything is recomputed from what `data-raw/height_measure-terrain_tail.R` and
-# `data-raw/height_calibrate-lower_tail_rolls.R` shipped; the spacing verdict is never trusted.
+# level (fly#95). The spacing columns are recomputed from what `data-raw/height_measure-terrain_tail.R`
+# and `data-raw/height_calibrate-lower_tail_rolls.R` shipped, so the spacing verdict is never trusted.
+# The logbook columns are checked for consistency only: the per-frame join is not shipped.
 # The rule is in `inst/notes/terrain-correction.md`, "Is the catalogued height above ground? Not with
 # these instruments (fly#95)".
 

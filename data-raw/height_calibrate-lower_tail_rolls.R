@@ -449,7 +449,8 @@ logs <- read.csv("data-raw/flying_height_logbooks.csv", colClasses = "character"
 # leaves a page uncached without stopping, and a roll with any cached page is not fetched
 # again, so a cache listing would miss it (code-check round 3).
 # fly#95's `supports` rolls are held to the same guard: only they can table, so only their
-# pages are read, and an unread one must not reach the rule as an absent one.
+# pages must be fetched and transcribed, and an unread one must not reach the rule as an absent
+# one. Rows already transcribed for other rolls are still joined (Stage 6) and reported.
 terr_rolls <- unique(c(a2$film_roll[is.na(a2$a2_reason)], agl_rolls))
 linked <- bcdc_query_geodata(LAYER) |>
   filter(FILM_ROLL %in% !!terr_rolls) |>

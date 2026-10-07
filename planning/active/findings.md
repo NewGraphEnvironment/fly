@@ -224,3 +224,19 @@ Every finding was checked against the result rather than the plan.
 - **Phase 2.** The re-run used cache key 8212c794 and came out byte-identical, which is the guard that matters;
   the population CSV gained no row. The 374 are in band above sea level only, as the census defines them.
 - **AC1, done**: the test pins 374 frames, 15 rolls, 16 roll-heights.
+
+## Code-check summary
+
+| round | findings | fixed | inside a previous fix? |
+|---|---|---|---|
+| 1 | 3 prose (scope dropped: 0.028, 550, "wherever") | 3 | — |
+| 2 | 1 prose (2,956 described as the two groups) | 1 | no |
+| 3 | 4 prose + 1 code (`conflict` folded into unread) + 1 citation | 6 | **yes**: round 1's "no page puts the ground under it" covered only transcribed pages |
+| 4 | enumeration of 96 claims (81 extracted mechanically, 15 added): every number recomputes; 5 wording | 5 | yes: round 3's "never fetched" (`bcc07085` has no page) |
+
+**Mechanism** (round 3): a count computed over one set, described in words that name a neighbouring set — a
+superset, a subset, or the fetch set instead of the join set. **Terminated by enumeration** (round 4): every
+sentence in the shipped prose and changed comments that carries a number or a universal quantifier, checked
+against the producer of its set. Round 4's five fixes are point corrections, each checked directly
+(`bcc07085`'s catalogue state is in `flying_height_rolls_excluded.csv`; 154 - 26 = 128). No code defect changed a
+shipped row: the generator re-ran byte-identical after the only code fix. Suite: 5,490 pass, 0 fail at 58eb850.

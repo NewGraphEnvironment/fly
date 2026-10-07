@@ -411,7 +411,8 @@ and the 176 where A2 found nominal fits, judged on every census frame on them (2
 1, cannot separate it from nominal on 126 and rejects it on 61. `bc5602`, the one it supports, has a logbook
 writing the catalogue's own 4,000 ft under M.S.L. On the 576 logbook-read frames, 558 carry the
 catalogue's figure and no page puts the ground under it. Generator Stages 3c and 6 write
-`inst/extdata/flying_height_above_ground.csv`; `test-fly_footprint_above_ground.R` recomputes it.
+`inst/extdata/flying_height_above_ground.csv`; `test-fly_footprint_above_ground.R` recomputes its spacing
+columns and checks the logbook columns for consistency, since the per-frame logbook join is not shipped.
 
   **Two things are load-bearing.**
   - **Read the null as "cannot settle", not "false".** On a key, `p_agl = 1 - (1 - p_nominal) / ratio_asl`,

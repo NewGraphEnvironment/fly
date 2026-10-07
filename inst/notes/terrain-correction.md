@@ -789,7 +789,7 @@ terrain, and the two are exactly `ratio_asl` apart.
   `refutes` where it does not fit.
 - **The logbook** decides only where spacing supports, so pages are fetched, and must be
   transcribed, only for those rolls, as A2 did for fly#93. Rows already transcribed for #60 to
-  #93 are joined to every frame and reported, but gate nothing. A page has to put the ground
+  #93 are joined to every frame and reported; outside `supports` they gate nothing. A page has to put the ground
   under the catalogued height: a page height `h` whose median `h - elev` over the frames is
   within 10% of the catalogued height, or a TRUE HEIGHT header that names the ground.
 - A roll-height is tabled only where both hold, the logbook reading at least half its frames
@@ -811,8 +811,8 @@ header. MRDEM puts the ground under 23 of those frames at 1,234 to 1,591 m.
 
 **Where a transcribed page covers these frames, it writes the catalogue's height on 558 of the
 576 frames it reads, and none puts the ground under it.** Pages are transcribed for 26 of the
-population's 154 rolls; the other rolls' pages were never fetched, because only `supports` goes
-to the logbook, so this says nothing about them. The transcribed headers say M.S.L. or name no
+population's 154 rolls. The other 128 were not transcribed, because only `supports` goes to the
+logbook (one of them, `bcc07085`, has no page in the catalogue), so this says nothing about them. The transcribed headers say M.S.L. or name no
 datum; none names the ground. Over the 32 roll-heights with a frame the logbook reads:
 
 | logbook relation | frames |
@@ -825,8 +825,8 @@ datum; none names the ground. Over the 32 roll-heights with a frame the logbook 
 That cuts both ways. On `bc5602`, `bc77026`, `bc77072` and `bc77087` the page's "M.S.L."
 figure is below the ground under some of the frames it covers. So there either the column is
 not above sea level as written, or the frames are not where the catalogue puts them. The rule
-asked for a page that says "ground", no transcribed page does, and the rule was not amended
-after the data.
+asked for a page that puts the ground under the height, by its figure or by its header; no
+transcribed page does, and the rule was not amended after the data.
 
 ### Why that is "cannot settle it", not "false"
 
