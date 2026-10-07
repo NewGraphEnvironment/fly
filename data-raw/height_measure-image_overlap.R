@@ -681,6 +681,29 @@ kk$places <- vapply(kk$key, function(k) uq(kp_m$place[kp_m$key == k]), character
 kk$overlap_written <- vapply(kk$key, function(k) uq(kp_m$overlap_written[kp_m$key == k]),
                              character(1))
 
+# Places the pages name, from the BC Geographical Names service (apps.gov.bc.ca/pub/bcgnws,
+# names/search, outputSRS 4326, queried 2026-10-07; where a name recurs across BC, the feature beside
+# the other name on the same page). Reported, never gating: the distance from the key's nearest census
+# frame centroid to the nearest of its page's places. `bcc325`'s page names an unread creek.
+PLACES <- data.frame(
+  film_roll = c("bc5715", "bc77026", "bc77070", "bc77070", "bc77072", "bc77072", "bc77087",
+                "bc77087", "bc7718", "bc80117"),
+  place = c("Horseshoe Bay", "Pemberton", "Swan Lake", "Grindrod", "Spences Bridge", "Savona",
+            "Swan Lake", "Grindrod", "Tahsis", "Yale"),
+  lon = c(-123.281, -122.808, -119.257, -119.123, -121.344, -120.843, -119.257, -119.123,
+          -126.664, -121.431),
+  lat = c(49.371, 50.321, 50.320, 50.625, 50.422, 50.753, 50.320, 50.625, 49.916, 49.562)
+)
+cen_xy <- frames[paste(frames$film_roll, frames$frame_number) %in% cen_rf, ]
+pl <- sf::st_transform(sf::st_as_sf(PLACES, coords = c("lon", "lat"), crs = 4326), 3005)
+pl_xy <- sf::st_coordinates(pl)
+kk$km_to_place <- vapply(seq_len(nrow(kk)), function(i) {
+  f <- cen_xy[cen_xy$key == kk$key[i], ]
+  j <- which(PLACES$film_roll == kk$film_roll[i])
+  if (!nrow(f) || !length(j)) return(NA_real_)
+  min(outer(f$x, pl_xy[j, 1], "-")^2 + outer(f$y, pl_xy[j, 2], "-")^2)^0.5 / 1000
+}, numeric(1))
+
 # The two outcomes (Amendment A2).
 kk$size <- dplyr::case_when(
   kk$w1 %in% c("too_few_pairs", "no_overlap") ~ kk$w1,
@@ -699,7 +722,7 @@ kk$location <- dplyr::case_when(
 pub("tau %.4f (step error x%.3f)", tau, exp(tau))
 print(kk[, c("key", "pairs", "pairs_break", "pairs_matched", "pairs_used", "p_img", "p_nominal",
              "p_agl", "D_nominal", "D_agl", "gap", "w1", "w2_height", "dir_agree", "dir_reverse",
-             "dir_differ", "size", "location", "frames_nonpositive")], row.names = FALSE)
+             "dir_differ", "size", "location", "km_to_place", "frames_nonpositive")], row.names = FALSE)
 tally <- function(v) {
   t <- tapply(kk$frames_nonpositive, v, sum)
   paste(names(t), t, collapse = ", ")
@@ -736,8 +759,9 @@ keys_out <- kk[, c("film_roll", "flying_height", "focal_length", "scale_n", "fra
                    "frames_nonpositive", "pairs", "pairs_break", "pairs_matched", "pairs_used",
                    "p_img", "p_nominal", "p_agl", "D_nominal", "D_agl", "gap", "k", "w1",
                    "frames_logbook", "frames_catalogue", "frames_ground", "w2_height", "dir_agree",
-                   "dir_reverse", "dir_differ", "size", "location", "places", "overlap_written")]
-for (v in c("p_img", "p_nominal", "p_agl", "D_nominal", "D_agl", "gap", "k")) {
+                   "dir_reverse", "dir_differ", "size", "location", "places", "km_to_place",
+                   "overlap_written")]
+for (v in c("p_img", "p_nominal", "p_agl", "D_nominal", "D_agl", "gap", "k", "km_to_place")) {
   keys_out[[v]] <- r4(keys_out[[v]])
 }
 write_if_changed(syn_out, "inst/extdata/flying_height_image_overlap_synthetic.csv")

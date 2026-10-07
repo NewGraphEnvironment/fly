@@ -349,11 +349,17 @@ the user and the package does not change (Phase 5).
 - `bc80117`: images 0.840 against "80% FOREWARD O.L.".
 - `bc77070` 271/272: images 0.316, against 0.61-0.64 on the pairs around it, where the page writes "Only
   40% overlap between #271-#272". The catalogue step is 848 m on that pair and on its neighbours.
-- Places against the catalogue's positions: `bc7718` 46-69 is "TAHSIS" strip 4 (west Vancouver Island,
-  sea level; 5,000 ft = nominal height above ground, implied ground 0 m), and the catalogue places frame
-  30 of the same roll at 126.86 W but 46-69 at 121.66 W. `bc80117` is "YALE BLUFF" (Fraser Canyon,
-  ~121.4 W); the catalogue's frames are at 122.78-122.82 W. `bc77087`/`bc77070` "Swan Lake Grinrod"
-  (Vernon to Grindrod, 50.3-50.6 N) against catalogue positions 49.73-50.31 N.
+- Places against the catalogue's positions (`km_to_place`: nearest census frame centroid to the nearest
+  place the page names, coordinates from the BC Geographical Names service, queried 2026-10-07; the
+  first version of this bullet gave places from memory and overstated `bc77072`'s distance — the
+  catalogue's frames do lie in the Spences Bridge-Savona corridor):
+  - `bc7718` 46-69, "TAHSIS" strip 4: 359 km. The catalogue places frame 30 of the same roll at
+    126.86 W, beside Tahsis, and 46-69 at 121.66 W. 5,000 ft is nominal height above ground at 1:5000 on
+    305 mm, so the page's height puts the ground at sea level, as at Tahsis.
+  - `bc80117`, "YALE BLUFF": 97 km.
+  - The five `misplaced` keys: 6.0 to 35.8 km (`bc77072` 1981 6.0, `bc77087` 9.7, `bc5715` 13.5,
+    `bc77026` 17.7, `bc77070` 33.1, `bc77072` 1829 35.8). A project area spans tens of km, so these do
+    not discriminate, and the location verdict does not use them.
 - **`bc77087`'s location verdict rests on a contested read.** The blind reader of page 1 would not
   choose between 3.8 and 7.8 (leaning 7.8). At 7,800 ft the frames' r would be > 0 and the key would not
   be `r <= 0` at all; its size verdict (`step_overstated`) holds either way (at 7,800 ft the catalogue
