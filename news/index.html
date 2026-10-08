@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fly</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.23.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.24.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,8 @@
 
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="development version" id="fly-development-version">fly (development version)<a class="anchor" aria-label="anchor" href="#fly-development-version"></a></h2>
+<div class="section level3">
+<h3 id="id_0240-development-version">0.24.0 (2026-10-08)<a class="anchor" aria-label="anchor" href="#id_0240-development-version"></a></h3>
 <ul><li>
 <strong><code>fly_footprint(dem =)</code> now names the frames under the terrain that sit on a roll-height whose catalogue centroids fly#97 labelled <code>misplaced</code></strong> (<a href="https://github.com/NewGraphEnvironment/fly/issues/99" class="external-link">#99</a>). Geometry and columns are unchanged: the footprint is still drawn at the catalogue’s centroid, at nominal scale.
 <ul><li>
@@ -46,7 +48,8 @@
 <li>
 <strong>One fact, one file.</strong> The warning reads <code>flying_height_image_overlap_keys.csv</code> (<code>location == "misplaced"</code>) directly rather than a copied ledger, so re-running <code>data-raw/height_measure-image_overlap.R</code> changes what it names. A test stops a re-run that labels a key <code>misplaced</code> without the step overstated, for which the warning’s wording would be false.</li>
 </ul></li>
-</ul><div class="section level3">
+</ul></div>
+<div class="section level3">
 <h3 id="id_0233-development-version">0.23.3 (2026-10-08)<a class="anchor" aria-label="anchor" href="#id_0233-development-version"></a></h3>
 <ul><li>
 <strong><code>bc77087</code>’s disputed logbook digit is settled as 3, so its page writes the catalogue’s 3,800 ft</strong> (<a href="https://github.com/NewGraphEnvironment/fly/issues/101" class="external-link">#101</a>). No code change, and every roll table is byte-identical.

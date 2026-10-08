@@ -2,6 +2,8 @@
 
 ## fly (development version)
 
+### 0.24.0 (2026-10-08)
+
 - **`fly_footprint(dem =)` now names the frames under the terrain that
   sit on a roll-height whose catalogue centroids fly#97 labelled
   `misplaced`**
