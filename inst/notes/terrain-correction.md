@@ -1062,10 +1062,14 @@ reading would have been the one fly#95 was looking for.
 
 - `fly_footprint()` draws these frames at nominal scale. On the seven roll-heights the photos could
   measure, that is no longer contradicted (on `bc77087`, only on its 3.8 read). It draws them at the
-  catalogue's centroids.
+  catalogue's centroids, and since fly#99 says so in a warning on the five `misplaced` ones.
 - **By the logbooks, 107 frames on four roll-heights are not over the ground photographed.** 38 of them
   rest on `bc77087`'s page, settled as 3.8 by a human read after three blind reads disagreed. The fifth `misplaced` roll-height, `bc77072` 1829, has its one
-  such frame on no page. Whether to tell the caller is fly#99.
+  such frame on no page. Since fly#99, `fly_footprint(dem =)` names the five roll-heights in a second
+  warning wherever the caller's DEM puts one of their frames under the aircraft, and changes nothing
+  else. It reads `flying_height_image_overlap_keys.csv` directly, so it is what fly#97 labelled `misplaced`
+  (5 of its 9 keys), not a census, and it names no frame above the terrain (199 of the 311 census frames on them, refused by the
+  height check).
 - **Over the 689 frames fly#95's test reads (38 roll-heights), no transcribed page puts the ground under
   the catalogued height.** Among fly#97's nine keys, `bc77087`'s page 1 was the one page whose reading
   could have, and fly#101 settled its digit as 3.

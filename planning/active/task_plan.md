@@ -35,31 +35,31 @@ Two more roll-heights, `bc7718` and `bc80117`, were left `unsettled` by fly#97's
 - `bc7718` and `bc80117` (`not_tested`) are not named.
 
 ## Phase 1: Tests first
-- [ ] `tests/testthat/test-fly_footprint_misplaced.R`: a fixture built like `height_fixture()` /
+- [x] `tests/testthat/test-fly_footprint_misplaced.R`: a fixture built like `height_fixture()` /
       `flat_dem()` (`tests/testthat/setup.R` ~131-163): a `bc77070` 1158/153/5000 frame over a
       flat DEM above 1158 m warns naming `bc77070 1158`; the same frame under another roll name
       warns only the generic text; a misplaced-key frame with `r > 0` does not warn; a mix
       counts only the misplaced frames
-- [ ] The reader returns exactly the five keys and is the keys file's `misplaced` rows; a key
+- [x] The reader returns exactly the five keys and is the keys file's `misplaced` rows; a key
       written as integer and as double both match
-- [ ] Shape sweep through `centroid_shapes()` (plain / tibble / grouped / `bcdc_sf`)
-- [ ] Mutation check: drop the filter / break the key and confirm the tests go red
+- [x] Shape sweep (plain / factor / tibble / grouped / `bcdc_sf`), built from the test's own fixture: `centroid_shapes()` reads the bundled gpkg, whose rolls are on no misplaced key (plan review G2)
+- [x] Mutation check: drop the filter / break the key and confirm the tests go red
 
 ## Phase 2: Implement
-- [ ] Reader `fly_height_misplaced_table()` beside `fly_height_roll_table()`
-- [ ] Warning after the `unusable` one in `fly_footprint()`; generic warning unchanged
-- [ ] Roxygen: one paragraph in the Terrain section; `devtools::document()`
+- [x] Reader `fly_height_misplaced_table()` beside `fly_height_roll_table()`
+- [x] Warning after the `unusable` one in `fly_footprint()`; generic warning unchanged
+- [x] Roxygen: one paragraph in the Terrain section; `devtools::document()`
 
 ## Phase 3: Record
-- [ ] `inst/notes/terrain-correction.md` "What it leaves": replace "Whether to tell the caller
+- [x] `inst/notes/terrain-correction.md` "What it leaves": replace "Whether to tell the caller
       is fly#99" with what shipped and its limits
-- [ ] NEWS.md entry (version bump left to `/gh-pr-merge`)
-- [ ] CLAUDE.md Key Decisions: one entry for fly#99
-- [ ] Edit issue #99's body to record the decision
+- [x] NEWS.md entry (version bump left to `/gh-pr-merge`)
+- [x] CLAUDE.md Key Decisions: one entry for fly#99
+- [x] Edit issue #99's body to record the decision
 
 ## Validation
-- [ ] `devtools::test()` passes; lintr clean; `pkgdown::check_pkgdown()` (no new export)
-- [ ] `/code-check` on each commit
-- [ ] Plan agent review spawned concurrently after the baseline
+- [x] `devtools::test()` passes; lintr clean; `pkgdown::check_pkgdown()` (no new export)
+- [x] `/code-check` on each commit
+- [x] Plan agent review spawned concurrently after the baseline
 - [ ] `/planning-archive`, `/gh-pr-push`
 

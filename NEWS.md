@@ -1,5 +1,10 @@
 # fly (development version)
 
+- **`fly_footprint(dem =)` now names the frames under the terrain that sit on a roll-height whose catalogue centroids fly#97 labelled `misplaced`** ([#99](https://github.com/NewGraphEnvironment/fly/issues/99)). Geometry and columns are unchanged: the footprint is still drawn at the catalogue's centroid, at nominal scale.
+  - **What it says.** Beside the "terrain at or above the aircraft" warning, a second one lists `bc77026` 2042 m, `bc77070` 1158 m, `bc77072` 1829 m and 1981 m, or `bc77087` 1158 m, with a count per roll-height, wherever your DEM puts one of their frames under the aircraft. On each of these roll-heights the logbook pages write the catalogued height above sea level for at least 90% of the frames they read, so the generic advice to check the height's datum may point the wrong way.
+  - **What it does not.** It is not a census. The list is what fly#97 labelled `misplaced`, 5 of the 9 roll-heights it measured, so an unlisted roll-height is not thereby clean: most were never measured, and four were measured and labelled otherwise. On these five roll-heights it names only the frames under the terrain. Of the 311 frames on them that fly#93's census holds (in band above sea level but below it over the ground, and under the terrain), 112 are under MRDEM's terrain and the other 199 are refused by the height check with its own warning; frames in band are sized from the DEM as usual. Nothing is named without `dem`. `bc7718` and `bc80117`, left unsettled by fly#97, are not named.
+  - **One fact, one file.** The warning reads `flying_height_image_overlap_keys.csv` (`location == "misplaced"`) directly rather than a copied ledger, so re-running `data-raw/height_measure-image_overlap.R` changes what it names. A test stops a re-run that labels a key `misplaced` without the step overstated, for which the warning's wording would be false.
+
 ## 0.23.3 (2026-10-08)
 
 - **`bc77087`'s disputed logbook digit is settled as 3, so its page writes the catalogue's 3,800 ft** ([#101](https://github.com/NewGraphEnvironment/fly/issues/101)). No code change, and every roll table is byte-identical.
