@@ -2,6 +2,8 @@
 
 ## fly (development version)
 
+### 0.23.3 (2026-10-08)
+
 - **`bc77087`’s disputed logbook digit is settled as 3, so its page
   writes the catalogue’s 3,800 ft**
   ([\#101](https://github.com/NewGraphEnvironment/fly/issues/101)). No
