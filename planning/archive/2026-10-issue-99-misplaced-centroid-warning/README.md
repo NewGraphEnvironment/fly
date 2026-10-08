@@ -30,4 +30,4 @@ any frame the band check never compared.
   metadata the two coincide. That was recorded instead of being tested around.
 - **Suite.** 5,765 pass, 0 fail, 0 skip on the final tree.
 
-Closed by: PR (see branch `99-surface-frames-whose-catalogue-centroids`)
+Closed by: PR #103
