@@ -1,5 +1,7 @@
 # fly (development version)
 
+## 0.23.3 (2026-10-08)
+
 - **`bc77087`'s disputed logbook digit is settled as 3, so its page writes the catalogue's 3,800 ft** ([#101](https://github.com/NewGraphEnvironment/fly/issues/101)). No code change, and every roll table is byte-identical.
   - **The blind reads.** A third blind read, under a rule fixed before it, could not choose between 3 and 5, leaning 3, and did not list 7. With fly#93's 3 and fly#97's "3 or 7", the three blind reads disagreed.
   - **The human read.** A human read of the page then settled the digit as 3. It was not blind, and the transcription note records it as such.
