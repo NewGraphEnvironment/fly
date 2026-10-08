@@ -255,6 +255,27 @@ and <code>dem_coverage</code> are <code>NA</code></p></dd>
 </dl><p>A frame the DEM cannot correct falls back to nominal scale with a warning,
 rather than being dropped. The same applies where the DEM puts terrain at or
 above the aircraft, which means <code>flying_height</code> is not in metres ASL.</p>
+<p>Or that the frame is not where the catalogue puts it. On five roll-heights
+(<code>bc77026</code> 2042 m, <code>bc77070</code> 1158 m, <code>bc77072</code> 1829 m and 1981 m, <code>bc77087</code>
+1158 m) the logbook pages write the catalogued height above sea level for at
+least 90% of the frames they read, and the photos show the catalogue's step
+between centroids is
+longer than the air base (fly#97), so a second warning names any of their frames
+that land under the terrain, keyed on <code>film_roll</code>, <code>flying_height</code>,
+<code>focal_length</code> and <code>scale</code>. The label is per roll-height: not every frame on
+them is read by the logbook, <code>bc77087</code>'s page rests on a digit settled by a read
+that was not blind (fly#101), and <code>bc77070</code>'s step margin is at the instrument's
+resolution. The footprint is unchanged, still drawn at the centroid, and nothing
+is added to the output. The list is the roll-heights labelled so far, read from
+<code>inst/extdata/flying_height_image_overlap_keys.csv</code>, not a census: an unlisted
+roll-height is not thereby clean. Most were never measured, and four that fly#97
+measured carry another label. Which frames are named depends on your DEM,
+and only frames under the terrain are. Of the 311 frames on these roll-heights
+that fly#93's census holds (those in band above sea level but below it over the
+ground, and those under the terrain),
+112 are under MRDEM's terrain; the other 199 are below the band and refused by
+the height check with its own warning. Frames in band are sized from the DEM as
+usual. Without <code>dem</code>, nothing is named.</p>
 <p><strong><code>flying_height</code> is checked before it is believed.</strong> Sizing from it means
 inheriting whatever is wrong with it, and the catalogue's is about 10.76 times
 (3.28084 squared) too large on 1,589 film frames from 13 rolls flown between

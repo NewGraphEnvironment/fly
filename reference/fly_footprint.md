@@ -253,6 +253,29 @@ warning, rather than being dropped. The same applies where the DEM puts
 terrain at or above the aircraft, which means `flying_height` is not in
 metres ASL.
 
+Or that the frame is not where the catalogue puts it. On five
+roll-heights (`bc77026` 2042 m, `bc77070` 1158 m, `bc77072` 1829 m and
+1981 m, `bc77087` 1158 m) the logbook pages write the catalogued height
+above sea level for at least 90% of the frames they read, and the photos
+show the catalogue's step between centroids is longer than the air base
+(fly#97), so a second warning names any of their frames that land under
+the terrain, keyed on `film_roll`, `flying_height`, `focal_length` and
+`scale`. The label is per roll-height: not every frame on them is read
+by the logbook, `bc77087`'s page rests on a digit settled by a read that
+was not blind (fly#101), and `bc77070`'s step margin is at the
+instrument's resolution. The footprint is unchanged, still drawn at the
+centroid, and nothing is added to the output. The list is the
+roll-heights labelled so far, read from
+`inst/extdata/flying_height_image_overlap_keys.csv`, not a census: an
+unlisted roll-height is not thereby clean. Most were never measured, and
+four that fly#97 measured carry another label. Which frames are named
+depends on your DEM, and only frames under the terrain are. Of the 311
+frames on these roll-heights that fly#93's census holds (those in band
+above sea level but below it over the ground, and those under the
+terrain), 112 are under MRDEM's terrain; the other 199 are below the
+band and refused by the height check with its own warning. Frames in
+band are sized from the DEM as usual. Without `dem`, nothing is named.
+
 **`flying_height` is checked before it is believed.** Sizing from it
 means inheriting whatever is wrong with it, and the catalogue's is about
 10.76 times (3.28084 squared) too large on 1,589 film frames from 13
