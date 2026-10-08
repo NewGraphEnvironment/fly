@@ -9,7 +9,7 @@ type: software
 license: MIT
 title: 'fly: Historic Airphoto Footprints, Selection and Georeferencing for British
   Columbia'
-version: 0.23.3
+version: 0.24.0
 abstract: Estimate ground footprints from airphoto centroids and scale, compute coverage
   of areas of interest, select minimum photo sets using greedy set-cover, fetch scans
   and flight metadata from the BC Data Catalogue, and georeference the images onto
