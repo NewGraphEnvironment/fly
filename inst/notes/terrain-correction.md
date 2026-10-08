@@ -811,8 +811,8 @@ header. MRDEM puts the ground under 23 of those frames at 1,234 to 1,591 m.
 
 **Where a transcribed page covers these frames, it writes the catalogue's height on 669 of the
 689 frames it reads, and none puts the ground under it**, on the transcription as it stands (fly#97
-found one page whose disputed digit, read the other way, would; see "What the frames under the terrain
-covered"). Pages are transcribed for 31 of the
+found one page whose disputed digit, read the other way, would; fly#101 settled it as the catalogue's 3.8;
+see "What the frames under the terrain covered"). Pages are transcribed for 31 of the
 population's 154 rolls (26 when fly#95 ran; fly#97 transcribed the five rolls of its nine keys that had
 none, and every figure in this paragraph and the table below includes them). The other 123 were not transcribed, because only `supports` goes to the
 logbook (one of them, `bcc07085`, has no page in the catalogue), so this says nothing about them. The transcribed headers say M.S.L. or name no
@@ -895,8 +895,8 @@ along a digitised line.
   scale.
 - On those five, the logbook's figure against MRDEM puts 107 of the 112 frames at `r <= 0` somewhere
   other than over the ground photographed.
-- `bc77087` carries 38 of the 107 frames, and its part of the bound, on a page height a blind re-read
-  could not settle. Read the other way, its page puts the ground under the catalogued height, which is
+- `bc77087` carries 38 of the 107 frames, and its part of the bound, on a page height settled as 3.8
+  by a human read after three blind reads disagreed (fly#101). Read the other way, its page puts the ground under the catalogued height, which is
   the result fly#95 was looking for (below).
 - Two roll-heights were flown at ~85% overlap, where the two readings cannot be told apart. Two have one
   matched pair each, too few to judge.
@@ -976,7 +976,7 @@ that on 2 of the 34 (x1.34 and x1.41). Of 192 ordinary pairs, 31 of the 190 comp
 - **Two keys qualify that.**
   - `bc77070`, the largest (59 `r <= 0` frames), passes by 0.006: its `D_agl` is -0.226 against tau
     0.220, x1.25, at the instrument's resolution.
-  - `bc77087`'s x1.39 holds only on its page's contested 3.8 (below).
+  - `bc77087`'s x1.39 holds on its page's 3.8, which fly#101 settled (below).
 
 **And by the logbook, the frames at `r <= 0` there are not over the ground photographed.**
 - **This rests on the logbook, not the photos.** The page says the height is above sea level, yet MRDEM
@@ -1029,9 +1029,22 @@ that on 2 of the 34 (x1.34 and x1.41). Of 192 ordinary pairs, 31 of the 190 comp
   - The five `step overstated` keys are 6 to 36 km from their places. A project area spans tens of km,
     so that does not discriminate.
 
-**`bc77087` rests on a contested read, and the other reading is the one fly#95 was looking for.**
-- **The read.** It has had two blind reads. fly#93's reader read 3.8, and the catalogue's 1,158 m is
-  3,800 ft. fly#97's reader would not choose between 3.8 and 7.8, and leaned 7.8.
+**`bc77087`'s page reads 3.8. Three blind reads disagreed, and a human read settled it (fly#101).** The other
+reading would have been the one fly#95 was looking for.
+- **The blind reads.** Three blind reads did not settle it. fly#93's reader read 3.8,
+  and the catalogue's 1,158 m is 3,800 ft. fly#97's reader would not choose between 3.8 and 7.8, and
+  leaned 7.8.
+- **The third read (fly#101) was run under a rule fixed before it.** Its reader was given only this
+  roll's five pages (the same-week roll that names the project was withheld) and a protocol for
+  comparing the glyph with the same hand's digits elsewhere on them. It would not choose between 3 and 5, and leaned 3. It
+  did not list 7. Under that rule no lean counts, so the transcription keeps 3.8, as first transcribed.
+  The one feature all three readers name is a flat top. fly#97's reader saw a single descending stroke
+  below it, and fly#101's a curve.
+- **A human read settled it as 3.** After the blind reads, the package's maintainer read the page and
+  read the digit as 3. That read was not blind (it came knowing the stakes and the three blind reads), and
+  it is recorded as such. It agrees with fly#93's reader, with the catalogue's 1,158 m, and with
+  `bc77070`, flown the same week on the same project at 3,800 ft. So the transcription keeps 3,800 ft, and
+  the bullets below are what a 7.8 would have meant.
 - **At 7,800 ft (2,377 m), the aircraft would be above the ground MRDEM puts under all 57 frames.** The
   package, which reads the catalogued height, would still find its 38 at `r <= 0`.
 - **The page would put the ground under the catalogued height.** Over its 57 frames, the median of
@@ -1044,8 +1057,6 @@ that on 2 of the 34 (x1.34 and x1.41). Of 192 ordinary pairs, 31 of the 190 comp
   frames (against x1.39 on the 3.8 read), and to x0.68 over sea-level ground. It falls under tau at the
   low end.
 - **Only the W1 label is the same either way,** because it is computed at the catalogue's height.
-- `bc77070`, flown the same week on the same project at 3,800 ft, was read clear.
-- Which reading is right is a question for the transcription, not the rule, and is left open.
 
 ### What it leaves
 
@@ -1053,10 +1064,11 @@ that on 2 of the 34 (x1.34 and x1.41). Of 192 ordinary pairs, 31 of the 190 comp
   measure, that is no longer contradicted (on `bc77087`, only on its 3.8 read). It draws them at the
   catalogue's centroids.
 - **By the logbooks, 107 frames on four roll-heights are not over the ground photographed.** 38 of them
-  rest on `bc77087`'s contested read. The fifth `misplaced` roll-height, `bc77072` 1829, has its one
+  rest on `bc77087`'s page, settled as 3.8 by a human read after three blind reads disagreed. The fifth `misplaced` roll-height, `bc77072` 1829, has its one
   such frame on no page. Whether to tell the caller is fly#99.
-- **`bc77087`'s page 1 digit decides whether a page puts the ground under a catalogued height.** A third
-  read, or the original, would settle it.
+- **Over the 689 frames fly#95's test reads (38 roll-heights), no transcribed page puts the ground under
+  the catalogued height.** Among fly#97's nine keys, `bc77087`'s page 1 was the one page whose reading
+  could have, and fly#101 settled its digit as 3.
 - **An air base that reads no centroid would settle size outright.** The transcription records none.
 - **Do not use spacing's window as evidence about scale on an older roll without the photos.** On all
   seven keys here that the photos could measure, the step or the flown overlap was off what the window

@@ -1,0 +1,19 @@
+# Progress — Settle the disputed height digit on bc77087's logbook page 1 (#101)
+
+## Session 2026-10-07
+
+- Plan-mode exploration — phases approved by user; at the gate: a 7.8 settlement is recorded, not
+  applied; the third read is a blind subagent only
+- Created branch `101-settle-the-disputed-height-digit-on-bc77` off main
+- Scaffolded PWF baseline from issue #101 with approved phases
+- Next: start Phase 1
+- Phase 1: rule, brief, crop script and scorer written; scorer exercised on five synthetic outputs.
+  `bc77070_4` withheld from the reader (same place at a clear 3.8). Plan review spawned in background.
+- Plan review returned (2 blockers, 9 gaps): `review-plan.md`. Canary: general-purpose subagents carry
+  CLAUDE.md (which names both prior reads), Plan-type do not -> reader is Plan-type. All of bc77070 withheld.
+  Baseline generator re-run on the unedited tree: 45/45 CSVs byte-identical. Scorer rewritten (13 synthetic
+  cases), compliance audit written and exercised both ways. Amendment A1 recorded.
+- Phase 2: third read done. Stage A (audit PASS, 50/50 images) then Stage B by SendMessage. Verdict:
+  **unsettled** (Stage B undecided, lean 3; Stage A alternatives 3/5 — 7 never a candidate). Gate PASS 203/211.
+  Reader slip: 8 Stage B rows name the reference's page as `disputed_file`; cannot move the verdict.
+- Phase 3: unsettled outcome shipped (note-only edit; 44 CSVs byte-identical after re-run); prose, NEWS, CLAUDE.md, test; fly#99 body updated.

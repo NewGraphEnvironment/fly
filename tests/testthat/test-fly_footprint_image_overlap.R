@@ -394,3 +394,49 @@ test_that("read as 7,800 ft, bc77087's page would put the ground under the catal
     expect_true(grepl(tolower(s), tolower(prose), fixed = TRUE), info = s)
   }
 })
+
+test_that("bc77087's page-1 digit is 3.8: three blind reads disagreed, a human read settled it (fly#101)", {
+  # The transcription and the reader's own files are not installed, so this runs only from the source tree.
+  lb_path <- testthat::test_path("..", "..", "data-raw", "flying_height_logbooks.csv")
+  skip_if(!file.exists(lb_path), "logbook transcription not reachable from an installed package")
+  lb <- utils::read.csv(lb_path, stringsAsFactors = FALSE)
+  r <- lb[lb$file == "bc77087__bc77087_1.jpg" & lb$frame_from %in% 1, ]
+  expect_identical(nrow(r), 1L)
+  expect_identical(r$height_ft_interpreted, 3800L)
+  expect_true(grepl("Three blind reads of the first digit disagreed", r$note, fixed = TRUE))
+  expect_true(grepl("fly#101 undecided between 3 and 5 leaning 3", r$note, fixed = TRUE))
+  # The settling read is a human one and not blind, and the row must say both.
+  expect_true(grepl("Settled as 3 by a human read of the page, not blind", r$note, fixed = TRUE))
+  # The first two blind reads, as their readers wrote them (fly#93 and fly#97's archived transcriptions).
+  arch <- testthat::test_path("..", "..", "planning", "archive")
+  prior <- function(dir) {
+    f <- file.path(arch, dir, "transcription", if (grepl("93", dir)) "batch4_rows.csv" else "batchC_rows.csv")
+    skip_if(!file.exists(f), paste("archived transcription not reachable:", dir))
+    x <- utils::read.csv(f, colClasses = "character")
+    x$height_as_written[x$file == "bc77087__bc77087_1.jpg" & x$frame_from == "1"]
+  }
+  expect_identical(prior("2026-10-issue-93-bw-colour-terrain-tail"), "3.8")
+  expect_identical(prior("2026-10-issue-97-image-overlap"), "?.8 (7.8 or 3.8)")
+  expect_true(grepl("fly#93 3, fly#97 undecided between 3 and 7 leaning 7", r$note, fixed = TRUE))
+  # The third blind reader's verdict, as it wrote it: undecided, so the blind reads alone did not settle it.
+  pl <- testthat::test_path("..", "..", "planning")
+  # The archived copy first: a later read reusing this layout would put its own file at the active path.
+  vf <- c(Sys.glob(file.path(pl, "archive", "*issue-101*", "transcription", "reader", "verdict.csv")),
+          file.path(pl, "active", "transcription", "reader", "verdict.csv"))
+  vf <- vf[file.exists(vf)]
+  skip_if(!length(vf), "fly#101's reader files not reachable")
+  v <- utils::read.csv(vf[1], colClasses = "character")
+  expect_identical(nrow(v), 1L)
+  expect_identical(c(v$disputed_file, v$decision, v$lean), c("bc77087__bc77087_1.jpg", "undecided", "3"))
+  rows <- utils::read.csv(sub("verdict.csv$", "rows.csv", vf[1]), colClasses = "character")
+  t1 <- rows[rows$file == "bc77087__bc77087_1.jpg" & rows$leading_digit_confidence != "ditto", ]
+  expect_identical(c(t1$leading_digit_confidence, t1$leading_digit_alternatives), c("uncertain", "3/5"))
+  note <- system.file("notes", "terrain-correction.md", package = "fly", mustWork = TRUE)
+  prose <- gsub("\\s+", " ", paste(readLines(note), collapse = " "))
+  for (s in c("Three blind reads did not settle it",
+              "It would not choose between 3 and 5, and leaned 3. It did not list 7",
+              "A human read settled it as 3", "That read was not blind",
+              "So the transcription keeps 3,800 ft")) {
+    expect_true(grepl(s, prose, fixed = TRUE), info = s)
+  }
+})

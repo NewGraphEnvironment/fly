@@ -420,7 +420,7 @@ and the 176 where A2 found nominal fits, judged on every census frame on them (2
 1, cannot separate it from nominal on 126 and rejects it on 61. `bc5602`, the one it supports, has a logbook
 writing the catalogue's own 4,000 ft under M.S.L. On the 689 logbook-read frames (576 at fly#95; fly#97
 transcribed five more rolls), 669 carry the catalogue's figure and no page, as transcribed, puts the ground under it (fly#97: `bc77087`'s
-disputed digit read as 7.8 would). Generator Stages 3c and 6 write
+disputed digit read as 7.8 would; fly#101 settled it as 3, by a human read after three blind reads disagreed). Generator Stages 3c and 6 write
 `inst/extdata/flying_height_above_ground.csv`; `test-fly_footprint_above_ground.R` recomputes its spacing
 columns and checks the logbook columns for consistency, since the per-frame logbook join is not shipped.
 
@@ -453,10 +453,12 @@ at ~85% overlap.
     `misplaced`, all `step_overstated`, the image leg does not test the logbook's datum (code-check
     round 1).
 
-  **`bc77087`'s page 1 reads 3.8 or 7.8** (fly#93's blind reader read 3.8; fly#97's declined to
-  choose, leaning 7.8). Read as 7.8, it would be the
-  first page to put the ground under a catalogued height, the result fly#95 sought, close to the x2 slip.
-  The transcription keeps 3.8, and the question is open. Every figure is in
+  **`bc77087`'s page 1 reads 3.8, settled by a human read (fly#101) after three blind reads disagreed**
+  (fly#93 read 3.8; fly#97 declined, leaning 7.8; fly#101, under a rule fixed first, declined between 3
+  and 5, leaning 3). Read as 7.8, it would have been the first page among fly#95's 689 read frames to put the ground
+  under a catalogued height, the result fly#95 sought, 2.6% off x2. The human read was not blind, and the transcription note
+  says so. Do not reopen it with more subagent reads; each is another draw from the same instrument.
+  Every figure is in
   `inst/notes/terrain-correction.md`, "What the frames under the terrain covered"; five code-check rounds
   each found claims stated over a wider set than their producer computed, so read the figures there,
   not here.
@@ -682,6 +684,11 @@ condition** — interior frames 3.8 cells across never diverge; what triggers it
 *overlap with the DEM* covering no cell centre, so it is a frame of any size at the edge of
 coverage. The template keeps `snap = "near"` because fly#9 measured
 `dem_coverage` against it
+- **A blind reader must be a Plan-type subagent** (fly#101) — a general-purpose subagent carries this
+CLAUDE.md, which names prior reads of disputed logbook digits; a canary asked only from context answered yes
+to them, a Plan-type one no. Plan agents cannot write, so take their CSV from the transcript by script, not
+by retyping, and audit the transcript for reads outside the page directory. Withhold any page that names the
+same project as the one being read: a place-to-height cue on another roll reads the answer off it
 - **An empty POINT centroid aborts the whole batch** (fly#47, open) — it is a POINT, so it passes the geometry
 guard by design, and then fails in `st_polygon()` with `!anyNA(x) is not TRUE`. Left open deliberately: refusing
 20 frames over one unlocatable centroid would contradict the per-frame reporting #30 established
