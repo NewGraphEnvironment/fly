@@ -115,7 +115,8 @@ crew-written-overlap and `bc85054` controls stop it before the nine keys are rea
 `inst/extdata/flying_height_image_overlap_*.csv`, which `test-fly_footprint_image_overlap.R` recomputes
 together with the note's table and the figures it lists. Reads the blind per-strip transcription
 `data-raw/flying_height_logbook_strips.csv` (an input, never regenerated). `FLY_IMGOVL_SMOKE=1`
-writes nothing
+writes nothing. **Its `_keys.csv` is read by `fly_footprint()` at run time** (fly#99), so
+a re-run changes which frames the misplaced-centroid warning names
 - `height_fixture()` and `flat_dem()` in `tests/testthat/setup.R` — eight frames over level
 ground, each reaching one height check by a stated route; rows 7 and 8 exist because two
 deliberate defects survived the first six
@@ -462,6 +463,24 @@ at ~85% overlap.
   `inst/notes/terrain-correction.md`, "What the frames under the terrain covered"; five code-check rounds
   each found claims stated over a wider set than their producer computed, so read the figures there,
   not here.
+
+- **A frame under the terrain on a roll-height fly#97 labelled `misplaced` is named in a second
+warning, and nothing else changes** (fly#99) — `fly_footprint(dem =)` reads
+`flying_height_image_overlap_keys.csv` (`location == "misplaced"`) directly, keyed like the roll table,
+and names the roll-heights among the `r <= 0` fallback frames. Chosen at the plan gate over a column
+(NA on every other frame reads as "checked, clean") and over doing nothing.
+  - **The wording is per roll-height, because the label is.** Not every frame on them is read by the logbook, the pages write the catalogued height under M.S.L. for at least 90% of the frames they read (W2's threshold; all of them today),
+    `bc77087`'s page rests on fly#101's non-blind read, and `bc77070`'s step margin is at the
+    instrument's resolution. The warning states fly#97's either/or (height not above sea level as written,
+    or frames not where the catalogue puts them), never which.
+  - **The step sentence holds only while every `misplaced` key is `step_overstated`.** The generator's
+    rule also labels `consistent_nominal` and `disagrees` keys; a test stops that re-run.
+  - **Not a census, and it reaches only `r <= 0`.** Against MRDEM, 112 of the 311 frames fly#93's census
+    holds on the five keys; the other 199 are refused by the height check. The census is not the
+    catalogue, which holds frames in band on these keys too (code-check round 2 found the roxygen saying
+    "311 frames on these roll-heights"). `bc7718` and `bc80117` are not named.
+  - **`num()` sits outside the roll-table block**, so the warning has it where `out_of_band` is all FALSE
+    (a `media` outside `fly_film_media()`); defined inside, it errored there (plan review)
 
 - **Terrain error is a datum offset, not slope** (v0.5.0, #9) — `FLYING_HEIGHT` is metres **above sea level**,
 and reported scale is referenced to an elevation above the ground the photos cover, so it understates footprint

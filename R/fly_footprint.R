@@ -297,6 +297,25 @@ fly_height_roll_table <- function() {
                                        tail = "character", witness = "character"))
 }
 
+# The roll-heights whose catalogue centroids fly#97 labelled `misplaced`, read straight from
+# that measurement's own output rather than copied into a ledger, so `location` lives in one
+# file (`test-fly_footprint_image_overlap.R` recomputes it). Keyed like the roll table. Only
+# roll-heights fly#97 labelled `misplaced` are here, 5 of the 9 it measured, so an unlisted one is
+# not thereby clean: most were never measured, and `bc7718`, `bc80117`, `bc5715` and `bcc325`
+# were measured and given another label.
+# Produced by `data-raw/height_measure-image_overlap.R`; see `inst/notes/terrain-correction.md`.
+fly_height_misplaced_table <- function() {
+  path <- system.file("extdata/flying_height_image_overlap_keys.csv", package = "fly")
+  if (!nzchar(path)) {
+    stop("`flying_height_image_overlap_keys.csv` is missing from the installed package.",
+         call. = FALSE)
+  }
+  keys <- utils::read.csv(path, colClasses = c(film_roll = "character",
+                                               location = "character"))
+  keys[keys$location %in% "misplaced",
+       c("film_roll", "flying_height", "focal_length", "scale_n", "location")]
+}
+
 # The DEM-aligned grid a single footprint is counted against.
 #
 # Named and separate so the "one frame at a time" invariant can be asserted
@@ -714,6 +733,28 @@ fly_is_square <- function(footprints) {
 #' A frame the DEM cannot correct falls back to nominal scale with a warning,
 #' rather than being dropped. The same applies where the DEM puts terrain at or
 #' above the aircraft, which means `flying_height` is not in metres ASL.
+#'
+#' Or that the frame is not where the catalogue puts it. On five roll-heights
+#' (`bc77026` 2042 m, `bc77070` 1158 m, `bc77072` 1829 m and 1981 m, `bc77087`
+#' 1158 m) the logbook pages write the catalogued height above sea level for at
+#' least 90% of the frames they read, and the photos show the catalogue's step
+#' between centroids is
+#' longer than the air base (fly#97), so a second warning names any of their frames
+#' that land under the terrain, keyed on `film_roll`, `flying_height`,
+#' `focal_length` and `scale`. The label is per roll-height: not every frame on
+#' them is read by the logbook, `bc77087`'s page rests on a digit settled by a read
+#' that was not blind (fly#101), and `bc77070`'s step margin is at the instrument's
+#' resolution. The footprint is unchanged, still drawn at the centroid, and nothing
+#' is added to the output. The list is the roll-heights labelled so far, read from
+#' `inst/extdata/flying_height_image_overlap_keys.csv`, not a census: an unlisted
+#' roll-height is not thereby clean. Most were never measured, and four that fly#97
+#' measured carry another label. Which frames are named depends on your DEM,
+#' and only frames under the terrain are. Of the 311 frames on these roll-heights
+#' that fly#93's census holds (those in band above sea level but below it over the
+#' ground, and those under the terrain),
+#' 112 are under MRDEM's terrain; the other 199 are below the band and refused by
+#' the height check with its own warning. Frames in band are sized from the DEM as
+#' usual. Without `dem`, nothing is named.
 #'
 #' **`flying_height` is checked before it is believed.** Sizing from it means
 #' inheriting whatever is wrong with it, and the catalogue's is about 10.76 times
@@ -1212,14 +1253,15 @@ fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL,
     # (bc7280 is catalogued at 60 m), which `disputed` hands to the terrain-above-aircraft
     # case, so the table would never reach the frames it was measured on.
     out_of_band <- comparable & is.finite(r_reported) & !in_band(r_reported)
+    # Every number in a roll-height key formatted the same way on both sides, here and for the
+    # misplaced-centroid ledger below. `read.csv()` gives a table's columns as integers and the
+    # frame's arrive as doubles, and `paste()` writes those differently once they are round
+    # enough: 100000L is "100000", 100000 is "1e+05".
+    num <- function(x) formatC(as.numeric(x), format = "f", digits = 3)
     tab_factor <- rep(NA_real_, n)
     tab_height <- rep(NA_real_, n)
     if ("film_roll" %in% names(centroids_sf) && any(out_of_band)) {
       tab <- fly_height_roll_table()
-      # Every number formatted the same way on both sides. `read.csv()` gives the table's
-      # columns as integers and the frame's arrive as doubles, and `paste()` writes those
-      # differently once they are round enough: 100000L is "100000", 100000 is "1e+05".
-      num <- function(x) formatC(as.numeric(x), format = "f", digits = 3)
       tab_key <- paste(tab$film_roll, num(tab$flying_height), num(tab$focal_length),
                        num(tab$scale_n))
       frame_key <- paste(as.character(centroids_sf$film_roll), num(fh),
@@ -1359,6 +1401,50 @@ fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL,
         call. = FALSE
       )
     }
+    # Terrain at or above the aircraft: the subset of `unusable` that had a height to reject.
+    under_terrain <- unusable & is.finite(fh) & is.finite(elev) & fh <= elev
+    # The advice above is about the height's datum. On the roll-heights fly#97 labelled
+    # misplaced, the logbook pages write the catalogued height above sea level for at least 90%
+    # of the frames they read, so the advice may point the wrong way for those frames (fly#99).
+    # The claim is per roll-height, as the label is: not every frame on them is read by the
+    # logbook (`bc77026` reads 80 of its 118 census frames, `bc77072` 1829 12 of 17), and among
+    # the `r <= 0` frames under MRDEM the unread ones are `bc77072` 225 and four of
+    # `bc77026`'s; `bc77087`'s page, and so its step bound, rests on fly#101's non-blind
+    # read, and `bc77070`'s step margin is at the instrument's resolution. The step sentence
+    # holds because every `misplaced` key is `step_overstated`, which the tests assert; the
+    # generator's rule would also label `consistent_nominal` and `disagrees` keys. Named, not
+    # changed: the footprint stays where the catalogue puts it, since nothing measured says
+    # where the frame really is.
+    if (any(under_terrain) && "film_roll" %in% names(centroids_sf)) {
+      mis <- fly_height_misplaced_table()
+      mis_key <- paste(mis$film_roll, num(mis$flying_height), num(mis$focal_length),
+                       num(mis$scale_n))
+      roll <- as.character(centroids_sf$film_roll)
+      on_mis <- under_terrain & !is.na(roll) & is.finite(scale_num) &
+        paste(roll, num(fh), num(centroids_sf$focal_length), num(scale_num)) %in% mis_key
+      if (any(on_mis)) {
+        named <- table(paste(roll[on_mis], format(fh[on_mis], trim = TRUE), "m"))
+        warning(
+          sum(on_mis), " of those ", sum(unusable), " frames sit on roll-heights labelled ",
+          "`misplaced` in `flying_height_image_overlap_keys.csv`: ",
+          paste0(names(named), " (", named, ifelse(named == 1, " frame", " frames"), ")",
+                 collapse = ", "),
+          ". On each of these roll-heights the logbook pages write the catalogued height ",
+          "above sea level for at least 90% of the frames they read, so either it is not ",
+          "above sea level as written or the frames are not where the catalogue puts them; ",
+          "the photos also show the ",
+          "catalogue's step between centroids is longer than the air base. Across the five ",
+          "roll-heights so labelled, not every frame is read by the logbook, one rests on ",
+          "a page digit settled by a read that was not blind, and one has a step margin at ",
+          "the instrument's resolution. The footprint is still drawn at the catalogue's ",
+          "centroid. ",
+          "The list holds the roll-heights labelled so far, not a census: in a probe of ",
+          "older rolls, 64-77% of consecutive catalogue steps were equal to within 0.5%. See ",
+          "`inst/notes/terrain-correction.md`, \"What the frames under the terrain covered\".",
+          call. = FALSE
+        )
+      }
+    }
 
     repaired <- corrected & slipped
     if (any(repaired)) {
@@ -1457,7 +1543,7 @@ fly_footprint <- function(centroids_sf, negative_size = 9, format_size = NULL,
     height_source[implausible] <- "implausible"
     # Terrain at or above the aircraft is a height that was supplied and rejected, so it is
     # findable the same way. Missing or zero metadata is not: there was no height to doubt.
-    height_source[unusable & is.finite(fh) & is.finite(elev) & fh <= elev] <- "implausible"
+    height_source[under_terrain] <- "implausible"
   }
 
   # A frame with no rectangle has had no terrain treatment to report, whichever route
