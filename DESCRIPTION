@@ -5,8 +5,9 @@ Version: 0.24.0
 Date: 2026-10-08
 Authors@R: c(
     person("Allan", "Irvine", , "al@newgraphenvironment.com", role = c("aut", "cre"),
-           comment = c(ORCID = "0000-0002-3495-2128")),
-    person("New Graph Environment", role = "cph")
+           comment = c(ORCID = "0000-0002-3495-2128",
+                       affiliation = "New Graph Environment Ltd.")),
+    person("New Graph Environment Ltd.", role = c("cph", "fnd"))
     )
 Description: Estimate ground footprints from airphoto centroids and scale,
     compute coverage of areas of interest, select minimum photo sets using

@@ -19,6 +19,24 @@ authors:
   given-names: Allan
   email: al@newgraphenvironment.com
   orcid: https://orcid.org/0000-0002-3495-2128
+  affiliation: New Graph Environment Ltd.
+preferred-citation:
+  title: 'fly: Historic Airphoto Footprints, Selection and Georeferencing for British
+    Columbia'
+  authors:
+  - family-names: Irvine
+    given-names: Allan
+    email: al@newgraphenvironment.com
+    orcid: https://orcid.org/0000-0002-3495-2128
+    affiliation: New Graph Environment Ltd.
+  version: 0.24.0
+  date-released: '2026-10-08'
+  url: https://newgraphenvironment.github.io/fly/
+  repository-code: https://github.com/NewGraphEnvironment/fly
+  license: MIT
+  type: software
+  publisher:
+    name: New Graph Environment Ltd.
 repository-code: https://github.com/NewGraphEnvironment/fly
 url: https://newgraphenvironment.github.io/fly/
 date-released: '2026-10-08'
@@ -27,4 +45,5 @@ contact:
   given-names: Allan
   email: al@newgraphenvironment.com
   orcid: https://orcid.org/0000-0002-3495-2128
+  affiliation: New Graph Environment Ltd.
 
