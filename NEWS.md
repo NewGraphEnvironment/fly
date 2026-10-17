@@ -1,20 +1,18 @@
-# fly (development version)
-
-## 0.24.0 (2026-10-08)
+# fly 0.24.0 (2026-10-08)
 
 - **`fly_footprint(dem =)` now names the frames under the terrain that sit on a roll-height whose catalogue centroids fly#97 labelled `misplaced`** ([#99](https://github.com/NewGraphEnvironment/fly/issues/99)). Geometry and columns are unchanged: the footprint is still drawn at the catalogue's centroid, at nominal scale.
   - **What it says.** Beside the "terrain at or above the aircraft" warning, a second one lists `bc77026` 2042 m, `bc77070` 1158 m, `bc77072` 1829 m and 1981 m, or `bc77087` 1158 m, with a count per roll-height, wherever your DEM puts one of their frames under the aircraft. On each of these roll-heights the logbook pages write the catalogued height above sea level for at least 90% of the frames they read, so the generic advice to check the height's datum may point the wrong way.
   - **What it does not.** It is not a census. The list is what fly#97 labelled `misplaced`, 5 of the 9 roll-heights it measured, so an unlisted roll-height is not thereby clean: most were never measured, and four were measured and labelled otherwise. On these five roll-heights it names only the frames under the terrain. Of the 311 frames on them that fly#93's census holds (in band above sea level but below it over the ground, and under the terrain), 112 are under MRDEM's terrain and the other 199 are refused by the height check with its own warning; frames in band are sized from the DEM as usual. Nothing is named without `dem`. `bc7718` and `bc80117`, left unsettled by fly#97, are not named.
   - **One fact, one file.** The warning reads `flying_height_image_overlap_keys.csv` (`location == "misplaced"`) directly rather than a copied ledger, so re-running `data-raw/height_measure-image_overlap.R` changes what it names. A test stops a re-run that labels a key `misplaced` without the step overstated, for which the warning's wording would be false.
 
-## 0.23.3 (2026-10-08)
+# fly 0.23.3 (2026-10-08)
 
 - **`bc77087`'s disputed logbook digit is settled as 3, so its page writes the catalogue's 3,800 ft** ([#101](https://github.com/NewGraphEnvironment/fly/issues/101)). No code change, and every roll table is byte-identical.
   - **The blind reads.** A third blind read, under a rule fixed before it, could not choose between 3 and 5, leaning 3, and did not list 7. With fly#93's 3 and fly#97's "3 or 7", the three blind reads disagreed.
   - **The human read.** A human read of the page then settled the digit as 3. It was not blind, and the transcription note records it as such.
   - **What it means.** Over the 689 frames fly#95's test reads, no transcribed logbook page puts the ground under the catalogued height. Among fly#97's nine keys, `bc77087` was the one page whose reading could have. The transcription keeps 3,800 ft. See `inst/notes/terrain-correction.md`, "What the frames under the terrain covered".
 
-## 0.23.2 (2026-10-07)
+# fly 0.23.2 (2026-10-07)
 
 - **On five of the nine roll-heights where spacing rejected both readings of the frames under the terrain, the photos show the catalogue's centroid step is longer than the air base, so the rejection says nothing about scale** ([#97](https://github.com/NewGraphEnvironment/fly/issues/97)). No code change, and every roll table is byte-identical.
   - **The instrument.** It measures the overlap the photos themselves show: the image shift between adjacent thumbnails, which reads no scale, height or centroid. Synthetic, unrelated-pair, crew-written-overlap and known-error controls ran before the nine were measured.
@@ -29,7 +27,7 @@
     - A per-strip transcription of headings and places is committed as `data-raw/flying_height_logbook_strips.csv`.
   - **Not done.** Whether `fly_footprint()` should tell the caller about a known misplaced centroid ([#99](https://github.com/NewGraphEnvironment/fly/issues/99)).
 
-## 0.23.1 (2026-10-06)
+# fly 0.23.1 (2026-10-06)
 
 - **Whether a frame's catalogued height is a height above ground was tested, and these instruments cannot settle it** ([#95](https://github.com/NewGraphEnvironment/fly/issues/95)). No code change, and every roll table is byte-identical.
   - **The question.** fly#93 left 374 frames under ground at or above the catalogued aircraft and 176 roll-heights where spacing fits nominal scale, both consistent with a height recorded above ground. Together they are 188 roll-heights, judged on the 2,956 frames the two census files hold on them.
@@ -38,14 +36,14 @@
   - **New data.** `flying_height_terrain_nonpositive.csv` ships the 374 frames under the aircraft, from the census that found them. `flying_height_above_ground.csv` has one row per roll-height. The suite recomputes the spacing verdict and the note's tables from them.
   - **Not done.** On nine roll-heights (157 of those 374 frames) spacing rejects nominal scale as well, so their fallback is not supported either ([#97](https://github.com/NewGraphEnvironment/fly/issues/97)).
 
-## 0.23.0 (2026-10-06)
+# fly 0.23.0 (2026-10-06)
 
 - **BW and colour frames out of the height band only through terrain are now settled per roll-height** ([#93](https://github.com/NewGraphEnvironment/fly/issues/93)).
   - **What changed.** 60 BW/colour roll-heights (1,344 frames) join fly#91's `terrain` tail in `flying_height_rolls.csv` at factor 1 (`scale_wrong`). Their catalogued height is in band above sea level and the ground takes them out of it. With a `dem`, they were drawn at nominal scale, about twice the width the spacing supports, and are now sized from the logbook height (`height_source = "corrected_roll_table"`). Without a `dem` nothing changes. No tabled row and no verdict of an earlier tail moved. Two excluded rows of earlier tails (fly#60's `bc78104` at 1,295 m and fly#72's `bc79029`) said "no logbook page covers these frames" on rolls whose transcribed pages simply end before those frames, and now say so.
   - **How it was established.** `data-raw/height_measure-terrain_tail.R` censuses the stratum: 4,773 frames on 298 roll-heights, against an estimate of about 7,000 from 12 random draws. #72's rule runs unchanged. A pre-registered amendment evaluates its spacing condition first, and excludes the 208 roll-heights where that condition cannot hold whatever a logbook says. 182 pages on 60 rolls were transcribed blind, and six control pages agree on height and lens. The census ships as `flying_height_terrain_frames.csv` and `_population.csv`, and the suite recomputes the census, the amendment and the note's tables from them.
   - **Not done.** 374 frames sit under ground at or above the catalogued aircraft, and 176 roll-heights fit nominal scale, which is consistent with a height recorded above ground ([#95](https://github.com/NewGraphEnvironment/fly/issues/95)).
 
-## 0.22.0 (2026-10-06)
+# fly 0.22.0 (2026-10-06)
 
 - **Three infrared roll-heights with a wrong `scale` are now sized from the height flown** ([#91](https://github.com/NewGraphEnvironment/fly/issues/91)).
   - **What changed.** v0.21.0 brought infrared film into the #54 height check, and 56 IR frames fell outside the band. With a `dem`, they were drawn at nominal scale:
@@ -58,7 +56,7 @@
   - **One amendment, written before the read.** The logbook scale pattern accepted only `1:N`, and these pages write `1/15,840`. It now accepts both, and no BW/colour row changes. Every BW/colour row of both roll tables is byte-identical to v0.21.0.
   - **Not done.** The same terrain-only population exists among BW/colour frames: 12 of 2,500 random draws, roughly 7,000 frames. No rule reaches it yet ([#93](https://github.com/NewGraphEnvironment/fly/issues/93)).
 
-## 0.21.0 (2026-10-02)
+# fly 0.21.0 (2026-10-02)
 
 - **Infrared film is now sized as the 9-inch negative, because that was measured** ([#89](https://github.com/NewGraphEnvironment/fly/issues/89)).
   - **What changed.** `Film - BW IR` (771 frames, 7 rolls) and `Film - Colour IR` (3,054 frames, 25 rolls) were `unknown_format` with empty geometry. They are now sized from `negative_size` with `footprint_basis` set to their media value. `fly_coverage()`, `fly_select()`, `fly_overlap()` and `fly_filter()` now count them, and the #54 `flying_height` check applies: 3,769 sit inside the band and 56 fall back to nominal scale. Those 56 are on three roll-heights where spacing fits the reported height and rejects nominal: a right height beside a wrong `scale`. They are drawn at the wrong width, with or without a DEM, until they are tabled ([#91](https://github.com/NewGraphEnvironment/fly/issues/91)).
@@ -75,7 +73,7 @@
   - **Film rotations.** The 26 infrared rolls fly#53 measured were recorded `legs_unscorable` only because their footprints were empty. Re-measured: `bcc23` (1969, 305 mm) ships at 270, so `film_rotations.csv` now has 57 rolls. `bcf07060` has one decisive leg, and the other 24 have no thumbnails at all. Every other roll's row is unchanged. `data-raw/georef_calibrate-film_rotations.R` now dates each roll by when it was measured, so a partial re-run no longer restamps the rest.
   - **Earlier measurements are unchanged.** The #54, #58, #65 and #80 scripts now spell out the BW/colour set they were measured over, so re-running them reproduces what shipped.
 
-## 0.20.0 (2026-10-02)
+# fly 0.20.0 (2026-10-02)
 
 - **`fly_georef()` now georeferences film from a shipped table of measured per-roll rotations, and every other film roll is recorded with the reason it is not in it** ([#53](https://github.com/NewGraphEnvironment/fly/issues/53)). A rotated film frame used to be refused unless you supplied the roll's `rotation`. 56 rolls now resolve from `inst/extdata/film_rotations.csv`: 44 at 90, 10 at 270 and 2 at 0. Your own `rotation` column still wins. The other 6,660 film rolls in the catalogue snapshot are in `film_rotations_excluded.csv` with their state, and the refusal warning names it.
   - **New `fly_rotation_calibrate()`** measures any roll the table does not cover, by the same method and rule that built it. Pass the roll's catalogue rows and join the result onto `rotation`.
@@ -86,7 +84,7 @@
   - **What the table does not cover.** Every verdict is for the public thumbnails, not full-resolution scans, and overlap cannot detect a scan mirrored about the flight line. Infrared film is not sized by `fly_footprint()` at all ([#89](https://github.com/NewGraphEnvironment/fly/issues/89)), so its rolls are unmeasured.
 - **The last frame of a flight line is no longer rotated onto the turn** ([#87](https://github.com/NewGraphEnvironment/fly/issues/87)). Frame numbers run straight through a turn, so `fly_bearing()` gave each line's last frame the azimuth of the jump to the next line. A frame now takes the backward bearing when its forward step is zero length, or more than 1.5x a backward step that itself continues the line. Over the 1,670,471 catalogue frames this changes the bearing of **48,139 (2.88%)**, 5,390 of them digital. **42,001** move by more than 10 degrees, 4,225 of them digital, and those digital frames had been georeferenced onto the turn. A bearing that could only come from a zero-length step is `NA` rather than 0 (10 frames). Footprints, coverage and georeferencing change only for the frames whose bearing changed.
 
-## 0.19.3 (2026-10-01)
+# fly 0.19.3 (2026-10-01)
 
 - **Photo parallax, as built, cannot say what surface the camera saw at the photo date. No code changes** ([#82](https://github.com/NewGraphEnvironment/fly/issues/82)).
   - **The question.** fly#80 left one question to VRI stand origin: was the canopy MRDEM's DSM carries there when the photo was taken?
@@ -96,42 +94,42 @@
   - **fly#80's estimate stands alone.** A DSM is worse on 15.1% of the 1970s frames where canopy matters.
   - **What ships.** The synthetic controls, `inst/extdata/dem_parallax_synthetic.csv`, from which the suite rebuilds the tables in `inst/notes/terrain-correction.md`.
 
-## 0.19.2 (2026-10-01)
+# fly 0.19.2 (2026-10-01)
 
 - **A forested frame is sized from bare earth, and measured, that does not matter: `fly_footprint()` is unchanged** ([#80](https://github.com/NewGraphEnvironment/fly/issues/80)). Over forest the camera images the canopy, so a frame sized from MRDEM's bare-earth DTM is drawn slightly too wide. Sized through `fly_footprint()` on both MRDEM's DTM and its DSM (published on the same grid), over a probability sample of 612 film frames weighted back to the 1,437,124 DEM-eligible ones with a canopy value, the DSM shrinks a frame by a weighted median of **0.17%** of width and **0.46%** at the 95th percentile. 1.2% of frames move more than 1%, 99.5% of them by weight fine-scale (2.1% of frames at 1:15000 or finer). The rule fixed before the run called it material at a 95th percentile of 1%, so nothing changed, and the DTM stays the recommendation. A ray-cast of the true footprint confirms the first-order shift to a weighted median 1.68e-4, and a DSM does not degrade the rectangle model (95th-percentile relief residual 2.89% against 2.86%).
 - **MRDEM's DSM is the imaged surface to within about a tenth, checked against LidarBC.** Over BC land 88.3% of MRDEM comes from radar, where NRCan's DTM *is* the DSM minus a forest-removal model, and NRCan's own lidar mosaic covers almost none of those cells (0 of 3,000 random points). Over 150 public LidarBC tiles (2019–2025) under random radar cells, MRDEM overstates the canopy (7.75 m against 4.25 m, median) but its DTM sits 2.50 m below the lidar ground, so the lidar surface stands above MRDEM's DTM by 0.916 of MRDEM's `DSM − DTM`. Over sea the DSM is within 0.03 m of the DTM.
 - **fly#65's "a canopy can reverse the area verdict" does not hold at the canopy BC has.** Its first-order table assumed a uniform canopy on land and tied near 30 m; with each frame's own `DSM − DTM` in its place (a median 13.31 m per land cell coastal), still to first order, the land-and-sea mean stays closer than the land-only mean (median −0.00127, against −0.00287 on bare earth). A canopy also feeds the `flying_height` check, so passing a DSM can move a frame near the band's edge between `"implausible"` and `"reported"`: 2 of the 612 did. `data-raw/dem_measure-canopy_height.R` prints every figure and ships `inst/extdata/dem_canopy_*.csv`, from which the suite rebuilds the tables in `inst/notes/terrain-correction.md`.
 
-## 0.19.1 (2026-09-30)
+# fly 0.19.1 (2026-09-30)
 
 - **A coastal frame's sea surface is an elevation, not an error, and `fly_footprint()` is unchanged** ([#65](https://github.com/NewGraphEnvironment/fly/issues/65)). v0.14.0's notes said MRDEM's near-zero surface over near-shore sea drags a coastal frame's mean "toward sea level". MRDEM carries that sea at about 0.14 m, not as nodata, and over water it is the surface the photo images. Against a ray-cast of the true footprint on MRDEM's bare earth, over 1,242 coastal frames, averaging land and sea (what the package does) is closer on **area** than the land-only mean the issue proposed: 0.34% against 0.67% of width, median. The land-only mean places the **land edge** better, misplacing 3.67% of the frame's land against 4.43%. The rule fixed before the run asked whether the package's 95th-percentile error on coastal frames exceeds inland. Pooled, it does not: 2.16% against 3.18% on area, and 15.05% against 15.87% on the land edge. So no remedy was triggered. Coastal frames are 95,222 of 1,437,147 DEM-eligible film frames (6.63%).
 - **Two qualifications, recorded rather than acted on.** First, the land-edge pass is an artefact of relief: the coastal sample is flatter, and matched for relief the inland land-edge 95th is 15.06% against 15.05% coastal. Within four of five relief bins coastal is worse by 2 to 9 points, so the sea does make the package's land edge worse. It does not make its area worse, even matched. Second, a canopy can reverse the area verdict. To first order, a uniform 30 m canopy on the land ties the two means and 60 m favours the land-only one. That is a property of sizing from a bare-earth DEM anywhere, filed as [#80](https://github.com/NewGraphEnvironment/fly/issues/80).
 - **LidarBC was mostly nodata over sea in the two tiles probed**, so the same coastal frame is sized nearer the land-only mean there. Where that leaves it under 95% covered, it warns about nodata inside the DEM's extent. `data-raw/dem_measure-coastal_water.R` prints every figure above, and ships `inst/extdata/dem_coastal_frames.csv`, `dem_coastal_population.csv` and `dem_coastal_sites.csv`, which the test suite rebuilds the note's tables from. `inst/notes/terrain-correction.md` explains why the instrument first planned, adjacent-frame spacing, was dropped before any frame was measured.
 
-## 0.19.0 (2026-09-28)
+# fly 0.19.0 (2026-09-28)
 
 - **Breaking: grayscale georeferenced output is now 2 bands, Gray + Alpha, where it was 1 band with `NoData = 0`** ([#56](https://github.com/NewGraphEnvironment/fly/issues/56)). `fly_georef()` warps every frame with `-dstalpha`, so RGB stays 4 bands and, from a grayscale or RGB source, no output carries a NoData value. A consumer that reads band 1 alone, or treats 0 as fill, must now read the last band: 0 is fill, and on these outputs the opaque value is the datatype's maximum (255 on Byte, 65535 on UInt16). Under `-dstnodata 0`, GDAL rewrote genuine black inside the frame as 1 so it would not read as fill (or deleted it where `srcnodata = "0"` was also given). Measured on the output of the 182 grayscale frames the mask was calibrated on, it hit **161 frames** warped axis-aligned (every frame with no flight bearing): typically a few dozen pixels, up to 3.6% of a frame on roll bcb94081 (1250 x 1250 thumbnails on square footprints; an anisotropic scan resamples even when axis-aligned). On a footprint rotated 30 degrees it hit 41 frames, at most 0.26%, because resampling mixes a lone 0 with its neighbours. The Windows CI runner also gave a masked grayscale frame 2 bands where ubuntu and macOS gave 1 ([#68](https://github.com/NewGraphEnvironment/fly/issues/68)). Band count is now one number, measured on macOS with sf's GDAL 3.8.5 and asserted by the test suite on all three CI platforms. This supersedes 0.11.0's "nothing downstream changes band count". `stac_airphoto_bc` needs a COG-writer change and a republish of grayscale frames ([stac_airphoto_bc#36](https://github.com/NewGraphEnvironment/stac_airphoto_bc/issues/36)).
 - **`fly_georef(mask = "border", srcnodata = ...)` is now accepted, and `srcnodata` is the fallback for frames whose mask declined** ([#69](https://github.com/NewGraphEnvironment/fly/issues/69), absorbed into #56). The warp options were always either/or, so the 0.11.0 refusal guarded a combination GDAL never received and only made the fallback unreachable. `srcnodata` reaches a frame only when `fly_mask()` declined it, and never alongside a mask that ran. A frame whose mask declines with no `srcnodata` is now warned about, since its collar reaches the output as image data. The mask declined none of 10,105 public thumbnails, so on thumbnails this changes nothing; it matters for non-8-bit scans. `data-raw/mask_measure-interior_zeros.R` reproduces both figures.
 
-## 0.18.0 (2026-09-28)
+# fly 0.18.0 (2026-09-28)
 
 - **Half the r ≈ 2 mass was a wrong scale, not a mislabelled lens, and it is now drawn at its true width** ([#72](https://github.com/NewGraphEnvironment/fly/issues/72)). v0.12.0 said the film frames around twice their nominal scale were a 305 mm lens catalogued as 153, so falling back to nominal scale was right. The flight logbooks and the spacing between adjacent frames, read per roll-height over all 252 sampled frames beyond the band, split it: **24 roll-heights (120 sampled frames; their keys reach at most 3,227 catalogue frames, fewer once terrain brings some inside the band, where they were already sized from their height) carry the height the crew flew beside a `scale` recorded too small** — mostly 1972–76 rolls at half the true denominator — and ship in `flying_height_rolls.csv` at factor 1, `scale_wrong`, under a new `tail` value, `"near_upper"`. The fallback drew them at 1/r of their width, half at r = 2; they are now `"corrected_roll_table"` and sized from their height. On 21 roll-heights (82 frames) the logbook writes a 12" lens, which confirms the lens reading there, and those stay on nominal scale, as do the rest; each is listed in `flying_height_rolls_excluded.csv` with its reason.
 - **The logbook height alone cannot tell the two defects apart** — a wrong lens and a wrong scale both mean the crew flew the catalogued height — so for this tail the rule, fixed before the run, also requires the spacing to *reject* nominal scale, not merely fit the reported height. The near_upper set is a 600-frame sample, not a census; `inst/notes/terrain-correction.md` states what it does not reach.
 - `data-raw/flying_height_logbooks.csv` gains 185 rows from 142 newly read page files covering 54 roll labels. The readers worked blind; two things were added at merge and say so in their `note`: the 18 heights on 1984–86 sheets that write whole feet rather than thousands, and two rows marking the interior of a strip whose height changes along it as covered but unread. On these pages `focal_mm` is filled only where a focal length is written, never inferred from the camera model.
 
-## 0.17.0 (2026-09-27)
+# fly 0.17.0 (2026-09-27)
 
 - **A frame beside a disputed roll-height on the same roll is now a third witness, and it settles five roll-heights no logbook does** ([#74](https://github.com/NewGraphEnvironment/fly/issues/74)). The rule was fixed before it was run. A neighbour one frame away, on the same roll, lens and scale, must itself sit in the band, and the catalogue's height must stand in an **exact** named relation to it: ×10, ÷10, ÷100, ×10.764 or one leading digit. Exact means within what storing whole metres of a 0.3048 m/ft conversion can move a figure, and the catalogue both rounds and truncates. A figure converted at 3.28 ft/m can only be refused by it, never wrongly accepted. Every neighbour naming a relation must name the same one, and spacing must agree. A logbook vetoes it only by naming a different factor. The rule was run over all 521 roll-heights the logbook leaves excluded, in both tails. `bc5596` 204–211 (26,212 m, ten times frame 203) and `bcb98013` frame 52 (97,924 m, a leading 9 on its neighbours' 7,924) leave #54's ÷10.764, which drew them 10.3–11.2% narrow and 17.1% wide in linear size. Three lower-tail roll-heights beyond the issue come out of `"implausible"`: `bc7675` 609 → 6,096 m, `bc87070` 396 → 3,962 m and `bcc822` 701 → 7,010 m. The logbook corroborates each in rows its own rule could not accept
 - **The tolerance is the catalogue's storage, not the logbook's 2%, and that is load-bearing.** `bc5596` 204–211 sit between 2,621 m and 2,438 m. The first is ×10 to 2 m; the second is ×10.764 to 30 m, only 0.12%. At 2% the two neighbours name different relations, and the generator's control stops the run. The first form assumed rounding only. Code review found truncated heights (2,000 ft stored as 609 m), and that form had refused `bc7675`; the corrected form changes that outcome and no other
 - `flying_height_rolls.csv` gains **`witness`** (`"logbook"` | `"sibling"`) and **`sibling_frame`**. A sibling row ships the neighbour's catalogued height and has no `logbook_ft`. A leading-digit row's `factor` is the ratio it implies, and its cause is `height_leading_digit_added`. `flying_height_rolls_excluded.csv` gains **`sibling_reason`**. The table now reaches 1,438 frames (1,130 lower, 308 upper), and 1,281 slipped frames stay on ÷10.764. No change to `fly_footprint()`'s logic
 
-## 0.16.0 (2026-09-26)
+# fly 0.16.0 (2026-09-26)
 
 - **Where a logbook reads #54's slipped frames, their height is ÷10, not ÷10.764, and those roll-heights are now carried in the roll table** ([#71](https://github.com/NewGraphEnvironment/fly/issues/71)). #54 divides `flying_height` by 3.28084² on 1,589 film frames, and ÷10 lands every one of them in the band just as well, so the terrain could not choose. The logbook pages covering the slipped frames of five rolls were fetched and read blind, with the catalogue values withheld from the reader. On four (`bc78078`, `bc79027`, `bc79103`, `bcc00085`), and on the fly#60 control `bc78065`, the crew's height is the catalogue's ÷10: within 0.01%, and 0.9% off on `bc79027`. It sits 6.7–7.6% above ÷10.764 on every one. On the tabled roll-heights #54 was drawing frames **7.6–9.9% narrow** (15–19% in area); width follows height above ground, so the error exceeds the 7.6% gap between the factors
 - **Six roll-heights (299 frames, 1978–2000) ship in `flying_height_rolls.csv` at factor 0.1**, cause `height_decimal_dropped`, and become `height_source == "corrected_roll_table"`. The roll-table gate in `fly_footprint()` now reads `factor != 1` where it read `> 1`. The old form silently handed a factor below 1 back to #54's repair, and a test goes red under it. Both roll tables gain a **`tail`** column (`"lower"` for fly#60, `"upper"` for #54's slipped frames)
 - **`fly_height_slip_factor()` is unchanged, on purpose.** The 1,290 slipped frames the table does not reach stay on ÷10.764, each listed in `flying_height_rolls_excluded.csv` with a reason saying so. The five 2003 rolls have no logbook link, carry measured per-frame heights, and fit ÷10.764 better. `bcc05001` has no logbook either and is undecided: its heights land on round 500-ft altitudes under ÷10, while its ratio to scale favours ÷10.764. `bc79027` reads ÷10, but spacing rejects it, because its own page logs 80% forward overlap. `bcb98013` frame 52 is a leading-digit typo that no factor fits. That frame and `bc5596`, which has no page, are [#74](https://github.com/NewGraphEnvironment/fly/issues/74). The lower-tail rows of both tables are unchanged. `data-raw/height_calibrate-lower_tail_rolls.R` now settles both tails through one function and reproduces every figure
 
-## 0.15.0 (2026-09-26)
+# fly 0.15.0 (2026-09-26)
 
 - **Half of the lower tail of `flying_height` is now settled per roll, and 389 of those 1,001 frames were never a height error** ([#60](https://github.com/NewGraphEnvironment/fly/issues/60)). #54 left 1,962 film frames reading under half the height their scale implies as `"implausible"`, because ×10.764, ×10 and ×2 each explained a comparable share when pooled. Per roll they do not: the tail is 42 rolls, nearly each carrying one height, so it is 77 roll-heights rather than 1,962 frames. Two instruments that read none of the three disputed fields settle 22 of them (1,001 frames): the province's **scanned flight logbooks** at `flight_log_url`, whose TRUE HEIGHT column the catalogue transcribed, and the **spacing between frames adjacent by number**, which must imply the ~60% forward overlap a flight is designed to
 - New `height_source` value **`"corrected_roll_table"`**, read from the new `inst/extdata/flying_height_rolls.csv` and keyed on `film_roll`, `flying_height`, `focal_length` and `scale` together, which reaches exactly the 1,001 measured frames. Ten roll-heights (511 frames) dropped a digit, a logbook "20.0" in thousands of feet catalogued as 2,000 ft; one (`bc7280`, 101 frames) dropped two, 60 m catalogued where 20,000 ft was flown. **Eleven (389 frames) carry the right height beside a wrong `scale`**, which is a remedy the issue did not list: for those the fallback #54 chose was the defect, drawing them two to ten times too wide. The height used is always the logbook's, converted, never the catalogue's times the factor, since the catalogue's rounding survives the multiplication and left `bc7280` 96 m short. Needs a `film_roll` column and a `dem`; without a DEM a wrong-scale frame is still sized from its scale
@@ -139,7 +137,7 @@
 - **Both instruments were held to known answers first.** Spacing reads 0.63 on random in-band frames and 0.62 on #54's slipped frames after repair, against 0.97 before. The logbooks were transcribed with three control rolls' catalogue values withheld, and the two clean ones read back to the metre. The rule — logbook covers half the frames and 90% agree on a factor of 1, 10 or 100; no legible logbook lens contradicts the catalogue; spacing inside the random frames' own 2.5–97.5% — was fixed before any roll was classified. `data-raw/height_calibrate-lower_tail_rolls.R` reproduces all of it, and `data-raw/flying_height_logbooks.csv` is the transcription
 - **×10.764 is refused wherever a logbook reads the lower tail**, and the third control suggests it is not the whole story on the upper side either: #54's slipped roll `bc78065` logs 1,350 ft where the catalogue holds 13,500, a decimal point rather than a unit conversion, and the planned-altitude rolls #54 repairs land on round feet under ÷10 but not ÷10.764. Filed as [#71](https://github.com/NewGraphEnvironment/fly/issues/71), not changed here. And the note's claim that the mass beyond r ≈ 2 is a mislabelled lens, so nominal scale is right there, holds for about half of it: spacing puts 105 of its 209 sampled frames, identified per roll, at a wrong scale that the fallback draws at half width — [#72](https://github.com/NewGraphEnvironment/fly/issues/72)
 
-## 0.14.1 (2026-09-21)
+# fly 0.14.1 (2026-09-21)
 
 - **`R CMD check` now runs in CI, on three platforms** ([#52](https://github.com/NewGraphEnvironment/fly/issues/52)). `.github/workflows/` held only `pkgdown.yaml`, so a green PR check meant the docs site built — not that the package checks, and not that the test suite runs anywhere but the author's machine. The new workflow runs on **ubuntu, macOS and Windows at R release**, on every push to `main` and every PR, gating at the r-lib action's default `error-on: "warning"`. No exported behaviour changes
 - **The platform axis is the one that earns the runner time.** `fly` reaches GDAL through `sf::gdal_utils()` for warp, translate and `nearblack`, and `fly_mask()` asks for `-alg floodfill` — which GDAL's own `nearblack.rst` marks `versionadded:: 3.8`. The three runners take GDAL from three different sources, and `test-fly_mask.R` synthesizes its own images with `terra`, so it exercises that call offline on all three. R `devel` and `oldrel-1` are deliberately absent: `fly` is not going to CRAN, and `oldrel-1` is R 4.4, far above the declared `Depends: R (>= 4.1)`
@@ -150,7 +148,7 @@
 - **A local check is not the CI check**, which is worth knowing before reading either. `r-lib/actions/check-r-package@v2` forces `_R_CHECK_CRAN_INCOMING_=false` and `_R_CHECK_FORCE_SUGGESTS_=false`, so `--as-cran` here never runs the CRAN-incoming URL check and the NOTE a bare local `rcmdcheck()` reports from it is not one this workflow will ever see. Measured under those env vars, the package is **0 errors, 0 warnings, 0 notes**
 - **The first CI run found two pre-existing defects, neither reachable from this machine** — which is the argument for the three-platform matrix, made by the matrix rather than by anyone's reasoning about it. `test-fly_footprint.R`'s anti-vacuity premise asserts the pre-#26 recomputed ring close still fails somewhere in a 720-bearing sweep; that is a property of the **BLAS**, true at 342 of 720 bearings here and **0 of 720** on all three runners, where asserting it took the whole check red. It now skips where the defect is unreachable and asserts where it is not, with the skip printed rather than silent. And Windows yields **2 bands** for a masked grayscale frame against 1 with masking off, contradicting the unconditional *"output band counts do not change"* in `CLAUDE.md` and `inst/notes/border-masking.md` — the stated reason masking could default to on without moving `stac_airphoto_bc`. Filed as [#68](https://github.com/NewGraphEnvironment/fly/issues/68), with a second Windows-only symptom from the same root: GDAL shifting genuine source zeros to 1 in the warped output, silently. The observed Windows band count is **pinned** rather than skipped, so nothing goes unasserted and the test reddens if that platform moves in either direction — including the direction where #68 is fixed
 
-## 0.14.0 (2026-09-20)
+# fly 0.14.0 (2026-09-20)
 
 - **What a partially DEM-covered footprint costs is now measured, and it justifies one new column** ([#58](https://github.com/NewGraphEnvironment/fly/issues/58)). A footprint hanging off the edge of the DEM is sized from the mean of the part that is covered; `dem_coverage` has reported the fraction since 0.5.0 and the warning below 95% has fired since then, but nothing had measured what either was worth. 11,520 truncations of 120 real frames, cut from eight directions at eight depths by two mechanisms and compared against each frame's own full-coverage answer. `data-raw/dem_calibrate-coverage_error.R` reproduces all of it from public data, and `inst/extdata/dem_coverage_sweep.csv`, `dem_coverage_targets.csv` and `dem_coverage_population.csv` ship so the suite recomputes every published **table** — all eight, cell by cell, at the precision each figure is printed to, with the table count itself asserted so a ninth cannot be added unchecked
 - New column **`dem_shortfall_m`**: the metres the DEM would have to extend to contain each footprint, so `max(fp$dem_shortfall_m)` is the buffer that would contain the whole batch. **`0` is an answer, not an absence** — it means the DEM already spans the frame and the missing cells are nodata *inside* its extent, which no re-crop can recover. Those are the two causes of partial coverage and `dem_coverage` reports them identically; the warning now names which one you have and what to do about it. On the frame where coverage reads 0.253, this reads 3,822 m. Against a remote MRDEM read it is always `0`, because the window is fetched per frame — the shortfall is what a DEM cropped to an area of interest produces, which the population measurement says is the only way this happens in practice
@@ -164,7 +162,7 @@
 - **A calibrated error bound is deliberately not shipped.** `4.97 * dem_elev_sd * (1 - dem_coverage) / height_agl` covers 95.3% of held-out runs, fitted on the training third alone — but it is a median 6.1 times the actual error and holds on only 89.4% of runs below half coverage, which is where a caller would want it. A number that looks authoritative and is six times too large is worse than the two inputs it was built from
 - **What the sweep is blind to, stated rather than left implicit.** MRDEM returns a near-zero surface over near-shore ocean rather than nodata — 40,000 cells in Hecate Strait read 0.098 to 0.189 m, with no exact zeros — so a coastal frame reports coverage near 1 while its mean is dragged toward sea level. That is a coverage-1 failure, removing cells cannot generate it, and `dem_coverage` cannot see it. Note also that the obvious guard for it, counting exact-zero cells, can never fire
 
-## 0.13.0 (2026-09-20)
+# fly 0.13.0 (2026-09-20)
 
 - **A `/vsicurl/` DEM is now practical: the reported two-frame case goes from 263 s to 4.3 s** ([#59](https://github.com/NewGraphEnvironment/fly/issues/59)). `fly_dem_sample()` called `terra::extract(dem, v)` once over every rectangle with no `fun`, which returns every cell — and over HTTP that read cost **64.59 s and 158 range requests for a single 1:15000 frame** against MRDEM-30, where the same frame read through a crop of its own window takes **0.69 s and 4 requests**. The DEM is now read one window per frame, and the same two frames come back with identical `dem_coverage`, `height_agl` and `footprint_terrain`
 - **The window was chosen by measurement, and two plausible alternatives are wrong.** Timing one form per *fresh* R process, so the GDAL block cache cannot carry between them, `fun = mean` is exactly as quick (0.66 s) — but the coverage numerator counts non-`NA` cells and an aggregating extract returns one number per frame, so that route needs a second call with a custom closure terra applies in R over the values it had to return anyway. And **cropping once to the whole batch is wrong form 4 of `dem_coverage` arriving through the read**: `fly_dem_sample()` is handed every rectangle at once, so a crop spanning them is sized to the gap between photos — **243,583,754 cells** for the two frames 700 km apart in this package's own suite. Bounding the crop to one footprint costs 23% on contiguous frames (1.23 s against 1.00 s for eight, the block cache absorbing their 60% overlap) and cannot produce it. **The local-DEM path does not regress either** — 1.260 s against 1.437 s for the 20 bundled frames, because each extract now works over a window of a few thousand cells instead of the whole raster
@@ -174,7 +172,7 @@
 - **What licensed the change was parity, not the timings.** The previous implementation was pulled from git rather than rewritten, and returns identical `elev` and `covered` over eleven shapes: all 20 bundled frames, a frame 200 km off the DEM, two off and two on, a frame straddling the DEM edge, an empty geometry among real ones, all-empty input, a DEM hole, a geographic-CRS DEM, anisotropic 120 x 904 cells, a multi-layer DEM, and frames swept from 0.05 to 60 cells across at three resolutions. **The parity is conditional and the note states the condition**: it holds wherever a frame covers at least one cell *centre*. A frame that covers none but still touches the raster takes `terra::extract()`'s touched-cells fallback, which is computed over whatever raster it is handed, so a crop and the full DEM can return different cells — measured on a synthetic 10 x 10 grid, 96 against 95.5, with `dem_coverage` unchanged. There is one deliberate behaviour change in the same family, and it is a **correction rather than a loss**: a frame that merely *abuts* the DEM shares a boundary line with it and no area, so no cell centre can lie inside it — the old code still returned a mean from the cells touching that line (`elev` 60, `dem_coverage` 0.0556 on that grid) and the new code reports no elevation and zero coverage, which is what `no_dem_coverage` means. No route to any of this was found through `fly_footprint()`. `terra::align()` also returns the same extent whether handed the DEM or a crop of it, and `terra::crop()` to an overhanging extent clips rather than pads — so ground past the edge still yields no row, which is wrong form 1
 - The issue's headline figure of 583 s was measured against a link shared with the 0.12.0 calibration sweep and is an upper bound; 263 s is the same case on a quiet link. See the new section of `inst/notes/terrain-correction.md`
 
-## 0.12.0 (2026-09-18)
+# fly 0.12.0 (2026-09-18)
 
 - **`fly_footprint(dem = )` no longer believes a `flying_height` its own scale contradicts, and repairs the one error it can identify** ([#54](https://github.com/NewGraphEnvironment/fly/issues/54)). fly#54 reported two 2003 frames 110,834 m across with a DEM against 8,022 m without. Nothing in fly was wrong: **the catalogue's `FLYING_HEIGHT` is 3.28084² = 10.764 times too large on 1,589 film frames** across 13 rolls (1974-2005, 1,054 of them on five rolls of 2003) — a feet-to-metres conversion applied the wrong way round. Measured over all 1,670,471 centroids, reconciled against the catalogue's own count, and over MRDEM-30 under the 7,156 frames that decide the constants. Divided by the factor, the 1,589 land at 0.80-1.32 of the height their scale implies, against 10.0-15.8 as published, with nothing between 6.69 and 10.01; read as plain feet instead they sit at 3.0-4.7 and not one lands in the band
 - New column **`height_source`**: `"reported"`, `"corrected_unit_slip"` (sized from `flying_height / 10.764`; `height_agl` is the height used), `"implausible"` (the height disagrees with `scale x focal_length` by more than 1.6x either way and the slip does not explain it, or is above 16,000 m, or is below the terrain — sized from nominal scale instead), and `NA` where no height was judged. **Your `flying_height` column is never overwritten**, so on a corrected row `flying_height - height_agl` is not the ground elevation. `dplyr::filter(fp, height_source != "reported")` lists the frames worth a second look
@@ -187,7 +185,7 @@
 - An existing test relabelled a 1:12000 frame as 1:31680 without moving its `flying_height`, building exactly the disagreement this release refuses — and had been sizing its "wide frame" at 2.7 km. It now uses a frame that is 1:31680, which comes back 7.7 km
 - Split out while here: what a partially DEM-covered footprint costs ([#58](https://github.com/NewGraphEnvironment/fly/issues/58)), and `fly_dem_sample()` taking 583 s for two frames over a `/vsicurl/` DEM ([#59](https://github.com/NewGraphEnvironment/fly/issues/59))
 
-## 0.11.0 (2026-09-08)
+# fly 0.11.0 (2026-09-08)
 
 - **The black collar around a scanned frame is now masked properly, and fly#23's premise that it is a circle was wrong** ([#23](https://github.com/NewGraphEnvironment/fly/issues/23)). The issue asked for Hough-transform detection of a "circular lens image area". Measured over all 264 thumbnails in the `stac_airphoto_bc` corpus (1967-2018), an inscribed circle implies a dark fraction of 0.2146 with bright edge midpoints; the measured median is **0.027**, only 2 of 264 frames land near 0.2146, and the **edge midpoints are as dark as the corners** — which no circle can produce, since a circle inscribed in the frame passes through the middle of each edge. It is a rectangular collar with chamfered corners, and 27 frames carry none at all. There is also a physical argument the thumbnail statistics cannot supply: a mapping camera's format is built to sit *inside* the lens's image circle, so the circle circumscribes the format and there is no dark circle at any resolution
 - **`srcnodata = "0"` was masking almost none of the collar, which is the mosaic symptom fly#22 and fly#23 both describe.** It matches *exact* zeros and scanned black runs 3-12: median mask fraction 0.0016 against 0.0311 at threshold 16, a **19.8x** gap, with **128 of 264 frames** having under a tenth of their collar masked and some none at all (`bc88011_200_12n` measures 0.0000 against 0.0176). Both halves of the tradeoff the old roxygen stated were therefore false: it did not mask the borders, and the "real black pixels" it was said to cost are a median 0.16% of a frame and are collar rather than shadow
@@ -200,7 +198,7 @@
 - When the guard trips the frame is **left unmasked with a warning, not skipped** — deliberately the opposite call to the stretch tolerance in `fly_georef()`, because the outcomes are asymmetric here: an unmasked frame shows a black border, which is visible and is what every caller lived with before this release, while an over-eager mask deletes real imagery transparently. A mask fraction of zero is not a warning; 27 of 264 frames legitimately have no collar. A source that is not 8-bit is **refused** rather than reported as having no collar — `-near` is an absolute per-band distance, so a Byte-calibrated threshold reaches nothing on a 16-bit scan and the two states would otherwise share one representation
 - **Full-resolution scans remain unreachable from this package** — the catalogue centroid layer carries no URL for them and they are licence-restricted — so fly#23's stated trigger cannot be fixtured, tested or calibrated here, and no frame in the measured population can trip the runaway guard at threshold 16. Only a synthesized fixture tests it, and the suite says so. `fly_mask()` is exported precisely so a caller holding licensed scans on disk has an entry point that does not go through `fly_fetch()`. See `inst/notes/border-masking.md`
 
-## 0.10.0 (2026-09-06)
+# fly 0.10.0 (2026-09-06)
 
 - **A digital frame with no calibration report can now be sized from the camera the province names in its PAT-B file** ([#50](https://github.com/NewGraphEnvironment/fly/issues/50)). 41,249 frames across 2011, 2012, 2015 and 2016 carry a `patb_georef_url` and no `camera_calibration_url`; until now they were sized only from `focal_length`, which fixes sensor *width* to a few percent and says nothing about *pixel count*, so `footprint_basis` read `inferred_format` and the frame got **no footprint at all** without a DEM. New exported `fly_camera_patb()` fetches and parses those georeferencing files and attaches `camera_serial`, `camera_name`, `patb_gsd` and `patb_source`; `fly_footprint()` picks the columns up and sizes the frame on the ordinary `pixel count x GSD` route, needing no DEM. **22,366 of the 41,249 resolve** — 4,822 UltraCam Xp at 5,193 m, 2,827 UltraCam X at 4,329 m, 14,717 UltraCam Eagle at 5,002 m — and the other 18,883 are refused with a reason in `width_source` rather than guessed at
 - `fly_camera_patb()` is the only function in the package that reaches the network on the sizing path. `fly_footprint()` still fetches nothing, so a batch is resolved once and reused across `fly_coverage()`, `fly_select()`, `fly_overlap()` and `fly_georef()`
@@ -212,7 +210,7 @@
 - `fly_fetch()` no longer treats a **zero-byte** file already in `dest_dir` as a completed download. `download.file()` truncates its target before it runs, so an interrupted fetch left a 0-byte file that the existence check then blessed forever, and a caller reading it saw an absence rather than a failure. `data-raw/make_camera_formats.R` has carried this guard since 0.6.0; `fly_fetch()` did not
 - `inst/notes/camera-formats.md` records the three PAT-B schemas, why the serial index runs two passes rather than one union (a union makes serial `20814295` ambiguous and refuses 14,717 correct frames), and why the `20814295` / `22814295` gap in the table is the catalogue's own filing rather than a typo
 
-## 0.9.0 (2026-09-02)
+# fly 0.9.0 (2026-09-02)
 
 - **Every footprint is now rotated onto its flight line, so diagonal film footprints move** ([#26](https://github.com/NewGraphEnvironment/fly/issues/26)). v0.6.0 built continuous rotation and gated it on the recording format being non-square, which kept film byte-identical. That gate was wrong about the ground: a film camera is mounted square-on to the flight line just as a digital one is, so the real footprint is a square *rotated* onto the bearing. An axis-aligned square is correct only on a cardinal heading, and at 45 degrees it overlaps the true footprint by `2(sqrt(2)-1)` = **83%** — `fly_coverage()` was reporting that missing sixth as covered ground. A new `footprint_bearing` column records the azimuth each ring was rotated onto, or `NA` where it was drawn axis-aligned
 - **`fly_bearing()` now refuses a neighbour that is not adjacent by `frame_number`, which is breaking for sampled input.** It used to take the azimuth to the next frame *present in the object handed to it*, with no test on gap or distance. A roll flies several legs, so in a sample that pairs frames across a turn: bundled frames bc5282 179 and 199 are 20 apart and 3.3 footprint-sides apart, and give 59.8 degrees on a roll flying about 230. That was survivable while nothing consumed the bearing and largely invisible when v0.6.0 applied it to digital only; rotating film makes it rotate a footprint bodily. It also made geometry **batch-dependent** — `centroids[1:2, ]` returned 51.5 for both frames where the full 20-row batch returns 318.2 and 231.6, so the same photo covered different ground depending on the subset it was passed in. Seven of the twenty bundled frames keep a bearing. To hold bearings across a subset, call `fly_bearing()` on the contiguous roll first and carry the column
@@ -222,7 +220,7 @@
 - Fixed a latent defect in `fly_rectangles()` present since v0.6.0 for every rotated digital frame: the closing ring vertex was recomputed by the rotation rather than copied, and `%*%` computes rows independently, so an optimised BLAS can return it a few ulps off the first (measured 2.8e-14 at bearing 230). `sf::st_polygon()` requires exact closure and **errors**, so one unlucky frame aborted the whole batch. Data-dependent, which is why the bundled fixture never triggered it
 - The no-bearing warning was gated on the footprint being non-square and so never fired for film, which needs it as much as digital does
 
-## 0.8.0 (2026-09-01)
+# fly 0.8.0 (2026-09-01)
 
 - **Every function that takes photo centroids now refuses non-POINT geometry** ([#37](https://github.com/NewGraphEnvironment/fly/issues/37)). `sf::st_coordinates()` returns one row per feature for a POINT and one row per *vertex* for anything else, so `fly_footprint()` handed its own output built five geometries per closed rectangle while the attribute frame stayed at 20 rows, and `st_sf()` recycled it up to match: **20 frames in, 100 rows out**, no error and no warning, 80 of them carrying another photo's attributes
 - The reported symptom was the row count, which is the detectable half. Measured on the bundled fixtures, three functions were quietly **wrong** rather than wrong-sized: `fly_bearing()` returned the right number of bearings with values up to **272 degrees** out, because it indexes a 5n-row coordinate matrix with a permutation of `1:n`; `fly_overlap()` reported pairwise overlap across the corrupted set; and `fly_select()` in both modes indexed a 20-row frame with a length-100 logical. `fly_filter(method = "centroid")` never reached `fly_footprint()` at all and silently became a footprint filter, selecting 20 rows on the bundled AOI where points give 7. Only `fly_coverage()` errored, and only by accident of how it assigns
@@ -230,11 +228,11 @@
 - The error names the argument the caller actually typed rather than `fly_footprint()`'s, names the offending geometry type, and names the one-line fix — `sf::st_filter()` for someone who meant to filter footprints against an area, `sf::st_cast()` for centroids that arrived in another form
 - **Breaking for two input shapes that previously worked.** Centroids arriving as MULTIPOINT-of-one — from a PostGIS `MULTIPOINT` column, or an OGR driver that promotes to multi — were sized correctly before and are now refused; so is a mixed-geometry (`GEOMETRY`) column, even when every feature in it is a point, because `sf::st_coordinates()` has no method for that class and the caller otherwise saw `Not compatible with STRSXP: [type=NULL]` several layers down. Both are one call to fix, which the error names: `sf::st_cast(x, "POINT")`
 
-## 0.7.1 (2026-09-01)
+# fly 0.7.1 (2026-09-01)
 
 - `fly_footprint()`'s `@param dem` names the LidarBC STAC catalogue as `stac-elevation-bc`, its current name ([#46](https://github.com/NewGraphEnvironment/fly/pull/46)). Documentation only — `fly` never queries that catalogue, it takes a COG URL the caller already has, and the S3 bucket kept its old name, so no href in any example changes
 
-## 0.7.0 (2026-08-30)
+# fly 0.7.0 (2026-08-30)
 
 - `fly_georef()` georeferences digital frames ([#38](https://github.com/NewGraphEnvironment/fly/issues/38)). v0.6.0 gave them footprints and then excluded them from georeferencing with a warning; that exclusion is gone, so the whole post-2010 catalogue is now georeferenceable rather than only sizeable
 - **The corner mapping for a non-square footprint is rotation 270 — the top-left pixel maps to the ring's rear-left corner, equivalently image columns run in the flight direction and image rows run flight-right.** It was measured, not reasoned: a digital footprint is already rotated onto its flight line, so `bearing_to_rotation()` is not applied to it, and the geometry that remains cannot distinguish 270 from 90
@@ -243,7 +241,7 @@
 - A non-square footprint built without a flight bearing is drawn axis-aligned and so georeferences as though the flight line ran due north. `fly_bearing()` needs a neighbouring frame, so this is the ordinary result of georeferencing one frame on its own, and it is now warned about rather than left to be noticed in the output
 - The `rotation` argument applies to square footprints only, and is documented as such; a `rotation` column in `photos_sf` still overrides per-photo for both. Carrying a film-era `rotation` column into a digital batch therefore overrides the correct mapping — drop the column, or set it to `NA` for those rows
 
-## 0.6.0 (2026-08-30)
+# fly 0.6.0 (2026-08-30)
 
 - `fly_footprint()` now sizes digital frames, closing the gap #30 made honest but left open ([#32](https://github.com/NewGraphEnvironment/fly/issues/32)). Province-wide that is 223,667 of 1,670,471 frames — the package was quietly film-only for anything after ~2010
 - Sensor dimensions are read from the camera calibration reports the catalogue itself links to through `camera_calibration_url`, and shipped as `inst/extdata/camera_formats.csv` (built by `data-raw/make_camera_formats.R`). 14 calibrations covering 169,688 frames, plus focal-length fallback rows for frames carrying no calibration
@@ -256,7 +254,7 @@
 - `format_size` is unchanged and still takes precedence, so a caller who knows their camera can override the shipped table
 - New `inst/testdata/photo_centroids_digital.gpkg`: 24 real digital frames over the AOI that already ships, from two cameras 0.46 apart in aspect ratio
 
-## 0.5.1 (2026-08-29)
+# fly 0.5.1 (2026-08-29)
 
 - Fix `fly_footprint()` silently dropping `footprint_basis`, `footprint_terrain`, `height_agl` and `dem_coverage` whenever its input carried the `tbl_df` class ([#35](https://github.com/NewGraphEnvironment/fly/issues/35)). `bcdata::collect()` returns exactly that class, so every caller querying `WHSE_IMAGERY_AND_BASE_MAPS.AIMG_PHOTO_CENTROIDS_SP` — the documented source for this package — lost the whole reporting surface 0.4.0 and 0.5.0 added, and the documented "filter on `footprint_basis`" and "filter on `dem_coverage`" workflows were unreachable from it
 - Geometry and every downstream number were always correct; what was lost was the audit trail, which is what made it invisible. `sf::st_sf()` keeps only its first argument when that argument is a tibble, discarding every trailing named column — a general R trap rather than a `fly` one
@@ -266,7 +264,7 @@
 - Tests sweep the input-class axis (plain / tibble / grouped) rather than adding cases along the one axis the bundled fixture could present. Every fixture in the package reads back as plain `sf, data.frame`, so the suite was structurally incapable of seeing this
 - Widen the `DESCRIPTION` Title and Description, which described roughly half the package — they predated `fly_fetch()`, `fly_georef()` and `fly_bearing()` ([#31](https://github.com/NewGraphEnvironment/fly/issues/31))
 
-## 0.5.0 (2026-08-29)
+# fly 0.5.0 (2026-08-29)
 
 - `fly_footprint()` gains a `dem` argument, sizing each frame from its height above ground instead of the reported scale ([#9](https://github.com/NewGraphEnvironment/fly/issues/9)). On the bundled Upper Bulkley AOI the reported scale understates footprint **area by a median 14%, ranging to 26%** — and always in the same direction, because the scale is referenced to an elevation above the valley floor the photos cover. This is a datum offset, not the slope effect the issue described
 - `FLYING_HEIGHT` is metres above sea level, so subtracting terrain elevation is what turns it into the height ground coverage scales with. Elevation is the mean under the whole footprint, not a reading at the centroid — the two differ by up to 140 m on a 7.2 km frame. It is measured in two passes, because the footprint being averaged over is itself what the correction changes
@@ -276,7 +274,7 @@
 - New `inst/testdata/dem.tif`, a clip of NRCan's MRDEM-30. `terra` added to Suggests; it is only needed when a `dem` is supplied
 - Footprints remain axis-aligned rectangles under a nadir assumption. Per-corner ray-casting measures ~2% against the 14% the DEM addresses, and is deferred
 
-## 0.4.0 (2026-08-28)
+# fly 0.4.0 (2026-08-28)
 
 - `fly_footprint()` sizes each frame from its `media` value instead of applying a fixed 9-inch negative to everything. A digital frame has no negative, and the catalogue mixes film and digital in one layer ([#30](https://github.com/NewGraphEnvironment/fly/issues/30))
 - New `footprint_basis` column records how each footprint was sized. Frames whose recording format cannot be resolved get an empty geometry and a warning, rather than a plausible rectangle
@@ -286,39 +284,39 @@
 - Fix `fly_coverage()` dropping an entire group when all its footprints were unsized, and emitting multiple rows for a multi-feature intersection
 - Correct the documented claim that focal length is unavailable in centroid data — `FOCAL_LENGTH`, `FLYING_HEIGHT` and `SCALE` are fully populated
 
-## 0.3.0 (2026-03-12)
+# fly 0.3.0 (2026-03-12)
 
 - **BREAKING:** Rename `fly_thumb_georef()` → `fly_georef()` — not thumbnail-specific ([#24](https://github.com/NewGraphEnvironment/fly/issues/24))
 - Add `rotation` parameter to `fly_georef()` (default 180°) for correcting image orientation per-roll ([#25](https://github.com/NewGraphEnvironment/fly/issues/25))
 - Add `fly_bearing()` — compute flight line bearing from consecutive centroids per roll
 - Per-photo rotation via `rotation` column on input sf overrides default
 
-## 0.2.1 (2026-03-11)
+# fly 0.2.1 (2026-03-11)
 
 - Add `workers` parameter to `fly_fetch()` for parallel downloads via `furrr`/`future` ([#21](https://github.com/NewGraphEnvironment/fly/issues/21))
 - Add `furrr` and `future` to Suggests
 
-## 0.2.0 (2026-03-11)
+# fly 0.2.0 (2026-03-11)
 
 - **BREAKING:** Remove `fly_query_habitat()`, `fly_query_lakes()`, `fly_trim_habitat()` — migrate to [fresh](https://github.com/NewGraphEnvironment/fresh) ([#19](https://github.com/NewGraphEnvironment/fly/issues/19))
 - Remove `DBI`, `RPostgres` from Suggests and `glue` from Imports
 
-## 0.1.3 (2026-03-10)
+# fly 0.1.3 (2026-03-10)
 
 - Add `fly_thumb_georef()` — warp downloaded thumbnails to estimated ground footprints as georeferenced GeoTIFFs ([#16](https://github.com/NewGraphEnvironment/fly/issues/16))
 
-## 0.1.2 (2026-03-10)
+# fly 0.1.2 (2026-03-10)
 
 - Add `fly_fetch()` for downloading thumbnails, flight logs, calibration reports, and georef files from BC Data Catalogue URLs ([#15](https://github.com/NewGraphEnvironment/fly/issues/15))
 - Include URL columns and flight metadata (focal length, flying height, GSD) in bundled test data
 
-## 0.1.1 (2026-03-07)
+# fly 0.1.1 (2026-03-07)
 
 - Add `component_ensure` parameter to `fly_select()` for multi-polygon AOIs — guarantees at least one photo per disconnected component before greedy selection ([#12](https://github.com/NewGraphEnvironment/fly/issues/12))
 - Vignette uses bookdown with numbered sections and figure cross-references
 - Add `bookdown` to Suggests
 
-## 0.1.0 (2026-03-04)
+# fly 0.1.0 (2026-03-04)
 
 Initial release. Airphoto footprint estimation and coverage selection,
 extracted from [airbc](https://github.com/NewGraphEnvironment/airbc).

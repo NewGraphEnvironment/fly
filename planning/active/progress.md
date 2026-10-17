@@ -15,3 +15,6 @@
 - Phase 3: README rewritten in the `readme.md` order. The example's output comes from a real run
   on the bundled data, with sf's s2 on/off messages left out. Links (23) all 200; functions named
   are all exported; no mention of diggs. DESCRIPTION `Description` rewritten to match the opening
+- Phase 4: NEWS headings promoted to `# fly x.y.z (date)`, 37 of 37; R's NEWS parser reads 37
+  versions, none NA; `pkgdown::build_news()` into the scratchpad writes 37 `pkg-version` sections
+  (was 1). That build wrote `pkgdown/favicon/` from the logo, untracked; moved out of the tree

@@ -36,9 +36,9 @@ order, a figure made by committed code, no function list.
 - [x] Keep DESCRIPTION `Title`/`Description`, the tagline and the GitHub About in step
 
 ## Phase 4: NEWS header
-- [ ] Drop `# fly (development version)` and promote every `## x.y.z (date)` to
+- [x] Drop `# fly (development version)` and promote every `## x.y.z (date)` to
   `# fly x.y.z (date)`, so pkgdown shows one changelog section per release
-- [ ] Verify: `tools:::.build_news_db_from_package_NEWS_md()` parses every version, and the built
+- [x] Verify: `tools:::.build_news_db_from_package_NEWS_md()` parses every version, and the built
   changelog has one section per release
 
 ## Phase 5: Group the reference index
