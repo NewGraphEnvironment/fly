@@ -129,6 +129,12 @@ the logbook names, hand-read into `data-raw/infrared_film_logbooks.csv` (an inpu
 regenerated). Ships five `inst/extdata/infrared_film_*.csv`, which `test-fly_footprint_infrared.R`
 recomputes and holds `fly_film_media()` to. `FLY_IRFILM_SMOKE=1` writes nothing
 - `data-raw/make_testdata.R` — generates test data from diggs cached data
+- `data-raw/readme_figure.R` — the README figure (fly#104): two stac-airphoto-bc thumbnails of one
+2 km box near McKilligan Road, 1971 and 1981, each on its own estimated footprint, so they are
+offset a few hundred metres and the caption says so. The README is plain language by the
+operator's call: no method words in the opening ("greedy" was struck), diggs is not mentioned,
+and the Ecosystem table is the one shared with the sibling READMEs (soul#416). `fly_fetch()`
+downloads thumbnails, so published text says "scans" only where `fly_georef()` takes them
 
 ## Key Decisions
 
