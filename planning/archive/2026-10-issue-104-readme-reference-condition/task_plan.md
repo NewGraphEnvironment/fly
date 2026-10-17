@@ -57,4 +57,4 @@ order, a figure made by committed code, no function list.
 - [x] `/code-check` clean (each commit, or once over the branch with `/code-check branch`)
 - [x] pkgdown home, changelog and reference render as intended
 - [x] PWF checkboxes match landed work
-- [ ] `/planning-archive` on completion
+- [x] `/planning-archive` on completion
