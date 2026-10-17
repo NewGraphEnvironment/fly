@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fly</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.24.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.24.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -35,9 +35,9 @@
     </div>
 
     <div class="section level2">
-      <h2 id="all-functions">All functions<a class="anchor" aria-label="anchor" href="#all-functions"></a></h2>
+      <h2 id="estimate-footprints">Estimate footprints<a class="anchor" aria-label="anchor" href="#estimate-footprints"></a></h2>
 
-
+      <div class="section-desc"><p>The ground a photo covers, from its catalogue record, optionally with an elevation model.</p></div>
 
       <dl></dl></div><div class="section level2">
 
@@ -46,10 +46,10 @@
 
       <dl><dt>
 
-          <code><a href="fly_bearing.html">fly_bearing()</a></code>
+          <code><a href="fly_footprint.html">fly_footprint()</a></code>
 
         </dt>
-        <dd>Compute flight line bearing from consecutive airphoto centroids</dd>
+        <dd>Estimate photo footprint polygons from centroids and scale</dd>
 
         <dt>
 
@@ -60,59 +60,26 @@
 
         <dt>
 
-          <code><a href="fly_coverage.html">fly_coverage()</a></code>
+          <code><a href="fly_summary.html">fly_summary()</a></code>
 
         </dt>
-        <dd>Check photo coverage of an AOI by group</dd>
+        <dd>Summarize photo footprint sizes and date ranges by scale</dd>
+      </dl></div><div class="section level2">
+      <h2 id="choose-photos-for-an-area">Choose photos for an area<a class="anchor" aria-label="anchor" href="#choose-photos-for-an-area"></a></h2>
 
-        <dt>
+      <div class="section-desc"><p>Which photos cover an area of interest, how much, and a small set that covers it.</p></div>
 
-          <code><a href="fly_fetch.html">fly_fetch()</a></code>
+      <dl></dl></div><div class="section level2">
 
-        </dt>
-        <dd>Download airphoto files from BC Data Catalogue URLs</dd>
 
-        <dt>
+
+
+      <dl><dt>
 
           <code><a href="fly_filter.html">fly_filter()</a></code>
 
         </dt>
         <dd>Filter photos by spatial relationship with an AOI</dd>
-
-        <dt>
-
-          <code><a href="fly_footprint.html">fly_footprint()</a></code>
-
-        </dt>
-        <dd>Estimate photo footprint polygons from centroids and scale</dd>
-
-        <dt>
-
-          <code><a href="fly_georef.html">fly_georef()</a></code>
-
-        </dt>
-        <dd>Georeference airphoto images to footprint polygons</dd>
-
-        <dt>
-
-          <code><a href="fly_mask.html">fly_mask()</a></code>
-
-        </dt>
-        <dd>Mask the black frame border of an airphoto scan</dd>
-
-        <dt>
-
-          <code><a href="fly_overlap.html">fly_overlap()</a></code>
-
-        </dt>
-        <dd>Compute pairwise overlap between photo footprints</dd>
-
-        <dt>
-
-          <code><a href="fly_rotation_calibrate.html">fly_rotation_calibrate()</a></code>
-
-        </dt>
-        <dd>Measure a film roll's corner mapping from its own overlapping frames</dd>
 
         <dt>
 
@@ -123,12 +90,73 @@
 
         <dt>
 
-          <code><a href="fly_summary.html">fly_summary()</a></code>
+          <code><a href="fly_coverage.html">fly_coverage()</a></code>
 
         </dt>
-        <dd>Summarize photo footprint sizes and date ranges by scale</dd>
+        <dd>Check photo coverage of an AOI by group</dd>
+
+        <dt>
+
+          <code><a href="fly_overlap.html">fly_overlap()</a></code>
+
+        </dt>
+        <dd>Compute pairwise overlap between photo footprints</dd>
+      </dl></div><div class="section level2">
+      <h2 id="download">Download<a class="anchor" aria-label="anchor" href="#download"></a></h2>
+
+
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="fly_fetch.html">fly_fetch()</a></code>
+
+        </dt>
+        <dd>Download airphoto files from BC Data Catalogue URLs</dd>
+      </dl></div><div class="section level2">
+      <h2 id="georeference">Georeference<a class="anchor" aria-label="anchor" href="#georeference"></a></h2>
+
+      <div class="section-desc"><p>Warp a scan onto its estimated footprint, with the black border masked.</p></div>
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="fly_georef.html">fly_georef()</a></code>
+
+        </dt>
+        <dd>Georeference airphoto images to footprint polygons</dd>
+
+        <dt>
+
+          <code><a href="fly_bearing.html">fly_bearing()</a></code>
+
+        </dt>
+        <dd>Compute flight line bearing from consecutive airphoto centroids</dd>
+
+        <dt>
+
+          <code><a href="fly_mask.html">fly_mask()</a></code>
+
+        </dt>
+        <dd>Mask the black frame border of an airphoto scan</dd>
+
+        <dt>
+
+          <code><a href="fly_rotation_calibrate.html">fly_rotation_calibrate()</a></code>
+
+        </dt>
+        <dd>Measure a film roll's corner mapping from its own overlapping frames</dd>
       </dl></div>
-  </main></div>
+  </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
+    </nav></aside></div>
 
 
     <footer><div class="pkgdown-footer-left">

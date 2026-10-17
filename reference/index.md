@@ -1,28 +1,45 @@
 # Package index
 
-## All functions
+## Estimate footprints
 
-- [`fly_bearing()`](https://newgraphenvironment.github.io/fly/reference/fly_bearing.md)
-  : Compute flight line bearing from consecutive airphoto centroids
-- [`fly_camera_patb()`](https://newgraphenvironment.github.io/fly/reference/fly_camera_patb.md)
-  : Read the camera a frame's PAT-B file names
-- [`fly_coverage()`](https://newgraphenvironment.github.io/fly/reference/fly_coverage.md)
-  : Check photo coverage of an AOI by group
-- [`fly_fetch()`](https://newgraphenvironment.github.io/fly/reference/fly_fetch.md)
-  : Download airphoto files from BC Data Catalogue URLs
-- [`fly_filter()`](https://newgraphenvironment.github.io/fly/reference/fly_filter.md)
-  : Filter photos by spatial relationship with an AOI
+The ground a photo covers, from its catalogue record, optionally with an
+elevation model.
+
 - [`fly_footprint()`](https://newgraphenvironment.github.io/fly/reference/fly_footprint.md)
   : Estimate photo footprint polygons from centroids and scale
-- [`fly_georef()`](https://newgraphenvironment.github.io/fly/reference/fly_georef.md)
-  : Georeference airphoto images to footprint polygons
-- [`fly_mask()`](https://newgraphenvironment.github.io/fly/reference/fly_mask.md)
-  : Mask the black frame border of an airphoto scan
-- [`fly_overlap()`](https://newgraphenvironment.github.io/fly/reference/fly_overlap.md)
-  : Compute pairwise overlap between photo footprints
-- [`fly_rotation_calibrate()`](https://newgraphenvironment.github.io/fly/reference/fly_rotation_calibrate.md)
-  : Measure a film roll's corner mapping from its own overlapping frames
-- [`fly_select()`](https://newgraphenvironment.github.io/fly/reference/fly_select.md)
-  : Select photos covering an AOI
+- [`fly_camera_patb()`](https://newgraphenvironment.github.io/fly/reference/fly_camera_patb.md)
+  : Read the camera a frame's PAT-B file names
 - [`fly_summary()`](https://newgraphenvironment.github.io/fly/reference/fly_summary.md)
   : Summarize photo footprint sizes and date ranges by scale
+
+## Choose photos for an area
+
+Which photos cover an area of interest, how much, and a small set that
+covers it.
+
+- [`fly_filter()`](https://newgraphenvironment.github.io/fly/reference/fly_filter.md)
+  : Filter photos by spatial relationship with an AOI
+- [`fly_select()`](https://newgraphenvironment.github.io/fly/reference/fly_select.md)
+  : Select photos covering an AOI
+- [`fly_coverage()`](https://newgraphenvironment.github.io/fly/reference/fly_coverage.md)
+  : Check photo coverage of an AOI by group
+- [`fly_overlap()`](https://newgraphenvironment.github.io/fly/reference/fly_overlap.md)
+  : Compute pairwise overlap between photo footprints
+
+## Download
+
+- [`fly_fetch()`](https://newgraphenvironment.github.io/fly/reference/fly_fetch.md)
+  : Download airphoto files from BC Data Catalogue URLs
+
+## Georeference
+
+Warp a scan onto its estimated footprint, with the black border masked.
+
+- [`fly_georef()`](https://newgraphenvironment.github.io/fly/reference/fly_georef.md)
+  : Georeference airphoto images to footprint polygons
+- [`fly_bearing()`](https://newgraphenvironment.github.io/fly/reference/fly_bearing.md)
+  : Compute flight line bearing from consecutive airphoto centroids
+- [`fly_mask()`](https://newgraphenvironment.github.io/fly/reference/fly_mask.md)
+  : Mask the black frame border of an airphoto scan
+- [`fly_rotation_calibrate()`](https://newgraphenvironment.github.io/fly/reference/fly_rotation_calibrate.md)
+  : Measure a film roll's corner mapping from its own overlapping frames

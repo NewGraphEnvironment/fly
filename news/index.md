@@ -1,8 +1,29 @@
 # Changelog
 
-## fly (development version)
+## fly 0.24.1 (2026-10-17)
 
-### 0.24.0 (2026-10-08)
+- **The README says what fly does in plain words, and shows real
+  airphotos**
+  ([\#104](https://github.com/NewGraphEnvironment/fly/issues/104)). No
+  code change.
+  - **The opening** says what a historic photo gives a site: a reference
+    for what to restore toward, and a baseline for measuring change. It
+    also says that an elevation model makes film footprints more
+    accurate and corrects the flying-height errors fly can identify.
+  - **The figure** shows the upper Bulkley River near McKilligan Road in
+    1971 and 1981, from two photos fly georeferenced.
+    `data-raw/readme_figure.R` makes it.
+  - **Shared sections.** An ecosystem table shared with the sibling
+    packages replaces the function list. DESCRIPTION’s `Description`
+    follows the opening, and it now says that fly downloads thumbnails,
+    not scans.
+- **The changelog has one section per release.** Every release sat under
+  a leftover “development version” heading, so the website showed all of
+  them as a single section. Each is now `# fly x.y.z (date)`.
+- **The function reference is grouped by purpose:** estimate footprints,
+  choose photos for an area, download, and georeference.
+
+## fly 0.24.0 (2026-10-08)
 
 - **`fly_footprint(dem =)` now names the frames under the terrain that
   sit on a roll-height whose catalogue centroids fly#97 labelled
@@ -36,7 +57,7 @@
     test stops a re-run that labels a key `misplaced` without the step
     overstated, for which the warning’s wording would be false.
 
-### 0.23.3 (2026-10-08)
+## fly 0.23.3 (2026-10-08)
 
 - **`bc77087`’s disputed logbook digit is settled as 3, so its page
   writes the catalogue’s 3,800 ft**
@@ -56,7 +77,7 @@
     `inst/notes/terrain-correction.md`, “What the frames under the
     terrain covered”.
 
-### 0.23.2 (2026-10-07)
+## fly 0.23.2 (2026-10-07)
 
 - **On five of the nine roll-heights where spacing rejected both
   readings of the frames under the terrain, the photos show the
@@ -95,7 +116,7 @@
     should tell the caller about a known misplaced centroid
     ([\#99](https://github.com/NewGraphEnvironment/fly/issues/99)).
 
-### 0.23.1 (2026-10-06)
+## fly 0.23.1 (2026-10-06)
 
 - **Whether a frame’s catalogued height is a height above ground was
   tested, and these instruments cannot settle it**
@@ -132,7 +153,7 @@
     either
     ([\#97](https://github.com/NewGraphEnvironment/fly/issues/97)).
 
-### 0.23.0 (2026-10-06)
+## fly 0.23.0 (2026-10-06)
 
 - **BW and colour frames out of the height band only through terrain are
   now settled per roll-height**
@@ -165,7 +186,7 @@
     consistent with a height recorded above ground
     ([\#95](https://github.com/NewGraphEnvironment/fly/issues/95)).
 
-### 0.22.0 (2026-10-06)
+## fly 0.22.0 (2026-10-06)
 
 - **Three infrared roll-heights with a wrong `scale` are now sized from
   the height flown**
@@ -203,7 +224,7 @@
     rule reaches it yet
     ([\#93](https://github.com/NewGraphEnvironment/fly/issues/93)).
 
-### 0.21.0 (2026-10-02)
+## fly 0.21.0 (2026-10-02)
 
 - **Infrared film is now sized as the 9-inch negative, because that was
   measured**
@@ -272,7 +293,7 @@
     now spell out the BW/colour set they were measured over, so
     re-running them reproduces what shipped.
 
-### 0.20.0 (2026-10-02)
+## fly 0.20.0 (2026-10-02)
 
 - **[`fly_georef()`](https://newgraphenvironment.github.io/fly/reference/fly_georef.md)
   now georeferences film from a shipped table of measured per-roll
@@ -335,7 +356,7 @@
   coverage and georeferencing change only for the frames whose bearing
   changed.
 
-### 0.19.3 (2026-10-01)
+## fly 0.19.3 (2026-10-01)
 
 - **Photo parallax, as built, cannot say what surface the camera saw at
   the photo date. No code changes**
@@ -359,7 +380,7 @@
     `inst/extdata/dem_parallax_synthetic.csv`, from which the suite
     rebuilds the tables in `inst/notes/terrain-correction.md`.
 
-### 0.19.2 (2026-10-01)
+## fly 0.19.2 (2026-10-01)
 
 - **A forested frame is sized from bare earth, and measured, that does
   not matter:
@@ -401,7 +422,7 @@
   ships `inst/extdata/dem_canopy_*.csv`, from which the suite rebuilds
   the tables in `inst/notes/terrain-correction.md`.
 
-### 0.19.1 (2026-09-30)
+## fly 0.19.1 (2026-09-30)
 
 - **A coastal frame’s sea surface is an elevation, not an error, and
   [`fly_footprint()`](https://newgraphenvironment.github.io/fly/reference/fly_footprint.md)
@@ -441,7 +462,7 @@
   planned, adjacent-frame spacing, was dropped before any frame was
   measured.
 
-### 0.19.0 (2026-09-28)
+## fly 0.19.0 (2026-09-28)
 
 - **Breaking: grayscale georeferenced output is now 2 bands, Gray +
   Alpha, where it was 1 band with `NoData = 0`**
@@ -485,7 +506,7 @@
   for non-8-bit scans. `data-raw/mask_measure-interior_zeros.R`
   reproduces both figures.
 
-### 0.18.0 (2026-09-28)
+## fly 0.18.0 (2026-09-28)
 
 - **Half the r ≈ 2 mass was a wrong scale, not a mislabelled lens, and
   it is now drawn at its true width**
@@ -521,7 +542,7 @@
   covered but unread. On these pages `focal_mm` is filled only where a
   focal length is written, never inferred from the camera model.
 
-### 0.17.0 (2026-09-27)
+## fly 0.17.0 (2026-09-27)
 
 - **A frame beside a disputed roll-height on the same roll is now a
   third witness, and it settles five roll-heights no logbook does**
@@ -562,7 +583,7 @@
   [`fly_footprint()`](https://newgraphenvironment.github.io/fly/reference/fly_footprint.md)’s
   logic
 
-### 0.16.0 (2026-09-26)
+## fly 0.16.0 (2026-09-26)
 
 - **Where a logbook reads
   [\#54](https://github.com/NewGraphEnvironment/fly/issues/54)’s slipped
@@ -609,7 +630,7 @@
   `data-raw/height_calibrate-lower_tail_rolls.R` now settles both tails
   through one function and reproduces every figure
 
-### 0.15.0 (2026-09-26)
+## fly 0.15.0 (2026-09-26)
 
 - **Half of the lower tail of `flying_height` is now settled per roll,
   and 389 of those 1,001 frames were never a height error**
@@ -677,7 +698,7 @@
   roll, at a wrong scale that the fallback draws at half width —
   [\#72](https://github.com/NewGraphEnvironment/fly/issues/72)
 
-### 0.14.1 (2026-09-21)
+## fly 0.14.1 (2026-09-21)
 
 - **`R CMD check` now runs in CI, on three platforms**
   ([\#52](https://github.com/NewGraphEnvironment/fly/issues/52)).
@@ -780,7 +801,7 @@
   direction — including the direction where
   [\#68](https://github.com/NewGraphEnvironment/fly/issues/68) is fixed
 
-### 0.14.0 (2026-09-20)
+## fly 0.14.0 (2026-09-20)
 
 - **What a partially DEM-covered footprint costs is now measured, and it
   justifies one new column**
@@ -900,7 +921,7 @@
   Note also that the obvious guard for it, counting exact-zero cells,
   can never fire
 
-### 0.13.0 (2026-09-20)
+## fly 0.13.0 (2026-09-20)
 
 - **A `/vsicurl/` DEM is now practical: the reported two-frame case goes
   from 263 s to 4.3 s**
@@ -1001,7 +1022,7 @@
   is the same case on a quiet link. See the new section of
   `inst/notes/terrain-correction.md`
 
-### 0.12.0 (2026-09-18)
+## fly 0.12.0 (2026-09-18)
 
 - **`fly_footprint(dem = )` no longer believes a `flying_height` its own
   scale contradicts, and repairs the one error it can identify**
@@ -1083,7 +1104,7 @@
   `fly_dem_sample()` taking 583 s for two frames over a `/vsicurl/` DEM
   ([\#59](https://github.com/NewGraphEnvironment/fly/issues/59))
 
-### 0.11.0 (2026-09-08)
+## fly 0.11.0 (2026-09-08)
 
 - **The black collar around a scanned frame is now masked properly, and
   fly#23’s premise that it is a circle was wrong**
@@ -1189,7 +1210,7 @@
   [`fly_fetch()`](https://newgraphenvironment.github.io/fly/reference/fly_fetch.md).
   See `inst/notes/border-masking.md`
 
-### 0.10.0 (2026-09-06)
+## fly 0.10.0 (2026-09-06)
 
 - **A digital frame with no calibration report can now be sized from the
   camera the province names in its PAT-B file**
@@ -1281,7 +1302,7 @@
   why the `20814295` / `22814295` gap in the table is the catalogue’s
   own filing rather than a typo
 
-### 0.9.0 (2026-09-02)
+## fly 0.9.0 (2026-09-02)
 
 - **Every footprint is now rotated onto its flight line, so diagonal
   film footprints move**
@@ -1352,7 +1373,7 @@
 - The no-bearing warning was gated on the footprint being non-square and
   so never fired for film, which needs it as much as digital does
 
-### 0.8.0 (2026-09-01)
+## fly 0.8.0 (2026-09-01)
 
 - **Every function that takes photo centroids now refuses non-POINT
   geometry**
@@ -1407,7 +1428,7 @@
   `Not compatible with STRSXP: [type=NULL]` several layers down. Both
   are one call to fix, which the error names: `sf::st_cast(x, "POINT")`
 
-### 0.7.1 (2026-09-01)
+## fly 0.7.1 (2026-09-01)
 
 - [`fly_footprint()`](https://newgraphenvironment.github.io/fly/reference/fly_footprint.md)’s
   `@param dem` names the LidarBC STAC catalogue as `stac-elevation-bc`,
@@ -1417,7 +1438,7 @@
   COG URL the caller already has, and the S3 bucket kept its old name,
   so no href in any example changes
 
-### 0.7.0 (2026-08-30)
+## fly 0.7.0 (2026-08-30)
 
 - [`fly_georef()`](https://newgraphenvironment.github.io/fly/reference/fly_georef.md)
   georeferences digital frames
@@ -1461,7 +1482,7 @@
   digital batch therefore overrides the correct mapping — drop the
   column, or set it to `NA` for those rows
 
-### 0.6.0 (2026-08-30)
+## fly 0.6.0 (2026-08-30)
 
 - [`fly_footprint()`](https://newgraphenvironment.github.io/fly/reference/fly_footprint.md)
   now sizes digital frames, closing the gap
@@ -1515,7 +1536,7 @@
   frames over the AOI that already ships, from two cameras 0.46 apart in
   aspect ratio
 
-### 0.5.1 (2026-08-29)
+## fly 0.5.1 (2026-08-29)
 
 - Fix
   [`fly_footprint()`](https://newgraphenvironment.github.io/fly/reference/fly_footprint.md)
@@ -1565,7 +1586,7 @@
   [`fly_bearing()`](https://newgraphenvironment.github.io/fly/reference/fly_bearing.md)
   ([\#31](https://github.com/NewGraphEnvironment/fly/issues/31))
 
-### 0.5.0 (2026-08-29)
+## fly 0.5.0 (2026-08-29)
 
 - [`fly_footprint()`](https://newgraphenvironment.github.io/fly/reference/fly_footprint.md)
   gains a `dem` argument, sizing each frame from its height above ground
@@ -1610,7 +1631,7 @@
   Per-corner ray-casting measures ~2% against the 14% the DEM addresses,
   and is deferred
 
-### 0.4.0 (2026-08-28)
+## fly 0.4.0 (2026-08-28)
 
 - [`fly_footprint()`](https://newgraphenvironment.github.io/fly/reference/fly_footprint.md)
   sizes each frame from its `media` value instead of applying a fixed
@@ -1636,7 +1657,7 @@
   centroid data — `FOCAL_LENGTH`, `FLYING_HEIGHT` and `SCALE` are fully
   populated
 
-### 0.3.0 (2026-03-12)
+## fly 0.3.0 (2026-03-12)
 
 - **BREAKING:** Rename `fly_thumb_georef()` →
   [`fly_georef()`](https://newgraphenvironment.github.io/fly/reference/fly_georef.md)
@@ -1651,7 +1672,7 @@
   — compute flight line bearing from consecutive centroids per roll
 - Per-photo rotation via `rotation` column on input sf overrides default
 
-### 0.2.1 (2026-03-11)
+## fly 0.2.1 (2026-03-11)
 
 - Add `workers` parameter to
   [`fly_fetch()`](https://newgraphenvironment.github.io/fly/reference/fly_fetch.md)
@@ -1659,7 +1680,7 @@
   ([\#21](https://github.com/NewGraphEnvironment/fly/issues/21))
 - Add `furrr` and `future` to Suggests
 
-### 0.2.0 (2026-03-11)
+## fly 0.2.0 (2026-03-11)
 
 - **BREAKING:** Remove `fly_query_habitat()`, `fly_query_lakes()`,
   `fly_trim_habitat()` — migrate to
@@ -1667,13 +1688,13 @@
   ([\#19](https://github.com/NewGraphEnvironment/fly/issues/19))
 - Remove `DBI`, `RPostgres` from Suggests and `glue` from Imports
 
-### 0.1.3 (2026-03-10)
+## fly 0.1.3 (2026-03-10)
 
 - Add `fly_thumb_georef()` — warp downloaded thumbnails to estimated
   ground footprints as georeferenced GeoTIFFs
   ([\#16](https://github.com/NewGraphEnvironment/fly/issues/16))
 
-### 0.1.2 (2026-03-10)
+## fly 0.1.2 (2026-03-10)
 
 - Add
   [`fly_fetch()`](https://newgraphenvironment.github.io/fly/reference/fly_fetch.md)
@@ -1683,7 +1704,7 @@
 - Include URL columns and flight metadata (focal length, flying height,
   GSD) in bundled test data
 
-### 0.1.1 (2026-03-07)
+## fly 0.1.1 (2026-03-07)
 
 - Add `component_ensure` parameter to
   [`fly_select()`](https://newgraphenvironment.github.io/fly/reference/fly_select.md)
@@ -1694,7 +1715,7 @@
   cross-references
 - Add `bookdown` to Suggests
 
-### 0.1.0 (2026-03-04)
+## fly 0.1.0 (2026-03-04)
 
 Initial release. Airphoto footprint estimation and coverage selection,
 extracted from [airbc](https://github.com/NewGraphEnvironment/airbc).

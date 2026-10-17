@@ -11,8 +11,8 @@
 <script src="deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="deps/headroom-0.11.0/headroom.min.js"></script><script src="deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="deps/search-1.0.0/fuse.min.js"></script><script src="deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="pkgdown.js"></script><meta property="og:title" content="Historic Airphoto Footprints, Selection and Georeferencing for British Columbia">
-<meta name="description" content="Estimate ground footprints from airphoto centroids and scale, compute coverage of areas of interest, select minimum photo sets using greedy set-cover, fetch scans and flight metadata from the BC Data Catalogue, and georeference the images onto their estimated footprints.">
-<meta property="og:description" content="Estimate ground footprints from airphoto centroids and scale, compute coverage of areas of interest, select minimum photo sets using greedy set-cover, fetch scans and flight metadata from the BC Data Catalogue, and georeference the images onto their estimated footprints.">
+<meta name="description" content="Estimate the ground a historic British Columbia airphoto covers from its catalogue record; given an elevation model, a film photo can be sized from the aircraft's height above the ground, with the catalogued flying height checked against the photo scale. Select a small set of photos covering an area of interest, download thumbnails and flight metadata from the BC Data Catalogue, and georeference scans onto their estimated footprints.">
+<meta property="og:description" content="Estimate the ground a historic British Columbia airphoto covers from its catalogue record; given an elevation model, a film photo can be sized from the aircraft's height above the ground, with the catalogued flying height checked against the photo scale. Select a small set of photos covering an area of interest, download thumbnails and flight metadata from the BC Data Catalogue, and georeference scans onto their estimated footprints.">
 <meta property="og:image" content="https://newgraphenvironment.github.io/fly/logo.png">
 </head>
 <body>
@@ -23,7 +23,7 @@
 
     <a class="navbar-brand me-2" href="index.html">fly</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.24.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.24.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -58,74 +58,136 @@
 <img src="logo.png" class="logo" alt=""><h1 id="fly-">fly <a class="anchor" aria-label="anchor" href="#fly-"></a>
 </h1>
 </div>
-<p><strong>F</strong>ootprints from <strong>L</strong>egacy aerial photograph<strong>Y</strong></p>
 <!-- badges: start -->
 
-<p>A toolkit for working with British Columbia’s historic aerial photography — from finding the frames that cover your study area to turning them into map-ready georeferenced images.</p>
-<div class="section level2">
-<h2 id="why">Why<a class="anchor" aria-label="anchor" href="#why"></a>
-</h2>
-<p>Historic airphotos are essential for documenting landscape change, but they’re awkward to work with. Photo centroids are available from the <a href="https://catalogue.data.gov.bc.ca/dataset/0af7544c-f2ad-4553-bb37-889c94d4c571" class="external-link">BC Data Catalogue</a>, but the catalogue gives you a point and a scale — not a footprint. So you can’t tell which of thousands of overlapping frames across multiple scales and decades actually cover your area of interest, and the scanned images aren’t georeferenced.</p>
-<p>fly estimates each photo’s ground footprint from its scale and film format, then uses those footprints to filter, select, download, and georeference the photos you need.</p>
-<p><img src="reference/figures/readme-priority.png" width="100%" alt="Priority selection: 1:12000 (blue) and 1:31680 (orange) footprints covering a floodplain AOI near Houston, BC"></p>
-<p><em>Upper Bulkley River floodplain near Houston, BC — 1968 photos at 1:12,000 (blue) and 1:31,680 (orange).</em></p>
-</div>
-<div class="section level2">
-<h2 id="what-it-does">What it does<a class="anchor" aria-label="anchor" href="#what-it-does"></a>
-</h2>
-<ul>
-<li>
-<strong>Estimate footprints</strong> — turn centroids and scale into ground-coverage rectangles (<code>fly_footprint</code>)</li>
-<li>
-<strong>Explore</strong> — summarize available photos by scale and year, and measure coverage and frame-to-frame overlap (<code>fly_summary</code>, <code>fly_coverage</code>, <code>fly_overlap</code>)</li>
-<li>
-<strong>Select</strong> — keep only photos whose footprint covers your area of interest, then take the fewest needed (best resolution first) or every frame touching it (<code>fly_filter</code>, <code>fly_select</code>)</li>
-<li>
-<strong>Fetch</strong> — download thumbnails, flight logs, and camera calibration reports from the BC Data Catalogue, optionally in parallel (<code>fly_fetch</code>)</li>
-<li>
-<strong>Georeference</strong> — warp the scanned images onto their estimated footprints as GeoTIFFs (BC Albers), rotated onto the flight line, with digital frames on a measured constant and film on a measured per-roll table; measure a roll the table does not cover (<code>fly_bearing</code>, <code>fly_georef</code>, <code>fly_rotation_calibrate</code>)</li>
-</ul>
-</div>
+<blockquote>
+<p>Footprints, selection and georeferencing for British Columbia’s historic airphotos.</p>
+</blockquote>
+<p>fly helps you find and use British Columbia’s historic airphotos. The province’s catalogue records where each photo was taken, but not the ground it shows. fly works that out for most photos, finds the photos over your study area, picks a small set that covers as much of it as you need, and can download the photos and place them on a map.</p>
+<p>Older photos often show a site before roads, farming and logging changed it. That makes them a reference for what to restore toward, and a baseline for measuring change.</p>
+<p>With an elevation model, fly allows for the height of the land under the aircraft, which makes the footprints of film photos more accurate, and it corrects the errors it can identify in the catalogue’s flying heights.</p>
+<p><img src="reference/figures/readme-history.png" width="100%" alt="Two black-and-white airphotos side by side of the same 2 km square of the upper Bulkley River valley, labelled 1971 and 1981. A meandering river crosses each from left to right beside a highway, with forest and open meadow on the valley floor and forest on the slopes."></p>
+<p><em>The upper Bulkley River (Neexdzii Kwa) near McKilligan Road and Houston, BC, in <a href="https://images.a11s.one/collections/stac-airphoto-bc/items/1400364" class="external-link">1971</a> and <a href="https://images.a11s.one/collections/stac-airphoto-bc/items/790359" class="external-link">1981</a>, placed on the map by fly. Each photo sits on its own estimated footprint, so features line up approximately rather than exactly.</em></p>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">pak</span><span class="fu">::</span><span class="fu"><a href="https://pak.r-lib.org/reference/pak.html" class="external-link">pak</a></span><span class="op">(</span><span class="st">"NewGraphEnvironment/fly"</span><span class="op">)</span></span></code></pre></div>
+<p>Functions still change between releases (<a href="https://github.com/NewGraphEnvironment/fly/blob/main/NEWS.md" class="external-link">NEWS</a>), so pin a version for repeatable work: <code>pak::pak("NewGraphEnvironment/fly@vX.Y.Z")</code>.</p>
 </div>
 <div class="section level2">
 <h2 id="example">Example<a class="anchor" aria-label="anchor" href="#example"></a>
 </h2>
+<p>Twenty 1968 photos of the Upper Bulkley River floodplain near Houston, BC, ship with the package. How much of the floodplain each scale covers, and the fewest photos that cover 80% of it:</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/NewGraphEnvironment/fly" class="external-link">fly</a></span><span class="op">)</span></span>
-<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://r-spatial.github.io/sf/" class="external-link">sf</a></span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Keep photos whose footprint overlaps the AOI (not just the centroid)</span></span>
-<span><span class="va">filtered</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fly_filter.html">fly_filter</a></span><span class="op">(</span><span class="va">centroids</span>, <span class="va">aoi</span>, method <span class="op">=</span> <span class="st">"footprint"</span><span class="op">)</span></span>
+<span><span class="va">centroids</span> <span class="op">&lt;-</span> <span class="fu">sf</span><span class="fu">::</span><span class="fu"><a href="https://r-spatial.github.io/sf/reference/st_read.html" class="external-link">st_read</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"testdata/photo_centroids.gpkg"</span>, package <span class="op">=</span> <span class="st">"fly"</span><span class="op">)</span>, quiet <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span><span class="va">aoi</span> <span class="op">&lt;-</span> <span class="fu">sf</span><span class="fu">::</span><span class="fu"><a href="https://r-spatial.github.io/sf/reference/st_read.html" class="external-link">st_read</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"testdata/aoi.gpkg"</span>, package <span class="op">=</span> <span class="st">"fly"</span><span class="op">)</span>, quiet <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Fewest photos to reach 95% coverage, best resolution first</span></span>
-<span><span class="va">selected</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fly_select.html">fly_select</a></span><span class="op">(</span><span class="va">filtered</span>, <span class="va">aoi</span>, mode <span class="op">=</span> <span class="st">"minimal"</span>, target_coverage <span class="op">=</span> <span class="fl">0.95</span><span class="op">)</span></span>
+<span><span class="fu"><a href="reference/fly_coverage.html">fly_coverage</a></span><span class="op">(</span><span class="va">centroids</span>, <span class="va">aoi</span>, by <span class="op">=</span> <span class="st">"scale"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; # A tibble: 2 × 4</span></span>
+<span><span class="co">#&gt;   scale   n_photos covered_km2 coverage_pct</span></span>
+<span><span class="co">#&gt;   &lt;chr&gt;      &lt;int&gt;       &lt;dbl&gt;        &lt;dbl&gt;</span></span>
+<span><span class="co">#&gt; 1 1:12000       10        14.8         59.5</span></span>
+<span><span class="co">#&gt; 2 1:31680       10        24.8        100</span></span>
 <span></span>
-<span><span class="co"># Download thumbnails, then georeference them to their footprints</span></span>
-<span><span class="va">fetched</span>  <span class="op">&lt;-</span> <span class="fu"><a href="reference/fly_fetch.html">fly_fetch</a></span><span class="op">(</span><span class="va">selected</span>, type <span class="op">=</span> <span class="st">"thumbnail"</span>, dest_dir <span class="op">=</span> <span class="st">"thumbs"</span><span class="op">)</span></span>
-<span><span class="fu"><a href="reference/fly_georef.html">fly_georef</a></span><span class="op">(</span><span class="va">fetched</span>, <span class="va">selected</span>, dest_dir <span class="op">=</span> <span class="st">"georef"</span>, rotation <span class="op">=</span> <span class="st">"auto"</span><span class="op">)</span></span></code></pre></div>
-<p>Full walkthrough at the <a href="https://newgraphenvironment.github.io/fly/articles/airphoto-selection.html">airphoto selection vignette</a>, and the <a href="https://newgraphenvironment.github.io/fly/reference/">function reference</a> for details.</p>
+<span><span class="va">selected</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fly_select.html">fly_select</a></span><span class="op">(</span><span class="va">centroids</span>, <span class="va">aoi</span>, mode <span class="op">=</span> <span class="st">"minimal"</span>, target_coverage <span class="op">=</span> <span class="fl">0.8</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Selecting photos (target: 80% coverage)...</span></span>
+<span><span class="co">#&gt;   3 photos -&gt; 81.6% coverage</span></span>
+<span><span class="co">#&gt; Selected 3 of 20 photos for 81.6% coverage</span></span></code></pre></div>
+<p>From there, <code><a href="reference/fly_fetch.html">fly_fetch()</a></code> downloads the photos’ thumbnails and <code><a href="reference/fly_georef.html">fly_georef()</a></code> writes each one as a GeoTIFF on its footprint.</p>
 </div>
 <div class="section level2">
-<h2 id="used-by">Used by<a class="anchor" aria-label="anchor" href="#used-by"></a>
-</h2>
-<p><a href="https://github.com/NewGraphEnvironment/stac_airphoto_bc" class="external-link"><code>stac_airphoto_bc</code></a> builds on fly to publish georeferenced historic airphoto thumbnails for BC as a public <a href="https://stacspec.org/" class="external-link">STAC</a> collection, served at <a href="https://images.a11s.one" class="external-link">images.a11s.one</a>. fly does the footprint estimation, downloading, and georeferencing; that pipeline adds Cloud-Optimized GeoTIFF conversion, S3 storage, and STAC cataloguing.</p>
-</div>
-<div class="section level2">
-<h2 id="related-packages">Related packages<a class="anchor" aria-label="anchor" href="#related-packages"></a>
+<h2 id="learn-more">Learn more<a class="anchor" aria-label="anchor" href="#learn-more"></a>
 </h2>
 <ul>
 <li>
-<a href="https://github.com/NewGraphEnvironment/flooded" class="external-link">flooded</a> — delineate floodplain extents from DEMs and stream networks to generate AOI polygons</li>
+<a href="https://newgraphenvironment.github.io/fly/articles/airphoto-selection.html">Airphoto selection pipeline</a>: footprints, coverage, selection and georeferencing on the bundled floodplain.</li>
 <li>
-<a href="https://github.com/NewGraphEnvironment/drift" class="external-link">drift</a> — land cover change detection from satellite imagery; fly adds longer-term historic airphoto context</li>
+<a href="https://www.newgraphenvironment.com/stac_airphoto_bc/" class="external-link">stac-airphoto-bc</a>: photos georeferenced with fly, to browse and download by place and date.</li>
 <li>
-<a href="https://github.com/NewGraphEnvironment/fresh" class="external-link">fresh</a> — FWA/bcfishpass database queries (DB functions previously in fly moved here in v0.2.0)</li>
+<a href="https://github.com/NewGraphEnvironment/fly/tree/main/inst/notes" class="external-link">Method notes</a>: how footprints are sized from the terrain, how the catalogue’s heights and camera formats are checked, and how scans are masked and placed.</li>
+<li>
+<a href="https://newgraphenvironment.github.io/fly/reference/">Function reference</a>.</li>
 </ul>
+</div>
+<div class="section level2">
+<h2 id="ecosystem">Ecosystem<a class="anchor" aria-label="anchor" href="#ecosystem"></a>
+</h2>
+<table class="table">
+<colgroup>
+<col width="60%">
+<col width="40%">
+</colgroup>
+<thead><tr>
+<th>Package</th>
+<th>Role</th>
+</tr></thead>
+<tbody>
+<tr>
+<td><a href="https://www.newgraphenvironment.com/fresh/" class="external-link">fresh</a></td>
+<td>Stream network modelling engine: segment, classify, cluster, aggregate</td>
+</tr>
+<tr>
+<td><a href="https://www.newgraphenvironment.com/link/" class="external-link">link</a></td>
+<td>Intrinsic habitat models: develop, test and communicate</td>
+</tr>
+<tr>
+<td><a href="https://www.newgraphenvironment.com/wet/" class="external-link">wet</a></td>
+<td>Stream flow and water temperature for BC’s Freshwater Atlas</td>
+</tr>
+<tr>
+<td><a href="https://www.newgraphenvironment.com/flooded/" class="external-link">flooded</a></td>
+<td>Delineate floodplain extents from DEMs and stream networks</td>
+</tr>
+<tr>
+<td><a href="https://www.newgraphenvironment.com/drift/" class="external-link">drift</a></td>
+<td>Track land cover change within floodplains over time</td>
+</tr>
+<tr>
+<td><a href="https://www.newgraphenvironment.com/floodplains/" class="external-link">floodplains</a></td>
+<td>Floodplain and land cover change modelling for BC watershed groups</td>
+</tr>
+<tr>
+<td><a href="https://www.newgraphenvironment.com/stac_floodplains_bc/" class="external-link">stac_floodplains_bc</a></td>
+<td>STAC catalogue of floodplain land cover change in BC, 2017-2023, by watershed group</td>
+</tr>
+<tr>
+<td><a href="https://www.newgraphenvironment.com/cd/" class="external-link">cd</a></td>
+<td>Climate departure analysis from ERA5-Land reanalysis</td>
+</tr>
+<tr>
+<td><strong>fly</strong></td>
+<td>Estimate airphoto footprints and select photos that cover a study area (this package)</td>
+</tr>
+<tr>
+<td><a href="https://www.newgraphenvironment.com/stac_airphoto_bc/" class="external-link">stac_airphoto_bc</a></td>
+<td>STAC catalogue of historic BC airphotos georeferenced with fly</td>
+</tr>
+</tbody>
+</table>
+<p>Historic airphotos: fly (footprints, selection, georeferencing) → stac_airphoto_bc (published)</p>
+</div>
+<div class="section level2">
+<h2 id="data-and-methods-it-builds-on">Data and methods it builds on<a class="anchor" aria-label="anchor" href="#data-and-methods-it-builds-on"></a>
+</h2>
+<ul>
+<li>The province’s <a href="https://catalogue.data.gov.bc.ca/dataset/0af7544c-f2ad-4553-bb37-889c94d4c571" class="external-link">airphoto centroids</a> in the BC Data Catalogue, with the thumbnails, flight logbooks, camera calibration reports and camera files the records link to.</li>
+<li>NRCan’s <a href="https://open.canada.ca/data/en/dataset/18752265-bda3-498c-a4ba-9dfe68cb98da" class="external-link">MRDEM-30</a> elevation model, the one the height checks were measured against.</li>
+<li>
+<a href="https://gdal.org/" class="external-link">GDAL</a>, through <a href="https://r-spatial.github.io/sf/" class="external-link">sf</a>, for warping and masking the scans.</li>
+</ul>
+</div>
+<div class="section level2">
+<h2 id="citation">Citation<a class="anchor" aria-label="anchor" href="#citation"></a>
+</h2>
+<p>Cite fly with <code>citation("fly")</code>, or from <a href="CITATION.cff"><code>CITATION.cff</code></a>.</p>
+</div>
+<div class="section level2">
+<h2 id="license">License<a class="anchor" aria-label="anchor" href="#license"></a>
+</h2>
+<p>MIT © New Graph Environment Ltd.</p>
 </div>
 </div>
   </main><aside class="col-md-3"><div class="links">
@@ -164,6 +226,7 @@
 <div class="dev-status">
 <h2 data-toc-skip>Dev status</h2>
 <ul class="list-unstyled">
+<li><a href="https://lifecycle.r-lib.org/articles/stages.html#experimental" class="external-link"><img src="https://img.shields.io/badge/lifecycle-experimental-orange.svg" alt="Lifecycle: experimental"></a></li>
 <li><a href="https://github.com/NewGraphEnvironment/fly/actions/workflows/R-CMD-check.yaml" class="external-link"><img src="https://github.com/NewGraphEnvironment/fly/actions/workflows/R-CMD-check.yaml/badge.svg" alt="R-CMD-check"></a></li>
 </ul>
 </div>
