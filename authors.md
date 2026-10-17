@@ -14,15 +14,15 @@ Source:
 [`inst/CITATION`](https://github.com/NewGraphEnvironment/fly/blob/main/inst/CITATION)
 
 Irvine A (2026). *fly: Historic Airphoto Footprints, Selection and
-Georeferencing for British Columbia*. New Graph Environment Ltd. R
-package version 0.24.0, <https://github.com/NewGraphEnvironment/fly>.
+Georeferencing for British Columbia*. New Graph Environment Ltd. Version
+0.24.0, <https://github.com/NewGraphEnvironment/fly>.
 
-    @Manual{,
+    @Manual{fly,
       title = {fly: Historic Airphoto Footprints, Selection and Georeferencing for British Columbia},
       author = {Allan Irvine},
       organization = {New Graph Environment Ltd.},
       year = {2026},
       version = {0.24.0},
-      note = {R package version 0.24.0},
+      note = {Version 0.24.0},
       url = {https://github.com/NewGraphEnvironment/fly},
     }
