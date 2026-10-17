@@ -86,7 +86,7 @@ its footprint.
 | [floodplains](https://www.newgraphenvironment.com/floodplains/) | Floodplain and land cover change modelling for BC watershed groups |
 | [stac_floodplains_bc](https://www.newgraphenvironment.com/stac_floodplains_bc/) | STAC catalogue of floodplain land cover change in BC, 2017-2023, by watershed group |
 | [cd](https://www.newgraphenvironment.com/cd/) | Climate departure analysis from ERA5-Land reanalysis |
-| **fly** | Estimate airphoto footprints and select optimal coverage for a study area (this package) |
+| **fly** | Estimate airphoto footprints and select photos that cover a study area (this package) |
 | [stac_airphoto_bc](https://www.newgraphenvironment.com/stac_airphoto_bc/) | STAC catalogue of historic BC airphotos georeferenced with fly |
 
 Historic airphotos: fly (footprints, selection, georeferencing) &rarr; stac_airphoto_bc (published)

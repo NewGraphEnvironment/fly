@@ -21,3 +21,4 @@
 - Phase 5: `reference:` groups added; `check_pkgdown()` reports no problems; the built index shows the four groups
 - Code-check round 1: 3 findings, all real and fixed. "each" claims in the README, DESCRIPTION and pkgdown (the DEM route excludes frames sized from GSD, and the height check runs on film only); GitHub About set to DESCRIPTION's Title
 - Code-check round 2: 5 findings, all real; 2 inside round 1's fixes (a plural in place of "each" restates the claim over the same frames). Rewritten as capability statements scoped to film, a small set rather than the fewest (selection is greedy), and the records rather than each record. Two more sentences of the same shape fixed before round 3
+- Ecosystem row: "select optimal coverage" softened to "select photos that cover a study area" at the user's request; the sibling READMEs (flooded, breaks) still read "optimal"
