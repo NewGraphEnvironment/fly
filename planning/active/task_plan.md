@@ -17,11 +17,11 @@ order, a figure made by committed code, no function list.
 - [x] Record each claim and its source in `findings.md`
 
 ## Phase 2: README figure from real airphotos
-- [ ] `data-raw/readme_figure.R`: the 1971 (`bc7326_030`) and 1981 (`bc81050_048`) georeferenced
+- [x] `data-raw/readme_figure.R`: the 1971 (`bc7326_030`) and 1981 (`bc81050_048`) georeferenced
   thumbnails from stac-airphoto-bc, cropped to the same 2 km box at McKilligan Rd, upper Bulkley /
   Neexdzii Kwa (EPSG:3005 964426, 1049182, 966426, 1051182), side by side, year-labelled, opaque
   background, written to `man/figures/readme-history.png`
-- [ ] Check it at its published width; remove `man/figures/readme-priority.png`, which nothing
+- [x] Check it at its published width; remove `man/figures/readme-priority.png`, which nothing
   else references and no script makes
 
 ## Phase 3: README
