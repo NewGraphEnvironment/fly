@@ -49,12 +49,12 @@ order, a figure made by committed code, no function list.
 - [x] `pkgdown::check_pkgdown()` passes
 
 ## Phase 6: Release
-- [ ] NEWS entry under `# fly 0.24.1`; bump DESCRIPTION as the final commit
+- [x] NEWS entry under `# fly 0.24.1`; bump DESCRIPTION as the final commit
 
 ## Validation
 
-- [ ] Tests pass
-- [ ] `/code-check` clean (each commit, or once over the branch with `/code-check branch`)
-- [ ] pkgdown home, changelog and reference render as intended
-- [ ] PWF checkboxes match landed work
+- [x] Tests pass
+- [x] `/code-check` clean (each commit, or once over the branch with `/code-check branch`)
+- [x] pkgdown home, changelog and reference render as intended
+- [x] PWF checkboxes match landed work
 - [ ] `/planning-archive` on completion

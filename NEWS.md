@@ -1,3 +1,12 @@
+# fly 0.24.1 (2026-10-17)
+
+- **The README says what fly does in plain words, and shows real airphotos** ([#104](https://github.com/NewGraphEnvironment/fly/issues/104)). No code change.
+  - **The opening** says what a historic photo gives a site: a reference for what to restore toward, and a baseline for measuring change. It also says that an elevation model makes film footprints more accurate and corrects the flying-height errors fly can identify.
+  - **The figure** shows the upper Bulkley River near McKilligan Road in 1971 and 1981, from two photos fly georeferenced. `data-raw/readme_figure.R` makes it.
+  - **Shared sections.** An ecosystem table shared with the sibling packages replaces the function list. DESCRIPTION's `Description` follows the opening, and it now says that fly downloads thumbnails, not scans.
+- **The changelog has one section per release.** Every release sat under a leftover "development version" heading, so the website showed all of them as a single section. Each is now `# fly x.y.z (date)`.
+- **The function reference is grouped by purpose:** estimate footprints, choose photos for an area, download, and georeference.
+
 # fly 0.24.0 (2026-10-08)
 
 - **`fly_footprint(dem =)` now names the frames under the terrain that sit on a roll-height whose catalogue centroids fly#97 labelled `misplaced`** ([#99](https://github.com/NewGraphEnvironment/fly/issues/99)). Geometry and columns are unchanged: the footprint is still drawn at the catalogue's centroid, at nominal scale.

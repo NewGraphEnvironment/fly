@@ -29,3 +29,4 @@
   "for most photos" (1-2.5% of frames get no footprint), "the errors it can identify". Accepted: the
   example omits sf's s2 on/off messages, every number reproduces. Closed by the enumeration: each
   rewritten row was checked against R/fly_fetch.R:1-4, R/fly_georef.R:5 and round 3's measurements
+- Release: NEWS `# fly 0.24.1 (2026-10-17)`, DESCRIPTION 0.24.1. Tests 5765 pass / 0 fail (run 2026-10-17 06:45-06:48 UTC, before the text-only changes since)
