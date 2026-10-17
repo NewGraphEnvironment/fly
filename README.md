@@ -7,25 +7,25 @@
 
 > Footprints, selection and georeferencing for British Columbia's historic airphotos.
 
-fly works with British Columbia's historic airphoto catalogue, which records where a photo was
-taken but not the ground it covers. fly estimates that ground, finds the photos over a study area
-and selects a small set of them to reach a chosen coverage. It can then download the scans and
-georeference them onto their estimated footprints.
-Older photos often show a site before roads, farming and logging changed it, which makes them a
-reference condition for restoration planning and a baseline for monitoring change.
+fly helps you find and use British Columbia's historic airphotos. The province's catalogue records
+where each photo was taken, but not the ground it shows. fly works that out, finds the photos over
+your study area, picks a small set that covers as much of it as you need, and can download the
+scans and place them on a map.
 
-Given an elevation model, fly can size a film photo from the aircraft's height above the ground
-rather than from its reported scale. It checks the catalogue's flying height against that scale
-first and repairs the errors it can identify. When georeferencing, it masks the black border
-around the frame.
+Older photos often show a site before roads, farming and logging changed it. That makes them a
+reference for what to restore toward, and a baseline for measuring change.
+
+With an elevation model, fly allows for the height of the land under the aircraft, which makes the
+footprints of film photos more accurate, and it corrects known errors in the catalogue's flying
+heights.
 
 <img src="man/figures/readme-history.png" width="100%" alt="Two black-and-white airphotos side by side of the same 2 km square of the upper Bulkley River valley, labelled 1971 and 1981. A meandering river crosses each from left to right beside a highway, with forest and open meadow on the valley floor and forest on the slopes." />
 
-*The upper Bulkley River (Neexdzii Kwa) at McKilligan Road near Houston, BC, in 1971 and 1981:
-the same 2 km square, cut from two photos fly georeferenced (stac-airphoto-bc items
-[1400364](https://images.a11s.one/collections/stac-airphoto-bc/items/1400364) and
-[790359](https://images.a11s.one/collections/stac-airphoto-bc/items/790359)). Each photo sits on
-its own estimated footprint, so features line up approximately rather than exactly.*
+*The upper Bulkley River (Neexdzii Kwa) at McKilligan Road near Houston, BC, in
+[1971](https://images.a11s.one/collections/stac-airphoto-bc/items/1400364) and
+[1981](https://images.a11s.one/collections/stac-airphoto-bc/items/790359), placed on the map by
+fly. Each photo sits on its own estimated footprint, so features line up approximately rather than
+exactly.*
 
 ## Installation
 
