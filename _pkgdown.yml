@@ -20,7 +20,7 @@ reference:
   contents:
   - fly_fetch
 - title: Georeference
-  desc: Place each scan on its estimated footprint, with the black border masked.
+  desc: Place scans on their estimated footprints, with the black border masked.
   contents:
   - fly_georef
   - fly_bearing

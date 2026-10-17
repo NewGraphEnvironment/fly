@@ -19,3 +19,4 @@
   versions, none NA; `pkgdown::build_news()` into the scratchpad writes 37 `pkg-version` sections
   (was 1). That build wrote `pkgdown/favicon/` from the logo, untracked; moved out of the tree
 - Phase 5: `reference:` groups added; `check_pkgdown()` reports no problems; the built index shows the four groups
+- Code-check round 1: 3 findings, all real and fixed. "each" claims in the README, DESCRIPTION and pkgdown (the DEM route excludes frames sized from GSD, and the height check runs on film only); GitHub About set to DESCRIPTION's Title

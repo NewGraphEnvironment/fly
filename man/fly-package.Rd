@@ -8,7 +8,7 @@
 \description{
 \if{html}{\figure{logo.png}{options: style='float: right' alt='logo' width='120'}}
 
-Estimate the ground each of British Columbia's historic airphotos covers, from its catalogued centroid and scale or, given an elevation model, from the aircraft's height above the ground after checking the catalogued flying height against the scale. Select the fewest photos that cover an area of interest, download scans and flight metadata from the BC Data Catalogue, and georeference the scans onto their estimated footprints.
+Estimate the ground British Columbia's historic airphotos cover, from their catalogued centroids, scale and camera format or, given an elevation model, from the aircraft's height above the ground, with the catalogued flying height of film photos checked against their scale. Select the fewest photos that cover an area of interest, download scans and flight metadata from the BC Data Catalogue, and georeference the scans onto their estimated footprints.
 }
 \seealso{
 Useful links:

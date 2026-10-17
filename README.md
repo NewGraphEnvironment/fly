@@ -8,15 +8,15 @@
 > Footprints, selection and georeferencing for British Columbia's historic airphotos.
 
 fly works with British Columbia's historic airphoto catalogue, which records each photo as a point
-and a scale. It estimates the ground each photo covers, finds the photos that cover a study area,
-picks the fewest needed, downloads the scans and places each one on its estimated footprint.
+and a scale. It estimates the ground the photos cover, finds the ones that cover a study area,
+picks the fewest needed, downloads the scans and places them on their estimated footprints.
 Older photos often show a site before roads, farming and logging changed it, which makes them a
 reference condition for restoration planning and a baseline for monitoring change.
 
-Given an elevation model, fly sizes each footprint from the aircraft's height above the ground
-rather than the photo's reported scale. It first checks the catalogue's flying height against that
-scale, and repairs the errors it can identify. Scans are placed with the black border around each
-frame masked out.
+Given an elevation model, fly sizes footprints from the aircraft's height above the ground rather
+than the photo's reported scale. For film photos it first checks the catalogue's flying height
+against that scale, repairs the errors it can identify, and keeps the scale where it cannot. Scans
+are placed with the black border around the frame masked out.
 
 <img src="man/figures/readme-history.png" width="100%" alt="Two black-and-white airphotos side by side of the same 2 km square of the upper Bulkley River valley, labelled 1971 and 1981. A meandering river crosses each from left to right beside a highway, with forest and open meadow on the valley floor and forest on the slopes." />
 
