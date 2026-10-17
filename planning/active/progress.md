@@ -18,3 +18,4 @@
 - Phase 4: NEWS headings promoted to `# fly x.y.z (date)`, 37 of 37; R's NEWS parser reads 37
   versions, none NA; `pkgdown::build_news()` into the scratchpad writes 37 `pkg-version` sections
   (was 1). That build wrote `pkgdown/favicon/` from the logo, untracked; moved out of the tree
+- Phase 5: `reference:` groups added; `check_pkgdown()` reports no problems; the built index shows the four groups

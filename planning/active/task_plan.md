@@ -42,11 +42,11 @@ order, a figure made by committed code, no function list.
   changelog has one section per release
 
 ## Phase 5: Group the reference index
-- [ ] `reference:` in `_pkgdown.yml`, grouped by purpose, each with a one-line `desc`:
+- [x] `reference:` in `_pkgdown.yml`, grouped by purpose, each with a one-line `desc`:
   Estimate footprints (`fly_footprint`, `fly_camera_patb`, `fly_summary`); Choose photos for an
   area (`fly_filter`, `fly_select`, `fly_coverage`, `fly_overlap`); Download (`fly_fetch`);
   Georeference (`fly_georef`, `fly_bearing`, `fly_mask`, `fly_rotation_calibrate`)
-- [ ] `pkgdown::check_pkgdown()` passes
+- [x] `pkgdown::check_pkgdown()` passes
 
 ## Phase 6: Release
 - [ ] NEWS entry under `# fly 0.24.1`; bump DESCRIPTION as the final commit
