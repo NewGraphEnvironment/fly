@@ -1,7 +1,7 @@
 # README figure: one site, ten years apart, from photos fly georeferenced (#104)
 #
 # Two thumbnails from the public stac-airphoto-bc collection (https://images.a11s.one/), which
-# fly georeferenced onto their estimated footprints, cropped to the same 2 km x 2 km box at
+# fly georeferenced onto their estimated footprints, cropped to the same 2 km x 2 km box near
 # McKilligan Road on the upper Bulkley River (Neexdzii Kwa) near Houston, BC, centred on
 # -126.5345, 54.45192. Writes man/figures/readme-history.png. Run from the package root.
 

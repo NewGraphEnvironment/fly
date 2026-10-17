@@ -22,3 +22,10 @@
 - Code-check round 1: 3 findings, all real and fixed. "each" claims in the README, DESCRIPTION and pkgdown (the DEM route excludes frames sized from GSD, and the height check runs on film only); GitHub About set to DESCRIPTION's Title
 - Code-check round 2: 5 findings, all real; 2 inside round 1's fixes (a plural in place of "each" restates the claim over the same frames). Rewritten as capability statements scoped to film, a small set rather than the fewest (selection is greedy), and the records rather than each record. Two more sentences of the same shape fixed before round 3
 - Ecosystem row: "select optimal coverage" softened to "select photos that cover a study area" at the user's request; the sibling READMEs (flooded, breaks) still read "optimal"
+- Code-check round 3 (enumeration, 54 rows): mechanism named as a sentence written from the typical
+  case and stated of the whole set its noun names, plus a plain word naming a different set than the
+  code's. Fixed every row not true: "scans" where fly downloads thumbnails (README x3, DESCRIPTION,
+  which was false on main too), the figure is near, not at, McKilligan Road (625 m outside the box),
+  "for most photos" (1-2.5% of frames get no footprint), "the errors it can identify". Accepted: the
+  example omits sf's s2 on/off messages, every number reproduces. Closed by the enumeration: each
+  rewritten row was checked against R/fly_fetch.R:1-4, R/fly_georef.R:5 and round 3's measurements

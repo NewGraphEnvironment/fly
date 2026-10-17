@@ -8,20 +8,20 @@
 > Footprints, selection and georeferencing for British Columbia's historic airphotos.
 
 fly helps you find and use British Columbia's historic airphotos. The province's catalogue records
-where each photo was taken, but not the ground it shows. fly works that out, finds the photos over
-your study area, picks a small set that covers as much of it as you need, and can download the
-scans and place them on a map.
+where each photo was taken, but not the ground it shows. fly works that out for most photos, finds
+the photos over your study area, picks a small set that covers as much of it as you need, and can
+download the photos and place them on a map.
 
 Older photos often show a site before roads, farming and logging changed it. That makes them a
 reference for what to restore toward, and a baseline for measuring change.
 
 With an elevation model, fly allows for the height of the land under the aircraft, which makes the
-footprints of film photos more accurate, and it corrects known errors in the catalogue's flying
-heights.
+footprints of film photos more accurate, and it corrects the errors it can identify in the
+catalogue's flying heights.
 
 <img src="man/figures/readme-history.png" width="100%" alt="Two black-and-white airphotos side by side of the same 2 km square of the upper Bulkley River valley, labelled 1971 and 1981. A meandering river crosses each from left to right beside a highway, with forest and open meadow on the valley floor and forest on the slopes." />
 
-*The upper Bulkley River (Neexdzii Kwa) at McKilligan Road near Houston, BC, in
+*The upper Bulkley River (Neexdzii Kwa) near McKilligan Road and Houston, BC, in
 [1971](https://images.a11s.one/collections/stac-airphoto-bc/items/1400364) and
 [1981](https://images.a11s.one/collections/stac-airphoto-bc/items/790359), placed on the map by
 fly. Each photo sits on its own estimated footprint, so features line up approximately rather than
@@ -60,8 +60,8 @@ selected <- fly_select(centroids, aoi, mode = "minimal", target_coverage = 0.8)
 #> Selected 3 of 20 photos for 81.6% coverage
 ```
 
-From there, `fly_fetch()` downloads the scans and `fly_georef()` writes each one as a GeoTIFF on
-its footprint.
+From there, `fly_fetch()` downloads the photos' thumbnails and `fly_georef()` writes each one as a
+GeoTIFF on its footprint.
 
 ## Learn more
 
@@ -94,7 +94,7 @@ Historic airphotos: fly (footprints, selection, georeferencing) &rarr; stac_airp
 ## Data and methods it builds on
 
 - The province's [airphoto centroids](https://catalogue.data.gov.bc.ca/dataset/0af7544c-f2ad-4553-bb37-889c94d4c571)
-  in the BC Data Catalogue, with the scans, flight logbooks, camera calibration reports and
+  in the BC Data Catalogue, with the thumbnails, flight logbooks, camera calibration reports and
   camera files the records link to.
 - NRCan's [MRDEM-30](https://open.canada.ca/data/en/dataset/18752265-bda3-498c-a4ba-9dfe68cb98da)
   elevation model, the one the height checks were measured against.
