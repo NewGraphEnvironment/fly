@@ -7,16 +7,17 @@
 
 > Footprints, selection and georeferencing for British Columbia's historic airphotos.
 
-fly works with British Columbia's historic airphoto catalogue, which records each photo as a point
-and a scale. It estimates the ground the photos cover, finds the ones that cover a study area,
-picks the fewest needed, downloads the scans and places them on their estimated footprints.
+fly works with British Columbia's historic airphoto catalogue, which records where a photo was
+taken but not the ground it covers. fly estimates that ground, finds the photos over a study area
+and selects a small set of them to reach a chosen coverage. It can then download the scans and
+georeference them onto their estimated footprints.
 Older photos often show a site before roads, farming and logging changed it, which makes them a
 reference condition for restoration planning and a baseline for monitoring change.
 
-Given an elevation model, fly sizes footprints from the aircraft's height above the ground rather
-than the photo's reported scale. For film photos it first checks the catalogue's flying height
-against that scale, repairs the errors it can identify, and keeps the scale where it cannot. Scans
-are placed with the black border around the frame masked out.
+Given an elevation model, fly can size a film photo from the aircraft's height above the ground
+rather than from its reported scale. It checks the catalogue's flying height against that scale
+first and repairs the errors it can identify. When georeferencing, it masks the black border
+around the frame.
 
 <img src="man/figures/readme-history.png" width="100%" alt="Two black-and-white airphotos side by side of the same 2 km square of the upper Bulkley River valley, labelled 1971 and 1981. A meandering river crosses each from left to right beside a highway, with forest and open meadow on the valley floor and forest on the slopes." />
 
@@ -94,7 +95,7 @@ Historic airphotos: fly (footprints, selection, georeferencing) &rarr; stac_airp
 
 - The province's [airphoto centroids](https://catalogue.data.gov.bc.ca/dataset/0af7544c-f2ad-4553-bb37-889c94d4c571)
   in the BC Data Catalogue, with the scans, flight logbooks, camera calibration reports and
-  camera files each record links to.
+  camera files the records link to.
 - NRCan's [MRDEM-30](https://open.canada.ca/data/en/dataset/18752265-bda3-498c-a4ba-9dfe68cb98da)
   elevation model, the one the height checks were measured against.
 - [GDAL](https://gdal.org/), through [sf](https://r-spatial.github.io/sf/), for warping and

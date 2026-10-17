@@ -4,13 +4,13 @@ template:
 
 reference:
 - title: Estimate footprints
-  desc: The ground each photo covers, from its centroid and scale or from an elevation model.
+  desc: The ground a photo covers, from its catalogue record, optionally with an elevation model.
   contents:
   - fly_footprint
   - fly_camera_patb
   - fly_summary
 - title: Choose photos for an area
-  desc: Which photos cover an area of interest, how much, and the fewest needed.
+  desc: Which photos cover an area of interest, how much, and a small set that covers it.
   contents:
   - fly_filter
   - fly_select
@@ -20,7 +20,7 @@ reference:
   contents:
   - fly_fetch
 - title: Georeference
-  desc: Place scans on their estimated footprints, with the black border masked.
+  desc: Warp a scan onto its estimated footprint, with the black border masked.
   contents:
   - fly_georef
   - fly_bearing
