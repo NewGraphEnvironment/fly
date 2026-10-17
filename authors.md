@@ -11,7 +11,7 @@
 ## Citation
 
 Source:
-[`inst/CITATION`](https://github.com/NewGraphEnvironment/fly/blob/main/inst/CITATION)
+[`inst/CITATION`](https://github.com/NewGraphEnvironment/fly/blob/v0.24.1/inst/CITATION)
 
 Irvine A (2026). *fly: Historic Airphoto Footprints, Selection and
 Georeferencing for British Columbia*. New Graph Environment Ltd. Version
