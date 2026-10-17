@@ -25,15 +25,15 @@ order, a figure made by committed code, no function list.
   else references and no script makes
 
 ## Phase 3: README
-- [ ] Section order per `readme.md`: title, sticker, badges, tagline; opening; figure and caption;
+- [x] Section order per `readme.md`: title, sticker, badges, tagline; opening; figure and caption;
   Installation; Example; Learn more; Ecosystem; Data and methods it builds on; Citation and License
-- [ ] Opening: plain, professional, short. What fly does today, that footprints are sized from
+- [x] Opening: plain, professional, short. What fly does today, that footprints are sized from
   the terrain and corrected for catalogue height and scale errors, and that it gives a site's
   pre-disturbance reference condition for restoration planning and monitoring. No details
-- [ ] Remove the function-name bullet list, "Used by" and "Related packages"; no mention of diggs
-- [ ] Ecosystem: flooded's table, with fly in bold as "this package", plus stac_airphoto_bc,
+- [x] Remove the function-name bullet list, "Used by" and "Related packages"; no mention of diggs
+- [x] Ecosystem: flooded's table, with fly in bold as "this package", plus stac_airphoto_bc,
   where the georeferenced photos are published
-- [ ] Keep DESCRIPTION `Title`/`Description`, the tagline and the GitHub About in step
+- [x] Keep DESCRIPTION `Title`/`Description`, the tagline and the GitHub About in step
 
 ## Phase 4: NEWS header
 - [ ] Drop `# fly (development version)` and promote every `## x.y.z (date)` to
