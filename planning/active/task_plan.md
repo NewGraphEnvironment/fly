@@ -10,11 +10,11 @@ dont talk about diggs. use our ecosystem table"*, plus the two McKilligan Rd air
 order, a figure made by committed code, no function list.
 
 ## Phase 1: Verify the claims against the code
-- [ ] For each capability the README will name, find the version that shipped it and the
+- [x] For each capability the README will name, find the version that shipped it and the
   argument or column a reader would use: `fly_footprint(dem =)` and `footprint_terrain` /
   `height_agl` / `dem_coverage`; `height_source` and the roll table; `fly_mask()`;
   `fly_camera_patb()`; the georef alpha band. Read each from the roxygen and NEWS, not CLAUDE.md
-- [ ] Record each claim and its source in `findings.md`
+- [x] Record each claim and its source in `findings.md`
 
 ## Phase 2: README figure from real airphotos
 - [ ] `data-raw/readme_figure.R`: the 1971 (`bc7326_030`) and 1981 (`bc81050_048`) georeferenced

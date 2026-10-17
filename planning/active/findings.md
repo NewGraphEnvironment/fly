@@ -57,6 +57,21 @@ The New Graph website will describe this package from its README (NewGraphEnviro
 dont talk about diggs. use our ecosystem table." Airphotos for the figure, with the STAC items
 `1400364` (1971-07-17) and `790359` (1981-07-13) at McKilligan Rd, centred -126.5345, 54.45192.
 
+## Phase 1: claims checked against the code (2026-10-16)
+
+| README claim | Where it is true | Shipped |
+|---|---|---|
+| Footprints sized from height above ground when given an elevation model | `fly_footprint(dem =)`, `R/fly_footprint.R:931`; `height_agl`, `dem_coverage` in `@return` | v0.5.0 (#9) |
+| The catalogue's flying height is checked against scale, and known errors corrected | inside `if (!is.null(dem))` at `R/fly_footprint.R:1141-1547`; `height_source`, `corrected_roll_table` at :1542; `inst/extdata/flying_height_rolls.csv` | v0.12.0 (#54), v0.15.0 (#60) to v0.24.0 |
+| **Only with a DEM.** Without `dem` no height check runs, so the README ties the correction to the elevation model | same block | |
+| Digital frames sized from the camera named in PAT-B files | `fly_camera_patb()`, exported | v0.10.0 (#50) |
+| Black scan border masked | `fly_georef(mask = "border")` is the default, via `fly_mask()` | v0.11.0 (#23) |
+| Every georeferenced output carries an alpha band | `fly_georef()` `@param mask`: "Output carries an alpha band either way" | v0.19.0 (#56, breaking) |
+| Film photos rotated from a measured per-roll table | `inst/extdata/film_rotations.csv`, read at `R/fly_georef.R:675` | v0.20.0 (#53) |
+
+Per the user's "dont get into the details too much", the README states these in one or two
+plain sentences. The roll counts, versions and notes stay in NEWS and `inst/notes/`.
+
 ## Errors Encountered
 
 | Error | Resolution |
