@@ -14,8 +14,9 @@ Source:
 [`inst/CITATION`](https://github.com/NewGraphEnvironment/fly/blob/main/inst/CITATION)
 
 Irvine A (2026). *fly: Historic Airphoto Footprints, Selection and
-Georeferencing for British Columbia*. New Graph Environment Ltd. Version
-0.24.1, <https://github.com/NewGraphEnvironment/fly>.
+Georeferencing for British Columbia*. New Graph Environment Ltd.
+[doi:10.5281/zenodo.23432896](https://doi.org/10.5281/zenodo.23432896).
+Version 0.24.1, <https://github.com/NewGraphEnvironment/fly>.
 
     @Manual{fly,
       title = {fly: Historic Airphoto Footprints, Selection and Georeferencing for British Columbia},
@@ -25,4 +26,5 @@ Georeferencing for British Columbia*. New Graph Environment Ltd. Version
       version = {0.24.1},
       note = {Version 0.24.1},
       url = {https://github.com/NewGraphEnvironment/fly},
+      doi = {10.5281/zenodo.23432896},
     }
