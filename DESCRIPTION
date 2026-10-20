@@ -42,5 +42,6 @@ Suggests:
     knitr,
     rmarkdown,
     withr
+Config/DOI: 10.5281/zenodo.23432896
 Config/testthat/edition: 3
 VignetteBuilder: knitr

@@ -4,12 +4,13 @@
 # ------------------------------------------------
  
 cff-version: 1.2.0
-message: 'To cite package "fly" in publications use:'
+message: If you use fly, please cite it by its DOI, 10.5281/zenodo.23432896.
 type: software
 license: MIT
 title: 'fly: Historic Airphoto Footprints, Selection and Georeferencing for British
   Columbia'
 version: 0.24.1
+doi: 10.5281/zenodo.23432896
 abstract: Estimate the ground a historic British Columbia airphoto covers from its
   catalogue record; given an elevation model, a film photo can be sized from the aircraft's
   height above the ground, with the catalogued flying height checked against the photo
@@ -36,6 +37,7 @@ preferred-citation:
   url: https://newgraphenvironment.github.io/fly/
   repository-code: https://github.com/NewGraphEnvironment/fly
   license: MIT
+  doi: 10.5281/zenodo.23432896
   type: software
   publisher:
     name: New Graph Environment Ltd.
