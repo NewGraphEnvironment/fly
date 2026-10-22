@@ -1,8 +1,8 @@
 # fly
 
 Historic airphoto toolkit for British Columbia. Estimate ground footprints from airphoto centroids and scale,
-compute coverage of areas of interest, select minimum photo sets using greedy set-cover, fetch scans and flight
-metadata from the BC Data Catalogue, and georeference the images onto their estimated footprints.
+compute coverage of areas of interest, select small photo sets with greedy set-cover (not guaranteed minimal,
+fly#106), fetch thumbnails and flight metadata from the BC Data Catalogue, and georeference the images onto their estimated footprints.
 
 ## Repository Context
 
