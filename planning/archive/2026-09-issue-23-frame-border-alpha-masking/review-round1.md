@@ -56,7 +56,7 @@ No test passes an *accepted* factor.
 
 Fix is one word: `threshold <- fly_check_threshold(threshold)`, and pass that value down.
 Same family as `code-check.md` → "A coercion that truncates rather than refusing defeats a
-guard watching for NA" (rtj#265).
+guard watching for NA".
 
 ### 2. [bug] `R/fly_mask.R:67` vs `:271` — the calibration test guards a constant no production code path reads
 
@@ -346,7 +346,7 @@ Every claim below was probed on this machine (`/tmp/probe_mask.R`), not reasoned
   named "validates its arguments by value, not by coercion" (`test-fly_mask.R:210`) covers
   sign, range, length, unparseable and factor, and never a fractional value — so the one
   coercion that still happens is the one the test's own title claims to rule out. `code-check.md`
-  ("A coercion that truncates rather than refusing defeats a guard watching for NA", rtj#265)
+  ("A coercion that truncates rather than refusing defeats a guard watching for NA", an internal issue)
   prescribes an abort for a parseable-but-fractional value; compare against `round()` with a
   tolerance rather than watching for `NA`.
 

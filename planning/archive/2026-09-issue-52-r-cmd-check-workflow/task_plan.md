@@ -14,7 +14,7 @@ Outcome: `R CMD check` runs on ubuntu, macOS and Windows at R release for every 
   through `sf::gdal_utils()` for warp, translate and `nearblack -alg floodfill`, which
   needs GDAL >= 3.7 — **wrong, and kept as written because it is what the decision was
   taken on**. GDAL's own `nearblack.rst` marks `-alg` `versionadded:: 3.8`; the 3.7 came
-  from this repo's conventions and is filed as soul#255. The decision is unaffected; the
+  from this repo's conventions and is filed as an internal issue. The decision is unaffected; the
   guard built on it would have passed on a build with no `-alg` at all — and the three
   platforms ship different GDAL builds. R devel and
   oldrel-1 are dropped: this package is not going to CRAN, and oldrel-1 (R 4.4) is far
@@ -79,7 +79,7 @@ diff — fly#52's own complaint in a new form.
       then serves the stale file as a cache hit
 - [x] Measure both directions under a simulated outage, against the file as it stood at
       `HEAD` rather than a reconstruction
-- [x] Assert the GDAL floor (**3.8**, not the 3.7 the conventions carry — soul#255) `fly_mask()` depends on, so a runner below it fails
+- [x] Assert the GDAL floor (**3.8**, not the 3.7 the conventions carry — an internal issue) `fly_mask()` depends on, so a runner below it fails
       by naming the cause
 - [x] README badge
 

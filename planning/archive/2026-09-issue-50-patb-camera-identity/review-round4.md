@@ -177,7 +177,7 @@ unguarded `grepl()` on line 89, above. `read.csv()` now reads every member in fu
 No vacuous guards found. The four the author verified go red (F1 `"Could not download"`,
 F3 two-member conflict, F4 unusable frame number and all-NA `airp_id`, F5 `.dat` member)
 each drive `fly_camera_patb()` end to end rather than a helper, which is the right level
-— `code-check.md`'s rfp#243 row is about exactly the opposite. Two notes, neither a
+— `code-check.md`'s an internal issue row is about exactly the opposite. Two notes, neither a
 defect:
 
 - `"the added columns reach a tibble-backed caller"` sets every `patb_georef_url` to

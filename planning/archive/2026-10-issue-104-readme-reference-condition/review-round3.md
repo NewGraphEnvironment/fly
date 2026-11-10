@@ -120,7 +120,7 @@ The plain-language rewrite changed the set while it simplified the wording.
 - **CITATION.cff still carries the old abstract** ("select minimum photo sets using greedy
   set-cover"). The `update-citation-cff` workflow regenerates it on the merge push, because
   DESCRIPTION changed, so no action is needed. Its cffr default also leaves New Graph out of
-  the authors (soul#40). That is not this branch's change.
+  the authors. That is not this branch's change.
 - **The s2 toggle overrides the caller's setting.** `on.exit(sf::sf_use_s2(TRUE))` turns s2
   on whatever the caller had set before. This is pre-existing.
 

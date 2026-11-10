@@ -56,5 +56,5 @@ no `-alg` flag at all.
   than slipped in
 - [#68](https://github.com/NewGraphEnvironment/fly/issues/68) — the Windows band count and
   the zero-shift, both found by this workflow
-- [soul#255](https://github.com/NewGraphEnvironment/soul/issues/255) — the GDAL 3.7/3.8
+- An internal issue — the GDAL 3.7/3.8
   error in a shared convention that reaches every repo

@@ -289,7 +289,7 @@ unrecognised-option error naming nothing. A guard failing toward pass on precise
 release it exists to catch, and the wrong number came from this repo's own conventions
 rather than from upstream. Now `>= 3.8.0` with the citation inline, and the convention
 error is filed as
-[soul#255](https://github.com/NewGraphEnvironment/soul/issues/255).
+an internal issue.
 
 Three of thirteen claims were wrong. None was reachable by reading the file again.
 

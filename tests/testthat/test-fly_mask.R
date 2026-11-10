@@ -423,7 +423,7 @@ test_that("an unreadable band type is refused too, not assumed to be Byte", {
 test_that("a fractional threshold is refused rather than truncated", {
   # `as.integer("16.7")` is 16 — it truncates rather than returning NA, so a guard
   # watching for NA cannot see it and GDAL runs at a threshold nobody asked for.
-  # `code-check.md`, rtj#265: compare against round(), do not watch for NA.
+  # `code-check.md`, an internal issue: compare against round(), do not watch for NA.
   expect_error(fly_mask("a.tif", threshold = 16.7), "whole number")
   expect_error(fly_mask("a.tif", threshold = 0.9), "whole number")
   expect_error(fly_mask("a.tif", threshold = -3.7), "whole number")

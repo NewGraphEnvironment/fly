@@ -30,6 +30,6 @@
   on a build with no `-alg` flag
 - Filed [#66](https://github.com/NewGraphEnvironment/fly/issues/66) (`^\.git$`, scoped out
   at the plan gate) and
-  [soul#255](https://github.com/NewGraphEnvironment/soul/issues/255) (the GDAL version
+  an internal issue (the GDAL version
   error in the shared convention)
 - Next: commit workflow-first, push, open the PR, read the red run, then push the fix
