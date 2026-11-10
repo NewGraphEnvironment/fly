@@ -770,8 +770,7 @@
   that inverted `error-on` semantics; and a GDAL premise asserting
   `>= 3.7` — taken from this repo’s own conventions — which would have
   **passed on a build with no `-alg` flag at all**. The convention error
-  is filed as
-  [soul#255](https://github.com/NewGraphEnvironment/soul/issues/255)
+  is filed as an internal issue
 - **A local check is not the CI check**, which is worth knowing before
   reading either. `r-lib/actions/check-r-package@v2` forces
   `_R_CHECK_CRAN_INCOMING_=false` and `_R_CHECK_FORCE_SUGGESTS_=false`,
